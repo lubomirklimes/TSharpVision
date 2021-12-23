@@ -54,8 +54,8 @@ public class TListBox : TListViewer
     }
 
     // Konstruktor pro streamable inicializaci
-    protected TListBox(object streamableInit)
-        :base (streamableInit)
+    protected TListBox(StreamableInit s)
+        :base (s)
     {
         throw new NotImplementedException("TListBox(streamableInit) není implementováno.");
     }

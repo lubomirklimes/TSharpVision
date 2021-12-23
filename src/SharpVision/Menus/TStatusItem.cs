@@ -1,8 +1,5 @@
-﻿namespace SharpVision.Menus;
+﻿namespace SharpVision;
 
-// ========================================================================
-// 4. TStatusItem a TStatusDef
-// ========================================================================
 public class TStatusItem
 {
     public TStatusItem Next { get; set; }

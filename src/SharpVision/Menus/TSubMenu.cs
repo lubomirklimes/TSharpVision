@@ -1,19 +1,17 @@
 ﻿using SharpVision.Constants;
+namespace SharpVision;
 
-namespace SharpVision.Menus;
-
-// TSubMenu dědí z TMenuItem.
 public class TSubMenu : TMenuItem
 {
-    // Konstruktor TSubMenu – předává parametry rodičovské třídě.
-    public TSubMenu(string aName, ushort aCommand, ushort aHelpCtx = Views.hcNoContext)
-         //: base(aName, aCommand,
-         : base(aName, aCommand, 0, aHelpCtx, null, null)
+    // Submenu ctor sets command=0, keyCode=aKeyCode, subMenu=new TMenu().
+    // Upstream C++ uses the second TMenuItem ctor (name, keyCode, *subMenu, helpCtx, next).
+    public TSubMenu(string aName, ushort aKeyCode, ushort aHelpCtx = Views.hcNoContext)
+        : base(aName, aKeyCode, new TMenu(), aHelpCtx, null)
     {
-        // Další inicializace, pokud je potřeba.
+        // Command = 0 (set by submenu ctor), SubMenu initialized to new TMenu().
+        // The + operator fills SubMenu.Items when items are appended.
     }
 
-    // Přetížení operátoru + pro sloučení dvou submenu
     public static TSubMenu operator +(TSubMenu s1, TSubMenu s2)
     {
         if (s1 == null)

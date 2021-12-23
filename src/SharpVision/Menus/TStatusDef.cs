@@ -1,4 +1,4 @@
-﻿namespace SharpVision.Menus;
+﻿namespace SharpVision;
 
 public class TStatusDef
 {
@@ -15,18 +15,6 @@ public class TStatusDef
         Next = aNext;
     }
 
-    //// Přetížení operátoru + pro připojení TStatusItem
-    //public static TStatusDef operator +(TStatusDef s1, TStatusItem s2)
-    //{
-    //    throw new NotImplementedException("Operátor +(TStatusDef, TStatusItem) není implementován.");
-    //}
-    //// Přetížení operátoru + pro sloučení dvou TStatusDef
-    //public static TStatusDef operator +(TStatusDef s1, TStatusDef s2)
-    //{
-    //    throw new NotImplementedException("Operátor +(TStatusDef, TStatusDef) není implementován.");
-    //}
-
-    // Přetížení operátoru + pro připojení TStatusItem
     public static TStatusDef operator +(TStatusDef s1, TStatusItem s2)
     {
         if (s1 == null)
@@ -37,7 +25,6 @@ public class TStatusDef
         }
         else
         {
-            // Projdeme řetězec položek a připojíme novou položku na konec
             TStatusItem last = s1.Items;
             while (last.Next != null)
                 last = last.Next;
@@ -46,7 +33,6 @@ public class TStatusDef
         return s1;
     }
 
-    // Přetížení operátoru + pro sloučení dvou TStatusDef
     public static TStatusDef operator +(TStatusDef s1, TStatusDef s2)
     {
         if (s1 == null) return s2;

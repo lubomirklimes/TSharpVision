@@ -1,35 +1,33 @@
-﻿using SharpVision;
-using SharpVision.Constants;
+﻿using SharpVision.Constants;
+namespace SharpVision;
 
-namespace SharpVision.Menus;
-
-// TMenuBar – speciální verze TMenuView pro horní lištu menu
 public class TMenuBar : TMenuView
 {
     public static readonly string Name = "TMenuBar";
 
-    protected TMenu menu; 
-    protected TMenuItem current;
-
-    //public TMenuBar(TRect bounds, TMenu aMenu) : base(bounds, aMenu, null) { }
-    public TMenuBar(TRect bounds, TMenu aMenu) : base(bounds) 
+    public TMenuBar(TRect bounds, TMenu aMenu) : base(bounds, aMenu, null)
     {
-        menu = aMenu;
         growMode = Views.gfGrowHiX;
         options |= Views.ofPreProcess;
     }
 
-    //public TMenuBar(TRect bounds, TSubMenu aMenu) : base(bounds, new TMenu(aMenu), null) { }
-    public TMenuBar(TRect bounds, TSubMenu aMenu) : base(bounds)
+    public TMenuBar(TRect bounds, TSubMenu aMenu) : base(bounds, new TMenu(aMenu), null)
     {
-        menu = new TMenu(aMenu);
         growMode = Views.gfGrowHiX;
         options |= Views.ofPreProcess;
     }
 
     ~TMenuBar()
     {
-        // Uvolnění zdrojů, pokud je potřeba
+    }
+
+    // Count visible chars in a '~'-hotkey string (same as TMenuBox.CStrLen).
+    private static int CStrLen(string s)
+    {
+        if (s == null) return 0;
+        int n = 0;
+        foreach (char c in s) if (c != '~') n++;
+        return n;
     }
 
     public override void Draw()
@@ -37,66 +35,76 @@ public class TMenuBar : TMenuView
         var b = new TDrawBuffer();
         ushort color;
 
-        // 1) připravíme čtyři základní barvy
         ushort cNormal = GetColor(0x0301);
         ushort cSelect = GetColor(0x0604);
         ushort cNormDisabled = GetColor(0x0202);
         ushort cSelDisabled = GetColor(0x0505);
 
-        // 2) předvyplníme celý řádek mezerami s normální barvou
         b.moveChar(0, ' ', cNormal, size.x);
 
-        // 3) pokud máme menu, vykreslíme položky
-        if (menu != null)
+        if (Menu != null)
         {
             int x = 1;
-            var p = menu.Items;        // nebo menu.Items, podle vaší C# třídy
+            var p = Menu.Items;
 
             while (p != null)
             {
-                if (!string.IsNullOrEmpty(p.Name))   // nebo p.Name
+                if (!string.IsNullOrEmpty(p.Name))
                 {
-                    int l = p.Name.Length;           // délka textu
+                    int l = CStrLen(p.Name);
                     if (x + l < size.x)
                     {
-                        // vybereme barvu podle stavu (disabled / vybraná / normální)
-                        if (p.Disabled)             // nebo p.Disabled
+                        if (p.Disabled)
                         {
-                            color = p == current
+                            color = (p == Current)
                                 ? cSelDisabled
                                 : cNormDisabled;
                         }
                         else
                         {
-                            color = p == current
+                            color = (p == Current)
                                 ? cSelect
                                 : cNormal;
                         }
 
-                        // vykreslíme "okolo" textu mezeru, pak text, pak mezeru
                         b.moveChar((ushort)x, ' ', color, 1);
                         b.moveCStr((ushort)(x + 1), p.Name, color);
                         b.moveChar((ushort)(x + l + 1), ' ', color, 1);
                     }
                     x += l + 2;
                 }
-                p = p.Next;  // nebo p.Next
+                p = p.Next;
             }
         }
 
-        // 4) napíšeme do bufferu (y=0, výška=1 řádek)
         WriteBuf(0, 0, size.x, 1, b);
     }
 
     public override TRect GetItemRect(TMenuItem item)
     {
-        throw new NotImplementedException("TMenuBar.GetItemRect() není implementováno.");
+        if (Menu == null || item == null) return new TRect(0, 0, 0, 0);
+        int x = 1;
+        for (TMenuItem p = Menu.Items; p != null; p = p.Next)
+        {
+            if (string.IsNullOrEmpty(p.Name))
+            {
+                if (p == item) return new TRect(x, 0, x, 1);
+                continue;
+            }
+            int len = CStrLen(p.Name);
+            if (p == item) return new TRect(x, 0, x + len + 2, 1);
+            x += len + 2;
+        }
+        return new TRect(0, 0, 0, 0);
     }
 
-    protected TMenuBar(object streamableInit) : base(null) { throw new NotImplementedException("TMenuBar(streamableInit) není implementováno."); }
+    protected TMenuBar(StreamableInit init) : base(init) { }
 
-    public static new TStreamable Build()
-    {
-        throw new NotImplementedException("TMenuBar.Build() není implementováno.");
-    }
+    // TMenuBar adds no fields beyond TMenuView — Write/Read are inherited.
+    // Build() must return a TMenuBar instance so the registry creates the
+    // correct concrete type.
+    public static new TStreamable Build() => new TMenuBar(StreamableInit.streamableInit);
+
+    public static readonly TStreamableClass StreamableClassTMenuBar =
+        new TStreamableClass("TMenuBar", () => new TMenuBar(StreamableInit.streamableInit), 0);
 }

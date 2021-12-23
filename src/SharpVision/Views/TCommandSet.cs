@@ -1,14 +1,9 @@
 ﻿namespace SharpVision;
 
-/// <summary>
-/// Reprezentuje sadu příkazů; implementuje metody pro zapnutí, vypnutí a operace nad sadou.
-/// </summary>
 public class TCommandSet
 {
-    // Interní pole pro příkazy – 32 bajtů
     private byte[] cmds = new byte[32];
 
-    // Statické pole masek pro operace (8 položek)
     private static readonly int[] masks = new int[8] { 1, 2, 4, 8, 16, 32, 64, 128 };
 
     public TCommandSet()
@@ -17,7 +12,6 @@ public class TCommandSet
             cmds[i] = 0;
     }
 
-    // Copy konstruktor
     public TCommandSet(TCommandSet other)
     {
         cmds = (byte[])other.cmds.Clone();
@@ -38,9 +32,7 @@ public class TCommandSet
         return masks[cmd & 0x07];
     }
 
-    // Zapne příkaz (operator += v C++)
     public void Add(int cmd) { EnableCmd(cmd); }
-    // Vypne příkaz (operator -= v C++)
     public void Remove(int cmd) { DisableCmd(cmd); }
 
     public void EnableCmd(int cmd)

@@ -1,47 +1,34 @@
-﻿namespace SharpVision.Dialogs;
+﻿namespace SharpVision;
 
-// ------------------------------------------------------------------------
-// TCheckBoxes
-// ------------------------------------------------------------------------
 public class TCheckBoxes : TCluster
 {
-    public static readonly string Name = "TCheckBoxes";
+    public new static readonly string Name = "TCheckBoxes";
 
-    // Konstruktor TCheckBoxes(const TRect& bounds, TSItem *aStrings)
+    // TCheckBoxes::button[] = " [ ] ".
+    // 5 chars: leading space, open-bracket, marker-slot (space/X), close-bracket, trailing space.
+    // DrawBox writes the marker at col+2 (the slot), label at col+5.
+    private const string Button = " [ ] ";
+
     public TCheckBoxes(TRect bounds, TSItem aStrings)
         : base(bounds, aStrings)
     {
     }
 
-    public override void Draw()
-    {
-        throw new NotImplementedException("TCheckBoxes.Draw() není implementováno.");
-    }
+    public override void Draw() => DrawBox(Button, SharpVisionGlyphs.CheckBoxChecked);
 
-    public override bool Mark(int item)
-    {
-        throw new NotImplementedException("TCheckBoxes.Mark() není implementováno.");
-    }
+    public override bool Mark(int item) => (value & (1u << item)) != 0;
 
     public override void Press(int item)
     {
-        throw new NotImplementedException("TCheckBoxes.Press() není implementováno.");
+        value ^= (1u << item);
+        base.Press(item);
     }
 
-    // Konstruktor pro streamable inicializaci
-    protected TCheckBoxes(object streamableInit)
-        : base(streamableInit)
-    {
-        throw new NotImplementedException("TCheckBoxes(streamableInit) není implementováno.");
-    }
+    // ── Streaming ────────────────────────────────────────────────────────
+    public static readonly TStreamableClass StreamableClassTCheckBoxes =
+        new TStreamableClass("TCheckBoxes", () => new TCheckBoxes(StreamableInit.streamableInit), 0);
 
-    public static new TStreamable Build()
-    {
-        throw new NotImplementedException("TCheckBoxes.Build() není implementováno.");
-    }
+    protected TCheckBoxes(StreamableInit init) : base(init) { }
 
-    protected override string StreamableName()
-    {
-        return Name;
-    }
+    public new static TStreamable Build() => new TCheckBoxes(StreamableInit.streamableInit);
 }

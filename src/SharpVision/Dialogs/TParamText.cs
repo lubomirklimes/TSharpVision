@@ -1,61 +1,49 @@
-﻿namespace SharpVision.Dialogs;
+﻿namespace SharpVision;
 
-// ------------------------------------------------------------------------
-// TParamText
-// ------------------------------------------------------------------------
 public class TParamText : TStaticText
 {
     public static readonly string Name = "TParamText";
 
     protected short ParamCount;
-    protected object ParamList; // Může jít o libovolnou strukturu (pole, seznam) parametrů
+    protected object[] ParamList;
 
-    // Konstruktor TParamText(const TRect& bounds, const char *aText, int aParamCount)
+    // Upstream is TParamText(bounds) with separate setText.
+    // We accept the format and an optional arg count
+    // matching the existing skeleton signature.
     public TParamText(TRect bounds, string aText, int aParamCount)
         : base(bounds, aText)
     {
         ParamCount = (short)aParamCount;
-        // Inicializujte ParamList dle potřeby
+        ParamList = System.Array.Empty<object>();
     }
 
-    public virtual ushort DataSize()
+    public void SetText(string fmt, params object[] args)
     {
-        throw new NotImplementedException("TParamText.DataSize() není implementováno.");
+        Text = fmt ?? string.Empty;
+        ParamList = args ?? System.Array.Empty<object>();
+        ParamCount = (short)ParamList.Length;
+        DrawView();
     }
+
+    public override ushort DataSize() => 0;
 
     public override void GetText(out string result)
     {
-        // Přidejte logiku pro formátování s ohledem na parametry
-        result = Text; // Stub verze
+        if (string.IsNullOrEmpty(Text)) { result = string.Empty; return; }
+        if (ParamList == null || ParamList.Length == 0) { result = Text; return; }
+        try { result = string.Format(Text, ParamList); }
+        catch (System.FormatException) { result = Text; }
     }
 
     public override void SetData(object rec)
     {
-        throw new NotImplementedException("TParamText.SetData() není implementováno.");
+        if (rec is object[] arr) { ParamList = arr; ParamCount = (short)arr.Length; DrawView(); }
     }
 
-    // Konstruktor pro streamable inicializaci
-    protected TParamText(object streamableInit) : base(streamableInit)
-    {
-        throw new NotImplementedException("TParamText(streamableInit) není implementováno.");
-    }
+    public static readonly TStreamableClass StreamableClassTParamText =
+        new TStreamableClass("TParamText", () => new TParamText(StreamableInit.streamableInit), 0);
 
-    protected override void Write(Opstream os)
-    {
-        throw new NotImplementedException("TParamText.Write() není implementováno.");
-    }
-    protected override object Read(Ipstream isStream)
-    {
-        throw new NotImplementedException("TParamText.Read() není implementováno.");
-    }
+    protected TParamText(StreamableInit init) : base(init) { }
 
-    public static new TStreamable Build()
-    {
-        throw new NotImplementedException("TParamText.Build() není implementováno.");
-    }
-
-    protected override string StreamableName()
-    {
-        return Name;
-    }
+    public new static TStreamable Build() => new TParamText(StreamableInit.streamableInit);
 }

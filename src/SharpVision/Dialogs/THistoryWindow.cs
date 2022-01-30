@@ -1,49 +1,36 @@
-﻿using SharpVision.Constants;
+using SharpVision.Constants;
+namespace SharpVision;
 
-namespace SharpVision.Dialogs;
-
-// ------------------------------------------------------------------------
-// THistoryWindow
-// ------------------------------------------------------------------------
-public class THistoryWindow : TWindow // v C# nelze dědit z více tříd, proto virtuální dědičnost nahrazujeme kompozicí
+public class THistoryWindow : TWindow
 {
-    public static readonly string Name = "THistoryWindow";
+    public new static readonly string Name = "THistoryWindow";
 
-    // Pomocí kompozice – zahrnujeme instanci THistInit
-    protected THistInit HistInitHelper;
-    protected TListViewer Viewer;
+    public THistoryViewer Viewer;
 
-    // Konstruktor THistoryWindow(const TRect& bounds, ushort historyId)
+    private static readonly TPalette _palette = new TPalette(
+        "\x13\x13\x15\x18\x17\x13\x14", 7);
+    public override TPalette GetPalette() => _palette;
+
     public THistoryWindow(TRect bounds, ushort historyId)
-        : base(bounds, /*0*/ null, Views.wnNoNumber)
+        : base(bounds, null, Views.wnNoNumber)
     {
-        //this.Bounds = bounds;
-        // Inicializace pomocí tovární metody; předpokládáme, že initViewer je dostupná
-        HistInitHelper = new THistInit(InitViewer);
-        //Viewer = HistInitHelper.createListViewer(bounds, this, historyId);
+        flags = Views.wfClose;
+        Viewer = InitViewer(GetExtent(), this, historyId);
+        if (Viewer != null) Insert(Viewer);
     }
 
-    /*
-    // TODO: THistoryWindow::THistoryWindow( const TRect& bounds,
-                                ushort historyId ) :
-    THistInit( &THistoryWindow::initViewer ),
-    TWindow( bounds, 0, wnNoNumber),
-    TWindowInit( &THistoryWindow::initFrame ) { ... }
-     */
-
-    public virtual TPalette GetPalette()
+    public string GetSelection()
     {
-        throw new NotImplementedException("THistoryWindow.GetPalette() není implementováno.");
+        if (Viewer == null) return string.Empty;
+        return Viewer.GetText(Viewer.focused, 255);
     }
 
-    public virtual void GetSelection(char[] dest)
+    public virtual THistoryViewer InitViewer(TRect r, TWindow win, ushort historyId)
     {
-        throw new NotImplementedException("THistoryWindow.GetSelection() není implementováno.");
-    }
-
-    // Statická metoda initViewer
-    public static TListViewer InitViewer(TRect bounds, TWindow owner, ushort historyId)
-    {
-        throw new NotImplementedException("THistoryWindow.InitViewer() není implementováno.");
+        r.Grow(-1, -1);
+        return new THistoryViewer(r,
+            win.StandardScrollBar((ushort)(Views.sbHorizontal | Views.sbHandleKeyboard)),
+            win.StandardScrollBar((ushort)(Views.sbVertical | Views.sbHandleKeyboard)),
+            historyId);
     }
 }

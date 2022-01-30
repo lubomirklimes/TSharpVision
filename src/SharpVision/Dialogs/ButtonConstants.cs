@@ -1,8 +1,5 @@
-﻿namespace SharpVision.Dialogs;
+﻿namespace SharpVision;
 
-// ------------------------------------------------------------------------
-// Konstanty pro tlačítka (Button Constants)
-// ------------------------------------------------------------------------
 public static class ButtonConstants
 {
     public const byte bfNormal = 0x00;

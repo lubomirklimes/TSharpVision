@@ -1,8 +1,6 @@
-﻿namespace SharpVision;
+﻿using SharpVision.Constants;
+namespace SharpVision;
 
-// ------------------------------------------------------------------------
-// TButton
-// ------------------------------------------------------------------------
 public class TButton : TView
 {
     public static readonly string Name = "TButton";
@@ -12,102 +10,280 @@ public class TButton : TView
     public byte Flags { get; protected set; }
     public bool AmDefault { get; protected set; }
 
-    // Konstruktor TButton(const TRect& bounds, const char *aTitle, ushort aCommand, ushort aFlags)
     public TButton(TRect bounds, string aTitle, ushort aCommand, ushort aFlags)
         : base(bounds)
     {
-        //this.Bounds = bounds;
         Title = aTitle;
         Command = aCommand;
         Flags = (byte)aFlags;
+        AmDefault = (aFlags & ButtonConstants.bfDefault) != 0;
+        options |= (ushort)(Views.ofSelectable | Views.ofFirstClick
+                          | Views.ofPreProcess | Views.ofPostProcess);
+        eventMask |= Events.evBroadcast;
+        if (!CommandEnabled(aCommand))
+            state |= Views.sfDisabled;
     }
 
-    // Destruktor – obvykle není třeba v C# speciálně implementovat
     ~TButton()
     {
-        // Úklid dle potřeby
     }
 
-    // Přepis metody draw
-    public override void Draw()
+    public override void Draw() => DrawState(false);
+
+    private void DrawTitle(TDrawBuffer b, int s, int i, ushort cButton, bool down)
     {
-        throw new NotImplementedException("TButton.Draw() není implementováno.");
+        string theTitle = Title ?? string.Empty;
+        int l;
+        if ((Flags & ButtonConstants.bfLeftJust) != 0)
+            l = 1;
+        else
+        {
+            int titleLen = 0;
+            for (int k = 0; k < theTitle.Length; k++) if (theTitle[k] != '~') titleLen++;
+            l = (s - titleLen - 1) / 2;
+            if (l < 1) l = 1;
+        }
+        b.moveCStr(i + l, theTitle, cButton);
     }
 
-    // Metoda drawState – vykreslí stav tlačítka (např. tlačítko stisknuto/uvolebně)
+    // TButton::shadows[] = "\xDC\xDB\xDF".
+    // cp437→Unicode:  0xDC=▄ (U+2584 lower half block),
+    //                 0xDB=█ (U+2588 full block),
+    //                 0xDF=▀ (U+2580 upper half block).
+    // shadows[0] — right edge, first body row
+    // shadows[1] — right edge, subsequent body rows
+    // shadows[2] — fill char for the bottom shadow row
+    private static readonly char[] Shadows = { '\u2584', '\u2588', '\u2580' };
+
     public void DrawState(bool down)
     {
-        throw new NotImplementedException("TButton.DrawState() není implementováno.");
+        ushort cButton, cShadow;
+        char ch = ' ';
+        int i;
+        var b = new TDrawBuffer();
+
+        if ((state & Views.sfDisabled) != 0)
+            cButton = GetColor(0x0404);
+        else
+        {
+            cButton = GetColor(0x0501);
+            if ((state & Views.sfActive) != 0)
+            {
+                if ((state & Views.sfSelected) != 0) cButton = GetColor(0x0703);
+                else if (AmDefault) cButton = GetColor(0x0602);
+            }
+        }
+        cShadow = GetColor(8);
+        int s = size.x - 1;
+        int T = size.y / 2 - 1;
+
+        for (int y = 0; y <= size.y - 2; y++)
+        {
+            b.moveChar(0, ' ', cButton, size.x);
+            b.putAttribute(0, cShadow);
+            if (down)
+            {
+                b.putAttribute(1, cShadow);
+                i = 2;
+            }
+            else
+            {
+                b.putAttribute(s, cShadow);
+                // Stamp shadow block chars on the right edge (▄ on first row, █ on subsequent rows);
+                // bottom row will use ▀ (set via ch below).
+                b.putChar(s, y == 0 ? Shadows[0] : Shadows[1]);
+                ch = Shadows[2];
+                i = 1;
+            }
+            if (y == T && Title != null)
+                DrawTitle(b, s, i, cButton, down);
+            WriteLine(0, y, size.x, 1, b);
+        }
+        b.moveChar(0, ' ', cShadow, 2);
+        b.moveChar(2, ch, cShadow, s - 1);
+        WriteLine(0, size.y - 1, size.x, 1, b);
     }
 
-    // Přepis metody getPalette
-    public virtual TPalette GetPalette()
+    private static readonly TPalette _palette = new TPalette(
+        "\x0A\x0B\x0C\x0D\x0E\x0E\x0E\x0F", 8);
+    public override TPalette GetPalette() => _palette;
+
+    private static char ExtractHotKey(string s)
     {
-        throw new NotImplementedException("TButton.GetPalette() není implementováno.");
+        if (string.IsNullOrEmpty(s)) return '\0';
+        for (int i = 0; i < s.Length - 1; i++)
+            if (s[i] == '~') return char.ToUpperInvariant(s[i + 1]);
+        return '\0';
     }
 
-    // Přepis metody handleEvent
+    private static ushort GetAltCode(char c)
+    {
+        if (c >= 'A' && c <= 'Z') return (ushort)(Keys.kbAltA + (c - 'A'));
+        return Keys.kbNoKey;
+    }
+
     public override void HandleEvent(ref TEvent @event)
     {
-        throw new NotImplementedException("TButton.HandleEvent() není implementováno.");
+        TPoint mouse;
+        TRect clickRect = GetExtent();
+        clickRect.a.x++;
+        clickRect.b.x--;
+        clickRect.b.y--;
+        char c = ExtractHotKey(Title);
+        bool down = false;
+
+        if (@event.What == Events.evMouseDown)
+        {
+            mouse = MakeLocal(@event.mouse.where);
+            if (!clickRect.Contains(mouse)) ClearEvent(ref @event);
+        }
+        base.HandleEvent(ref @event);
+
+        switch (@event.What)
+        {
+            case Events.evMouseDown:
+                clickRect.b.x++;
+                do
+                {
+                    mouse = MakeLocal(@event.mouse.where);
+                    if (down != clickRect.Contains(mouse))
+                    {
+                        down = !down;
+                        DrawState(down);
+                    }
+                } while (MouseEvent(ref @event, Events.evMouseMove));
+                if (down) { Press(); DrawState(false); }
+                ClearEvent(ref @event);
+                break;
+
+            case Events.evKeyDown:
+            {
+                ushort altCode = GetAltCode(c);
+                bool altMatch = altCode != Keys.kbNoKey
+                                && @event.keyDown.keyCode == altCode;
+                bool postProcMatch = owner != null
+                                     && owner.phase == TView.phaseType.phPostProcess
+                                     && c != '\0'
+                                     && char.ToUpperInvariant(
+                                         (char)@event.keyDown.charScan.charCode) == c;
+                // kbEnter or Space on a focused button activates it.
+                bool focusedActivate = (state & Views.sfFocused) != 0
+                                       && (@event.keyDown.charScan.charCode == ' '
+                                           || @event.keyDown.keyCode == Keys.kbEnter);
+                if (altMatch || postProcMatch || focusedActivate)
+                {
+                    Press();
+                    ClearEvent(ref @event);
+                }
+                break;
+            }
+
+            case Events.evBroadcast:
+                switch (@event.message.command)
+                {
+                    case Views.cmDefault:
+                        if (AmDefault && (state & Views.sfDisabled) == 0)
+                        {
+                            Press();
+                            ClearEvent(ref @event);
+                        }
+                        break;
+                    case Views.cmGrabDefault:
+                    case Views.cmReleaseDefault:
+                        if ((Flags & ButtonConstants.bfDefault) != 0)
+                        {
+                            AmDefault = @event.message.command == Views.cmReleaseDefault;
+                            DrawView();
+                        }
+                        break;
+                    case Views.cmCommandSetChanged:
+                        bool isDisabled = (state & Views.sfDisabled) != 0;
+                        bool enabled = CommandEnabled(Command);
+                        if (isDisabled == enabled)
+                        {
+                            SetState(Views.sfDisabled, !enabled);
+                            DrawView();
+                        }
+                        break;
+                }
+                break;
+        }
     }
 
-    // Metoda makeDefault – nastaví, zda je tlačítko výchozí
     public void MakeDefault(bool enable)
     {
-        AmDefault = enable;
-        // Možná změna vzhledu dle toho, zda je default
+        if ((Flags & ButtonConstants.bfDefault) == 0)
+        {
+            owner?.Message(
+                Events.evBroadcast,
+                enable ? Views.cmGrabDefault : Views.cmReleaseDefault,
+                this as IInfo);
+            AmDefault = enable;
+            DrawView();
+        }
     }
 
-    // Metoda press – simuluje stisk tlačítka
+    public override void SetState(ushort aState, bool enable)
+    {
+        base.SetState(aState, enable);
+        if ((aState & (Views.sfSelected | Views.sfActive)) != 0)
+        {
+            if (!enable)
+            {
+                state &= unchecked((ushort)~Views.sfFocused);
+                MakeDefault(false);
+            }
+            DrawView();
+        }
+        if ((aState & Views.sfFocused) != 0)
+            MakeDefault(enable);
+    }
+
     public virtual void Press()
     {
-        throw new NotImplementedException("TButton.Press() není implementováno.");
+        owner?.Message(Events.evBroadcast, Views.cmRecordHistory, null);
+        if ((Flags & ButtonConstants.bfBroadcast) != 0)
+            owner?.Message(Events.evBroadcast, Command, this as IInfo);
+        else
+        {
+            TEvent e = default;
+            e.What = Events.evCommand;
+            e.message.command = Command;
+            e.message.infoPtr = this as IInfo;
+            PutEvent(ref e);
+        }
     }
 
-    // Přepis metody setState
-    public virtual void SetState(ushort aState, bool enable)
-    {
-        throw new NotImplementedException("TButton.SetState() není implementováno.");
-    }
-
-    // Soukromé pomocné metody: drawTitle, pressButton, getActiveRect – implementujte dle potřeby
-    private void DrawTitle(object drawBuffer, int x, int y, ushort aState, bool flag)
-    {
-        throw new NotImplementedException("TButton.DrawTitle() není implementováno.");
-    }
-    private void PressButton(TEvent ev)
-    {
-        throw new NotImplementedException("TButton.PressButton() není implementováno.");
-    }
     private TRect GetActiveRect()
     {
-        throw new NotImplementedException("TButton.GetActiveRect() není implementováno.");
+        TRect r = GetExtent();
+        r.b.x--;
+        return r;
     }
 
-    // Konstruktor pro streamable inicializaci
-    protected TButton(object streamableInit) : base(streamableInit)
+    public static readonly TStreamableClass StreamableClassTButton =
+        new TStreamableClass("TButton", () => new TButton(StreamableInit.streamableInit), 0);
+
+    protected TButton(StreamableInit init) : base(init) { }
+
+    public override void Write(Opstream os)
     {
-        throw new NotImplementedException("TButton(streamableInit) není implementováno.");
+        base.Write(os);
+        os.WriteString(Title);
+        os.WriteShort(Command);
+        os.WriteByte(Flags);
+        os.WriteInt(AmDefault ? 1u : 0u);
     }
 
-    // Metody pro streamování
-    protected virtual void Write(Opstream os)
+    public override object Read(Ipstream isStream)
     {
-        throw new NotImplementedException("TButton.Write() není implementováno.");
-    }
-    protected virtual object Read(Ipstream isStream)
-    {
-        throw new NotImplementedException("TButton.Read() není implementováno.");
-    }
-
-    public static TStreamable Build()
-    {
-        throw new NotImplementedException("TButton.Build() není implementováno.");
+        base.Read(isStream);
+        Title = isStream.ReadString();
+        Command = isStream.ReadShort();
+        Flags = (byte)isStream.ReadByte();
+        AmDefault = isStream.ReadInt() != 0;
+        return this;
     }
 
-    protected virtual string StreamableName()
-    {
-        return Name;
-    }
+    public new static TStreamable Build() => new TButton(StreamableInit.streamableInit);
 }

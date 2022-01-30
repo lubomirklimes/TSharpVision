@@ -1,130 +1,344 @@
-﻿namespace SharpVision.Dialogs;
+using SharpVision.Constants;
+namespace SharpVision;
 
-// ------------------------------------------------------------------------
-// TInputLine
-// ------------------------------------------------------------------------
 public class TInputLine : TView
 {
-    public static readonly string Name = "TInputLine";
+    public new static readonly string Name = "TInputLine";
 
-    public char[] Data { get; set; }
-    public int MaxLen { get; protected set; }
-    public int CurPos { get; protected set; }
-    public int FirstPos { get; protected set; }
-    public int SelStart { get; protected set; }
-    public int SelEnd { get; protected set; }
+    public string Data;
+    public int MaxLen;
+    public int CurPos;
+    public int FirstPos;
+    public int SelStart;
+    public int SelEnd;
 
-    // Konstruktor TInputLine(const TRect& bounds, int aMaxLen)
+    /// Optional validator. When non-null, Valid() consults it.
+    public TValidator Validator;
+
     public TInputLine(TRect bounds, int aMaxLen)
         : base(bounds)
     {
-        //this.Bounds = bounds;
-        MaxLen = aMaxLen;
-        Data = new char[aMaxLen];
-        // Inicializace dalších proměnných podle potřeby
+        Data = string.Empty;
+        MaxLen = aMaxLen - 1;
+        CurPos = 0;
+        FirstPos = 0;
+        SelStart = 0;
+        SelEnd = 0;
+        state |= Views.sfCursorVis;
+        options |= (ushort)(Views.ofSelectable | Views.ofFirstClick);
     }
 
-    // Destruktor (v C# se většinou spoléháme na garbage collector, ale pokud je třeba uvolnit zdroje, implementujte IDisposable)
-    ~TInputLine()
+    public virtual bool CanScroll(int delta)
     {
-        // Uvolnění zdrojů, pokud je třeba
+        if (delta < 0) return FirstPos > 0;
+        if (delta > 0) return Data.Length - FirstPos + 2 > size.x;
+        return false;
     }
 
-    // Metoda dataSize – vrací velikost dat
-    public virtual ushort DataSize()
+    public override bool Valid(ushort command)
     {
-        throw new NotImplementedException("TInputLine.DataSize() není implementováno.");
+        if (command == Constants.Views.cmCancel) return true;
+        if (Validator != null) return Validator.Validate(Data);
+        return true;
     }
 
-    // Přepis metody draw
+    public virtual ushort DataSize() => (ushort)(MaxLen + 1);
+
     public override void Draw()
     {
-        throw new NotImplementedException("TInputLine.Draw() není implementováno.");
+        var b = new TDrawBuffer();
+        ushort color = (state & Views.sfFocused) != 0 ? GetColor(2) : GetColor(1);
+        b.moveChar(0, ' ', color, size.x);
+        int avail = Math.Min(size.x - 2, Math.Max(0, Data.Length - FirstPos));
+        if (avail > 0)
+        {
+            string buf = Data.Substring(FirstPos, avail);
+            b.moveStr(1, buf, color);
+        }
+        if (CanScroll(1)) b.moveChar((ushort)(size.x - 1), '>', GetColor(4), 1);
+        if (CanScroll(-1)) b.moveChar(0, '<', GetColor(4), 1);
+        if ((state & Views.sfSelected) != 0)
+        {
+            int l = SelStart - FirstPos;
+            int r = SelEnd - FirstPos;
+            l = Math.Max(0, l);
+            r = Math.Min(size.x - 2, r);
+            if (l < r) b.moveChar((ushort)(l + 1), '\0', GetColor(3), r - l);
+        }
+        WriteLine(0, 0, size.x, size.y, b);
+        SetCursor(CurPos - FirstPos + 1, 0);
     }
 
-    // Metoda getData – načte data do zadané paměti (v C# můžete použít ref parametr nebo vracet data)
     public virtual void GetData(ref object rec)
     {
-        throw new NotImplementedException("TInputLine.GetData() není implementováno.");
+        rec = Data;
     }
 
-    // Přepis metody getPalette
-    public virtual TPalette GetPalette()
+    private static readonly TPalette _palette = new TPalette("\x13\x13\x14\x15", 4);
+    public override TPalette GetPalette() => _palette;
+
+    protected int MouseDelta(TEvent ev)
     {
-        throw new NotImplementedException("TInputLine.GetPalette() není implementováno.");
+        TPoint mouse = MakeLocal(ev.mouse.where);
+        if (mouse.x <= 0) return -1;
+        if (mouse.x >= size.x - 1) return 1;
+        return 0;
     }
 
-    // Přepis metody handleEvent
+    protected int MousePos(TEvent ev)
+    {
+        TPoint mouse = MakeLocal(ev.mouse.where);
+        int mx = Math.Max(mouse.x, 1);
+        int pos = mx + FirstPos - 1;
+        pos = Math.Max(pos, 0);
+        pos = Math.Min(pos, Data.Length);
+        return pos;
+    }
+
+    protected void DeleteSelect()
+    {
+        if (SelStart < SelEnd)
+        {
+            Data = Data.Substring(0, SelStart) + Data.Substring(SelEnd);
+            CurPos = SelStart;
+        }
+    }
+
+    public virtual bool InsertChar(char value)
+    {
+        if ((state & Views.sfCursorIns) == 0)
+            DeleteSelect();
+        int l = Data.Length;
+        if ((state & Views.sfCursorIns) == 0)
+        {
+            if (l < MaxLen)
+            {
+                Data = Data.Substring(0, CurPos) + value + Data.Substring(CurPos);
+                if (FirstPos > CurPos) FirstPos = CurPos;
+                CurPos++;
+            }
+        }
+        else
+        {
+            if (CurPos < MaxLen)
+            {
+                if (CurPos < Data.Length)
+                    Data = Data.Substring(0, CurPos) + value + Data.Substring(CurPos + 1);
+                else
+                    Data = Data + value;
+                if (FirstPos > CurPos) FirstPos = CurPos;
+                CurPos++;
+            }
+        }
+        return true;
+    }
+
+    protected void MakeVisible()
+    {
+        if (FirstPos > CurPos) FirstPos = CurPos;
+        int i = CurPos - size.x + 2;
+        if (FirstPos < i) FirstPos = i;
+        DrawView();
+    }
+
+    private void AdjustSelectBlock(int anchor)
+    {
+        if (CurPos < anchor) { SelStart = CurPos; SelEnd = anchor; }
+        else { SelStart = anchor; SelEnd = CurPos; }
+    }
+
+    private static ushort CtrlToArrow(ushort code) => code;
+
     public override void HandleEvent(ref TEvent @event)
     {
-        throw new NotImplementedException("TInputLine.HandleEvent() není implementováno.");
+        base.HandleEvent(ref @event);
+        if ((state & Views.sfSelected) == 0) return;
+
+        int anchor = 0;
+        switch (@event.What)
+        {
+            case Events.evMouseDown:
+            {
+                int delta = MouseDelta(@event);
+                if (CanScroll(delta))
+                {
+                    do
+                    {
+                        if (CanScroll(delta))
+                        {
+                            FirstPos += delta;
+                            DrawView();
+                        }
+                    } while (MouseEvent(ref @event, Events.evMouseAuto));
+                }
+                else if (@event.mouse.doubleClick)
+                {
+                    SelectAll(true);
+                }
+                else
+                {
+                    anchor = MousePos(@event);
+                    do
+                    {
+                        if (@event.What == Events.evMouseAuto
+                            && CanScroll(delta = MouseDelta(@event)))
+                            FirstPos += delta;
+                        CurPos = MousePos(@event);
+                        AdjustSelectBlock(anchor);
+                        DrawView();
+                    } while (MouseEvent(ref @event,
+                        (ushort)(Events.evMouseMove | Events.evMouseAuto)));
+                }
+                ClearEvent(ref @event);
+                break;
+            }
+            case Events.evKeyDown:
+            {
+                ushort key = CtrlToArrow(@event.keyDown.keyCode);
+                // Shift-extension of selection (kbShiftCode) deferred:
+                // Keys.cs does not currently expose a shift bitmask for keycodes.
+                bool extendBlock = false;
+
+                bool handled = true;
+                switch (key)
+                {
+                    case Keys.kbLeft:
+                        if (CurPos > 0) CurPos--;
+                        break;
+                    case Keys.kbRight:
+                        if (CurPos < Data.Length) CurPos++;
+                        break;
+                    case Keys.kbHome:
+                        CurPos = 0;
+                        break;
+                    case Keys.kbEnd:
+                        CurPos = Data.Length;
+                        break;
+                    case Keys.kbBack:
+                        if (CurPos > 0)
+                        {
+                            Data = Data.Substring(0, CurPos - 1) + Data.Substring(CurPos);
+                            CurPos--;
+                            if (FirstPos > 0) FirstPos--;
+                        }
+                        break;
+                    case Keys.kbDel:
+                        if (SelStart == SelEnd)
+                        {
+                            if (CurPos < Data.Length)
+                            {
+                                SelStart = CurPos;
+                                SelEnd = CurPos + 1;
+                            }
+                        }
+                        DeleteSelect();
+                        break;
+                    case Keys.kbIns:
+                        SetState(Views.sfCursorIns,
+                            (state & Views.sfCursorIns) == 0);
+                        break;
+                    case Keys.kbEnter:
+                    case Keys.kbTab:
+                    case Keys.kbShiftTab:
+                        return;
+                    default:
+                        if (@event.keyDown.charScan.charCode >= ' ')
+                        {
+                            if (!InsertChar((char)@event.keyDown.charScan.charCode))
+                            {
+                                ClearEvent(ref @event);
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            handled = false;
+                        }
+                        break;
+                }
+
+                if (!handled) return;
+                if (extendBlock) AdjustSelectBlock(anchor);
+                else { SelStart = 0; SelEnd = 0; }
+                MakeVisible();
+                ClearEvent(ref @event);
+                break;
+            }
+        }
     }
 
-    // Metoda selectAll – výběr celého obsahu
-    public void SelectAll(bool enable)
+    public virtual void SelectAll(bool enable)
     {
-        throw new NotImplementedException("TInputLine.SelectAll() není implementováno.");
+        SelStart = 0;
+        if (enable)
+        {
+            CurPos = Data.Length;
+            SelEnd = Data.Length;
+        }
+        else
+        {
+            CurPos = 0;
+            SelEnd = 0;
+        }
+        FirstPos = Math.Max(0, CurPos - size.x + 2);
+        DrawView();
     }
 
-    // Metoda setData
     public virtual void SetData(object rec)
     {
-        throw new NotImplementedException("TInputLine.SetData() není implementováno.");
+        string s = rec switch
+        {
+            string str => str,
+            char[] ca => new string(ca),
+            null => string.Empty,
+            _ => rec.ToString() ?? string.Empty,
+        };
+        if (s.Length > MaxLen) s = s.Substring(0, MaxLen);
+        Data = s;
+        SelectAll(true);
     }
 
-    // Metoda setState – upraví stav objektu
-    public virtual void SetState(ushort aState, bool enable)
+    public override void SetState(ushort aState, bool enable)
     {
-        throw new NotImplementedException("TInputLine.SetState() není implementováno.");
+        base.SetState(aState, enable);
+        if (aState == Views.sfSelected
+            || (aState == Views.sfActive && (state & Views.sfSelected) != 0))
+            SelectAll(enable);
     }
 
-    // Soukromé pomocné metody (canScroll, mouseDelta, mousePos, deleteSelect) – implementujte dle potřeby
-    protected virtual bool CanScroll(int delta)
+    // ── Streaming ────────────────────────────────────────────────────────
+    // Wire: TView base + WriteInt×5 (maxLen/curPos/firstPos/selStart/selEnd)
+    //       + WriteString(data) + WritePointer(null validator).
+    public static readonly TStreamableClass StreamableClassTInputLine =
+        new TStreamableClass("TInputLine", () => new TInputLine(StreamableInit.streamableInit), 0);
+
+    protected TInputLine(StreamableInit init) : base(init) { }
+
+    public override void Write(Opstream os)
     {
-        throw new NotImplementedException("TInputLine.CanScroll() není implementováno.");
-    }
-    protected virtual int MouseDelta(TEvent ev)
-    {
-        throw new NotImplementedException("TInputLine.MouseDelta() není implementováno.");
-    }
-    protected virtual int MousePos(TEvent ev)
-    {
-        throw new NotImplementedException("TInputLine.MousePos() není implementováno.");
-    }
-    protected virtual void DeleteSelect()
-    {
-        throw new NotImplementedException("TInputLine.DeleteSelect() není implementováno.");
+        base.Write(os);
+        os.WriteInt((uint)MaxLen);
+        os.WriteInt((uint)CurPos);
+        os.WriteInt((uint)FirstPos);
+        os.WriteInt((uint)SelStart);
+        os.WriteInt((uint)SelEnd);
+        os.WriteString(Data);
+        os.WritePointer(Validator);
     }
 
-    // Statické konstanty pro šipky – převedeno jako statické read-only proměnné
-    protected static readonly char rightArrow = '>'; // Stub hodnota
-    protected static readonly char leftArrow = '<';  // Stub hodnota
-
-    // Konstruktor pro streamable inicializaci
-    protected TInputLine(object streamableInit)
-        : base(streamableInit)
+    public override object Read(Ipstream isStream)
     {
-        throw new NotImplementedException("TInputLine(streamableInit) není implementováno.");
+        base.Read(isStream);
+        MaxLen    = (int)isStream.ReadInt();
+        CurPos    = (int)isStream.ReadInt();
+        FirstPos  = (int)isStream.ReadInt();
+        SelStart  = (int)isStream.ReadInt();
+        SelEnd    = (int)isStream.ReadInt();
+        Data      = isStream.ReadString() ?? string.Empty;
+        Validator = isStream.ReadPointer() as TValidator;
+        state |= Views.sfCursorVis;
+        return this;
     }
 
-    // Metody write a read pro streamování – stub
-    protected virtual void Write(Opstream os)
-    {
-        throw new NotImplementedException("TInputLine.Write() není implementováno.");
-    }
-    protected virtual object Read(Ipstream isStream)
-    {
-        throw new NotImplementedException("TInputLine.Read() není implementováno.");
-    }
-
-    // Statická tovární metoda
-    public static TStreamable Build()
-    {
-        throw new NotImplementedException("TInputLine.Build() není implementováno.");
-    }
-
-    protected virtual string StreamableName()
-    {
-        return Name;
-    }
+    public new static TStreamable Build() => new TInputLine(StreamableInit.streamableInit);
 }

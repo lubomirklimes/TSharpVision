@@ -1,8 +1,5 @@
-﻿namespace SharpVision.Dialogs;
+﻿namespace SharpVision;
 
-// ------------------------------------------------------------------------
-// THistInit – pomocná třída pro historické okno
-// ------------------------------------------------------------------------
 public class THistInit
 {
     protected Func<TRect, TWindow, ushort, TListViewer> createListViewer;

@@ -1,81 +1,114 @@
-﻿namespace SharpVision.Dialogs;
+using SharpVision.Constants;
+using System.Collections.Generic;
+namespace SharpVision;
 
-// ------------------------------------------------------------------------
-// TListBox
-// ------------------------------------------------------------------------
-// Předpokládáme, že TListViewer již existuje; TListBox bude odvozeno z něj.
+// TStringCollection — simple string-list helper used by TListBox.
+// now implements TStreamable so TListBox can stream its list.
+// Wire layout: short count, then WriteString per item.
+public class TStringCollection : TStreamable
+{
+    public const string TypeName = "TStringCollection";
+    public override string streamableName => TypeName;
+
+    public static readonly TStreamableClass StreamableClass =
+        new TStreamableClass(TypeName, () => new TStringCollection(), 0);
+
+    public List<string> Items = new();
+    public int Count => Items.Count;
+    public void Insert(string s) => Items.Add(s);
+    public string this[int index] => Items[index];
+
+    public override void Write(Opstream os)
+    {
+        os.WriteShort((ushort)Items.Count);
+        foreach (var s in Items) os.WriteString(s);
+    }
+
+    public override object Read(Ipstream isStream)
+    {
+        int count = isStream.ReadShort();
+        Items = new List<string>(count);
+        for (int i = 0; i < count; i++) Items.Add(isStream.ReadString());
+        return this;
+    }
+}
+
+public class TListBoxRec
+{
+    public TStringCollection Items;
+    public int Selection;
+}
+
 public class TListBox : TListViewer
 {
-    public static readonly string Name = "TListBox";
+    public new static readonly string Name = "TListBox";
 
-    private TCollection items;
+    protected TStringCollection items;
+    protected bool center;
 
-    // Konstruktor TListBox(const TRect& bounds, ushort aNumCols, TScrollBar *aScrollBar)
     public TListBox(TRect bounds, ushort aNumCols, TScrollBar aScrollBar)
         : base(bounds, aNumCols, null, aScrollBar)
     {
-        //this.Bounds = bounds;
-        // Uložení a inicializace – počet sloupců, scrollBar atd.
+        items = null;
+        SetRange(0);
+        center = false;
     }
 
-    ~TListBox()
-    {
-        // Úklid, pokud je třeba
-    }
-
-    public virtual ushort DataSize()
-    {
-        throw new NotImplementedException("TListBox.DataSize() není implementováno.");
-    }
+    public virtual ushort DataSize() => 0;
 
     public virtual void GetData(ref object rec)
     {
-        throw new NotImplementedException("TListBox.GetData() není implementováno.");
+        rec = new TListBoxRec { Items = items, Selection = focused };
     }
 
-    public virtual void GetText(char[] dest, short item, short maxLen)
+    public override string GetText(int item, int maxChars)
     {
-        throw new NotImplementedException("TListBox.GetText() není implementováno.");
+        if (items == null || item < 0 || item >= items.Count) return string.Empty;
+        string s = items[item] ?? string.Empty;
+        if (s.Length > maxChars) s = s.Substring(0, maxChars);
+        return s;
     }
 
-    public virtual void NewList(TCollection aList)
+    public virtual void NewList(TStringCollection aList)
     {
         items = aList;
+        SetRange(aList?.Count ?? 0);
+        if (range > 0) FocusItem(0);
+        DrawView();
     }
 
     public virtual void SetData(object rec)
     {
-        throw new NotImplementedException("TListBox.SetData() není implementováno.");
+        if (rec is TListBoxRec p)
+        {
+            NewList(p.Items);
+            FocusItem(p.Selection);
+            DrawView();
+        }
     }
 
-    public TCollection List()
+    public TStringCollection List() => items;
+
+    // Wire layout (after TListViewer base): pointer to TStringCollection items.
+
+    public static readonly TStreamableClass StreamableClassTListBox =
+        new TStreamableClass("TListBox", () => new TListBox(StreamableInit.streamableInit), 0);
+
+    protected TListBox(StreamableInit init) : base(init) { }
+
+    public override void Write(Opstream os)
     {
-        return items;
+        base.Write(os);        // TListViewer.Write
+        os.WritePointer(items);
     }
 
-    // Konstruktor pro streamable inicializaci
-    protected TListBox(StreamableInit s)
-        :base (s)
+    public override object Read(Ipstream isStream)
     {
-        throw new NotImplementedException("TListBox(streamableInit) není implementováno.");
+        base.Read(isStream);   // TListViewer.Read
+        items = isStream.ReadPointer() as TStringCollection;
+        return this;
     }
 
-    protected virtual void Write(Opstream os)
-    {
-        throw new NotImplementedException("TListBox.Write() není implementováno.");
-    }
-    protected virtual object Read(Ipstream isStream)
-    {
-        throw new NotImplementedException("TListBox.Read() není implementováno.");
-    }
-
-    public static TStreamable Build()
-    {
-        throw new NotImplementedException("TListBox.Build() není implementováno.");
-    }
-
-    protected virtual string StreamableName()
-    {
-        return Name;
-    }
+    public new static TStreamable Build() { return new TListBox(StreamableInit.streamableInit); }
+    protected virtual string StreamableName() => Name;
 }

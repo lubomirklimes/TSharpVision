@@ -1,8 +1,5 @@
-﻿namespace SharpVision.Dialogs;
+﻿namespace SharpVision;
 
-// ------------------------------------------------------------------------
-// TSItem – pomocná třída pro řetězce
-// ------------------------------------------------------------------------
 public class TSItem
 {
     public string Value { get; set; }
@@ -12,5 +9,13 @@ public class TSItem
     {
         Value = aValue;
         Next = aNext;
+    }
+
+    public TSItem Append(TSItem aNext)
+    {
+        TSItem p = this;
+        while (p.Next != null) p = p.Next;
+        p.Next = aNext;
+        return this;
     }
 }

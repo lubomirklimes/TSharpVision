@@ -1,65 +1,93 @@
-﻿namespace SharpVision.Dialogs;
+﻿namespace SharpVision;
 
-// ------------------------------------------------------------------------
-// TStaticText
-// ------------------------------------------------------------------------
 public class TStaticText : TView
 {
     public static readonly string Name = "TStaticText";
 
     protected string Text;
 
-    // Konstruktor TStaticText(const TRect& bounds, const char *aText)
     public TStaticText(TRect bounds, string aText)
         : base(bounds)
     {
-        //this.Bounds = bounds;
         Text = aText;
     }
 
     ~TStaticText()
     {
-        // Úklid zdrojů, pokud je třeba
     }
 
     public override void Draw()
     {
-        throw new NotImplementedException("TStaticText.Draw() není implementováno.");
+        ushort color = GetColor(1);
+        var b = new TDrawBuffer();
+        GetText(out string s);
+        s ??= string.Empty;
+        int l = s.Length;
+        int p = 0;
+        int y = 0;
+        bool center = false;
+        while (y < size.y)
+        {
+            b.moveChar(0, ' ', color, size.x);
+            if (p < l)
+            {
+                if (s[p] == (char)3) { center = true; p++; }
+                int i = p;
+                int j;
+                do
+                {
+                    j = p;
+                    while (p < l && s[p] == ' ') p++;
+                    while (p < l && s[p] != ' ' && s[p] != '\n') p++;
+                } while (p < l && p < i + size.x && s[p] != '\n');
+                if (p > i + size.x)
+                {
+                    p = j > i ? j : i + size.x;
+                }
+                int xOff = center ? (size.x - p + i) / 2 : 0;
+                if (p > i)
+                    b.moveBuf(xOff, s.AsSpan(i, p - i), color, p - i);
+                while (p < l && s[p] == ' ') p++;
+                if (p < l && s[p] == '\n')
+                {
+                    center = false;
+                    p++;
+                    // Do NOT consume a second '\n' here — let the next iteration
+                    // render an empty row (blank line). C++ historically skipped
+                    // the second LF for CR+LF pairs; C# strings use plain '\n'.
+                }
+            }
+            WriteLine(0, y++, size.x, 1, b);
+        }
     }
 
-    public virtual TPalette GetPalette()
-    {
-        throw new NotImplementedException("TStaticText.GetPalette() není implementováno.");
-    }
+    private static readonly TPalette _palette = new TPalette("\x06", 1);
+    public override TPalette GetPalette() => _palette;
 
     public virtual void GetText(out string result)
     {
         result = Text;
     }
 
-    // Konstruktor pro streamable inicializaci
-    protected TStaticText(object streamableInit)
-        : base(streamableInit)
+    // ── Streaming ────────────────────────────────────────────────────────
+    // Wire: TView base + WriteString(text).
+    public static readonly TStreamableClass StreamableClassTStaticText =
+        new TStreamableClass("TStaticText", () => new TStaticText(StreamableInit.streamableInit), 0);
+
+    protected TStaticText(StreamableInit init) : base(init) { }
+
+    public override void Write(Opstream os)
     {
-        throw new NotImplementedException("TStaticText(streamableInit) není implementováno.");
+        base.Write(os);
+        os.WriteString(Text);
     }
 
-    protected virtual void Write(Opstream os)
+    public override object Read(Ipstream isStream)
     {
-        throw new NotImplementedException("TStaticText.Write() není implementováno.");
-    }
-    protected virtual object Read(Ipstream isStream)
-    {
-        throw new NotImplementedException("TStaticText.Read() není implementováno.");
+        base.Read(isStream);
+        Text = isStream.ReadString();
+        return this;
     }
 
-    public static TStreamable Build()
-    {
-        throw new NotImplementedException("TStaticText.Build() není implementováno.");
-    }
-
-    protected virtual string StreamableName()
-    {
-        return Name;
-    }
+    public new static TStreamable Build() => new TStaticText(StreamableInit.streamableInit);
 }

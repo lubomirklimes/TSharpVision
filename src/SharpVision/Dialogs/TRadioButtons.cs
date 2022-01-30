@@ -1,60 +1,47 @@
-﻿using SharpVision.Dialogs;
+﻿namespace SharpVision;
 
-namespace SharpVision;
-
-// ------------------------------------------------------------------------
-// TRadioButtons
-// ------------------------------------------------------------------------
 public class TRadioButtons : TCluster
 {
-    public static readonly string Name = "TRadioButtons";
+    public new static readonly string Name = "TRadioButtons";
 
-    // Konstruktor TRadioButtons(const TRect& bounds, TSItem *aStrings)
+    // TRadioButtons::button[] = " ( ) ".
+    // 5 chars: leading space, open-paren, marker-slot (space/bullet), close-paren, trailing space.
+    // DrawBox writes the marker at col+2 (the slot), label at col+5.
+    private const string Button = " ( ) ";
+    // CP437 0x07 maps to the bullet glyph in text-mode video. See SharpVisionGlyphs.RadioChecked.
+    private const char Check = SharpVisionGlyphs.RadioChecked;
+
     public TRadioButtons(TRect bounds, TSItem aStrings)
         : base(bounds, aStrings)
     {
     }
 
-    // Přepis metody draw
-    public override void Draw()
-    {
-        throw new NotImplementedException("TRadioButtons.Draw() není implementováno.");
-    }
+    public override void Draw() => DrawBox(Button, Check);
 
-    public override bool Mark(int item)
-    {
-        throw new NotImplementedException("TRadioButtons.Mark() není implementováno.");
-    }
+    public override bool Mark(int item) => (uint)item == value;
 
     public override void MovedTo(int item)
     {
-        throw new NotImplementedException("TRadioButtons.MovedTo() není implementováno.");
+        value = (uint)item;
+        base.MovedTo(item);
     }
 
     public override void Press(int item)
     {
-        throw new NotImplementedException("TRadioButtons.Press() není implementováno.");
+        value = (uint)item;
+        base.Press(item);
     }
 
     public override void SetData(object rec)
     {
-        throw new NotImplementedException("TRadioButtons.SetData() není implementováno.");
+        base.SetData(rec);
+        sel = (int)value;
     }
 
-    // Konstruktor pro streamable inicializaci
-    protected TRadioButtons(object streamableInit)
-        : base(streamableInit)
-    {
-        throw new NotImplementedException("TRadioButtons(streamableInit) není implementováno.");
-    }
+    public static readonly TStreamableClass StreamableClassTRadioButtons =
+        new TStreamableClass("TRadioButtons", () => new TRadioButtons(StreamableInit.streamableInit), 0);
 
-    public static new TStreamable Build()
-    {
-        throw new NotImplementedException("TRadioButtons.Build() není implementováno.");
-    }
+    protected TRadioButtons(StreamableInit init) : base(init) { }
 
-    protected override string StreamableName()
-    {
-        return Name;
-    }
+    public new static TStreamable Build() => new TRadioButtons(StreamableInit.streamableInit);
 }

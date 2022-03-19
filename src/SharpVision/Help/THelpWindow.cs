@@ -1,4 +1,4 @@
-﻿using SharpVision.Constants;
+using SharpVision.Constants;
 
 namespace SharpVision;
 
@@ -7,6 +7,9 @@ namespace SharpVision;
 public class THelpWindow : TWindow
 {
     public new static readonly string Name = "THelpWindow";
+
+    public static string helpWinTitle
+        => SharpVisionIntl.Get("Help_WindowTitle", "Help");
 
     // SharpVision / RHIDE palette remap for a fully cyan-themed help window.
     // The original cHelpWindow ("\x80...\x87") used app-palette entries 128–135
@@ -28,8 +31,15 @@ public class THelpWindow : TWindow
         new TPalette("\x11\x11\x11\x2F\x11\x2F\x15\x32", 8);
 
     public THelpWindow(THelpFile hFile, ushort context)
-        : base(new TRect(0, 0, 50, 18), "Help", Views.wnNoNumber)
+        : base(new TRect(0, 0, 50, 18), helpWinTitle, Views.wnNoNumber)
     {
+        var r = new TRect(0, 0, 50, 18);
+        options |= Views.ofCentered;
+        r.Grow(-2, -1);
+        Insert(new THelpViewer(r,
+            StandardScrollBar((ushort)(Views.sbHorizontal | Views.sbHandleKeyboard)),
+            StandardScrollBar((ushort)(Views.sbVertical | Views.sbHandleKeyboard)),
+            hFile, context));
     }
 
     public override TPalette GetPalette() => _palette;

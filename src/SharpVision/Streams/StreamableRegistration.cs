@@ -28,6 +28,73 @@ public static class StreamableRegistration
     /// </summary>
     public static void RegisterAll()
     {
-        //TODO: streamable initialization for all streamable types, e.g. TFrame.Build, TWindow.StreamableClassTWindow, etc.
+        // ── Streams / resources ──────────────────────────────────────────
+        Pstream.RegisterType(TResourceCollection.StreamableClass);
+
+        // ── Views ────────────────────────────────────────────────────────
+        Pstream.RegisterType(TView.StreamableClassTView);
+        Pstream.RegisterType(TGroup.StreamableClassTGroup);
+        Pstream.RegisterType(TFrame.StreamableClassTFrame);
+        Pstream.RegisterType(TWindow.StreamableClassTWindow);
+        Pstream.RegisterType(TScrollBar.StreamableClassTScrollBar);
+        Pstream.RegisterType(TScroller.StreamableClassTScroller);
+        Pstream.RegisterType(TListViewer.StreamableClassTListViewer);
+
+        // ── App ──────────────────────────────────────────────────────────
+        Pstream.RegisterType(TDeskTop.StreamableClassTDeskTop);
+        Pstream.RegisterType(TBackground.StreamableClassTBackground);
+
+        // ── Dialogs — text / list ────────────────────────────────────────
+        Pstream.RegisterType(TStringCollection.StreamableClass);
+        Pstream.RegisterType(TListBox.StreamableClassTListBox);
+        Pstream.RegisterType(TDialog.StreamableClassTDialog);
+        Pstream.RegisterType(TButton.StreamableClassTButton);
+        Pstream.RegisterType(TStaticText.StreamableClassTStaticText);
+        Pstream.RegisterType(TParamText.StreamableClassTParamText);
+        Pstream.RegisterType(TLabel.StreamableClassTLabel);
+        Pstream.RegisterType(TInputLine.StreamableClassTInputLine);
+        Pstream.RegisterType(TCluster.StreamableClassTCluster);
+        Pstream.RegisterType(TCheckBoxes.StreamableClassTCheckBoxes);
+        Pstream.RegisterType(TRadioButtons.StreamableClassTRadioButtons);
+        Pstream.RegisterType(THistory.StreamableClassTHistory);
+
+        // ── Dialogs — color ──────────────────────────────────────────────
+        Pstream.RegisterType(TColorDisplay.StreamableClassTColorDisplay);
+        Pstream.RegisterType(TColorGroupList.StreamableClassTColorGroupList);
+        Pstream.RegisterType(TColorItemList.StreamableClassTColorItemList);
+        Pstream.RegisterType(TColorSelector.StreamableClassTColorSelector);
+        Pstream.RegisterType(TMonoSelector.StreamableClassTMonoSelector);
+        Pstream.RegisterType(TColorDialog.StreamableClassTColorDialog);
+
+        // ── Dialogs — file ───────────────────────────────────────────────
+        Pstream.RegisterType(TFileDialog.StreamableClassTFileDialog);
+        Pstream.RegisterType(TFileInputLine.StreamableClassTFileInputLine);
+        Pstream.RegisterType(TFileList.StreamableClassTFileList);
+        Pstream.RegisterType(TFileInfoPane.StreamableClassTFileInfoPane);
+        Pstream.RegisterType(TDirListBox.StreamableClassTDirListBox);
+        Pstream.RegisterType(TChDirDialog.StreamableClassTChDirDialog);
+
+        // ── Menus ────────────────────────────────────────────────────────
+        Pstream.RegisterType(TMenuView.StreamableClassTMenuView);
+        Pstream.RegisterType(TMenuBar.StreamableClassTMenuBar);
+        Pstream.RegisterType(TStatusLine.StreamableClassTStatusLine);
+
+        // ── Editors ──────────────────────────────────────────────────────
+        Pstream.RegisterType(TEditor.StreamableClassTEditor);
+        Pstream.RegisterType(TFileEditor.StreamableClassTFileEditor);
+        Pstream.RegisterType(TEditWindow.StreamableClassTEditWindow);
+        Pstream.RegisterType(TMemo.StreamableClassTMemo);
+        Pstream.RegisterType(TIndicator.StreamableClassTIndicator);
+
+        // ── Validators (also re-registers TInputLine) ────────────────────
+        // Delegates to TValidator.RegisterStreamableTypes() which covers
+        // TValidator, TFilterValidator, TRangeValidator, TPXPictureValidator,
+        // TLookupValidator, TStringLookupValidator, and TInputLine.
+        TValidator.RegisterStreamableTypes();
+
+        // ── Help ─────────────────────────────────────────────────────────
+        // Delegates to THelpFile.RegisterStreamableTypes() which covers
+        // THelpTopic and THelpIndex.
+        THelpFile.RegisterStreamableTypes();
     }
 }

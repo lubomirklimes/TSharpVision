@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net6.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<RootNamespace>SharpVision.Samples.TVEdit</RootNamespace>
+		<!--<OutputPath>..\bin\$(Configuration)</OutputPath>-->
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\..\src\SharpVision.Drivers.Console\SharpVision.Drivers.Console.csproj" />
+	</ItemGroup>
+
+</Project>

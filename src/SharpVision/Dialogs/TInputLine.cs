@@ -199,6 +199,26 @@ public class TInputLine : TView
                 // Keys.cs does not currently expose a shift bitmask for keycodes.
                 bool extendBlock = false;
 
+                // Printable characters are inserted immediately, before the keyCode
+                // switch. This avoids false matches between an uppercase letter's
+                // ASCII value and a navigation-key constant (e.g. 'H' == kbLeft,
+                // 'E' == kbHome, 'N' == kbDel).
+                byte charCode = @event.keyDown.charScan.charCode;
+                if (charCode >= 32)
+                {
+                    if (InsertChar((char)charCode))
+                    {
+                        SelStart = 0; SelEnd = 0;
+                        MakeVisible();
+                        ClearEvent(ref @event);
+                    }
+                    else
+                    {
+                        ClearEvent(ref @event);
+                    }
+                    break;
+                }
+
                 bool handled = true;
                 switch (key)
                 {
@@ -242,18 +262,7 @@ public class TInputLine : TView
                     case Keys.kbShiftTab:
                         return;
                     default:
-                        if (@event.keyDown.charScan.charCode >= ' ')
-                        {
-                            if (!InsertChar((char)@event.keyDown.charScan.charCode))
-                            {
-                                ClearEvent(ref @event);
-                                break;
-                            }
-                        }
-                        else
-                        {
-                            handled = false;
-                        }
+                        handled = false;
                         break;
                 }
 

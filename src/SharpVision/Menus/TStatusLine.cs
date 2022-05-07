@@ -61,15 +61,21 @@ public class TStatusLine : TView
             }
 
             case Events.evKeyDown:
-                for (TStatusItem t = Items; t != null; t = t.Next)
+                // Printable characters cannot match a status-line accelerator.
+                // Guard prevents an uppercase letter's ASCII value from coinciding
+                // with a special-key constant (e.g. 'B' == kbF10 -> cmMenu).
+                if (@event.keyDown.charScan.charCode < 32 || @event.keyDown.charScan.charCode >= 127)
                 {
-                    if (@event.keyDown.keyCode == t.KeyCode &&
-                        CommandEnabled(t.Command))
+                    for (TStatusItem t = Items; t != null; t = t.Next)
                     {
-                        @event.What = Events.evCommand;
-                        @event.message.command = t.Command;
-                        @event.message.infoPtr = null;
-                        return;
+                        if (@event.keyDown.keyCode == t.KeyCode &&
+                            CommandEnabled(t.Command))
+                        {
+                            @event.What = Events.evCommand;
+                            @event.message.command = t.Command;
+                            @event.message.infoPtr = null;
+                            return;
+                        }
                     }
                 }
                 break;

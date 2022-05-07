@@ -117,7 +117,7 @@ public class TMenuView : TView
                             TMenuItem found = (ch != '\0') ? target.FindItem(ch) : null;
                             if (found == null)
                             {
-                                if (!isAlt)
+                                if (!isAlt && (e.keyDown.charScan.charCode < 32 || e.keyDown.charScan.charCode >= 127))
                                 {
                                     found = TopMenu().HotKey(e.keyDown.keyCode);
                                     if (found != null && CommandEnabled(found.Command))
@@ -235,6 +235,11 @@ public class TMenuView : TView
     // keyToHotKey: route an accelerator key onto the command stream as evCommand.
     public bool KeyToHotKey(ref TEvent ev)
     {
+        // Printable characters are not menu accelerators; skip to prevent an
+        // uppercase letter's ASCII value from matching a special-key constant
+        // (e.g. 'G' == kbPgUp, 'L' == kbPgDn, 'B' == kbF10).
+        if (ev.keyDown.charScan.charCode >= 32 && ev.keyDown.charScan.charCode < 127)
+            return false;
         var p = HotKey(ev.keyDown.keyCode);
         if (p != null && CommandEnabled(p.Command))
         {

@@ -1,0 +1,160 @@
+// SharpVisionIntl localization provider seam tests.
+// SharpVisionIntl.Current is global state → NonParallel collection.
+using System.Collections.Generic;
+using SharpVision;
+using SharpVision.Tests.Infrastructure;
+using Xunit;
+
+namespace SharpVision.Tests.Localization;
+
+// ---------------------------------------------------------------------------
+// Test-only provider helpers (duplicated here — do NOT modify the demo source).
+// ---------------------------------------------------------------------------
+
+// Returns "prefix + key" for every key — exercises swap behaviour.
+file sealed class IntlPrefixTestProvider(string prefix) : ISharpVisionStringProvider
+{
+    public string Get(string key, string fallback) => prefix + key;
+}
+
+// Returns a fixed value for every key — exercises property forwarding.
+file sealed class IntlFixedTestProvider(string value) : ISharpVisionStringProvider
+{
+    public string Get(string key, string fallback) => value;
+}
+
+// Returns values from a supplied dictionary, falling back to the literal.
+file sealed class IntlDictTestProvider(Dictionary<string, string> dict)
+    : ISharpVisionStringProvider
+{
+    public string Get(string key, string fallback)
+        => dict.TryGetValue(key, out var v) ? v : fallback;
+}
+
+// ---------------------------------------------------------------------------
+
+[Collection("NonParallel")]
+public sealed class SharpVisionIntlTests
+{
+    // ── 19a.1 — Default provider returns fallback ─────────────────────────
+
+    [Fact]
+    public void DefaultProvider_ReturnsFallback_BtnOK()
+    {
+        using var scope = new IntlProviderScope();
+        Assert.Equal("~O~K", SharpVisionIntl.Get("Btn_OK", "~O~K"));
+    }
+
+    [Fact]
+    public void DefaultProvider_ReturnsFallback_HelpTitle()
+    {
+        using var scope = new IntlProviderScope();
+        Assert.Equal("Help", SharpVisionIntl.Get("Help_WindowTitle", "Help"));
+    }
+
+    [Fact]
+    public void DefaultProvider_ReturnsFallback_Untitled()
+    {
+        using var scope = new IntlProviderScope();
+        Assert.Equal("Untitled", SharpVisionIntl.Get("Edit_Untitled", "Untitled"));
+    }
+
+    [Fact]
+    public void DefaultProvider_MissingKey_ReturnsFallback()
+    {
+        using var scope = new IntlProviderScope();
+        Assert.Equal("fallback", SharpVisionIntl.Get("Missing_Key_XYZ", "fallback"));
+    }
+
+    // ── 19a.2 — Custom prefix provider swap ───────────────────────────────
+
+    [Fact]
+    public void PrefixProvider_Get_ReturnsPrefixPlusKey()
+    {
+        using var scope = new IntlProviderScope(new IntlPrefixTestProvider("XX:"));
+        Assert.Equal("XX:Btn_OK", SharpVisionIntl.Get("Btn_OK", "~O~K"));
+    }
+
+    [Fact]
+    public void PrefixProvider_Underscore_ReturnsPrefixPlusKey()
+    {
+        using var scope = new IntlProviderScope(new IntlPrefixTestProvider("XX:"));
+        Assert.Equal("XX:Btn_OK", SharpVisionIntl._("~O~K", "Btn_OK"));
+    }
+
+    [Fact]
+    public void PrefixProvider_RestoredAfterScope()
+    {
+        {
+            using var scope = new IntlProviderScope(new IntlPrefixTestProvider("XX:"));
+            Assert.Equal("XX:Btn_OK", SharpVisionIntl.Get("Btn_OK", "~O~K"));
+        }
+        // After restore, fallback behaviour must be back.
+        Assert.Equal("~O~K", SharpVisionIntl.Get("Btn_OK", "~O~K"));
+    }
+
+    // ── 19a.3 — Fixed provider & TEditWindow property forwarding ─────────
+
+    [Fact]
+    public void FixedProvider_TEditWindow_Untitled()
+    {
+        using var scope = new IntlProviderScope(new IntlFixedTestProvider("NIC"));
+        Assert.Equal("NIC", TEditWindow.untitled);
+    }
+
+    [Fact]
+    public void FixedProvider_TEditWindow_ClipboardTitle()
+    {
+        using var scope = new IntlProviderScope(new IntlFixedTestProvider("NIC"));
+        Assert.Equal("NIC", TEditWindow.clipboardTitle);
+    }
+
+    [Fact]
+    public void FixedProvider_Restored_TEditWindow_Untitled()
+    {
+        {
+            using var scope = new IntlProviderScope(new IntlFixedTestProvider("NIC"));
+        }
+        Assert.Equal("Untitled", TEditWindow.untitled);
+    }
+
+    // ── 19a.4 — Dict provider & THelpWindow property forwarding ──────────
+
+    [Fact]
+    public void DictProvider_THelpWindow_HelpTitle()
+    {
+        var dict = new Dictionary<string, string>
+        {
+            ["Help_WindowTitle"] = "Pomoc",
+            ["Help_NoContext"]   = "..."
+        };
+        using var scope = new IntlProviderScope(new IntlDictTestProvider(dict));
+        Assert.Equal("Pomoc", THelpWindow.helpWinTitle);
+    }
+
+    [Fact]
+    public void DictProvider_Restored_THelpWindow_HelpTitle()
+    {
+        {
+            var dict = new Dictionary<string, string> { ["Help_WindowTitle"] = "Pomoc" };
+            using var scope = new IntlProviderScope(new IntlDictTestProvider(dict));
+        }
+        Assert.Equal("Help", THelpWindow.helpWinTitle);
+    }
+
+    // ── 19a.5 — Literal-key shorthand ────────────────────────────────────
+
+    [Fact]
+    public void Underscore_SingleArg_ReturnsLiteral()
+    {
+        using var scope = new IntlProviderScope();
+        Assert.Equal("~O~K", SharpVisionIntl._("~O~K"));
+    }
+
+    [Fact]
+    public void Underscore_SingleArg_NotInDict_ReturnsLiteral()
+    {
+        using var scope = new IntlProviderScope();
+        Assert.Equal("NotInDict", SharpVisionIntl._("NotInDict"));
+    }
+}

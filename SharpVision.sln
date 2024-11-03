@@ -26,6 +26,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpVision.HelpCompiler.Te
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpVision.HelpCompiler", "tools\SharpVision.HelpCompiler\SharpVision.HelpCompiler.csproj", "{40ADF9C6-A7B1-761E-89C7-3F79A5E677D9}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpVision.Drivers.Console.Tests", "tests\SharpVision.Drivers.Console.Tests\SharpVision.Drivers.Console.Tests.csproj", "{C3449894-B891-CB23-399A-AAB0ED7D2248}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpVision.Drivers.Terminal.Tests", "tests\SharpVision.Drivers.Terminal.Tests\SharpVision.Drivers.Terminal.Tests.csproj", "{21C5AEF5-6BAD-E9D7-047F-C4B09C3EAB18}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -68,6 +72,14 @@ Global
 		{40ADF9C6-A7B1-761E-89C7-3F79A5E677D9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{40ADF9C6-A7B1-761E-89C7-3F79A5E677D9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{40ADF9C6-A7B1-761E-89C7-3F79A5E677D9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C3449894-B891-CB23-399A-AAB0ED7D2248}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C3449894-B891-CB23-399A-AAB0ED7D2248}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C3449894-B891-CB23-399A-AAB0ED7D2248}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C3449894-B891-CB23-399A-AAB0ED7D2248}.Release|Any CPU.Build.0 = Release|Any CPU
+		{21C5AEF5-6BAD-E9D7-047F-C4B09C3EAB18}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{21C5AEF5-6BAD-E9D7-047F-C4B09C3EAB18}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{21C5AEF5-6BAD-E9D7-047F-C4B09C3EAB18}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{21C5AEF5-6BAD-E9D7-047F-C4B09C3EAB18}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -80,6 +92,8 @@ Global
 		{9A5835B5-C486-3D40-D082-2C82B683C6FA} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{30E7CF29-C193-962E-9590-A7BB45075F94} = {99CAF43D-E274-4745-A154-26713F02F81D}
 		{40ADF9C6-A7B1-761E-89C7-3F79A5E677D9} = {99CAF43D-E274-4745-A154-26713F02F81D}
+		{C3449894-B891-CB23-399A-AAB0ED7D2248} = {7A6A4C40-15A2-4D4F-ACD9-9320C2614C5E}
+		{21C5AEF5-6BAD-E9D7-047F-C4B09C3EAB18} = {7A6A4C40-15A2-4D4F-ACD9-9320C2614C5E}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {C8A5F755-74BD-46AE-9FD1-0C918E2AEBD0}

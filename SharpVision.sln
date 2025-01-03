@@ -30,6 +30,14 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpVision.Drivers.Console
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpVision.Drivers.Terminal.Tests", "tests\SharpVision.Drivers.Terminal.Tests\SharpVision.Drivers.Terminal.Tests.csproj", "{21C5AEF5-6BAD-E9D7-047F-C4B09C3EAB18}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpVision.ResourceCompiler", "tools\SharpVision.ResourceCompiler\SharpVision.ResourceCompiler.csproj", "{F15DC9FE-4BC7-F7A1-032D-836581B87B37}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpVision.ResourceTools", "tools\SharpVision.ResourceTools\SharpVision.ResourceTools.csproj", "{4CDEC955-7927-9AB8-B388-0C217933983F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpVision.ResourceCompiler.Tests", "tests\SharpVision.ResourceCompiler.Tests\SharpVision.ResourceCompiler.Tests.csproj", "{F70712A6-5F8E-8042-0435-6C52E86A0F08}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpVision.ResourceTools.Tests", "tests\SharpVision.ResourceTools.Tests\SharpVision.ResourceTools.Tests.csproj", "{5DBF7492-3306-5F3E-893C-9B4B2CC35CB4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -80,6 +88,22 @@ Global
 		{21C5AEF5-6BAD-E9D7-047F-C4B09C3EAB18}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{21C5AEF5-6BAD-E9D7-047F-C4B09C3EAB18}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{21C5AEF5-6BAD-E9D7-047F-C4B09C3EAB18}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F15DC9FE-4BC7-F7A1-032D-836581B87B37}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F15DC9FE-4BC7-F7A1-032D-836581B87B37}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F15DC9FE-4BC7-F7A1-032D-836581B87B37}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F15DC9FE-4BC7-F7A1-032D-836581B87B37}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4CDEC955-7927-9AB8-B388-0C217933983F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4CDEC955-7927-9AB8-B388-0C217933983F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4CDEC955-7927-9AB8-B388-0C217933983F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4CDEC955-7927-9AB8-B388-0C217933983F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F70712A6-5F8E-8042-0435-6C52E86A0F08}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F70712A6-5F8E-8042-0435-6C52E86A0F08}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F70712A6-5F8E-8042-0435-6C52E86A0F08}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F70712A6-5F8E-8042-0435-6C52E86A0F08}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5DBF7492-3306-5F3E-893C-9B4B2CC35CB4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5DBF7492-3306-5F3E-893C-9B4B2CC35CB4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5DBF7492-3306-5F3E-893C-9B4B2CC35CB4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5DBF7492-3306-5F3E-893C-9B4B2CC35CB4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -94,6 +118,10 @@ Global
 		{40ADF9C6-A7B1-761E-89C7-3F79A5E677D9} = {99CAF43D-E274-4745-A154-26713F02F81D}
 		{C3449894-B891-CB23-399A-AAB0ED7D2248} = {7A6A4C40-15A2-4D4F-ACD9-9320C2614C5E}
 		{21C5AEF5-6BAD-E9D7-047F-C4B09C3EAB18} = {7A6A4C40-15A2-4D4F-ACD9-9320C2614C5E}
+		{F15DC9FE-4BC7-F7A1-032D-836581B87B37} = {99CAF43D-E274-4745-A154-26713F02F81D}
+		{4CDEC955-7927-9AB8-B388-0C217933983F} = {99CAF43D-E274-4745-A154-26713F02F81D}
+		{F70712A6-5F8E-8042-0435-6C52E86A0F08} = {99CAF43D-E274-4745-A154-26713F02F81D}
+		{5DBF7492-3306-5F3E-893C-9B4B2CC35CB4} = {99CAF43D-E274-4745-A154-26713F02F81D}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {C8A5F755-74BD-46AE-9FD1-0C918E2AEBD0}

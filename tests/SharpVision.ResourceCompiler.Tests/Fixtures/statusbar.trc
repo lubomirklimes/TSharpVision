@@ -1,0 +1,11 @@
+// statusbar.trc
+// Compiles one TStatusLine resource.
+
+resource statusbar "status.main" {
+  range 0 65535 {
+    item "~F1~ Help"    command=cmHelp  key="F1";
+    item "~F2~ Save"    command=cmSave  key="F2";
+    item "~F3~ Open"    command=cmOpen  key="F3";
+    item "~Alt+X~ Exit" command=cmQuit  key="Alt+X";
+  }
+}

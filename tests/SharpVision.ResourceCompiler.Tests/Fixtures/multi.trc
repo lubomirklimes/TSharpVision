@@ -1,0 +1,14 @@
+// multi.trc
+// Two dialogs in one .tvr — tests list ordering and multi-resource files.
+resource dialog "dialog.alpha" {
+  bounds (5, 3, 45, 13);
+  title "Alpha";
+  button "~O~K" bounds=(5, 7, 15, 9) command=cmOK default;
+}
+
+resource dialog "dialog.beta" {
+  bounds (5, 3, 45, 13);
+  title "Beta";
+  button "~O~K"     bounds=(5, 7, 15, 9) command=cmOK     default;
+  button "~C~ancel" bounds=(17, 7, 31, 9) command=cmCancel;
+}

@@ -1,0 +1,15 @@
+// hello.trc
+// Golden input used by svres inspection tests.
+// Produces: dialog.hello
+const cmOpen = 1001;
+
+resource dialog "dialog.hello" {
+  bounds (10, 5, 50, 15);
+  title "Hello";
+  palette wpGrayDialog;
+
+  static "Enter name:" bounds=(3, 2, 20, 3);
+  input "" bounds=(3, 4, 30, 5) validator=filter("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz ");
+  button "~O~K"     bounds=(10, 7, 20, 9) command=cmOK     default;
+  button "~C~ancel" bounds=(22, 7, 36, 9) command=cmCancel;
+}

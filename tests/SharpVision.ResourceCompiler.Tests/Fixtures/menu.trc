@@ -1,0 +1,24 @@
+// menu.trc
+// Compiles one TMenuBar resource.
+const cmAbout = 1000;
+
+resource menu "menu.main" {
+  submenu "~F~ile" {
+    item "~O~pen" command=cmOpen key="F3";
+    item "~S~ave" command=cmSave key="F2";
+    separator;
+    item "E~x~it" command=cmQuit key="Alt+X";
+  }
+
+  submenu "~E~dit" {
+    item "~C~ut"   command=cmCut   key="Shift+Del";
+    item "~C~opy"  command=cmCopy  key="Ctrl+Ins";
+    item "~P~aste" command=cmPaste key="Shift+Ins";
+    separator;
+    item "~U~ndo"  command=cmUndo  key="Alt+Back";
+  }
+
+  submenu "~H~elp" {
+    item "~A~bout" command=cmAbout;
+  }
+}

@@ -1,0 +1,13 @@
+// options.trc
+// Golden input used by svres inspection tests.
+// Produces: dialog.options
+resource dialog "dialog.options" {
+  bounds (5, 3, 55, 18);
+  title "Options";
+  palette wpGrayDialog;
+
+  checkbox "Features" bounds=(3, 3, 35, 8) items=("One", "Two", "Three");
+  radio "Mode" bounds=(3, 9, 35, 14) items=("Fast", "Safe");
+  button "~O~K"     bounds=(10, 15, 20, 17) command=cmOK     default;
+  button "~C~ancel" bounds=(22, 15, 36, 17) command=cmCancel;
+}

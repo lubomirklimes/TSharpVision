@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<!--<OutputPath>..\bin\$(Configuration)</OutputPath>-->
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+	</PropertyGroup>
+	
+	<ItemGroup>
+		<PackageReference Include="SDL3-CS" Version="3.2.14" />
+		<PackageReference Include="SDL3-CS.Native" Version="3.2.14" />
+		<PackageReference Include="SDL3-CS.Native.Image" Version="3.2.4" />
+		<PackageReference Include="SDL3-CS.Native.TTF" Version="3.2.2" />
+	</ItemGroup>
+
+	<!--<ItemGroup>
+		<None Update="native\win-x64\SDL3.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<Link>SDL3.dll</Link>
+		</None>
+	</ItemGroup>-->
+	
+	<ItemGroup>
+		<ProjectReference Include="..\SharpVision\SharpVision.csproj" />
+	</ItemGroup>
+
+</Project>

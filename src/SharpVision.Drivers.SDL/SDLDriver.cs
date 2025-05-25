@@ -18,6 +18,10 @@ public class SDLDriver : IDisposable, IDriver
     private int _cellHeight = 26;
     private const int FrameMs = 16; // ~60 Hz pacing
 
+    // Character grid dimensions — updated on window resize.
+    private ushort _cols = 120;
+    private ushort _rows = 37;
+
     private bool disposedValue;
 
     private IntPtr window;
@@ -63,7 +67,7 @@ public class SDLDriver : IDisposable, IDriver
             int w = _cellWidth  * GetCols();
             int h = _cellHeight * GetRows();
 
-            if (!SDL3.SDL.CreateWindowAndRenderer("Sharp Vision", w, h, 0, out window, out renderer))
+            if (!SDL3.SDL.CreateWindowAndRenderer("Sharp Vision", w, h, SDL3.SDL.WindowFlags.Resizable, out window, out renderer))
             {
                 SDL3.SDL.LogError(SDL3.SDL.LogCategory.Application,
                     $"Error creating window and renderer: {SDL3.SDL.GetError()}");
@@ -73,7 +77,7 @@ public class SDLDriver : IDisposable, IDriver
 
             // SDLRenderer construction may throw (font not found).
             // Clean up window, renderer, and SDL state on failure so nothing leaks.
-            sdlRenderer = new SDLRenderer(renderer);
+            sdlRenderer = new SDLRenderer(renderer, ScreenDriverFactory.ConfiguredSdlFontName);
 
             // Adopt font-derived cell dimensions from the renderer,
             // then resize the window so the grid fills the screen correctly.
@@ -86,6 +90,9 @@ public class SDLDriver : IDisposable, IDriver
             _attached = true;
             TScreen.ScreenWidth  = GetCols();
             TScreen.ScreenHeight = GetRows();
+
+            // Register SDL clipboard so that editor copy/paste routes through SDL3.
+            ClipboardService.Current = new SdlClipboardService();
         }
         catch
         {
@@ -109,8 +116,8 @@ public class SDLDriver : IDisposable, IDriver
         return screenBuffer;
     }
 
-    public ushort GetCols()  => 120;
-    public ushort GetRows()  => 37;
+    public ushort GetCols()  => _cols;
+    public ushort GetRows()  => _rows;
     public ushort GetCursorType() => 100;
 
     public TDisplay.SM GetScreenMode() => TDisplay.SM.CO80;
@@ -126,8 +133,7 @@ public class SDLDriver : IDisposable, IDriver
             {
                 case SDL3.SDL.EventType.WindowCloseRequested:
                 case SDL3.SDL.EventType.Quit:
-                    TEventQueue.Enqueue(new TEvent { What = Events.evCommand,
-                                                     message = { command = 0xFFFF /* cmQuit */ } });
+                    TEventQueue.Enqueue(MakeQuitEvent());
                     break;
 
                 case SDL3.SDL.EventType.KeyDown:
@@ -216,6 +222,15 @@ public class SDLDriver : IDisposable, IDriver
                         TEventQueue.Enqueue(wev);
                     break;
                 }
+
+                case SDL3.SDL.EventType.WindowResized:
+                {
+                    // Use the renderer's output size so we work correctly on
+                    // HiDPI displays where window logical size != pixel size.
+                    if (SDL3.SDL.GetCurrentRenderOutputSize(renderer, out int pw, out int ph))
+                        HandleWindowResize(pw, ph);
+                    break;
+                }
             }
         }
 
@@ -226,6 +241,62 @@ public class SDLDriver : IDisposable, IDriver
             _lastFrameTicks = now;
             if (sdlRenderer != null) MessageLoop?.Invoke(sdlRenderer);
         }
+    }
+
+    /// <summary>
+    /// Called when the SDL window is resized. Recalculates the character grid
+    /// from the new pixel dimensions, updates TScreen, reallocates the screen
+    /// buffer, forces an immediate redraw, and enqueues cmScreenResized.
+    /// </summary>
+    private void HandleWindowResize(int pixelW, int pixelH)
+    {
+        if (!_attached || _cellWidth <= 0 || _cellHeight <= 0) return;
+
+        ushort newCols = (ushort)Math.Max(2, pixelW / _cellWidth);
+        ushort newRows = (ushort)Math.Max(1, pixelH / _cellHeight);
+
+        if (newCols == _cols && newRows == _rows) return; // no change
+
+        _cols = newCols;
+        _rows = newRows;
+        TScreen.ScreenWidth  = _cols;
+        TScreen.ScreenHeight = _rows;
+        TScreen.ScreenBuffer = AllocateScreenBuffer();
+
+        // Force an immediate render on the next PumpMessages call.
+        _lastFrameTicks = 0;
+
+        TEvent resEv = default;
+        resEv.What = Constants.Events.evCommand;
+        resEv.message.command = Constants.Views.cmScreenResized;
+        TEventQueue.Enqueue(resEv);
+    }
+
+    /// <summary>
+    /// Builds the <see cref="TEvent"/> that represents a user-requested application
+    /// quit (e.g. the OS window-close button). Posts <c>cmQuit</c> through the
+    /// normal command pipeline so the application shuts down cleanly.
+    /// Internal so unit tests can call it without native SDL.
+    /// </summary>
+    internal static TEvent MakeQuitEvent()
+    {
+        TEvent ev = default;
+        ev.What = Events.evCommand;
+        ev.message.command = Views.cmQuit;
+        return ev;
+    }
+
+    /// <summary>
+    /// Calculates the character grid size (columns, rows) from pixel dimensions
+    /// and cell metrics. Minimum grid is 2 columns × 1 row.
+    /// Internal so unit tests can call it without native SDL.
+    /// </summary>
+    internal static (ushort cols, ushort rows) CalculateGridSize(
+        int pixelW, int pixelH, int cellW, int cellH)
+    {
+        ushort cols = (ushort)Math.Max(2, pixelW / cellW);
+        ushort rows = (ushort)Math.Max(1, pixelH / cellH);
+        return (cols, rows);
     }
 
     public void SetCursorType(ushort cursorType) { _cursorType = cursorType; }
@@ -241,6 +312,7 @@ public class SDLDriver : IDisposable, IDriver
         if (window   != IntPtr.Zero) { SDL3.SDL.DestroyWindow(window);     window   = IntPtr.Zero; }
         SDL3.SDL.Quit();
         _attached = false;
+        ClipboardService.Reset();
     }
 
     public void SetScreenMode(TDisplay.SM mode) { /* fixed cell grid */ }

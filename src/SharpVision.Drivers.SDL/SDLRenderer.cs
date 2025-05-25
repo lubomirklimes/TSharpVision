@@ -54,9 +54,9 @@ public class SDLRenderer : IDisposable, IRenderer
             // Cascadia Mono before Consolas — better box-drawing glyph coverage.
             candidates = new[]
             {
-                Path.Combine(winFonts, "CascadiaMono.ttf"),
                 Path.Combine(winFonts, "CascadiaMono-Regular.ttf"),
                 Path.Combine(winFonts, "consola.ttf"),
+                Path.Combine(winFonts, "cour.ttf"),
                 Path.Combine(winFonts, "lucon.ttf"),
             };
         }
@@ -90,14 +90,175 @@ public class SDLRenderer : IDisposable, IRenderer
         return null;
     }
 
-    public SDLRenderer(IntPtr renderer)
+    public SDLRenderer(IntPtr renderer) : this(renderer, null) { }
+
+    /// <summary>
+    /// Searches system font directories for a font whose file name contains
+    /// a normalized form of <paramref name="fontName"/> (spaces, hyphens, and
+    /// underscores stripped, case-insensitive).
+    /// Returns the first matching font file path, or <c>null</c> if none is found.
+    /// </summary>
+    public static string? ProbeFontPathByName(string fontName)
+    {
+        if (string.IsNullOrWhiteSpace(fontName))
+            return null;
+
+        // If the user entered a direct path, use it first.
+        if (File.Exists(fontName))
+            return Path.GetFullPath(fontName);
+
+        // If the user entered "Perfect DOS VGA 437.ttf", compare as "Perfect DOS VGA 437".
+        string fontNameWithoutExtension = Path.GetFileNameWithoutExtension(fontName);
+
+        string normalized = NormalizeFontName(fontNameWithoutExtension);
+
+        IEnumerable<string> fontDirs;
+
+        if (OperatingSystem.IsWindows())
+        {
+            string winFonts = Path.Combine(
+                Environment.GetEnvironmentVariable("WINDIR") ?? @"C:\Windows",
+                "Fonts");
+
+            string userFonts = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Microsoft",
+                "Windows",
+                "Fonts");
+
+            fontDirs = new[]
+            {
+            AppContext.BaseDirectory,
+            Directory.GetCurrentDirectory(),
+            winFonts,
+            userFonts
+        };
+        }
+        else if (OperatingSystem.IsMacOS())
+        {
+            fontDirs = new[]
+            {
+            AppContext.BaseDirectory,
+            Directory.GetCurrentDirectory(),
+            "/System/Library/Fonts",
+            "/Library/Fonts",
+            Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                "Library",
+                "Fonts")
+        };
+        }
+        else
+        {
+            fontDirs = new[]
+            {
+            AppContext.BaseDirectory,
+            Directory.GetCurrentDirectory(),
+            "/usr/share/fonts",
+            "/usr/local/share/fonts",
+            Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".fonts"),
+            Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".local",
+                "share",
+                "fonts")
+        };
+        }
+
+        foreach (string dir in fontDirs.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            if (!Directory.Exists(dir))
+                continue;
+
+            foreach (string file in SafeEnumerateFontFiles(dir))
+            {
+                string stem = Path.GetFileNameWithoutExtension(file);
+                string normalizedStem = NormalizeFontName(stem);
+
+                if (normalizedStem.Equals(normalized, StringComparison.OrdinalIgnoreCase) ||
+                    normalizedStem.Contains(normalized, StringComparison.OrdinalIgnoreCase) ||
+                    normalized.Contains(normalizedStem, StringComparison.OrdinalIgnoreCase))
+                {
+                    return file;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static string NormalizeFontName(string value)
+    {
+        return value
+            .Replace(" ", "")
+            .Replace("-", "")
+            .Replace("_", "")
+            .Replace(".", "")
+            .ToLowerInvariant();
+    }
+
+    private static IEnumerable<string> SafeEnumerateFontFiles(string root)
+    {
+        var pending = new Stack<string>();
+        pending.Push(root);
+
+        while (pending.Count > 0)
+        {
+            string dir = pending.Pop();
+
+            IEnumerable<string> files;
+            try
+            {
+                files = Directory.EnumerateFiles(dir);
+            }
+            catch
+            {
+                continue;
+            }
+
+            foreach (string file in files)
+            {
+                if (file.EndsWith(".ttf", StringComparison.OrdinalIgnoreCase) ||
+                    file.EndsWith(".ttc", StringComparison.OrdinalIgnoreCase) ||
+                    file.EndsWith(".otf", StringComparison.OrdinalIgnoreCase))
+                {
+                    yield return file;
+                }
+            }
+
+            IEnumerable<string> subDirs;
+            try
+            {
+                subDirs = Directory.EnumerateDirectories(dir);
+            }
+            catch
+            {
+                continue;
+            }
+
+            foreach (string subDir in subDirs)
+                pending.Push(subDir);
+        }
+    }
+
+    public SDLRenderer(IntPtr renderer, string? fontName)
     {
         _renderer = renderer;
 
         if (!SDL3.TTF.Init())
             throw new Exception("SDL_ttf could not initialize! " + SDL3.SDL.GetError());
 
-        string? fontPath = ProbeFontPath();
+        string? fontPath = null;
+        if (!string.IsNullOrWhiteSpace(fontName))
+        {
+            fontPath = ProbeFontPathByName(fontName);
+            if (fontPath == null)
+                Console.Error.WriteLine($"Warning: font '{fontName}' not found; falling back to default.");
+        }
+
+        fontPath ??= ProbeFontPath();
         if (fontPath == null)
             throw new Exception("No suitable monospace font found on this system.");
 

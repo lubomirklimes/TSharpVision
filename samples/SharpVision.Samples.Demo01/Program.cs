@@ -1,4 +1,6 @@
-﻿using SharpVision.Constants;
+﻿using SharpVision.Config;
+using SharpVision.Constants;
+using SharpVision.Drivers;
 
 namespace SharpVision.Demo01;
 
@@ -113,6 +115,15 @@ internal class Program
 {
     static void Main(string[] args)
     {
+        // StreamableRegistration ensures all streamable types are available if
+        // any stream/resource code path is exercised (defensive, same pattern as Demo01).
+        StreamableRegistration.RegisterAll();
+
+        // Load configuration before the driver is initialized.
+        var config = SharpVisionConfigurationLoader.Load();
+        ScreenDriverFactory.ConfiguredDriverName = config.DriverName;
+        ScreenDriverFactory.ConfiguredSdlFontName = config.SdlFontName;
+
         TVDemo demo = new TVDemo();
         demo.Run();
     }

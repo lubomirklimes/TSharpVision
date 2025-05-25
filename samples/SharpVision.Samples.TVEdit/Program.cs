@@ -10,14 +10,18 @@
 //   set SHARPVISION_DRIVER=Win32ConsoleDriver
 // Headless fallback:
 //   set SHARPVISION_DRIVER=NullDriver
+//
+// Config file (optional, looked up next to the executable):
+//   TVEdit.cfg
 using SharpVision;
+using SharpVision.Config;
 using SharpVision.Constants;
+using SharpVision.Drivers;
 
-// Install the Win32 OS clipboard service when running on
-// Windows. On other platforms the default NullClipboardService is left in
-// place and TEditor falls back to the in-process clipboard.
-if (OperatingSystem.IsWindows())
-    ClipboardService.Current = new SharpVision.Drivers.Console.Win32ClipboardService();
+// Load configuration before the driver is initialized.
+var config = SharpVisionConfigurationLoader.Load();
+ScreenDriverFactory.ConfiguredDriverName   = config.DriverName;
+ScreenDriverFactory.ConfiguredSdlFontName  = config.SdlFontName;
 
 var app = new TVEditApp(args);
 return AppLifecycleGuard.Run(app);

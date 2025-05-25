@@ -7,6 +7,21 @@ public class ScreenDriverFactory
 {
     private static readonly Type[] DriverTypes;
 
+    /// <summary>
+    /// Driver name supplied by configuration (e.g. "sdl", "console").
+    /// Supports the same friendly names as <c>[driver] name</c> in a .cfg file.
+    /// The <c>SHARPVISION_DRIVER</c> environment variable takes precedence.
+    /// Set this before the first <see cref="CreateScreenDriver"/> call.
+    /// </summary>
+    public static string? ConfiguredDriverName { get; set; }
+
+    /// <summary>
+    /// Font name supplied by configuration for the SDL driver (e.g. "Cascadia Mono").
+    /// Read by the SDL driver during <c>Initialize()</c>.
+    /// Set this before the first <see cref="CreateScreenDriver"/> call.
+    /// </summary>
+    public static string? ConfiguredSdlFontName { get; set; }
+
     //static ScreenDriverFactory()
     //{
     //    // Get the current directory
@@ -80,9 +95,11 @@ public class ScreenDriverFactory
 
     private static Type? GetDriverTypeForPlatform(Platform platform)
     {
-        // Honor the SHARPVISION_DRIVER environment variable so tests/CI can
-        // pin a specific driver (e.g., "NullDriver" for headless runs).
+        // SHARPVISION_DRIVER env var takes precedence over config (useful for CI/tests).
+        // Config-supplied name is the fallback when the env var is absent.
         string? requested = Environment.GetEnvironmentVariable("SHARPVISION_DRIVER");
+        if (string.IsNullOrWhiteSpace(requested))
+            requested = ConfiguredDriverName;
 
         var candidates = DriverTypes
             .SelectMany(type => type
@@ -96,6 +113,21 @@ public class ScreenDriverFactory
 
         if (!string.IsNullOrWhiteSpace(requested))
         {
+            // Expand friendly config names to internal driver class names.
+            if (string.Equals(requested, "sdl", StringComparison.OrdinalIgnoreCase))
+            {
+                requested = "SDLDriver";
+            }
+            else if (string.Equals(requested, "console", StringComparison.OrdinalIgnoreCase))
+            {
+                // Pick the highest-priority non-SDL driver for the platform.
+                return candidates
+                    .Where(x => !string.Equals(x.Attribute.Driver, "SDLDriver",
+                                               StringComparison.OrdinalIgnoreCase))
+                    .OrderByDescending(x => x.Attribute.Priority)
+                    .FirstOrDefault()?.Type;
+            }
+
             var requestedType = candidates
                 .FirstOrDefault(x =>
                     string.Equals(
@@ -105,9 +137,10 @@ public class ScreenDriverFactory
                 ?.Type;
 
             if (requestedType is not null)
-            {
                 return requestedType;
-            }
+
+            Console.Error.WriteLine(
+                $"Warning: no driver named '{requested}' found for platform {platform}; using default.");
         }
 
         return candidates

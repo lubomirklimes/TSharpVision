@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
@@ -10,8 +10,14 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-	  <ProjectReference Include="..\..\src\SharpVision.Drivers.Console\SharpVision.Drivers.Console.csproj" />
+	  <ProjectReference Include="..\..\src\SharpVision.Drivers.SDL\SharpVision.Drivers.SDL.csproj" />
 	  <ProjectReference Include="..\..\src\SharpVision\SharpVision.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Update="SharpVision.Samples.Demo01.cfg">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </None>
 	</ItemGroup>
 
 </Project>

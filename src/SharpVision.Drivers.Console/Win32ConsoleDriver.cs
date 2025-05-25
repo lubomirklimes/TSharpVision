@@ -226,6 +226,10 @@ public sealed class Win32ConsoleDriver : IDriver, IDisposable
             }
 
             _attached = true;
+
+            // Register the Windows clipboard service so that editor copy/paste
+            // routes through the OS clipboard when this driver is active.
+            ClipboardService.Current = new Win32ClipboardService();
         }
         catch
         {
@@ -268,6 +272,7 @@ public sealed class Win32ConsoleDriver : IDriver, IDisposable
         SetConsoleMode(_hIn,  _savedInMode | ENABLE_EXTENDED_FLAGS);
         SetConsoleMode(_hOut, _savedOutMode);
         _attached = false;
+        ClipboardService.Reset();
     }
 
     public ushort GetCols() => _cols;

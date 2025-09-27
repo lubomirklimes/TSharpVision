@@ -46,7 +46,7 @@ public sealed class TResourceCollection : TStreamable
         int lo = 0, hi = _items.Count - 1;
         while (lo <= hi)
         {
-            int mid = lo + ((hi - lo) >> 1);
+            int mid = (lo + hi) >>> 1;
             int cmp = string.CompareOrdinal(_items[mid].key, key);
             if (cmp == 0) { i = mid; return true; }
             if (cmp < 0) lo = mid + 1; else hi = mid - 1;

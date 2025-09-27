@@ -42,6 +42,14 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpVision.Drivers.SDL", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpVision.Drivers.SDL.Tests", "tests\SharpVision.Drivers.SDL.Tests\SharpVision.Drivers.SDL.Tests.csproj", "{3930DE18-E9F0-DC00-9C35-36531202C812}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Extensions", "Extensions", "{CAD4703F-C1C5-4CB4-8724-8C6D2E51D895}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpVision.Terminal", "extensions\SharpVision.Terminal\SharpVision.Terminal.csproj", "{681ABF3D-5ACC-33A5-0374-2175D287D77D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpVision.Terminal.Tests", "tests\SharpVision.Terminal.Tests\SharpVision.Terminal.Tests.csproj", "{9782E931-3066-E366-96F7-F02331CCDE34}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpVision.Samples.Demo02", "samples\SharpVision.Samples.Demo02\SharpVision.Samples.Demo02.csproj", "{44179F68-3A53-35BB-7DB9-E6D0FDF38BCE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -116,6 +124,18 @@ Global
 		{3930DE18-E9F0-DC00-9C35-36531202C812}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3930DE18-E9F0-DC00-9C35-36531202C812}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3930DE18-E9F0-DC00-9C35-36531202C812}.Release|Any CPU.Build.0 = Release|Any CPU
+		{681ABF3D-5ACC-33A5-0374-2175D287D77D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{681ABF3D-5ACC-33A5-0374-2175D287D77D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{681ABF3D-5ACC-33A5-0374-2175D287D77D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{681ABF3D-5ACC-33A5-0374-2175D287D77D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9782E931-3066-E366-96F7-F02331CCDE34}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9782E931-3066-E366-96F7-F02331CCDE34}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9782E931-3066-E366-96F7-F02331CCDE34}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9782E931-3066-E366-96F7-F02331CCDE34}.Release|Any CPU.Build.0 = Release|Any CPU
+		{44179F68-3A53-35BB-7DB9-E6D0FDF38BCE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{44179F68-3A53-35BB-7DB9-E6D0FDF38BCE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{44179F68-3A53-35BB-7DB9-E6D0FDF38BCE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{44179F68-3A53-35BB-7DB9-E6D0FDF38BCE}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -136,6 +156,9 @@ Global
 		{5DBF7492-3306-5F3E-893C-9B4B2CC35CB4} = {99CAF43D-E274-4745-A154-26713F02F81D}
 		{BF9D3599-CF68-A47F-AF2B-59F51C13331E} = {7A6A4C40-15A2-4D4F-ACD9-9320C2614C5E}
 		{3930DE18-E9F0-DC00-9C35-36531202C812} = {7A6A4C40-15A2-4D4F-ACD9-9320C2614C5E}
+		{681ABF3D-5ACC-33A5-0374-2175D287D77D} = {CAD4703F-C1C5-4CB4-8724-8C6D2E51D895}
+		{9782E931-3066-E366-96F7-F02331CCDE34} = {CAD4703F-C1C5-4CB4-8724-8C6D2E51D895}
+		{44179F68-3A53-35BB-7DB9-E6D0FDF38BCE} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {C8A5F755-74BD-46AE-9FD1-0C918E2AEBD0}

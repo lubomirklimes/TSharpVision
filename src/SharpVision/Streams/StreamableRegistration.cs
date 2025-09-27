@@ -45,6 +45,7 @@ public static class StreamableRegistration
         Pstream.RegisterType(TBackground.StreamableClassTBackground);
 
         // ── Dialogs — text / list ────────────────────────────────────────
+        Pstream.RegisterType(TTerminal.StreamableClassTTerminal);
         Pstream.RegisterType(TStringCollection.StreamableClass);
         Pstream.RegisterType(TListBox.StreamableClassTListBox);
         Pstream.RegisterType(TDialog.StreamableClassTDialog);

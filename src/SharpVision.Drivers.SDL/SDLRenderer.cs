@@ -32,6 +32,24 @@ public class SDLRenderer : IDisposable, IRenderer
     private int _cellHeight = 26;   // overwritten in constructor from font metrics
     private IntPtr _font = IntPtr.Zero;
 
+    // ---- Cursor state --------------------------------------------------
+    // Cursor position in character-grid coordinates.
+    // cursorType: 0 = hidden; >= 100 = block; other non-zero = underline.
+    private int _cursorX;
+    private int _cursorY;
+    private ushort _cursorType;   // 0 means hidden
+
+    /// <summary>
+    /// Updates the cursor position and visibility for the next Render call.
+    /// Called by <see cref="SDLDriver"/> from SetCaretPosition / SetCursorType.
+    /// </summary>
+    public void SetCursor(int x, int y, ushort cursorType)
+    {
+        _cursorX    = x;
+        _cursorY    = y;
+        _cursorType = cursorType;
+    }
+
     /// <summary>Cell width in pixels, derived from the loaded font's glyph advance.</summary>
     public int CellWidth  => _cellWidth;
     /// <summary>Cell height in pixels, derived from the loaded font's line skip.</summary>
@@ -388,6 +406,13 @@ public class SDLRenderer : IDisposable, IRenderer
                 byte attrByte = (byte)(cell.Attr & 0xFF);
                 var (fgArgb, bgArgb) = SdlPalette.DecodeAttr(attrByte);
 
+                // Cursor: render the cursor cell with fg/bg swapped so the
+                // cursor is always visible against any background color.
+                bool isCursorCell = _cursorType != 0
+                    && (int)x == _cursorX && (int)y == _cursorY;
+                if (isCursorCell)
+                    (fgArgb, bgArgb) = (bgArgb, fgArgb);
+
                 // --- Background fill (per-cell rectangle) ---------------
                 SDL3.SDL.SetRenderDrawColor(_renderer,
                     (byte)((bgArgb >> 16) & 0xFF),
@@ -402,7 +427,43 @@ public class SDLRenderer : IDisposable, IRenderer
                     W = _cellWidth,
                     H = _cellHeight
                 };
-                SDL3.SDL.RenderFillRect(_renderer, rect);
+
+                // For underline-style cursors render only the bottom strip;
+                // for block cursors or normal cells fill the entire cell.
+                if (isCursorCell && _cursorType < 100)
+                {
+                    // Restore normal bg for the top portion of the cursor cell.
+                    var (origFg, origBg) = SdlPalette.DecodeAttr(attrByte);
+                    SDL3.SDL.SetRenderDrawColor(_renderer,
+                        (byte)((origBg >> 16) & 0xFF),
+                        (byte)((origBg >>  8) & 0xFF),
+                        (byte)( origBg        & 0xFF),
+                        255);
+                    SDL3.SDL.RenderFillRect(_renderer, rect);
+
+                    // Draw the underline bar (bottom 2 pixels).
+                    var underline = new SDL3.SDL.FRect
+                    {
+                        X = rect.X,
+                        Y = rect.Y + rect.H - 2,
+                        W = rect.W,
+                        H = 2,
+                    };
+                    // Inverted fg colour for the underline.
+                    SDL3.SDL.SetRenderDrawColor(_renderer,
+                        (byte)((origFg >> 16) & 0xFF),
+                        (byte)((origFg >>  8) & 0xFF),
+                        (byte)( origFg        & 0xFF),
+                        255);
+                    SDL3.SDL.RenderFillRect(_renderer, underline);
+
+                    // Re-use original colours for the glyph on top.
+                    (fgArgb, bgArgb) = (origFg, origBg);
+                }
+                else
+                {
+                    SDL3.SDL.RenderFillRect(_renderer, rect);
+                }
 
                 // --- Glyph (cached texture) ----------------------------
                 char ch = cell.Character;

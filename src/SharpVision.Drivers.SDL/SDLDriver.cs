@@ -30,7 +30,10 @@ public class SDLDriver : IDisposable, IDriver
     private SDLRenderer? sdlRenderer;
     private bool _attached;
     private long _lastFrameTicks;
-    private ushort _cursorType;
+    // 0 = hidden; 100 = block; other non-zero = underline.
+    // Initialised to 100 (block) so TScreen.SetCrtData() saves a non-zero
+    // CursorLines before hiding the cursor for the first draw pass.
+    private ushort _cursorType = 100;
     private int _caretX;
     private int _caretY;
     private readonly Queue<TEvent> _pendingKeys = new();
@@ -91,6 +94,12 @@ public class SDLDriver : IDisposable, IDriver
             TScreen.ScreenWidth  = GetCols();
             TScreen.ScreenHeight = GetRows();
 
+            // Enable SDL text-input mode so SDL_EVENT_TEXT_INPUT events are
+            // delivered for printable keystrokes.  Without this call the
+            // KeyDown handler skips printable keys (deferring to TextInput)
+            // but TextInput events never arrive, so all typing is lost.
+            SDL3.SDL.StartTextInput(window);
+
             // Register SDL clipboard so that editor copy/paste routes through SDL3.
             ClipboardService.Current = new SdlClipboardService();
         }
@@ -118,7 +127,7 @@ public class SDLDriver : IDisposable, IDriver
 
     public ushort GetCols()  => _cols;
     public ushort GetRows()  => _rows;
-    public ushort GetCursorType() => 100;
+    public ushort GetCursorType() => _cursorType;
 
     public TDisplay.SM GetScreenMode() => TDisplay.SM.CO80;
 
@@ -299,7 +308,11 @@ public class SDLDriver : IDisposable, IDriver
         return (cols, rows);
     }
 
-    public void SetCursorType(ushort cursorType) { _cursorType = cursorType; }
+    public void SetCursorType(ushort cursorType)
+    {
+        _cursorType = cursorType;
+        sdlRenderer?.SetCursor(_caretX, _caretY, _cursorType);
+    }
 
     public void Suspend() { /* SDL has no cooked-mode equivalent */ }
     public void Resume()  { if (!_attached) Initialize(); }
@@ -308,6 +321,9 @@ public class SDLDriver : IDisposable, IDriver
         if (!_attached) return;
         try { sdlRenderer?.Dispose(); } catch { }
         sdlRenderer = null;
+        // Stop text input before destroying the window so SDL cleans up its
+        // internal text-input state for this window.
+        if (window != IntPtr.Zero) SDL3.SDL.StopTextInput(window);
         if (renderer != IntPtr.Zero) { SDL3.SDL.DestroyRenderer(renderer); renderer = IntPtr.Zero; }
         if (window   != IntPtr.Zero) { SDL3.SDL.DestroyWindow(window);     window   = IntPtr.Zero; }
         SDL3.SDL.Quit();
@@ -326,7 +342,12 @@ public class SDLDriver : IDisposable, IDriver
                 screenBuffer.SetChar(x, y, blank);
     }
 
-    public void SetCaretPosition(int x, int y) { _caretX = x; _caretY = y; }
+    public void SetCaretPosition(int x, int y)
+    {
+        _caretX = x;
+        _caretY = y;
+        sdlRenderer?.SetCursor(_caretX, _caretY, _cursorType);
+    }
 
     public void MakeBeep()
     {

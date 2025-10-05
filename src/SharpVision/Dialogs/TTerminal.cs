@@ -1,4 +1,5 @@
 using SharpVision.Constants;
+using System.Diagnostics;
 using System.Text;
 
 namespace SharpVision;
@@ -19,6 +20,46 @@ public class TTerminal : TView
     // Selection highlight: black text on cyan background.
     private const ushort SelectionColor = Colors.fgBlack | Colors.bgCyan;
     private const int WheelStep = 3;
+
+    // ── Diagnostic trace ─────────────────────────────────────────────────────
+    // Set to true to log raw I/O and parser events to Debug output (DEBUG builds only).
+    // Flip to false to silence without removing the instrumentation.
+#if DEBUG
+    private const bool TraceTerminalRawIo = true;
+#else
+    private const bool TraceTerminalRawIo = false;
+#endif
+
+    [Conditional("DEBUG")]
+    private static void TraceTerminal(string message)
+    {
+        if (TraceTerminalRawIo)
+            Debug.WriteLine(message);
+    }
+
+    /// <summary>
+    /// Renders control characters as visible escape sequences so they can be
+    /// read in the debug output without mangling the log line.
+    /// </summary>
+    private static string EscapeForLog(string text)
+    {
+        if (text == null) return "(null)";
+        var sb = new StringBuilder(text.Length * 2);
+        foreach (char ch in text)
+            sb.Append(ch switch
+            {
+                '\r'  => "\\r",
+                '\n'  => "\\n",
+                '\b'  => "\\b",
+                '\t'  => "\\t",
+                '\x1b' => "\\x1B",
+                _ when char.IsControl(ch) => $"\\x{(int)ch:X2}",
+                _ => ch.ToString()
+            });
+        return sb.ToString();
+    }
+
+    private static string EscapeForLog(char ch) => EscapeForLog(ch.ToString());
 
     // ── Output buffer ─────────────────────────────────────────────────────────
 
@@ -71,6 +112,16 @@ public class TTerminal : TView
     // Updated by CR, LF, printable chars, and cursor-movement CSI sequences.
     private int _cursorColumn;
 
+    // The absolute terminal column (0-based) at which _currentLine[0] lives.
+    // When the shell sends an absolute CUP sequence (ESC[row;colH), we subtract
+    // this base to convert to a logical column within _currentLine.
+    // Reset to 0 on CommitLine; updated to the new cursor column on CR.
+    private int _currentLineBaseColumn;
+    // True once _currentLineBaseColumn has been established for the current line
+    // via a CUP sequence.  Reset to false on CommitLine so the next CUP can
+    // re-bootstrap the base for the following line.
+    private bool _currentLineBaseColumnKnown;
+
     // ── Construction ─────────────────────────────────────────────────────────
 
     public TTerminal(TRect bounds)
@@ -91,6 +142,11 @@ public class TTerminal : TView
     // ── Output API ────────────────────────────────────────────────────────────
 
     public IReadOnlyList<string> Lines => _lines.AsReadOnly();
+
+    /// <summary>The uncommitted partial line currently being built.</summary>
+    public string CurrentLine => _currentLine;
+    /// <summary>The current cursor column within <see cref="CurrentLine"/> (0-based).</summary>
+    public int CursorColumn => _cursorColumn;
 
     /// <summary>
     /// When true, text written to the terminal is parsed for ANSI SGR color
@@ -879,6 +935,7 @@ public class TTerminal : TView
     private void SendRaw(string text)
     {
         if (_session == null || !_session.IsRunning || string.IsNullOrEmpty(text)) return;
+        TraceTerminal($"TTerminal RAW IN  -> [{EscapeForLog(text)}]");
         _ = SendToSessionAsync(text, _session);
     }
 
@@ -1077,6 +1134,7 @@ public class TTerminal : TView
             text,
             onChar: (ch, attr) =>
             {
+                TraceTerminal($"TTerminal PARSER: Char('{EscapeForLog(ch)}') at col {_cursorColumn}, lineLen={_currentLine.Length}");
                 if (_cursorColumn < _currentLine.Length)
                 {
                     // Overwrite the character at the current column.
@@ -1099,16 +1157,31 @@ public class TTerminal : TView
                 }
                 _cursorColumn++;
             },
-            onNewLine: CommitLine,
-            onCarriageReturn: () => { _cursorColumn = 0; },
+            onNewLine: () =>
+            {
+                TraceTerminal($"TTerminal PARSER: LF  (col={_cursorColumn}, lineLen={_currentLine.Length})");
+                CommitLine();
+            },
+            onCarriageReturn: () =>
+            {
+                TraceTerminal($"TTerminal PARSER: CR  (col={_cursorColumn}, lineLen={_currentLine.Length})");
+                // CR moves the terminal cursor to the start of the current visual line.
+                // Record the absolute column before resetting so that _currentLineBaseColumn
+                // stays at the left edge of the line (which is 0 for the first write,
+                // unchanged on subsequent CRs to the same line).
+                _currentLineBaseColumn = 0;
+                _cursorColumn = 0;
+            },
             onBackspace: () =>
             {
+                TraceTerminal($"TTerminal PARSER: BS  (col={_cursorColumn}, lineLen={_currentLine.Length})");
                 if (_cursorColumn > 0)
                     _cursorColumn--;
             },
             onClearScreen: Clear,
             onEraseInLine: (mode) =>
             {
+                TraceTerminal($"TTerminal PARSER: EraseInLine({mode}) at col {_cursorColumn}, lineLen={_currentLine.Length}");
                 switch (mode)
                 {
                     case 0: // erase from cursor to end of line
@@ -1136,15 +1209,63 @@ public class TTerminal : TView
             },
             onCursorColumn: (n) =>
             {
-                _cursorColumn = Math.Max(0, n - 1);  // n is 1-based
+                int newCol = Math.Max(0, n - 1);
+                TraceTerminal($"TTerminal PARSER: CursorColumn({n}) -> col {newCol}, lineLen={_currentLine.Length}");
+                _cursorColumn = newCol;
             },
             onCursorRight: (n) =>
             {
+                TraceTerminal($"TTerminal PARSER: CursorRight({n}) col {_cursorColumn}->{_cursorColumn + n}, lineLen={_currentLine.Length}");
                 _cursorColumn += n;
             },
             onCursorLeft: (n) =>
             {
-                _cursorColumn = Math.Max(0, _cursorColumn - n);
+                int newCol = Math.Max(0, _cursorColumn - n);
+                TraceTerminal($"TTerminal PARSER: CursorLeft({n}) col {_cursorColumn}->{newCol}, lineLen={_currentLine.Length}");
+                _cursorColumn = newCol;
+            },
+            onCursorPosition: (row, col) =>
+            {
+                // Convert absolute 1-based terminal column to a logical index within
+                // _currentLine.  _currentLineBaseColumn holds the 0-based absolute column
+                // at which _currentLine[0] lives.
+                int absCol = col - 1;          // 0-based absolute terminal column
+                int logCol;
+                if (!_currentLineBaseColumnKnown)
+                {
+                    // First CUP for this logical line while the base is unknown.
+                    // The shell (e.g. cmd.exe ESC) sends CUP to reposition at the
+                    // start of the editable region (logical column 0).  Bootstrap
+                    // the base from this absolute position.
+                    _currentLineBaseColumn = absCol;
+                    _currentLineBaseColumnKnown = true;
+                    logCol = 0;
+                }
+                else
+                {
+                    logCol = Math.Max(0, absCol - _currentLineBaseColumn);
+                }
+                TraceTerminal($"TTerminal PARSER: CursorPosition(row={row}, col={col}) absCol={absCol} base={_currentLineBaseColumn} known={_currentLineBaseColumnKnown} -> logCol={logCol}, lineLen={_currentLine.Length}");
+
+                // Before repositioning: if there is content after the new logical
+                // column and it is all spaces (i.e. the shell just overwrote typed
+                // chars with spaces), trim it so the line does not retain stale blanks.
+                if (logCol < _currentLine.Length)
+                {
+                    bool trailingAllSpaces = true;
+                    for (int ci = logCol; ci < _currentLine.Length; ci++)
+                    {
+                        if (_currentLine[ci] != ' ') { trailingAllSpaces = false; break; }
+                    }
+                    if (trailingAllSpaces)
+                    {
+                        _currentLine = _currentLine[..logCol];
+                        if (_currentCells.Count > logCol)
+                            _currentCells.RemoveRange(logCol, _currentCells.Count - logCol);
+                    }
+                }
+
+                _cursorColumn = logCol;
             }
         );
     }
@@ -1155,6 +1276,8 @@ public class TTerminal : TView
         _lines.Add(_currentLine);
         _currentLine = string.Empty;
         _cursorColumn = 0;
+        _currentLineBaseColumn = 0;
+        _currentLineBaseColumnKnown = false;
         if (_ansiEnabled)
         {
             _cellLines.Add(_currentCells.ToArray());
@@ -1364,6 +1487,7 @@ public class TTerminal : TView
 
     private void OnSessionOutput(object sender, TerminalOutputEventArgs e)
     {
+        TraceTerminal($"TTerminal RAW OUT <- [{EscapeForLog(e.Text)}]");
         Write(e.Text);
     }
 

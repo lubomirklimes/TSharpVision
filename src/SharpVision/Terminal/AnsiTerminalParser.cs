@@ -71,6 +71,8 @@ internal sealed class AnsiTerminalParser
     /// <param name="onCursorColumn">Called for ESC[nG; argument is 1-based column.</param>
     /// <param name="onCursorRight">Called for ESC[nC; argument is number of columns.</param>
     /// <param name="onCursorLeft">Called for ESC[nD; argument is number of columns.</param>
+    /// <param name="onCursorPosition">Called for ESC[row;colH and ESC[row;colf (CUP/HVP);
+    /// both arguments are 1-based; missing values default to 1.</param>
     public void Parse(
         string text,
         Action<char, ushort> onChar,
@@ -78,10 +80,11 @@ internal sealed class AnsiTerminalParser
         Action onCarriageReturn,
         Action onBackspace,
         Action onClearScreen,
-        Action<int> onEraseInLine   = null,
-        Action<int> onCursorColumn  = null,
-        Action<int> onCursorRight   = null,
-        Action<int> onCursorLeft    = null)
+        Action<int> onEraseInLine        = null,
+        Action<int> onCursorColumn       = null,
+        Action<int> onCursorRight        = null,
+        Action<int> onCursorLeft         = null,
+        Action<int, int> onCursorPosition = null)
     {
         int i = 0;
         while (i < text.Length)
@@ -149,7 +152,8 @@ internal sealed class AnsiTerminalParser
                         _csiPrivate = false;
                         DispatchCsi(c, paramStr, wasPrivate,
                             onClearScreen, onEraseInLine,
-                            onCursorColumn, onCursorRight, onCursorLeft);
+                            onCursorColumn, onCursorRight, onCursorLeft,
+                            onCursorPosition);
                     }
                     break;
 
@@ -192,7 +196,8 @@ internal sealed class AnsiTerminalParser
         Action<int> onEraseInLine,
         Action<int> onCursorColumn,
         Action<int> onCursorRight,
-        Action<int> onCursorLeft)
+        Action<int> onCursorLeft,
+        Action<int, int> onCursorPosition)
     {
         if (isPrivate)
         {
@@ -244,8 +249,25 @@ internal sealed class AnsiTerminalParser
 
             case 'H':
             case 'f':
-                // Cursor position — not fully implemented; consumed safely.
+            {
+                // CUP / HVP — Cursor Position: ESC[row;colH (both 1-based; default 1).
+                int semi = paramStr.IndexOf(';');
+                int row, col;
+                if (semi < 0)
+                {
+                    row = ParseParam(paramStr, 1);
+                    col = 1;
+                }
+                else
+                {
+                    row = ParseParam(paramStr[..semi], 1);
+                    col = ParseParam(paramStr[(semi + 1)..], 1);
+                }
+                row = Math.Max(1, row);
+                col = Math.Max(1, col);
+                onCursorPosition?.Invoke(row, col);
                 break;
+            }
 
             // All other final bytes are silently consumed.
         }

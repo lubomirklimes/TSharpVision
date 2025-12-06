@@ -1,0 +1,30 @@
+<Solution>
+  <Folder Name="/Drivers/">
+    <Project Path="src/SharpVision.Drivers.Console/SharpVision.Drivers.Console.csproj" />
+    <Project Path="src/SharpVision.Drivers.SDL/SharpVision.Drivers.SDL.csproj" />
+    <Project Path="src/SharpVision.Drivers.Terminal/SharpVision.Drivers.Terminal.csproj" />
+    <Project Path="tests/SharpVision.Drivers.Console.Tests/SharpVision.Drivers.Console.Tests.csproj" />
+    <Project Path="tests/SharpVision.Drivers.SDL.Tests/SharpVision.Drivers.SDL.Tests.csproj" />
+    <Project Path="tests/SharpVision.Drivers.Terminal.Tests/SharpVision.Drivers.Terminal.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Extensions/">
+    <Project Path="extensions/SharpVision.Terminal/SharpVision.Terminal.csproj" />
+    <Project Path="tests/SharpVision.Terminal.Tests/SharpVision.Terminal.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Samples/">
+    <Project Path="samples/SharpVision.Samples.Demo01/SharpVision.Samples.Demo01.csproj" />
+    <Project Path="samples/SharpVision.Samples.Demo02/SharpVision.Samples.Demo02.csproj" />
+    <Project Path="samples/SharpVision.Samples.TVDemo/SharpVision.Samples.TVDemo.csproj" />
+    <Project Path="samples/SharpVision.Samples.TVEdit/SharpVision.Samples.TVEdit.csproj" />
+  </Folder>
+  <Folder Name="/Tools/">
+    <Project Path="tests/SharpVision.HelpCompiler.Tests/SharpVision.HelpCompiler.Tests.csproj" />
+    <Project Path="tests/SharpVision.ResourceCompiler.Tests/SharpVision.ResourceCompiler.Tests.csproj" />
+    <Project Path="tests/SharpVision.ResourceTools.Tests/SharpVision.ResourceTools.Tests.csproj" />
+    <Project Path="tools/SharpVision.HelpCompiler/SharpVision.HelpCompiler.csproj" />
+    <Project Path="tools/SharpVision.ResourceCompiler/SharpVision.ResourceCompiler.csproj" />
+    <Project Path="tools/SharpVision.ResourceTools/SharpVision.ResourceTools.csproj" />
+  </Folder>
+  <Project Path="src/SharpVision/SharpVision.csproj" />
+  <Project Path="tests/SharpVision.Tests/SharpVision.Tests.csproj" />
+</Solution>

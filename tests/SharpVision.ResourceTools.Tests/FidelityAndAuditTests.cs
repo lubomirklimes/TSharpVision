@@ -29,7 +29,7 @@ file static class FidelityFixtures
     // into the test project's Fixtures folder.
     private static readonly string _dir = Path.Combine(
         Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!,
-        "..", "..", "..", "SharpVision.Tests", "ResourceCompiler", "Fixtures");
+        "..", "..", "..", "..", "SharpVision.ResourceCompiler.Tests", "Fixtures");
 
     public static string FixturePath(string name) =>
         Path.GetFullPath(Path.Combine(_dir, name));

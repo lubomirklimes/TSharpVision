@@ -524,7 +524,7 @@ public sealed class AppShellSourceFileTests
         Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", ".."));
 
     private static string TrcPath =>
-        Path.Combine(RepoRoot, "samples", "resources", "app-shell.trc");
+        Path.Combine(RepoRoot, "Fixtures", "app-shell.trc");
 
     [Fact]
     public void AppShellTrcFile_ExistsInRepository()

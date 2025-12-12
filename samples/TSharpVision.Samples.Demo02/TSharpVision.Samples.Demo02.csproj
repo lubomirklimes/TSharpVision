@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net10.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\..\src\TSharpVision.Drivers.Console\TSharpVision.Drivers.Console.csproj" />
+	  <ProjectReference Include="..\..\src\TSharpVision.Drivers.SDL\TSharpVision.Drivers.SDL.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Update="Help\demohelp.hlp">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </None>
+	  <None Update="TSharpVision.Samples.Demo02.cfg">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </None>
+	</ItemGroup>
+
+</Project>

@@ -1,0 +1,30 @@
+<Solution>
+  <Folder Name="/Drivers/">
+    <Project Path="src/TSharpVision.Drivers.Console/TSharpVision.Drivers.Console.csproj" />
+    <Project Path="src/TSharpVision.Drivers.SDL/TSharpVision.Drivers.SDL.csproj" />
+    <Project Path="src/TSharpVision.Drivers.Terminal/TSharpVision.Drivers.Terminal.csproj" />
+    <Project Path="tests/TSharpVision.Drivers.Console.Tests/TSharpVision.Drivers.Console.Tests.csproj" />
+    <Project Path="tests/TSharpVision.Drivers.SDL.Tests/TSharpVision.Drivers.SDL.Tests.csproj" />
+    <Project Path="tests/TSharpVision.Drivers.Terminal.Tests/TSharpVision.Drivers.Terminal.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Extensions/">
+    <Project Path="extensions/TSharpVision.Terminal/TSharpVision.Terminal.csproj" />
+    <Project Path="tests/TSharpVision.Terminal.Tests/TSharpVision.Terminal.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Samples/">
+    <Project Path="samples/TSharpVision.Samples.Demo01/TSharpVision.Samples.Demo01.csproj" />
+    <Project Path="samples/TSharpVision.Samples.Demo02/TSharpVision.Samples.Demo02.csproj" />
+    <Project Path="samples/TSharpVision.Samples.TVDemo/TSharpVision.Samples.TVDemo.csproj" />
+    <Project Path="samples/TSharpVision.Samples.TVEdit/TSharpVision.Samples.TVEdit.csproj" />
+  </Folder>
+  <Folder Name="/Tools/">
+    <Project Path="tests/TSharpVision.HelpCompiler.Tests/TSharpVision.HelpCompiler.Tests.csproj" />
+    <Project Path="tests/TSharpVision.ResourceCompiler.Tests/TSharpVision.ResourceCompiler.Tests.csproj" />
+    <Project Path="tests/TSharpVision.ResourceTools.Tests/TSharpVision.ResourceTools.Tests.csproj" />
+    <Project Path="tools/TSharpVision.HelpCompiler/TSharpVision.HelpCompiler.csproj" />
+    <Project Path="tools/TSharpVision.ResourceCompiler/TSharpVision.ResourceCompiler.csproj" />
+    <Project Path="tools/TSharpVision.ResourceTools/TSharpVision.ResourceTools.csproj" />
+  </Folder>
+  <Project Path="src/TSharpVision/TSharpVision.csproj" />
+  <Project Path="tests/TSharpVision.Tests/TSharpVision.Tests.csproj" />
+</Solution>

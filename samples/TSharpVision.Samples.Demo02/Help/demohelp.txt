@@ -1,0 +1,217 @@
+.topic Nocontext=0
+ No Context
+  ----------
+No specific help is available for the current view.
+
+Press F10 to activate the menu bar and explore available commands.
+
+See also {Main Menu:MainMenu}.
+
+.topic Index=1
+ Help Index
+  ----------
+Topics available in this help system:
+
+ {Main Menu:MainMenu}
+ {Welcome Window:WelcomeWindow}
+ {File Menu:FileMenu}
+ {Window Management:WindowManagement}
+ {Controls Showcase:ControlsShowcase}
+ {Color Dialog:ColorDialog}
+ {Resource Dialog:ResourceDialog}
+ {Resource Files:ResourceFiles}
+ {Help System:HelpSystem}
+ {About TSharpVision:About}
+
+Press Esc to close help. Press Backspace to go back.
+
+.topic MainMenu=2
+ Main Menu
+  ---------
+The menu bar at the top of the screen gives access to all application
+commands.
+
+Press F10 to activate the menu bar. Use the arrow keys to navigate and
+Enter to select a command. Press Esc to close the menu without selecting.
+
+Use Alt+letter shortcuts to jump directly to a menu: Alt+F (File),
+Alt+E (Edit), Alt+O (Options), Alt+W (Window), Alt+H (Help).
+
+Menus available:
+ File     -- new windows, open files, exit.
+ Edit     -- sample dialogs and controls showcase.
+ Options  -- color and palette settings.
+ Window   -- arrange, cycle, and save/restore windows.
+ Help     -- About dialog.
+
+See also {File Menu:FileMenu}, {Controls Showcase:ControlsShowcase},
+{Color Dialog:ColorDialog}, {Resource Dialog:ResourceDialog}.
+
+.topic WelcomeWindow=3
+ Welcome Window
+  --------------
+The Welcome Window is displayed automatically when the application starts.
+It introduces the TSharpVision demo and lists basic navigation shortcuts.
+
+To move the window: press Ctrl+F5, then use the arrow keys.
+
+To resize the window: press Ctrl+F5, then use Shift+arrow keys.
+
+To zoom the window to full desktop size: press F5.
+
+To close the window: click the close icon in the upper-left corner
+or press Alt+F3.
+
+To switch between open windows: press F6 (Next) or F5 (Previous).
+
+See also {Window Management:WindowManagement}.
+
+.topic FileMenu=4
+ File Menu
+  ---------
+The File menu (Alt+F) contains commands for working with windows and files.
+
+ New Window (F4)  -- opens a new empty window on the desktop.
+ Open... (F3)     -- opens the file browser (full polish deferred).
+ Exit (Alt+X)     -- exits the application without saving.
+
+See also {Resource Dialog:ResourceDialog},
+{Window Management:WindowManagement}.
+
+.topic WindowManagement=5
+ Window Management
+  -----------------
+TSharpVision windows can be moved, resized, zoomed and closed.
+
+ Move:    Ctrl+F5, then arrow keys.
+ Resize:  Ctrl+F5, then Shift+arrow keys.
+ Zoom:    F5 toggles normal and full-desktop size.
+ Close:   Alt+F3, or click the close icon in the top-left corner.
+
+To cycle among open windows use F6 (Next). Window/Next and Window/Previous
+in the menu do the same thing.
+
+Use Window/Cascade to arrange windows in a cascade pattern, or
+Window/Tile to tile them across the desktop.
+
+The desktop state can be saved with Window/Save Desktop State and
+restored with Window/Load Desktop State.
+
+See also {Welcome Window:WelcomeWindow}.
+
+.topic ControlsShowcase=6
+ Controls Showcase
+  -----------------
+Open the Controls Showcase from the Edit menu to see all implemented Turbo
+Vision dialog controls working together.
+
+The showcase dialog contains input lines, checkboxes, radio buttons, and
+a list box.
+
+ Input line    -- type text in the Name field.
+ Checkboxes    -- toggle Bold, Italic, Wide output, and Verbose options.
+ Radio buttons -- select one of Normal, Silent, or Debug modes.
+ List box      -- choose a programming language from the list.
+
+Navigation inside the dialog:
+
+ Tab / Shift+Tab  -- move focus between controls.
+ Arrow keys       -- move within a radio/checkbox group or a list box.
+ Space            -- toggle a checkbox or activate a button.
+ Enter            -- press the focused button (OK or Cancel).
+ Esc              -- same as Cancel.
+
+Press OK to see a summary of your selections.
+
+See also {Color Dialog:ColorDialog}.
+
+.topic ColorDialog=7
+ Color Dialog
+  ------------
+Open the Color Dialog from the Options menu to experiment with palette
+entries.
+
+The dialog shows a tree of color groups on the left and a color selector
+grid on the right. Navigate the group tree with arrow keys, then select
+a color in the grid.
+
+Note: live application of the chosen palette to the running session may
+be limited in the current phase.
+
+See also {Controls Showcase:ControlsShowcase}.
+
+.topic ResourceDialog=8
+ Resource Dialog
+  ---------------
+The Resource Dialog demonstrates TResourceFile and streamable UI objects.
+
+When you open the Resource Dialog (Help menu), TSharpVision generates a
+TDialog object, serialises it to a .tvr resource file, then reads the
+dialog back and displays it.
+
+This proves that Turbo Vision streamable objects round-trip correctly
+through the resource file format.
+
+See also {Resource Files:ResourceFiles}.
+
+.topic ResourceFiles=9
+ Resource Files (.tvr)
+  ---------------------
+TSharpVision resource files use the .tvr extension and the Borland Turbo
+Vision resource format.
+
+A TResourceFile wraps an Fpstream and stores named objects. Keys are plain
+strings. Any streamable TObject can be stored.
+
+To write a resource:
+  var rf = new TResourceFile(fp);
+  rf.Put(obj, "myKey");
+  rf.Flush();
+
+To read a resource:
+  var obj = rf.Get("myKey") as MyType;
+
+Pack() removes deleted entries and compacts the file.
+
+See also {Resource Dialog:ResourceDialog}.
+
+.topic HelpSystem=10
+ Help System
+  -----------
+TSharpVision uses its own binary help format compiled by svhc.
+
+svhc (TSharpVision Help Compiler) converts a plain-text source file into
+a binary .hlp file and an optional C# symbol file. It is a port of
+Borland TVHC from 1991.
+
+Compile syntax:
+  svhc <input>[.txt] [<output>[.hlp] [<symfile>[.cs]]]
+
+Help topics are defined with .topic lines. Cross-references link to other
+topics using curly-brace syntax in the source file.
+
+At runtime, THelpFile reads the .hlp file. Press F1 anywhere in the
+application to open the help window for the current context.
+
+See also {Main Menu:MainMenu}.
+
+.topic About=11
+ About TSharpVision
+  -----------------
+TSharpVision is a high-fidelity C#/.NET 8 reimplementation of Borland Turbo
+Vision, the character-mode UI toolkit from the early 1990s.
+
+This demo exercises menus, dialogs, controls, color palette, resource file
+streaming, desktop state save/restore, and this help system.
+
+F1 opens a real THelpWindow with topic text compiled by svhc.
+
+.topic EditorPlaceholder=12
+ Editor (Coming Soon)
+  --------------------
+An integrated text editor window is planned for a future release.
+
+The editor will demonstrate TEditor/TEditWindow integration, including
+keyboard handling, clipboard, find/replace, and file load/save.
+
+See also {File Menu:FileMenu}.

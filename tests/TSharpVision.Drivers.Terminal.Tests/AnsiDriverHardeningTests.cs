@@ -4,7 +4,7 @@
 //   §2 ANSI SGR drag with held-button mask (b=32 left, b=34 right, b=35 none)
 //   §3 ANSI CSI param;modifier~ — Shift/Alt/Ctrl F-key decode + no-regression F5
 //   §4 AttrToSgr canonical SGR string mappings (0x07, 0x0F, 0x1F, 0xF7)
-//   §5 AnsiTerminalDriver capability (SupportsTrueColor=false) + lifecycle safety
+//   §5 AnsiTerminalDriver capability (SupportsTrueColor=true) + lifecycle safety
 using System.Text;
 using TSharpVision;
 using TSharpVision.Constants;
@@ -201,36 +201,88 @@ public sealed class AnsiDriverHardeningTests
     public void AttrToSgr_0x07_GrayOnBlack()
     {
         // fg=7 (gray, no bright bit) → 30+7=37; bg=0 (black) → 40+0=40
-        Assert.Equal("\x1b[0;37;40m", AnsiTerminalDriver.AttrToSgr(new TColorAttr(0x07)));
+        Assert.Equal("\x1b[0;38;2;170;170;170;48;2;0;0;0m",
+            AnsiTerminalDriver.AttrToSgr(new TColorAttr(0x07)));
     }
 
     [Fact]
     public void AttrToSgr_0x0F_BrightWhiteOnBlack()
     {
         // fg=15 (bright bit set, val=7) → 90+7=97; bg=0 → 40
-        Assert.Equal("\x1b[0;97;40m", AnsiTerminalDriver.AttrToSgr(new TColorAttr(0x0F)));
+        Assert.Equal("\x1b[0;38;2;255;255;255;48;2;0;0;0m",
+            AnsiTerminalDriver.AttrToSgr(new TColorAttr(0x0F)));
     }
 
     [Fact]
     public void AttrToSgr_0x1F_BrightWhiteOnBlue()
     {
-        // fg=15 → 97; bg=1 (blue) → 40+1=41
-        Assert.Equal("\x1b[0;97;41m", AnsiTerminalDriver.AttrToSgr(new TColorAttr(0x1F)));
+        // fg=15 -> 97; bg=1 (VGA blue) -> ANSI blue 44
+        Assert.Equal("\x1b[0;38;2;255;255;255;48;2;0;0;170m",
+            AnsiTerminalDriver.AttrToSgr(new TColorAttr(0x1F)));
+    }
+
+    [Fact]
+    public void AttrToSgr_0x4F_BrightWhiteOnRed()
+    {
+        // fg=15 -> 97; bg=4 (VGA red) -> ANSI red 41
+        Assert.Equal("\x1b[0;38;2;255;255;255;48;2;170;0;0m",
+            AnsiTerminalDriver.AttrToSgr(new TColorAttr(0x4F)));
+    }
+
+    [Fact]
+    public void AttrToSgr_0x04_RedOnBlack()
+    {
+        // fg=4 (VGA red) -> ANSI red 31; bg=0 -> 40
+        Assert.Equal("\x1b[0;38;2;170;0;0;48;2;0;0;0m",
+            AnsiTerminalDriver.AttrToSgr(new TColorAttr(0x04)));
+    }
+
+    [Fact]
+    public void AttrToSgr_0x01_BlueOnBlack()
+    {
+        // fg=1 (VGA blue) -> ANSI blue 34; bg=0 -> 40
+        Assert.Equal("\x1b[0;38;2;0;0;170;48;2;0;0;0m",
+            AnsiTerminalDriver.AttrToSgr(new TColorAttr(0x01)));
+    }
+
+    [Fact]
+    public void AttrToSgr_0x0E_YellowOnBlack_UsesBrightYellow()
+    {
+        // fg=14 (VGA yellow) -> explicit bright yellow; bg=0 -> 40
+        Assert.Equal("\x1b[0;38;2;255;255;85;48;2;0;0;0m",
+            AnsiTerminalDriver.AttrToSgr(new TColorAttr(0x0E)));
+    }
+
+    [Fact]
+    public void AttrToSgr_0x06_BrownOnBlack_RemainsBrown()
+    {
+        // fg=6 (VGA brown) -> ANSI yellow/brown 33; bg=0 -> 40
+        Assert.Equal("\x1b[0;38;2;170;85;0;48;2;0;0;0m",
+            AnsiTerminalDriver.AttrToSgr(new TColorAttr(0x06)));
+    }
+
+    [Fact]
+    public void AttrToSgr_0xE0_BlackOnYellow_UsesBrightYellowBackground()
+    {
+        // fg=0 -> 30; bg=14 (VGA yellow) -> explicit bright yellow background
+        Assert.Equal("\x1b[0;38;2;0;0;0;48;2;255;255;85m",
+            AnsiTerminalDriver.AttrToSgr(new TColorAttr(0xE0)));
     }
 
     [Fact]
     public void AttrToSgr_0xF7_GrayOnBrightWhite()
     {
         // raw=0xF7 → fg=7 (gray) → 37; bg=15 (bright, val=7) → 100+7=107
-        Assert.Equal("\x1b[0;37;107m", AnsiTerminalDriver.AttrToSgr(new TColorAttr(0xF7)));
+        Assert.Equal("\x1b[0;38;2;170;170;170;48;2;255;255;255m",
+            AnsiTerminalDriver.AttrToSgr(new TColorAttr(0xF7)));
     }
 
     // ── §5 — AnsiTerminalDriver capability + lifecycle safety ─────────────
 
     [Fact]
-    public void AnsiTerminalDriver_SupportsTrueColor_IsFalse()
+    public void AnsiTerminalDriver_SupportsTrueColor_IsTrue()
     {
-        Assert.False(new AnsiTerminalDriver().SupportsTrueColor);
+        Assert.True(new AnsiTerminalDriver().SupportsTrueColor);
     }
 
     [Fact]

@@ -67,6 +67,22 @@ public sealed class AnsiMouseDecoderTests
     }
 
     [Fact]
+    public void Decode_PrintableKey_IsNotPartialMouse()
+    {
+        int n = AnsiMouseDecoder.TryDecode(new byte[] { (byte)'a' }, out _, out bool complete);
+        Assert.Equal(0, n);
+        Assert.True(complete);
+    }
+
+    [Fact]
+    public void Decode_ShortNonMouseEscape_IsNotPartialMouse()
+    {
+        int n = AnsiMouseDecoder.TryDecode(new byte[] { 0x1B, (byte)'O' }, out _, out bool complete);
+        Assert.Equal(0, n);
+        Assert.True(complete);
+    }
+
+    [Fact]
     public void Decode_PartialMouse_WaitsForTerminator()
     {
         // Incomplete: ESC [ < 0  — missing col/row/terminator.

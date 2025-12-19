@@ -464,6 +464,13 @@ public class TView : TStreamable, IInfo, IDisposable
             return;
         }
 
+        if (cursor.x < 0 || cursor.y < 0
+            || cursor.x >= size.x || cursor.y >= size.y)
+        {
+            TScreen.driver?.SetCursorType(0);
+            return;
+        }
+
         TPoint g = MakeGlobal(cursor);
 
         // Cursor must be within the view's global bounds.

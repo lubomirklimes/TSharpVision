@@ -95,11 +95,13 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
     private ushort _cols = 80;
     private ushort _rows = 25;
     private ushort _cursorType;
+    private int _caretX;
+    private int _caretY;
     private readonly Queue<TEvent> _pendingKeys = new();
     private readonly List<byte> _pendingBytes = new(64);
 
     public bool SupportsMouse    => true;
-    public bool SupportsTrueColor => false;  // 16-colour SGR only; truecolor is ANSI v2
+    public bool SupportsTrueColor => true;
 
     public void Initialize()
     {
@@ -138,10 +140,10 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
             }
             finally { Marshal.FreeHGlobal(raw); }
 
-            // Enable alternate screen + xterm SGR mouse + hide cursor.
+            // Enable alternate screen + xterm SGR button-motion mouse + hide cursor.
             Write("\x1b[?1049h");           // alt screen
             Write("\x1b[?25l");              // hide cursor
-            Write("\x1b[?1000h\x1b[?1006h"); // mouse press + SGR encoding
+            Write("\x1b[?1002h\x1b[?1006h"); // mouse press/drag + SGR encoding
 
             // Query window size.
             var ws = default(WinSize);
@@ -165,7 +167,7 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
     public void Suspend()
     {
         if (!_attached) return;
-        Write("\x1b[?1006l\x1b[?1000l"); // mouse off
+        Write("\x1b[?1006l\x1b[?1002l"); // mouse off
         Write("\x1b[?25h");                // cursor on
         Write("\x1b[?1049l");             // primary screen
         if (_savedTermios != IntPtr.Zero)
@@ -197,7 +199,7 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
         }
         Write("\x1b[?1049h");
         Write("\x1b[?25l");
-        Write("\x1b[?1000h\x1b[?1006h");
+        Write("\x1b[?1002h\x1b[?1006h");
         Console.Out.Flush();
     }
 
@@ -233,13 +235,17 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
         _cursorType = cursorType;
         if (!_attached) return;
         Write(cursorType == 0 ? "\x1b[?25l" : "\x1b[?25h");
+        Console.Out.Flush();
     }
 
     public void SetCaretPosition(int x, int y)
     {
+        _caretX = x;
+        _caretY = y;
         if (!_attached) return;
         // CSI rows are 1-based.
         Write($"\x1b[{y + 1};{x + 1}H");
+        Console.Out.Flush();
     }
 
     public void WriteBuf(int x, int y, int w, int h, Span<TScreenChar> buf)
@@ -264,6 +270,7 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
             }
         }
         sb.Append("\x1b[0m");
+        AppendCaretPosition(sb);
         Write(sb.ToString());
         Console.Out.Flush();
     }
@@ -357,18 +364,50 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
 
     private static void Write(string s) => Console.Write(s);
 
+    private void AppendCaretPosition(System.Text.StringBuilder sb)
+        => sb.Append($"\x1b[{_caretY + 1};{_caretX + 1}H");
+
     /// <summary>
     /// Translate a tvision <see cref="TColorAttr"/> (FG nibble | BG nibble)
-    /// into an SGR escape sequence using the 16-colour ANSI palette.
+    /// into an SGR escape sequence using the same VGA palette as the SDL driver.
     /// </summary>
     public static string AttrToSgr(TColorAttr attr)
     {
         byte raw = (byte)attr;
         int fg = raw & 0x0F;
         int bg = (raw >> 4) & 0x0F;
-        // Bright bit (0x08) maps to xterm bright via codes 90-97 / 100-107.
-        int fgCode = (fg & 0x08) != 0 ? 90 + (fg & 0x07) : 30 + (fg & 0x07);
-        int bgCode = (bg & 0x08) != 0 ? 100 + (bg & 0x07) : 40 + (bg & 0x07);
-        return $"\x1b[0;{fgCode};{bgCode}m";
+        return $"\x1b[0;{VgaToSgr(fg, background: false)};{VgaToSgr(bg, background: true)}m";
     }
+
+    private static string VgaToSgr(int color, bool background)
+    {
+        uint rgb = Vga16[color & 0x0F];
+        byte r = (byte)((rgb >> 16) & 0xFF);
+        byte g = (byte)((rgb >> 8) & 0xFF);
+        byte b = (byte)(rgb & 0xFF);
+        return background
+            ? $"48;2;{r};{g};{b}"
+            : $"38;2;{r};{g};{b}";
+    }
+
+    /// <summary>16-color VGA palette as 0xAARRGGBB, matching SdlPalette.Vga16.</summary>
+    private static readonly uint[] Vga16 =
+    {
+        0xFF000000, // 0  Black
+        0xFF0000AA, // 1  Blue
+        0xFF00AA00, // 2  Green
+        0xFF00AAAA, // 3  Cyan
+        0xFFAA0000, // 4  Red
+        0xFFAA00AA, // 5  Magenta
+        0xFFAA5500, // 6  Brown
+        0xFFAAAAAA, // 7  Light Gray
+        0xFF555555, // 8  Dark Gray
+        0xFF5555FF, // 9  Bright Blue
+        0xFF55FF55, // 10 Bright Green
+        0xFF55FFFF, // 11 Bright Cyan
+        0xFFFF5555, // 12 Bright Red
+        0xFFFF55FF, // 13 Bright Magenta
+        0xFFFFFF55, // 14 Yellow
+        0xFFFFFFFF, // 15 White
+    };
 }

@@ -25,10 +25,17 @@ public static class AnsiMouseDecoder
         ev = default;
         complete = true;
 
-        // Need at least "ESC [ < ".
-        if (buf.Length < 4) { complete = false; return 0; }
-        if (buf[0] != 0x1B || buf[1] != (byte)'[' || buf[2] != (byte)'<')
+        if (buf[0] != 0x1B)
             return 0;
+        if (buf.Length < 2) { complete = false; return 0; }
+        if (buf[1] != (byte)'[')
+            return 0;
+        if (buf.Length < 3) { complete = false; return 0; }
+        if (buf[2] != (byte)'<')
+            return 0;
+
+        // Need the full SGR mouse prefix "ESC [ < <button>...".
+        if (buf.Length < 4) { complete = false; return 0; }
 
         // Walk to terminator (M or m).
         int i = 3;

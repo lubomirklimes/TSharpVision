@@ -221,7 +221,8 @@ public class TEditor : TView
     }
 
     public bool CursorVisible()
-        => curPos.y >= delta.y && curPos.y < delta.y + size.y;
+        => curPos.x >= delta.x && curPos.x < delta.x + size.x
+           && curPos.y >= delta.y && curPos.y < delta.y + size.y;
 
     private static int CountLines(byte[] buf, uint offset, uint count)
     {

@@ -44,6 +44,26 @@ public sealed class EditorBufferTests
     [Fact] public void Const_maxLineLength()   => Assert.Equal(256, (int)Views.maxLineLength);
     [Fact] public void Const_sfSearchFailed()  => Assert.Equal(uint.MaxValue, Views.sfSearchFailed);
 
+    [Fact]
+    public void CursorVisible_FalseWhenCursorLeftOfHorizontalScroll()
+    {
+        var ed = MakeEditor("hello");
+        ed.curPos = new TPoint(2, 0);
+        ed.delta = new TPoint(3, 0);
+
+        Assert.False(ed.CursorVisible());
+    }
+
+    [Fact]
+    public void CursorVisible_TrueWhenCursorInsideBothAxes()
+    {
+        var ed = MakeEditor("hello");
+        ed.curPos = new TPoint(3, 2);
+        ed.delta = new TPoint(1, 1);
+
+        Assert.True(ed.CursorVisible());
+    }
+
     // ── constructor fields ───────────────────────────────────────────────────
 
     [Fact]

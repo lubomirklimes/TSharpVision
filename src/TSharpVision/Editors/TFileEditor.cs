@@ -13,6 +13,9 @@ public class TFileEditor : TEditor
     public static string backupExt = ".bak";
 
     public string fileName;
+    public LineEndingKind OriginalLineEnding { get; private set; } = LineEndingKind.Unknown;
+    public LineEndingKind SaveLineEnding { get; set; } = DefaultLineEndingForPlatform();
+    public bool HadMixedLineEndings { get; private set; }
 
     public TFileEditor(TRect bounds, TScrollBar aHScrollBar,
                        TScrollBar aVScrollBar, TIndicator aIndicator,
@@ -52,34 +55,17 @@ public class TFileEditor : TEditor
         {
             // Upstream returns True on missing file (creates a new file
             // editor with an empty buffer).
+            OriginalLineEnding = LineEndingKind.Unknown;
+            SaveLineEnding = DefaultLineEndingForPlatform();
+            HadMixedLineEndings = false;
             SetBufLen(0);
             return true;
         }
 
-        long fSize;
+        byte[] fileBytes;
         try
         {
-            using var f = File.OpenRead(fileName);
-            fSize = f.Length;
-            if (!SetBufSize((uint)fSize))
-            {
-                editorDialog(Views.edOutOfMemory, null);
-                return false;
-            }
-            // Live data lives at the end of the buffer; gap is at front.
-            int read = 0;
-            int offset = (int)(bufSize - (uint)fSize);
-            while (read < fSize)
-            {
-                int n = f.Read(buffer, offset + read, (int)fSize - read);
-                if (n <= 0) break;
-                read += n;
-            }
-            if (read != fSize)
-            {
-                editorDialog(Views.edReadError, fileName);
-                return false;
-            }
+            fileBytes = File.ReadAllBytes(fileName);
         }
         catch
         {
@@ -87,7 +73,21 @@ public class TFileEditor : TEditor
             return false;
         }
 
-        SetBufLen((uint)fSize);
+        byte[] normalized = NormalizeLineEndings(fileBytes, out var detected, out var saveAs, out bool mixed);
+        OriginalLineEnding = detected;
+        SaveLineEnding = saveAs;
+        HadMixedLineEndings = mixed;
+
+        if (!SetBufSize((uint)normalized.Length))
+        {
+            editorDialog(Views.edOutOfMemory, null);
+            return false;
+        }
+
+        if (normalized.Length > 0)
+            Array.Copy(normalized, 0, buffer, (int)(bufSize - (uint)normalized.Length), normalized.Length);
+
+        SetBufLen((uint)normalized.Length);
         return true;
     }
 
@@ -144,11 +144,10 @@ public class TFileEditor : TEditor
 
         try
         {
-            if (curPtr > 0)
-                f.Write(buffer, 0, (int)curPtr);
+            WriteRangeWithLineEndings(f, 0, (int)curPtr);
             uint right = bufLen - curPtr;
             if (right > 0)
-                f.Write(buffer, (int)(curPtr + gapLen), (int)right);
+                WriteRangeWithLineEndings(f, (int)(curPtr + gapLen), (int)right);
         }
         catch
         {
@@ -167,6 +166,102 @@ public class TFileEditor : TEditor
         modified = false;
         Update(Views.ufUpdate);
         return true;
+    }
+
+    private static LineEndingKind DefaultLineEndingForPlatform()
+        => OperatingSystem.IsWindows() ? LineEndingKind.CrLf : LineEndingKind.Lf;
+
+    private static byte[] NormalizeLineEndings(
+        byte[] source,
+        out LineEndingKind detected,
+        out LineEndingKind saveAs,
+        out bool mixed)
+    {
+        int crlf = 0, lf = 0, cr = 0;
+        var normalized = new byte[source.Length];
+        int n = 0;
+
+        for (int i = 0; i < source.Length; i++)
+        {
+            byte b = source[i];
+            if (b == 0x0D)
+            {
+                normalized[n++] = 0x0A;
+                if (i + 1 < source.Length && source[i + 1] == 0x0A)
+                {
+                    crlf++;
+                    i++;
+                }
+                else
+                {
+                    cr++;
+                }
+            }
+            else if (b == 0x0A)
+            {
+                normalized[n++] = 0x0A;
+                lf++;
+            }
+            else
+            {
+                normalized[n++] = b;
+            }
+        }
+
+        int styles = (crlf > 0 ? 1 : 0) + (lf > 0 ? 1 : 0) + (cr > 0 ? 1 : 0);
+        mixed = styles > 1;
+        if (styles == 0)
+        {
+            detected = LineEndingKind.Unknown;
+            saveAs = DefaultLineEndingForPlatform();
+        }
+        else
+        {
+            saveAs = DominantLineEnding(crlf, lf, cr);
+            detected = mixed ? LineEndingKind.Mixed : saveAs;
+        }
+
+        if (n == source.Length) return normalized;
+        var result = new byte[n];
+        Array.Copy(normalized, result, n);
+        return result;
+    }
+
+    private static LineEndingKind DominantLineEnding(int crlf, int lf, int cr)
+    {
+        if (crlf >= lf && crlf >= cr) return LineEndingKind.CrLf;
+        if (lf >= cr) return LineEndingKind.Lf;
+        return LineEndingKind.Cr;
+    }
+
+    private static byte[] BytesForLineEnding(LineEndingKind kind)
+    {
+        kind = kind switch
+        {
+            LineEndingKind.CrLf => LineEndingKind.CrLf,
+            LineEndingKind.Cr => LineEndingKind.Cr,
+            LineEndingKind.Lf => LineEndingKind.Lf,
+            _ => DefaultLineEndingForPlatform(),
+        };
+        return kind switch
+        {
+            LineEndingKind.CrLf => new byte[] { 0x0D, 0x0A },
+            LineEndingKind.Cr => new byte[] { 0x0D },
+            _ => new byte[] { 0x0A },
+        };
+    }
+
+    private void WriteRangeWithLineEndings(Stream stream, int offset, int length)
+    {
+        byte[] lineEnding = BytesForLineEnding(SaveLineEnding);
+        int end = offset + length;
+        for (int i = offset; i < end; i++)
+        {
+            if (buffer[i] == 0x0A)
+                stream.Write(lineEnding, 0, lineEnding.Length);
+            else
+                stream.WriteByte(buffer[i]);
+        }
     }
 
     private static string MakeBackupName(string path)

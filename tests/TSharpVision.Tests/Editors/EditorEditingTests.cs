@@ -247,6 +247,40 @@ public sealed class EditorEditingTests
 
     // ── Undo ─────────────────────────────────────────────────────────────────
 
+    [Theory]
+    [InlineData('F', Keys.kbUp)]
+    [InlineData('E', Keys.kbHome)]
+    [InlineData('M', Keys.kbIns)]
+    [InlineData('*', Keys.kbBack)]
+    [InlineData(',', Keys.kbEnter)]
+    public void HandleEvent_PrintableKeyCodeCollision_InsertsChar(char ch, ushort collidingKeyCode)
+    {
+        var ed = MakeEditor("");
+        var ev = new TEvent { What = Events.evKeyDown };
+        ev.keyDown.charScan.charCode = (byte)ch;
+        ev.keyDown.keyCode = collidingKeyCode;
+
+        ed.HandleEvent(ref ev);
+
+        Assert.Equal(ch.ToString(), ReadAll(ed));
+        Assert.Equal(Events.evNothing, ev.What);
+    }
+
+    [Fact]
+    public void HandleEvent_SpecialKeyWithoutCharCode_StillMovesCursor()
+    {
+        var ed = MakeEditor("a\nb");
+        ed.SetCurPtr(2, 0);
+        var ev = new TEvent { What = Events.evKeyDown };
+        ev.keyDown.keyCode = Keys.kbUp;
+        ev.keyDown.charScan.charCode = 0;
+
+        ed.HandleEvent(ref ev);
+
+        Assert.Equal(0u, ed.curPtr);
+        Assert.Equal(Events.evNothing, ev.What);
+    }
+
     [Fact]
     public void Undo_RestoresDeletedChars()
     {

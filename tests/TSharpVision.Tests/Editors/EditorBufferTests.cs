@@ -9,10 +9,38 @@ namespace TSharpVision.Tests.Editors;
 
 public sealed class EditorBufferTests
 {
+    private sealed class CapturingEditor : TEditor
+    {
+        public TScreenChar[]? LastLine { get; private set; }
+
+        public CapturingEditor(TRect bounds, uint bufSize)
+            : base(bounds, null, null, null, bufSize)
+        {
+        }
+
+        public override void WriteLine(int x, int y, int w, int h, Span<TScreenChar> b)
+        {
+            LastLine = b.Slice(0, w).ToArray();
+        }
+    }
+
     // ── editor construction helper ───────────────────────────────────────────
     static TEditor MakeEditor(string text)
     {
         var ed = new TEditor(new TRect(0, 0, 40, 10), null, null, null, 1024);
+        InitEditor(ed, text);
+        return ed;
+    }
+
+    static CapturingEditor MakeCapturingEditor(string text, int width = 40)
+    {
+        var ed = new CapturingEditor(new TRect(0, 0, width, 10), 1024);
+        InitEditor(ed, text);
+        return ed;
+    }
+
+    static void InitEditor(TEditor ed, string text)
+    {
         byte[] bytes = Encoding.ASCII.GetBytes(text);
         ed.bufLen = (uint)bytes.Length;
         ed.gapLen = ed.bufSize - ed.bufLen;
@@ -26,7 +54,6 @@ public sealed class EditorBufferTests
         int lines = 1;
         foreach (byte b in bytes) if (b == 0x0A) lines++;
         ed.limit.y = lines;
-        return ed;
     }
 
     // ── editor constants ─────────────────────────────────────────────────────
@@ -65,6 +92,39 @@ public sealed class EditorBufferTests
     }
 
     // ── constructor fields ───────────────────────────────────────────────────
+
+    [Fact]
+    public void DrawLines_RendersSelectionWithDifferentAttribute()
+    {
+        var ed = MakeCapturingEditor("abcdef", 6);
+        ed.selStart = 2;
+        ed.selEnd = 4;
+
+        ed.DrawLines(0, 1, 0);
+
+        Assert.NotNull(ed.LastLine);
+        Assert.Equal('b', ed.LastLine![1].Character);
+        Assert.Equal('c', ed.LastLine[2].Character);
+        Assert.NotEqual(ed.LastLine[1].Attr, ed.LastLine[2].Attr);
+        Assert.Equal(ed.LastLine[2].Attr, ed.LastLine[3].Attr);
+    }
+
+    [Fact]
+    public void DrawLines_PreservesSelectionAttributeWhenHorizontallyScrolled()
+    {
+        var ed = MakeCapturingEditor("abcdef", 4);
+        ed.selStart = 2;
+        ed.selEnd = 4;
+        ed.delta.x = 1;
+
+        ed.DrawLines(0, 1, 0);
+
+        Assert.NotNull(ed.LastLine);
+        Assert.Equal('b', ed.LastLine![0].Character);
+        Assert.Equal('c', ed.LastLine[1].Character);
+        Assert.NotEqual(ed.LastLine[0].Attr, ed.LastLine[1].Attr);
+        Assert.Equal(ed.LastLine[1].Attr, ed.LastLine[2].Attr);
+    }
 
     [Fact]
     public void Ctor_BufferAllocated()

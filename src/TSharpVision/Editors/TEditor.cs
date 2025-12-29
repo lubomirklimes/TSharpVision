@@ -802,9 +802,8 @@ public class TEditor : TView
             var b = new TDrawBuffer();
             FormatLine(b, linePtr, delta.x + size.x, color);
             // Match upstream `&b[delta.x]`: write the slice of the formatted
-            // buffer starting at delta.x.
-            b.moveBuf(0, ExtractRange(b, delta.x, size.x), color, size.x);
-            WriteLine(0, y, size.x, 1, b);
+            // buffer starting at delta.x, preserving per-cell attributes.
+            WriteLine(0, y, size.x, 1, ExtractRange(b, delta.x, size.x));
             linePtr = NextLine(linePtr);
             y++;
         }
@@ -812,13 +811,13 @@ public class TEditor : TView
 
     // Helper for DrawLines: pull `count` chars from `b.Data` starting at
     // `start`. Prevents allocating outside the printable window.
-    private static char[] ExtractRange(TDrawBuffer b, int start, int count)
+    private static TScreenChar[] ExtractRange(TDrawBuffer b, int start, int count)
     {
-        var dst = new char[count];
+        var dst = new TScreenChar[count];
         for (int i = 0; i < count; i++)
         {
             int idx = start + i;
-            dst[i] = idx < b.Data.Length ? b.Data[idx].Character : ' ';
+            dst[i] = idx < b.Data.Length ? b.Data[idx] : default;
         }
         return dst;
     }
@@ -826,11 +825,11 @@ public class TEditor : TView
     // FormatLine helper inlined here (originally in tvedit3.cc; this is
     // the colour-flat editor variant).
     // Walks the line at `linePtr` expanding tabs and applying the selection
-    // highlight (selStart..selEnd) by toggling fg/bg nibbles of `color`.
+    // highlight (selStart..selEnd) from the high byte of `color`.
     private void FormatLine(TDrawBuffer b, uint linePtr, int width, ushort color)
     {
-        ushort normal = color;
-        ushort selected = (ushort)(((color & 0x0F) << 4) | ((color >> 4) & 0x0F));
+        ushort normal = (byte)color;
+        ushort selected = (byte)(color >> 8);
         int x = 0;
         uint p = linePtr;
         while (x < width)
@@ -879,6 +878,7 @@ public class TEditor : TView
     {
         if (ev.What != Events.evKeyDown) return;
         ushort key = ev.keyDown.keyCode;
+        byte charCode = ev.keyDown.charScan.charCode;
 
         if (keyState != 0)
         {
@@ -925,6 +925,9 @@ public class TEditor : TView
             }
             return;
         }
+
+        if (charCode == 9 || (charCode >= 32 && charCode < 255))
+            return;
 
         // keyState == 0: normal key mapping.
         // firstKeys table (abridged — only the movement/editing keys that are

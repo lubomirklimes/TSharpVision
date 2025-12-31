@@ -97,6 +97,7 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
     private ushort _cursorType;
     private int _caretX;
     private int _caretY;
+    private bool _installedClipboardService;
     private readonly Queue<TEvent> _pendingKeys = new();
     private readonly List<byte> _pendingBytes = new(64);
 
@@ -157,6 +158,8 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
             }
 
             _attached = true;
+            ClipboardService.Current = new TerminalClipboardService();
+            _installedClipboardService = true;
         }
         catch
         {
@@ -211,6 +214,11 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
         {
             Marshal.FreeHGlobal(_savedTermios);
             _savedTermios = IntPtr.Zero;
+        }
+        if (_installedClipboardService)
+        {
+            ClipboardService.Reset();
+            _installedClipboardService = false;
         }
         _attached = false;
     }

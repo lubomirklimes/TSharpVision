@@ -1,5 +1,3 @@
-using System.Text;
-
 namespace TSharpVision;
 
 /// Base class for reading streamable objects. Mirrors upstream
@@ -102,9 +100,10 @@ public class Ipstream : Pstream
         if (len0 == 0xFF) return null;
         int len = len0;
         if (len == 0xfe) len = (int)Read32();
-        var buf = new byte[len];
-        ReadBytes(buf, len);
-        return Encoding.Latin1.GetString(buf);
+        var chars = new char[len];
+        for (int i = 0; i < len; i++)
+            chars[i] = (char)Read16();
+        return new string(chars);
     }
 
     public Ipstream ReadObject(TStreamable t)

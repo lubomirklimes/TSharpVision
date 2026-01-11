@@ -13,10 +13,10 @@ public sealed class EditorSearchReplaceTests
     static TEditor MakeEditor(string text)
     {
         var ed = new TEditor(new TRect(0, 0, 40, 10), null, null, null, 1024);
-        byte[] bytes = Encoding.ASCII.GetBytes(text);
-        ed.bufLen = (uint)bytes.Length;
+        char[] chars = text.ToCharArray();
+        ed.bufLen = (uint)chars.Length;
         ed.gapLen = ed.bufSize - ed.bufLen;
-        Array.Copy(bytes, 0, ed.buffer, (int)ed.gapLen, bytes.Length);
+        Array.Copy(chars, 0, ed.buffer, (int)ed.gapLen, chars.Length);
         ed.curPtr   = 0;
         ed.curPos   = default;
         ed.delta    = default;
@@ -24,7 +24,7 @@ public sealed class EditorSearchReplaceTests
         ed.drawPtr  = 0;
         ed.limit.x  = Views.maxLineLength;
         int lines = 1;
-        foreach (byte b in bytes) if (b == 0x0A) lines++;
+        foreach (char ch in chars) if (ch == '\n') lines++;
         ed.limit.y = lines;
         return ed;
     }
@@ -37,10 +37,10 @@ public sealed class EditorSearchReplaceTests
     }
 
     /// <summary>null-terminated C-string from ASCII text.</summary>
-    static byte[] AsCStr(string s)
+    static char[] AsCStr(string s)
     {
-        byte[] raw = Encoding.ASCII.GetBytes(s);
-        byte[] buf = new byte[raw.Length + 1];
+        char[] raw = s.ToCharArray();
+        char[] buf = new char[raw.Length + 1];
         Array.Copy(raw, buf, raw.Length);
         return buf;
     }
@@ -213,7 +213,7 @@ public sealed class EditorSearchReplaceTests
             {
                 dispatched = true;
                 Array.Clear(rec.Find, 0, rec.Find.Length);
-                byte[] src = Encoding.ASCII.GetBytes("world");
+                char[] src = "world".ToCharArray();
                 Array.Copy(src, rec.Find, src.Length);
                 rec.Options = Views.efCaseSensitive;
                 return Views.cmYes;
@@ -222,7 +222,7 @@ public sealed class EditorSearchReplaceTests
         };
         ed.Find();
         Assert.True(dispatched);
-        Assert.Equal((byte)'w', TEditor.findStr[0]);
+        Assert.Equal('w', TEditor.findStr[0]);
         Assert.Equal(6u, ed.selStart);
     }
 
@@ -250,8 +250,8 @@ public sealed class EditorSearchReplaceTests
             {
                 Array.Clear(rec.Find,    0, rec.Find.Length);
                 Array.Clear(rec.Replace, 0, rec.Replace.Length);
-                Array.Copy(Encoding.ASCII.GetBytes("dog"), rec.Find,    3);
-                Array.Copy(Encoding.ASCII.GetBytes("PIG"), rec.Replace, 3);
+                Array.Copy("dog".ToCharArray(), rec.Find,    3);
+                Array.Copy("PIG".ToCharArray(), rec.Replace, 3);
                 rec.Options = (ushort)(Views.efCaseSensitive | Views.efReplaceAll);
                 return Views.cmYes;
             }

@@ -65,17 +65,20 @@ public sealed class TvrInspectorUnitTests
 
     [Fact] public void PeekTypeName_TDialog_Extracted()
     {
-        // Manually construct the prefix: ptObject=0x02, '['=0x5B, len=7, "TDialog"
-        var name  = System.Text.Encoding.Latin1.GetBytes("TDialog");
-        var bytes = new byte[] { 0x02, 0x5B, (byte)name.Length }
+        // Manually construct the UTF-16 stream prefix:
+        // ptObject=0x02, '['=0x5B, len=7 chars, then "TDialog" as LE code units.
+        const string typeName = "TDialog";
+        var name  = System.Text.Encoding.Unicode.GetBytes(typeName);
+        var bytes = new byte[] { 0x02, 0x5B, (byte)typeName.Length }
                         .Concat(name).Concat(new byte[10]).ToArray();
         Assert.Equal("TDialog", TvrInspector.PeekTypeName(bytes));
     }
 
     [Fact] public void PeekTypeName_TResourceCollection_Extracted()
     {
-        var name  = System.Text.Encoding.Latin1.GetBytes("TResourceCollection");
-        var bytes = new byte[] { 0x02, 0x5B, (byte)name.Length }
+        const string typeName = "TResourceCollection";
+        var name  = System.Text.Encoding.Unicode.GetBytes(typeName);
+        var bytes = new byte[] { 0x02, 0x5B, (byte)typeName.Length }
                         .Concat(name).ToArray();
         Assert.Equal("TResourceCollection", TvrInspector.PeekTypeName(bytes));
     }
@@ -516,8 +519,9 @@ public sealed class GoldenFixtureTests : IDisposable
         string tvr = Compile(Fixtures.HelloTrc, "hello.tvr");
         var r = InspectorCommands.Dump(tvr, "dialog.hello", hex: true);
         Assert.True(r.Success, r.Error);
-        // First hex bytes: 02 (ptObject), 5B ('['), 07 (len=7), then "TDialog".
-        Assert.Contains("02 5B 07 54 44 69 61 6C 6F 67", r.Output);
+        // First hex bytes: 02 (ptObject), 5B ('['), 07 (len=7 chars),
+        // then "TDialog" as UTF-16 LE code units.
+        Assert.Contains("02 5B 07 54 00 44 00 69", r.Output);
     }
 
     // ── options.trc golden ────────────────────────────────────────────────────

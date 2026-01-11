@@ -85,6 +85,7 @@ public sealed class PstreamResourceTests : IDisposable
         op.WriteInt(0xCAFEBABEu);
         op.WriteLong(0x12345678u);
         op.WriteString("hello");
+        op.WriteString("Příliš Привет");
         op.WriteString(null);
         op.WriteString(new string('x', 300));
         op.Flush();
@@ -99,6 +100,7 @@ public sealed class PstreamResourceTests : IDisposable
         Assert.Equal(0xCAFEBABEu,           ip.ReadInt());
         Assert.Equal(0x12345678u,           ip.ReadLong());
         Assert.Equal("hello",               ip.ReadString());
+        Assert.Equal("Příliš Привет",       ip.ReadString());
         Assert.Null(ip.ReadString());
         Assert.Equal(new string('x', 300),  ip.ReadString());
         Assert.True(ip.Good());
@@ -131,7 +133,50 @@ public sealed class PstreamResourceTests : IDisposable
         Assert.Equal(0x00, bytes[1]);   // "" → 0
         Assert.Equal(0x02, bytes[2]);   // "ab" length
         Assert.Equal((byte)'a', bytes[3]);
-        Assert.Equal((byte)'b', bytes[4]);
+        Assert.Equal(0x00, bytes[4]);
+        Assert.Equal((byte)'b', bytes[5]);
+        Assert.Equal(0x00, bytes[6]);
+    }
+
+    [Fact]
+    public void WriteString_StoresUtf16CodeUnits()
+    {
+        using var ms = new System.IO.MemoryStream();
+        var op = new Opstream(ms);
+        op.WriteString("čЯ");
+
+        var bytes = ms.ToArray();
+        Assert.Equal(2, bytes[0]);
+        Assert.Equal(0x0D, bytes[1]);
+        Assert.Equal(0x01, bytes[2]);
+        Assert.Equal(0x2F, bytes[3]);
+        Assert.Equal(0x04, bytes[4]);
+    }
+
+    [Fact]
+    public void TMemo_StreamRoundTrip_PreservesUnicode()
+    {
+        using var ms = new System.IO.MemoryStream();
+        var src = new TMemo(new TRect(0, 0, 40, 5), null, null, null, 1024);
+        src.InsertText("Příliš Привет");
+
+        var op = new Opstream(ms);
+        src.Write(op);
+        op.Flush();
+
+        ms.Position = 0;
+        var dst = new TMemo(new TRect(0, 0, 40, 5), null, null, null, 1);
+        dst.Read(new Ipstream(ms));
+
+        Assert.Equal("Příliš Привет", ReadEditorText(dst));
+    }
+
+    private static string ReadEditorText(TEditor ed)
+    {
+        var chars = new char[ed.bufLen];
+        for (uint p = 0; p < ed.bufLen; p++)
+            chars[(int)p] = ed.BufChar(p);
+        return new string(chars);
     }
 
     // ── Object round-trip ──────────────────────────────────────
@@ -234,7 +279,7 @@ public sealed class PstreamResourceTests : IDisposable
         op.Close();
 
         Assert.True(System.IO.File.Exists(path));
-        Assert.Equal(10L, new System.IO.FileInfo(path).Length);
+        Assert.Equal(14L, new System.IO.FileInfo(path).Length);
 
         var ip = new Ifpstream(path);
         Assert.Equal((byte)0x77,     ip.ReadByte());

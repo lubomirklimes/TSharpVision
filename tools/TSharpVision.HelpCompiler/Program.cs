@@ -11,7 +11,7 @@
 //     (`public const ushort hc... = N;`) instead of a C `const int` block.
 //
 // Usage:
-//   svhc <input>[.txt] [<output>[.hlp] [<symfile>[.cs]]]
+//   svhc [--format v1|v2] <input>[.txt] [<output>[.hlp] [<symfile>[.cs]]]
 //
 // Syntax (compatible with tvision/examples/tvhc/demohelp.txt):
 //   .topic Sym[=N][, Sym[=N]...]      topic header
@@ -33,7 +33,7 @@ namespace TSharpVision.HelpCompiler;
 internal static class Program
 {
     private const int HelpCounterStart = 2; // tvhc.cc:449 — "1 is hcDragging"
-    private const byte NonBreakingSpace = 0xFF;
+    private const char NonBreakingSpace = '\xFF';
     private const char CommandChar = '.';
 
     private static int Main(string[] args)
@@ -45,16 +45,31 @@ internal static class Program
         // run once, but RegisterType can be called any number of times).
         THelpFile.RegisterStreamableTypes();
 
-        Console.WriteLine(
-            "TSharpVision Help Compiler  (port of Borland TVHC, 1991)\n");
+        CompilerOptions options;
+        try
+        {
+            options = CompilerOptions.Parse(args);
+        }
+        catch (ArgumentException ex)
+        {
+            Console.Error.WriteLine($"Error: {ex.Message}");
+            return 1;
+        }
+        args = options.Positional.ToArray();
+
+        if (!options.Quiet)
+            Console.WriteLine(
+                "TSharpVision Help Compiler  (port of Borland TVHC, 1991)\n");
 
         if (args.Length < 1)
         {
-            Console.WriteLine(
-                "  Syntax  svhc <input>[.txt] [<output>[.hlp] [<symfile>[.cs]]]\n\n" +
-                "     input    Help source (.topic / paragraph / {cross-ref} syntax)\n" +
-                "     output   Compiled help file (.hlp, 'FBHF' magic)\n" +
-                "     symfile  Generated C# class with hcXxx constants\n");
+            if (!options.Quiet)
+                Console.WriteLine(
+                    "  Syntax  svhc [--format v1|v2] [--warn-as-error] [--quiet] [--no-color] <input>[.txt] [<output>[.hlp] [<symfile>[.cs]]]\n\n" +
+                    "     input    Help source (.topic / paragraph / {cross-ref} syntax)\n" +
+                    "     output   Compiled help file (.hlp, 'FBHF' v1 or 'FBH2' v2 magic)\n" +
+                    "     symfile  Generated C# class with hcXxx constants\n" +
+                    "     format   v1 = byte/legacy TVHC subset, v2 = UTF-16 plus extensions (default)\n");
             return 1;
         }
 
@@ -72,26 +87,141 @@ internal static class Program
             return 1;
         }
 
+        var diagnostics = new DiagnosticSink(options);
         try
         {
-            // Read the entire source. Latin-1 keeps CP437 line-art bytes
-            // round-trip clean (matches tvhc.cc which copies bytes verbatim).
-            string[] lines = File.ReadAllLines(textName, Encoding.Latin1);
+            // v1 preserves the byte-oriented TVHC model; v2 reads UTF-8 and
+            // writes UTF-16 help text.
+            Encoding sourceEncoding = options.HelpFormatVersion == THelpFile.FormatV1Latin1
+                ? Encoding.Latin1
+                : Encoding.UTF8;
+            string[] lines = File.ReadAllLines(textName, sourceEncoding);
 
             var symbolTable = ScanSymbols(lines, textName);
-            CompileTopics(lines, helpName, symbolTable, textName);
+            CompileTopics(lines, helpName, symbolTable, textName, diagnostics, options);
+            if (diagnostics.HasPromotedWarnings)
+                return 1;
             WriteSymbolFile(symbName, symbolTable);
 
-            Console.WriteLine(
-                $"Compiled {symbolTable.OrderedDefinitions.Count} topic" +
-                $" definition(s); wrote {helpName} and {symbName}.");
+            if (!options.Quiet)
+                Console.WriteLine(
+                    $"Compiled {symbolTable.OrderedDefinitions.Count} topic" +
+                    $" definition(s); wrote {helpName} and {symbName}.");
             return 0;
         }
         catch (CompileException ex)
         {
-            Console.Error.WriteLine(ex.Message);
+            diagnostics.Report(ex.Diagnostic);
             return 1;
         }
+    }
+
+    private sealed class CompilerOptions
+    {
+        public readonly List<string> Positional = new();
+        public bool WarnAsError;
+        public bool Quiet;
+        public int HelpFormatVersion = THelpFile.FormatV2Utf16;
+
+        public static CompilerOptions Parse(string[] args)
+        {
+            var options = new CompilerOptions();
+            for (int i = 0; i < args.Length; i++)
+            {
+                string arg = args[i];
+                switch (arg)
+                {
+                    case "--warn-as-error":
+                        options.WarnAsError = true;
+                        break;
+                    case "--quiet":
+                        options.Quiet = true;
+                        break;
+                    case "--no-color":
+                        break;
+                    case "--v1":
+                        options.HelpFormatVersion = THelpFile.FormatV1Latin1;
+                        break;
+                    case "--v2":
+                        options.HelpFormatVersion = THelpFile.FormatV2Utf16;
+                        break;
+                    case "--format":
+                        if (i + 1 >= args.Length)
+                            throw new ArgumentException("--format requires v1 or v2");
+                        options.HelpFormatVersion = ParseFormat(args[++i]);
+                        break;
+                    default:
+                        if (arg.StartsWith("--format=", StringComparison.Ordinal))
+                            options.HelpFormatVersion = ParseFormat(arg.Substring("--format=".Length));
+                        else
+                            options.Positional.Add(arg);
+                        break;
+                }
+            }
+            return options;
+        }
+
+        private static int ParseFormat(string value)
+        {
+            if (value.Equals("v1", StringComparison.OrdinalIgnoreCase))
+                return THelpFile.FormatV1Latin1;
+            if (value.Equals("v2", StringComparison.OrdinalIgnoreCase))
+                return THelpFile.FormatV2Utf16;
+            throw new ArgumentException("--format requires v1 or v2");
+        }
+    }
+
+    private enum DiagnosticSeverity
+    {
+        Warning,
+        Error,
+    }
+
+    private readonly record struct Diagnostic(
+        string Code,
+        DiagnosticSeverity Severity,
+        string File,
+        int Line,
+        int Column,
+        string Message)
+    {
+        public Diagnostic WithSeverity(DiagnosticSeverity severity) =>
+            this with { Severity = severity };
+
+        public override string ToString()
+        {
+            string severity = Severity == DiagnosticSeverity.Error
+                ? "error"
+                : "warning";
+            return $"{File}({Line},{Column}): {severity} {Code}: {Message}";
+        }
+    }
+
+    private sealed class DiagnosticSink
+    {
+        private readonly CompilerOptions _options;
+        public bool HasPromotedWarnings { get; private set; }
+
+        public DiagnosticSink(CompilerOptions options) => _options = options;
+
+        public void Warning(string source, int lineNo, int column, string code, string message)
+        {
+            var severity = _options.WarnAsError
+                ? DiagnosticSeverity.Error
+                : DiagnosticSeverity.Warning;
+            if (_options.WarnAsError)
+                HasPromotedWarnings = true;
+            Report(new Diagnostic(
+                code,
+                severity,
+                source,
+                lineNo + 1,
+                Math.Max(1, column),
+                message));
+        }
+
+        public void Report(Diagnostic diagnostic) =>
+            Console.Error.WriteLine(diagnostic.ToString());
     }
 
     // -------------------------------------------------------------------
@@ -120,14 +250,14 @@ internal static class Program
 
             string keyword = GetWord(raw, ref i).ToUpperInvariant();
             if (keyword != "TOPIC")
-                throw Err(sourceName, lineNo, "TOPIC expected");
+                continue;
 
             // Comma-separated symbol list (tvhc.cc:topicDefinitionList).
             while (true)
             {
                 string sym = GetWord(raw, ref i);
                 if (sym.Length == 0)
-                    throw Err(sourceName, lineNo, "expected topic definition");
+                    throw Err(sourceName, lineNo, 1, "SVHC0001", "expected topic definition");
 
                 int probe = i;
                 string maybeEq = GetWord(raw, ref probe);
@@ -136,7 +266,7 @@ internal static class Program
                     i = probe;
                     string num = GetWord(raw, ref i);
                     if (!IsNumeric(num))
-                        throw Err(sourceName, lineNo, "expected numeric");
+                        throw Err(sourceName, lineNo, 1, "SVHC0001", "expected numeric");
                     counter = int.Parse(num);
                 }
                 else
@@ -145,7 +275,7 @@ internal static class Program
                 }
 
                 if (table.Map.ContainsKey(sym))
-                    throw Err(sourceName, lineNo, $"redefinition of {sym}");
+                    throw Err(sourceName, lineNo, 1, "SVHC0002", $"redefinition of {sym}");
                 ushort value = checked((ushort)counter);
                 table.Map.Add(sym, value);
                 table.OrderedDefinitions.Add(
@@ -165,13 +295,14 @@ internal static class Program
     // -------------------------------------------------------------------
 
     private static void CompileTopics(
-        string[] lines, string helpName, SymbolTable symbols, string sourceName)
+        string[] lines, string helpName, SymbolTable symbols, string sourceName,
+        DiagnosticSink diagnostics, CompilerOptions options)
     {
         // Truncate (tvhc.cc opens helpStrm with CLY_IOSOut|CLY_IOSBin).
         if (File.Exists(helpName)) File.Delete(helpName);
 
         var fp = new Fpstream(helpName);
-        var helpFile = new THelpFile(fp);
+        var helpFile = new THelpFile(fp, options.HelpFormatVersion);
         try
         {
             int idx = 0;
@@ -183,9 +314,17 @@ internal static class Program
 
                 string header = lines[idx];
                 if (header.Length == 0 || header[0] != CommandChar)
-                    throw Err(sourceName, idx, "expected '.topic'");
+                    throw Err(sourceName, idx, 1, "SVHC0001", "expected '.topic'");
 
-                List<ushort> ids = ParseTopicHeaderIds(header, idx, sourceName, symbols);
+                if (!IsTopicDirective(header))
+                {
+                    ReportUnknownDirective(sourceName, idx, diagnostics, options, header);
+                    idx++;
+                    continue;
+                }
+
+                List<KeyValuePair<string, ushort>> definitions =
+                    ParseTopicHeaderDefinitions(header, idx, sourceName, symbols);
                 idx++;
 
                 var topic = new THelpTopic();
@@ -196,14 +335,31 @@ internal static class Program
                 {
                     // Read paragraphs until next '.topic' or EOF.
                     if (idx < lines.Length && lines[idx].Length > 0 &&
-                        lines[idx][0] == CommandChar) break;
+                        lines[idx][0] == CommandChar)
+                    {
+                        if (IsTopicDirective(lines[idx])) break;
+                        ReportUnknownDirective(sourceName, idx, diagnostics, options, lines[idx]);
+                        idx++;
+                        continue;
+                    }
 
                     var para = ReadParagraph(
                         lines, ref idx, ref byteOffset, refs, sourceName);
                     if (para != null) topic.AddParagraph(para);
                     else if (idx < lines.Length && lines[idx].Length > 0 &&
-                             lines[idx][0] == CommandChar) break;
+                             lines[idx][0] == CommandChar)
+                    {
+                        if (IsTopicDirective(lines[idx])) break;
+                        ReportUnknownDirective(sourceName, idx, diagnostics, options, lines[idx]);
+                        idx++;
+                    }
                 }
+
+                if (options.HelpFormatVersion == THelpFile.FormatV2Utf16
+                    && TopicHasDefinition(definitions, "Index")
+                    && topic.paragraphs == null)
+                    PopulateGeneratedIndexTopic(
+                        topic, symbols, refs, ref byteOffset, sourceName, idx);
 
                 // Resolve cross-refs by symbol → id (forward refs allowed
                 // because pass 1 has populated the table).
@@ -213,8 +369,11 @@ internal static class Program
                     var (target, offset, length, lineNo) = refs[r];
                     if (!symbols.Map.TryGetValue(target, out ushort id))
                     {
-                        Console.Error.WriteLine(
-                            $"Warning: {sourceName}({lineNo + 1}): " +
+                        diagnostics.Warning(
+                            sourceName,
+                            lineNo,
+                            1,
+                            "SVHC0004",
                             $"unresolved cross-reference \"{target}\"");
                         id = 0; // hcNoContext → invalid-context placeholder
                     }
@@ -228,8 +387,8 @@ internal static class Program
 
                 // Each id in `ids` points at the same on-disk topic offset
                 // (tvhc.cc:recordTopicDefinitions).
-                foreach (ushort id in ids)
-                    helpFile.RecordPositionInIndex(id);
+                foreach (var definition in definitions)
+                    helpFile.RecordPositionInIndex(definition.Value);
                 helpFile.PutTopic(topic);
             }
         }
@@ -240,21 +399,21 @@ internal static class Program
         }
     }
 
-    private static List<ushort> ParseTopicHeaderIds(
+    private static List<KeyValuePair<string, ushort>> ParseTopicHeaderDefinitions(
         string header, int lineNo, string sourceName, SymbolTable symbols)
     {
-        var ids = new List<ushort>();
+        var definitions = new List<KeyValuePair<string, ushort>>();
         int i = 0;
         if (GetWord(header, ref i) != ".")
-            throw Err(sourceName, lineNo, "expected '.'");
+            throw Err(sourceName, lineNo, 1, "SVHC0001", "expected '.'");
         if (GetWord(header, ref i).ToUpperInvariant() != "TOPIC")
-            throw Err(sourceName, lineNo, "TOPIC expected");
+            throw Err(sourceName, lineNo, 1, "SVHC0001", "TOPIC expected");
 
         while (true)
         {
             string sym = GetWord(header, ref i);
             if (sym.Length == 0)
-                throw Err(sourceName, lineNo, "expected topic definition");
+                throw Err(sourceName, lineNo, 1, "SVHC0001", "expected topic definition");
 
             int probe = i;
             if (GetWord(header, ref probe) == "=")
@@ -262,13 +421,78 @@ internal static class Program
                 i = probe;
                 _ = GetWord(header, ref i); // consume numeric
             }
-            ids.Add(symbols.Map[sym]);
+            definitions.Add(new KeyValuePair<string, ushort>(sym, symbols.Map[sym]));
 
             int probe2 = i;
             if (GetWord(header, ref probe2) != ",") break;
             i = probe2;
         }
-        return ids;
+        return definitions;
+    }
+
+    private static bool TopicHasDefinition(
+        List<KeyValuePair<string, ushort>> definitions, string name)
+    {
+        foreach (var definition in definitions)
+            if (definition.Key == name)
+                return true;
+        return false;
+    }
+
+    private static void PopulateGeneratedIndexTopic(
+        THelpTopic topic,
+        SymbolTable symbols,
+        List<(string Target, int Offset, byte Length, int LineNo)> refs,
+        ref int byteOffset,
+        string sourceName,
+        int lineNo)
+    {
+        var names = new List<string>();
+        foreach (var definition in symbols.OrderedDefinitions)
+            if (definition.Key != "Index")
+                names.Add(definition.Key);
+        names.Sort(StringComparer.Ordinal);
+
+        foreach (string name in names)
+        {
+            var para = ReadGeneratedIndexParagraph(
+                name, ref byteOffset, refs, sourceName, lineNo);
+            topic.AddParagraph(para);
+        }
+    }
+
+    private static TParagraph ReadGeneratedIndexParagraph(
+        string symbol,
+        ref int byteOffset,
+        List<(string Target, int Offset, byte Length, int LineNo)> refs,
+        string sourceName,
+        int lineNo)
+    {
+        string line = "{" + symbol + "}";
+        string text = ScanForCrossRefs(
+            line, byteOffset, refs, lineNo, sourceName) + "\n";
+        byteOffset += text.Length;
+        return new TParagraph
+        {
+            chars = text.ToCharArray(),
+            size = (ushort)text.Length,
+            wrap = false,
+            next = null,
+        };
+    }
+
+    private static void ReportUnknownDirective(
+        string sourceName,
+        int lineNo,
+        DiagnosticSink diagnostics,
+        CompilerOptions options,
+        string line)
+    {
+        string message = $"unknown directive '{DirectiveName(line)}' (ignored)";
+        if (options.HelpFormatVersion == THelpFile.FormatV1Latin1)
+            throw Err(sourceName, lineNo, 1, "SVHC0010", message);
+
+        diagnostics.Warning(sourceName, lineNo, 1, "SVHC0010", message);
     }
 
     // -------------------------------------------------------------------
@@ -285,7 +509,7 @@ internal static class Program
         // Skip leading blank lines (they belong to the previous para's tail
         // in TVHC; here we treat them as paragraph separators by returning
         // null when only blanks remain before next '.topic').
-        var buffer = new MemoryStream();
+        var buffer = new StringBuilder();
         var state = WrapState.Undefined;
         int paragraphStartByte = byteOffset;
 
@@ -307,27 +531,25 @@ internal static class Program
             else if (startsWithSpace && state == WrapState.Wrapping) break;
             else if (!startsWithSpace && state == WrapState.NotWrapping) break;
 
-            // Encode to Latin-1, scan + strip cross-refs, and append.
-            byte[] encoded = Encoding.Latin1.GetBytes(line);
-            byte[] stripped = ScanForCrossRefs(
-                encoded, paragraphStartByte + (int)buffer.Length,
+            string stripped = ScanForCrossRefs(
+                line, paragraphStartByte + buffer.Length,
                 refs, idx, sourceName);
-            buffer.Write(stripped, 0, stripped.Length);
+            buffer.Append(stripped);
 
             // tvhc.cc:addToBuffer appends '\n' for non-wrap and ' ' for wrap.
-            buffer.WriteByte((byte)(state == WrapState.Wrapping ? ' ' : '\n'));
+            buffer.Append(state == WrapState.Wrapping ? ' ' : '\n');
             idx++;
         }
 
         if (buffer.Length == 0) return null;
         if (buffer.Length > ushort.MaxValue)
-            throw Err(sourceName, idx, "paragraph too long");
+            throw Err(sourceName, idx, 1, "SVHC0001", "paragraph too long");
 
-        byte[] text = buffer.ToArray();
+        string text = buffer.ToString();
         byteOffset += text.Length;
         return new TParagraph
         {
-            text = text,
+            chars = text.ToCharArray(),
             size = (ushort)text.Length,
             wrap = state == WrapState.Wrapping,
             next = null,
@@ -338,26 +560,26 @@ internal static class Program
     // Cross-ref scanner (tvhc.cc:scanForCrossRefs).
     // -------------------------------------------------------------------
 
-    private static byte[] ScanForCrossRefs(
-        byte[] line, int paragraphStartOffset,
+    private static string ScanForCrossRefs(
+        string line, int paragraphStartOffset,
         List<(string, int, byte, int)> refs, int lineNo, string sourceName)
     {
-        var output = new List<byte>(line.Length);
+        var output = new StringBuilder(line.Length);
         int i = 0;
         while (i < line.Length)
         {
-            byte b = line[i];
-            if (b != (byte)'{')
+            char ch = line[i];
+            if (ch != '{')
             {
-                output.Add(b);
+                output.Append(ch);
                 i++;
                 continue;
             }
 
             // '{{' → literal '{'.
-            if (i + 1 < line.Length && line[i + 1] == (byte)'{')
+            if (i + 1 < line.Length && line[i + 1] == '{')
             {
-                output.Add((byte)'{');
+                output.Append('{');
                 i += 2;
                 continue;
             }
@@ -367,11 +589,11 @@ internal static class Program
             int colon = -1;
             for (int j = i + 1; j < line.Length; j++)
             {
-                if (line[j] == (byte)':' && colon < 0) colon = j;
-                if (line[j] == (byte)'}') { end = j; break; }
+                if (line[j] == ':' && colon < 0) colon = j;
+                if (line[j] == '}') { end = j; break; }
             }
             if (end < 0)
-                throw Err(sourceName, lineNo, "unterminated topic reference");
+                throw Err(sourceName, lineNo, i + 1, "SVHC0003", "unterminated topic reference");
 
             int textStart = i + 1;
             int textEnd, target;
@@ -380,27 +602,25 @@ internal static class Program
             {
                 textEnd = colon;
                 target = colon + 1;
-                targetSym = Encoding.Latin1.GetString(
-                    line, target, end - target);
+                targetSym = line.Substring(target, end - target);
             }
             else
             {
                 textEnd = end;
-                targetSym = Encoding.Latin1.GetString(
-                    line, textStart, end - textStart);
+                targetSym = line.Substring(textStart, end - textStart);
             }
 
             int visibleLen = textEnd - textStart;
-            int hotspotOffset = paragraphStartOffset + output.Count;
+            int hotspotOffset = paragraphStartOffset + output.Length;
             for (int k = textStart; k < textEnd; k++)
             {
-                byte c = line[k];
-                output.Add(c == (byte)' ' ? NonBreakingSpace : c);
+                char c = line[k];
+                output.Append(c == ' ' ? NonBreakingSpace : c);
             }
             refs.Add((targetSym, hotspotOffset, (byte)visibleLen, lineNo));
             i = end + 1;
         }
-        return output.ToArray();
+        return output.ToString();
     }
 
     // -------------------------------------------------------------------
@@ -472,9 +692,37 @@ internal static class Program
 
     private sealed class CompileException : Exception
     {
-        public CompileException(string message) : base(message) { }
+        public Diagnostic Diagnostic { get; }
+
+        public CompileException(Diagnostic diagnostic)
+            : base(diagnostic.Message)
+        {
+            Diagnostic = diagnostic;
+        }
     }
 
-    private static CompileException Err(string source, int lineNo, string text)
-        => new($"Error: {source}({lineNo + 1}): {text}");
+    private static CompileException Err(
+        string source, int lineNo, int column, string code, string text)
+        => new(new Diagnostic(
+            code,
+            DiagnosticSeverity.Error,
+            source,
+            lineNo + 1,
+            Math.Max(1, column),
+            text));
+
+    private static bool IsTopicDirective(string line)
+    {
+        int i = 0;
+        if (GetWord(line, ref i) != ".") return false;
+        return GetWord(line, ref i).Equals("TOPIC", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string DirectiveName(string line)
+    {
+        int i = 0;
+        string dot = GetWord(line, ref i);
+        string name = dot == "." ? GetWord(line, ref i) : dot;
+        return "." + (name.Length == 0 ? "?" : name);
+    }
 }

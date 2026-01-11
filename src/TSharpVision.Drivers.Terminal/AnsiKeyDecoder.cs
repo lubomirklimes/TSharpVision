@@ -8,6 +8,7 @@
 // returns the number of bytes consumed.
 using TSharpVision;
 using TSharpVision.Constants;
+using System.Text;
 
 namespace TSharpVision.Drivers.Terminal;
 
@@ -104,14 +105,65 @@ public static class AnsiKeyDecoder
         {
             ev = MakeKey(b0);
             ev.keyDown.charScan.charCode = b0;
+            ev.keyDown.text = ((char)b0).ToString();
             return 1;
         }
 
-        // High-bit byte: treat as opaque char (caller should batch UTF-8
-        // decoding; here we just emit the raw byte).
+        if (TryDecodeUtf8Scalar(buf, out string text, out int bytes, out bool needMore))
+        {
+            ev = MakeKey(0);
+            ev.keyDown.text = text;
+            return bytes;
+        }
+        if (needMore)
+        {
+            complete = false;
+            return 0;
+        }
+
+        // High-bit byte that is not valid UTF-8: preserve it as a single
+        // Latin-1-shaped character rather than dropping input.
         ev = MakeKey(b0);
         ev.keyDown.charScan.charCode = b0;
+        ev.keyDown.text = ((char)b0).ToString();
         return 1;
+    }
+
+    private static bool TryDecodeUtf8Scalar(
+        ReadOnlySpan<byte> buf,
+        out string text,
+        out int bytes,
+        out bool needMore)
+    {
+        text = string.Empty;
+        bytes = 0;
+        needMore = false;
+        byte b0 = buf[0];
+        int len =
+            b0 >= 0xC2 && b0 <= 0xDF ? 2 :
+            b0 >= 0xE0 && b0 <= 0xEF ? 3 :
+            b0 >= 0xF0 && b0 <= 0xF4 ? 4 : 0;
+        if (len == 0) return false;
+        if (buf.Length < len)
+        {
+            needMore = true;
+            return false;
+        }
+
+        for (int i = 1; i < len; i++)
+            if ((buf[i] & 0xC0) != 0x80)
+                return false;
+
+        try
+        {
+            text = Encoding.UTF8.GetString(buf.Slice(0, len));
+            bytes = len;
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     // ESC O <letter>  — applies to F1..F4 and the arrow-key family in

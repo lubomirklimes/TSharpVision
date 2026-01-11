@@ -2,7 +2,6 @@
 // TvrInspector — read-only inspector for .tvr binary resource files.
 // Core inspection logic: open a .tvr file and enumerate its resources.
 using System.IO;
-using System.Text;
 
 namespace TSharpVision.ResourceTools;
 
@@ -17,7 +16,8 @@ public sealed class TvrInspector
     private const byte PtObject = 0x02;
     // '[' prefix byte written by Opstream.WritePrefix.
     private const byte PrefixBracket = 0x5B;
-    // 0xFF sentinel = null string; 0xFE = long-length string.
+    // 0xFF sentinel = null string; 0xFE = long-length string. String payloads
+    // are UTF-16 code units in little-endian order.
     private const byte NullLen = 0xFF;
     private const byte LongLen = 0xFE;
 
@@ -139,7 +139,15 @@ public sealed class TvrInspector
             nameStart = 3;
         }
 
-        if (nameLen < 0 || payload.Length < nameStart + nameLen) return null;
-        return Encoding.Latin1.GetString(payload, nameStart, nameLen);
+        int byteLen = checked(nameLen * 2);
+        if (nameLen < 0 || payload.Length < nameStart + byteLen) return null;
+
+        var chars = new char[nameLen];
+        for (int i = 0; i < nameLen; i++)
+        {
+            int offset = nameStart + i * 2;
+            chars[i] = (char)(payload[offset] | (payload[offset + 1] << 8));
+        }
+        return new string(chars);
     }
 }

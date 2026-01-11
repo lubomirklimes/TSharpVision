@@ -17,6 +17,8 @@ public class THelpTopic : TStreamable
 {
     public const string TypeName = "THelpTopic";
     public override string streamableName => TypeName;
+    internal const int FormatV1Latin1 = 1;
+    internal const int FormatV2Utf16 = 2;
 
     /// Optional cross-ref serialiser hook. Upstream
     /// <c>TCrossRefHandler</c> defaults to <c>notAssigned</c>; when set to
@@ -86,9 +88,9 @@ public class THelpTopic : TStreamable
         var p = paragraphs;
         while (p != null && paraOffset + curOffset < offset)
         {
-            var lbuf = new byte[LineBufLen];
+            var lbuf = new char[LineBufLen];
             oldOffset = paraOffset + curOffset;
-            WrapText(p.text, p.size, ref curOffset, p.wrap, lbuf);
+            WrapText(p.chars, p.size, ref curOffset, p.wrap, lbuf);
             line++;
             if (curOffset >= p.size)
             {
@@ -104,6 +106,18 @@ public class THelpTopic : TStreamable
     }
 
     public byte[] GetLine(int line, byte[] buffer)
+    {
+        var charBuffer = new char[buffer.Length];
+        GetLine(line, charBuffer);
+        int len = CharLen(charBuffer);
+        int copy = Math.Min(len, buffer.Length > 0 ? buffer.Length - 1 : 0);
+        for (int i = 0; i < copy; i++)
+            buffer[i] = charBuffer[i] <= 0xFF ? (byte)charBuffer[i] : (byte)'?';
+        if (buffer.Length > 0) buffer[copy] = 0;
+        return buffer;
+    }
+
+    public char[] GetLine(int line, char[] buffer)
     {
         int offset;
         TParagraph p;
@@ -122,13 +136,13 @@ public class THelpTopic : TStreamable
             offset = 0;
             _lastLine = line;
         }
-        if (buffer.Length > 0) buffer[0] = 0;
+        if (buffer.Length > 0) buffer[0] = '\0';
         while (p != null)
         {
             while (offset < p.size)
             {
                 line--;
-                int len = WrapText(p.text, p.size, ref offset, p.wrap, buffer);
+                int len = WrapText(p.chars, p.size, ref offset, p.wrap, buffer);
                 if (line == 0)
                 {
                     _lastOffset = offset;
@@ -140,7 +154,7 @@ public class THelpTopic : TStreamable
             p = p.next;
             offset = 0;
         }
-        if (buffer.Length > 0) buffer[0] = 0;
+        if (buffer.Length > 0) buffer[0] = '\0';
         return buffer;
     }
 
@@ -156,8 +170,8 @@ public class THelpTopic : TStreamable
             while (offset < p.size)
             {
                 lines++;
-                var lbuf = new byte[LineBufLen];
-                WrapText(p.text, p.size, ref offset, p.wrap, lbuf);
+                var lbuf = new char[LineBufLen];
+                WrapText(p.chars, p.size, ref offset, p.wrap, lbuf);
             }
             p = p.next;
         }
@@ -184,18 +198,19 @@ public class THelpTopic : TStreamable
 
     public void SetWidth(int aWidth) => _width = aWidth;
 
-    // Returns the number of bytes consumed; writes the line into lineBuf
+    // Returns the number of chars consumed; writes the line into lineBuf
     // (NUL-terminated within Length, with any trailing newline stripped).
-    private int WrapText(byte[] text, int size, ref int offset, bool wrap, byte[] lineBuf)
+    private int WrapText(char[] text, int size, ref int offset, bool wrap, char[] lineBuf)
     {
         // Defensive: clamp size to actual array length so text[i] is always
         // within bounds. Handles the case where p.size > p.text.Length.
+        if (text == null) text = Array.Empty<char>();
         if (size > text.Length) size = text.Length;
         // Guard against exhausted or empty input (callers use while(offset<p.size)
         // but protect defensively to avoid zero-advance infinite loops).
         if (size <= 0 || offset >= size)
         {
-            if (lineBuf.Length > 0) lineBuf[0] = 0;
+            if (lineBuf.Length > 0) lineBuf[0] = '\0';
             return 0;
         }
 
@@ -232,30 +247,30 @@ public class THelpTopic : TStreamable
         TextToLine(text, offset, Math.Min(i, lineBuf.Length - 1), lineBuf);
         // Strip the trailing newline if present (mirrors upstream's CRLF
         // strip on the way out of wrapText).
-        int len = ByteLen(lineBuf);
+        int len = CharLen(lineBuf);
         if (len > 0 && lineBuf[len - 1] == (byte)'\n')
-            lineBuf[len - 1] = 0;
+            lineBuf[len - 1] = '\0';
         offset += Math.Min(i, lineBuf.Length - 1);
         return i;
     }
 
-    private static int ScanForNewline(byte[] p, int offset)
+    private static int ScanForNewline(char[] p, int offset)
     {
         int limit = Math.Min(256, p.Length - offset);
         for (int j = 0; j < limit; j++)
-            if (p[offset + j] == (byte)'\n') return j + 1;
+            if (p[offset + j] == '\n') return j + 1;
         return 256;
     }
 
-    private static void TextToLine(byte[] text, int offset, int length, byte[] line)
+    private static void TextToLine(char[] text, int offset, int length, char[] line)
     {
         if (length < 0) length = 0;
         if (length > line.Length - 1) length = line.Length - 1;
         Array.Copy(text, offset, line, 0, length);
-        line[length] = 0;
+        line[length] = '\0';
     }
 
-    private static bool IsBlank(byte ch)
+    private static bool IsBlank(char ch)
         => ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r'
         || ch == '\v' || ch == '\f';
 
@@ -263,6 +278,13 @@ public class THelpTopic : TStreamable
     {
         for (int i = 0; i < b.Length; i++)
             if (b[i] == 0) return i;
+        return b.Length;
+    }
+
+    private static int CharLen(char[] b)
+    {
+        for (int i = 0; i < b.Length; i++)
+            if (b[i] == '\0') return i;
         return b.Length;
     }
 
@@ -294,9 +316,20 @@ public class THelpTopic : TStreamable
             {
                 size = sz,
                 wrap = wrapInt != 0,
-                text = new byte[sz],
+                chars = new char[sz],
             };
-            s.ReadBytes(p.text, sz);
+            if (s.HelpFormatVersion == FormatV1Latin1)
+            {
+                var bytes = new byte[sz];
+                s.ReadBytes(bytes, sz);
+                for (int j = 0; j < sz; j++)
+                    p.chars[j] = (char)bytes[j];
+            }
+            else
+            {
+                for (int j = 0; j < sz; j++)
+                    p.chars[j] = (char)s.Read16();
+            }
             if (head == null) head = p; else tail.next = p;
             tail = p;
             i--;
@@ -327,9 +360,20 @@ public class THelpTopic : TStreamable
         s.WriteInt((uint)count);
         for (var p = paragraphs; p != null; p = p.next)
         {
-            s.WriteShort(p.size);
+            int size = p.size;
+            if (p.chars != null && size > p.chars.Length)
+                size = p.chars.Length;
+            s.WriteShort((ushort)size);
             s.WriteInt((uint)(p.wrap ? 1 : 0));
-            s.WriteBytes(p.text, p.size);
+            if (s.HelpFormatVersion == FormatV1Latin1)
+            {
+                s.WriteBytes(p.text, size);
+            }
+            else
+            {
+                for (int i = 0; i < size; i++)
+                    s.Write16(p.chars[i]);
+            }
         }
     }
 

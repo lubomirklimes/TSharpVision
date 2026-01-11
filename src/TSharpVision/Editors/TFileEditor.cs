@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Text;
 using TSharpVision.Constants;
 
 namespace TSharpVision;
@@ -16,6 +17,8 @@ public class TFileEditor : TEditor
     public LineEndingKind OriginalLineEnding { get; private set; } = LineEndingKind.Unknown;
     public LineEndingKind SaveLineEnding { get; set; } = DefaultLineEndingForPlatform();
     public bool HadMixedLineEndings { get; private set; }
+    public EditorEncodingKind OriginalEncoding { get; private set; } = EditorEncodingKind.Utf8;
+    public bool HadUtf8Bom { get; private set; }
 
     public TFileEditor(TRect bounds, TScrollBar aHScrollBar,
                        TScrollBar aVScrollBar, TIndicator aIndicator,
@@ -58,6 +61,8 @@ public class TFileEditor : TEditor
             OriginalLineEnding = LineEndingKind.Unknown;
             SaveLineEnding = DefaultLineEndingForPlatform();
             HadMixedLineEndings = false;
+            OriginalEncoding = EditorEncodingKind.Utf8;
+            HadUtf8Bom = false;
             SetBufLen(0);
             return true;
         }
@@ -73,10 +78,13 @@ public class TFileEditor : TEditor
             return false;
         }
 
-        byte[] normalized = NormalizeLineEndings(fileBytes, out var detected, out var saveAs, out bool mixed);
+        string text = DecodeFileBytes(fileBytes, out var encoding, out bool bom);
+        char[] normalized = NormalizeLineEndings(text, out var detected, out var saveAs, out bool mixed);
         OriginalLineEnding = detected;
         SaveLineEnding = saveAs;
         HadMixedLineEndings = mixed;
+        OriginalEncoding = encoding;
+        HadUtf8Bom = bom;
 
         if (!SetBufSize((uint)normalized.Length))
         {
@@ -144,6 +152,11 @@ public class TFileEditor : TEditor
 
         try
         {
+            if (HadUtf8Bom || OriginalEncoding == EditorEncodingKind.Utf8Bom)
+            {
+                byte[] bom = { 0xEF, 0xBB, 0xBF };
+                f.Write(bom, 0, bom.Length);
+            }
             WriteRangeWithLineEndings(f, 0, (int)curPtr);
             uint right = bufLen - curPtr;
             if (right > 0)
@@ -171,23 +184,44 @@ public class TFileEditor : TEditor
     private static LineEndingKind DefaultLineEndingForPlatform()
         => OperatingSystem.IsWindows() ? LineEndingKind.CrLf : LineEndingKind.Lf;
 
-    private static byte[] NormalizeLineEndings(
-        byte[] source,
+    private static string DecodeFileBytes(byte[] source, out EditorEncodingKind encoding, out bool hadBom)
+    {
+        hadBom = source.Length >= 3
+            && source[0] == 0xEF && source[1] == 0xBB && source[2] == 0xBF;
+
+        int offset = hadBom ? 3 : 0;
+        var strictUtf8 = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+        try
+        {
+            string text = strictUtf8.GetString(source, offset, source.Length - offset);
+            encoding = hadBom ? EditorEncodingKind.Utf8Bom : EditorEncodingKind.Utf8;
+            return text;
+        }
+        catch (DecoderFallbackException)
+        {
+            encoding = EditorEncodingKind.Latin1;
+            hadBom = false;
+            return Encoding.Latin1.GetString(source);
+        }
+    }
+
+    private static char[] NormalizeLineEndings(
+        string source,
         out LineEndingKind detected,
         out LineEndingKind saveAs,
         out bool mixed)
     {
         int crlf = 0, lf = 0, cr = 0;
-        var normalized = new byte[source.Length];
+        var normalized = new char[source.Length];
         int n = 0;
 
         for (int i = 0; i < source.Length; i++)
         {
-            byte b = source[i];
-            if (b == 0x0D)
+            char ch = source[i];
+            if (ch == '\r')
             {
-                normalized[n++] = 0x0A;
-                if (i + 1 < source.Length && source[i + 1] == 0x0A)
+                normalized[n++] = '\n';
+                if (i + 1 < source.Length && source[i + 1] == '\n')
                 {
                     crlf++;
                     i++;
@@ -197,14 +231,14 @@ public class TFileEditor : TEditor
                     cr++;
                 }
             }
-            else if (b == 0x0A)
+            else if (ch == '\n')
             {
-                normalized[n++] = 0x0A;
+                normalized[n++] = '\n';
                 lf++;
             }
             else
             {
-                normalized[n++] = b;
+                normalized[n++] = ch;
             }
         }
 
@@ -222,7 +256,7 @@ public class TFileEditor : TEditor
         }
 
         if (n == source.Length) return normalized;
-        var result = new byte[n];
+        var result = new char[n];
         Array.Copy(normalized, result, n);
         return result;
     }
@@ -253,15 +287,26 @@ public class TFileEditor : TEditor
 
     private void WriteRangeWithLineEndings(Stream stream, int offset, int length)
     {
-        byte[] lineEnding = BytesForLineEnding(SaveLineEnding);
+        string lineEnding = SaveLineEnding switch
+        {
+            LineEndingKind.CrLf => "\r\n",
+            LineEndingKind.Cr => "\r",
+            LineEndingKind.Lf => "\n",
+            _ => DefaultLineEndingForPlatform() == LineEndingKind.CrLf ? "\r\n" : "\n",
+        };
+        var sb = new StringBuilder(length + 16);
         int end = offset + length;
         for (int i = offset; i < end; i++)
         {
-            if (buffer[i] == 0x0A)
-                stream.Write(lineEnding, 0, lineEnding.Length);
+            if (buffer[i] == '\n')
+                sb.Append(lineEnding);
             else
-                stream.WriteByte(buffer[i]);
+                sb.Append(buffer[i]);
         }
+        byte[] bytes = OriginalEncoding == EditorEncodingKind.Latin1
+            ? Encoding.Latin1.GetBytes(sb.ToString())
+            : Encoding.UTF8.GetBytes(sb.ToString());
+        stream.Write(bytes, 0, bytes.Length);
     }
 
     private static string MakeBackupName(string path)
@@ -278,9 +323,9 @@ public class TFileEditor : TEditor
         newSize = (newSize + 0x0FFFu) & 0xFFFFF000u;
         if (newSize != bufSize)
         {
-            byte[] temp = buffer;
-            byte[] fresh;
-            try { fresh = new byte[newSize]; }
+            char[] temp = buffer;
+            char[] fresh;
+            try { fresh = new char[newSize]; }
             catch (OutOfMemoryException) { return false; }
 
             // Upstream copies up to min(newSize, bufSize) bytes from

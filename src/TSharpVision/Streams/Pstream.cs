@@ -25,6 +25,7 @@ public abstract class Pstream
 
     protected Stream bp;
     public int state;
+    public int HelpFormatVersion = THelpTopic.FormatV2Utf16;
 
     // Upstream lazily allocates `types` in initTypes() and frees it via
     // atexit. In C# a single eagerly-constructed registry is sufficient.

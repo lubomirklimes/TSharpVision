@@ -203,6 +203,18 @@ public class TInputLine : TView
                 // switch. This avoids false matches between an uppercase letter's
                 // ASCII value and a navigation-key constant (e.g. 'H' == kbLeft,
                 // 'E' == kbHome, 'N' == kbDel).
+                string text = KeyText.PrintableText(@event.keyDown);
+                if (text.Length > 0)
+                {
+                    bool inserted = false;
+                    foreach (char ch in text)
+                        inserted |= InsertChar(ch);
+                    SelStart = 0; SelEnd = 0;
+                    if (inserted) MakeVisible();
+                    ClearEvent(ref @event);
+                    break;
+                }
+
                 byte charCode = @event.keyDown.charScan.charCode;
                 if (charCode >= 32)
                 {

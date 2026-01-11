@@ -187,6 +187,7 @@ public class SDLDriver : IDisposable, IDriver
                     kev.keyDown.keyCode = (ushort)ch;
                     kev.keyDown.charScan.charCode = rune.Value <= 0x7F ? (byte)rune.Value : (byte)0;
                     kev.keyDown.shiftState = shift;
+                    kev.keyDown.text = text;
                     _pendingKeys.Enqueue(kev);
                     break;
                 }

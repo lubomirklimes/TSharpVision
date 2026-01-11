@@ -88,6 +88,7 @@ public sealed class HelpRuntimeTests : IDisposable
     public void MagicHeader_Is_0x46484246()
     {
         Assert.Equal(0x46484246u, THelpFile.magicHeader);
+        Assert.Equal(0x32484246u, THelpFile.magicHeaderV2);
     }
 
     // ── THelpIndex ────────────────────────────────────────────────────────────
@@ -344,7 +345,7 @@ public sealed class HelpRuntimeTests : IDisposable
         Assert.Equal((byte)'F', hdr[0]);
         Assert.Equal((byte)'B', hdr[1]);
         Assert.Equal((byte)'H', hdr[2]);
-        Assert.Equal((byte)'F', hdr[3]);
+        Assert.Equal((byte)'2', hdr[3]);
     }
 
     [Fact]
@@ -376,7 +377,7 @@ public sealed class HelpRuntimeTests : IDisposable
         var t1 = hf.GetTopic(1);
         Assert.NotNull(t1);
         Assert.NotNull(t1!.paragraphs);
-        Assert.Equal("Topic 1 body.\n", Encoding.Latin1.GetString(t1.paragraphs!.text));
+        Assert.Equal("Topic 1 body.\n", t1.paragraphs!.Text);
         fp.Close();
     }
 
@@ -403,12 +404,53 @@ public sealed class HelpRuntimeTests : IDisposable
         var bad = hf.GetTopic(99);
         Assert.NotNull(bad);
         Assert.NotNull(bad!.paragraphs);
-        string fallback = Encoding.Latin1.GetString(bad.paragraphs!.text);
+        string fallback = bad.paragraphs!.Text;
         Assert.Contains("No help available", fallback);
         fp.Close();
     }
 
     // ── THelpWindow ───────────────────────────────────────────────────────────
+
+    [Fact]
+    public void HelpFile_V2_RoundTrip_PreservesUnicodeText()
+    {
+        string path = Path.Combine(_tmp.Path, "unicode-v2.hlp");
+        var fpw = new Fpstream(path);
+        var hfw = new THelpFile(fpw);
+        var topic = new THelpTopic();
+        topic.AddParagraph(new TParagraph { Text = "Čeština Привет\n", wrap = false });
+        hfw.RecordPositionInIndex(5);
+        hfw.PutTopic(topic);
+        hfw.Flush();
+        fpw.Close();
+
+        var fpr = new Fpstream(path);
+        var hfr = new THelpFile(fpr);
+        var read = hfr.GetTopic(5);
+        Assert.Equal("Čeština Привет\n", read.paragraphs!.Text);
+        fpr.Close();
+    }
+
+    [Fact]
+    public void HelpFile_V1_Latin1_StillLoads()
+    {
+        string path = Path.Combine(_tmp.Path, "latin1-v1.hlp");
+        var fpw = new Fpstream(path);
+        var hfw = new THelpFile(fpw) { formatVersion = 1 };
+        var topic = new THelpTopic();
+        var bytes = Encoding.Latin1.GetBytes("Cafe \xE9\n");
+        topic.AddParagraph(new TParagraph { text = bytes, wrap = false });
+        hfw.RecordPositionInIndex(7);
+        hfw.PutTopic(topic);
+        hfw.Flush();
+        fpw.Close();
+
+        var fpr = new Fpstream(path);
+        var hfr = new THelpFile(fpr);
+        var read = hfr.GetTopic(7);
+        Assert.Equal("Cafe \xE9\n", read.paragraphs!.Text);
+        fpr.Close();
+    }
 
     [Fact]
     public void HelpWindow_HasOfCentered()

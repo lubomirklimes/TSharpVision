@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.IO;
-using System.Text;
 namespace TSharpVision;
 
 /// Base class for writing streamable objects. Mirrors upstream
@@ -50,9 +49,8 @@ public class Opstream : Pstream
         Write32((uint)(v >> 32));
     }
 
-    // Encoding: upstream stores raw bytes (Latin-1 / DOS code page on disk).
-    // We use Latin-1 so the byte length and character length match for the
-    // 0xFD/0xFE switch. Callers wanting CP-437 should pre-encode.
+    // Encoding: strings are stored as UTF-16 code units in little-endian order.
+    // Length is the number of UTF-16 chars, not the number of bytes.
     public void WriteString(string str)
     {
         if (str == null)
@@ -60,8 +58,7 @@ public class Opstream : Pstream
             WriteByte(0xFF);
             return;
         }
-        var bytes = Encoding.Latin1.GetBytes(str);
-        int len = bytes.Length;
+        int len = str.Length;
         if (len > 0xfd)
         {
             WriteByte(0xfe);
@@ -71,7 +68,8 @@ public class Opstream : Pstream
         {
             WriteByte((byte)len);
         }
-        bp.Write(bytes, 0, len);
+        for (int i = 0; i < len; i++)
+            Write16(str[i]);
     }
     // Upstream's seekp() drops the written-objects table; we mirror that so a
     // seek midway through a stream cannot accidentally produce a ptIndexed

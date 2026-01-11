@@ -59,6 +59,7 @@ public struct KeyDownEvent
     public ushort keyCode;
     public ushort shiftState;
     public byte raw_scanCode;
+    public string text;
 }
 
 /// <summary>

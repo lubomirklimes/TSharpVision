@@ -5,20 +5,15 @@ namespace TSharpVision;
 
 // Encoding and newline policy at the editor / OS-clipboard boundary.
 //
-// The editor buffer is byte[] with LF newlines and ASCII / Latin-1
-// semantics (no Unicode redesign in v1). The OS clipboard exposes
+// The editor buffer is char[] with LF newlines. The OS clipboard exposes
 // strings (UTF-16 on Win32 with CRLF newlines).
 //
 // Conversion policy (deliberately minimal — see
 // docs/os-clipboard-design-audit.md §9):
 //
-//   editor bytes -> string : each byte b becomes char (char)b (Latin-1).
-//                            Newlines are preserved (LF).
-//   string -> editor bytes : CRLF/CR are normalised to LF.
-//                            char c <= 0x00FF becomes (byte)c.
-//                            char c >  0x00FF becomes '?' (0x3F).
-//                            embedded NUL becomes ' ' (0x20) to keep the
-//                            gap-buffer terminator assumption intact.
+//   editor chars -> string : chars are copied directly. Newlines remain LF.
+//   string -> editor chars : CRLF/CR are normalised to LF and embedded NUL
+//                            becomes a space to keep text-buffer invariants.
 //
 // Newline transforms onto / off of CRLF are an OS-service responsibility
 // (see Win32ClipboardService). The editor side defensively normalises
@@ -65,6 +60,12 @@ public static class ClipboardEncoding
         return sb.ToString();
     }
 
+    public static string CharsToClipboardString(char[] buffer, int start, int length)
+    {
+        if (buffer == null || length <= 0) return string.Empty;
+        return new string(buffer, start, length);
+    }
+
     /// <summary>
     /// Converts a clipboard string into editor-shaped bytes per the v1
     /// policy: CRLF/CR → LF, char→byte (Latin-1, replacement on overflow),
@@ -100,6 +101,31 @@ public static class ClipboardEncoding
         }
         if (n == buf.Length) return buf;
         var result = new byte[n];
+        Array.Copy(buf, result, n);
+        return result;
+    }
+
+    public static char[] ClipboardStringToChars(string? text)
+    {
+        if (string.IsNullOrEmpty(text)) return Array.Empty<char>();
+        if (text.Length > MaxPasteChars) return Array.Empty<char>();
+
+        var buf = new char[text.Length];
+        int n = 0;
+        for (int i = 0; i < text.Length; i++)
+        {
+            char c = text[i];
+            if (c == '\r')
+            {
+                buf[n++] = '\n';
+                if (i + 1 < text.Length && text[i + 1] == '\n')
+                    i++;
+                continue;
+            }
+            buf[n++] = c == '\0' ? (char)NulReplacement : c;
+        }
+        if (n == buf.Length) return buf;
+        var result = new char[n];
         Array.Copy(buf, result, n);
         return result;
     }

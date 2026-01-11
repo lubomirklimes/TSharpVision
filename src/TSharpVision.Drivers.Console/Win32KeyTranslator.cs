@@ -80,6 +80,8 @@ public static class Win32KeyTranslator
             (shift ? Keys.kbShift   : 0) |
             (ctrl  ? Keys.kbCtrlShift : 0) |
             (alt   ? Keys.kbAltShift  : 0));
+        if (ch >= 32 && ch != 0x7F && !ctrl && !alt)
+            ev.keyDown.text = ch.ToString();
         return true;
     }
 

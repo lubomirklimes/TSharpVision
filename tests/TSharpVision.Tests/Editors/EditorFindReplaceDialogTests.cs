@@ -48,8 +48,8 @@ public sealed class EditorFindReplaceDialogTests
         byte[] fBytes = new byte[80];
         Encoding.ASCII.GetBytes("hello").CopyTo(fBytes, 0);
         var rec = new TFindDialogRec(fBytes, Views.efCaseSensitive);
-        Assert.Equal((byte)'h', rec.Find[0]);
-        Assert.Equal((byte)'o', rec.Find[4]);
+        Assert.Equal('h', rec.Find[0]);
+        Assert.Equal('o', rec.Find[4]);
     }
 
     [Fact]
@@ -67,9 +67,9 @@ public sealed class EditorFindReplaceDialogTests
         Encoding.ASCII.GetBytes("hello").CopyTo(fBytes, 0);
         Encoding.ASCII.GetBytes("bar").CopyTo(rBytes, 0);
         var rec = new TReplaceDialogRec(fBytes, rBytes, Views.efReplaceAll);
-        Assert.Equal((byte)'h', rec.Find[0]);
-        Assert.Equal((byte)'b', rec.Replace[0]);
-        Assert.Equal((byte)'r', rec.Replace[2]);
+        Assert.Equal('h', rec.Find[0]);
+        Assert.Equal('b', rec.Replace[0]);
+        Assert.Equal('r', rec.Replace[2]);
         Assert.Equal(Views.efReplaceAll, rec.Options);
     }
 
@@ -96,7 +96,7 @@ public sealed class EditorFindReplaceDialogTests
     [Fact]
     public void BytesToString_Null_ReturnsEmpty()
     {
-        Assert.Equal(string.Empty, TEditorFindDialog.BytesToString(null));
+        Assert.Equal(string.Empty, TEditorFindDialog.BytesToString((char[])null));
     }
 
     [Fact]

@@ -73,9 +73,10 @@ public class TSortedListBox : TListBox
         if (@event.What != Events.evKeyDown) return;
 
         ushort kc = @event.keyDown.keyCode;
-        byte ch  = @event.keyDown.charScan.charCode;
+        string text = KeyText.PrintableText(@event.keyDown, extendedLegacy: false);
         if (kc == Keys.kbEnter) return;
-        if (ch == 0 && kc != Keys.kbBack) return;
+        if (text.Length == 0 && kc != Keys.kbBack) return;
+        char typed = text.Length > 0 ? text[0] : '\0';
 
         char[] cur = new char[256];
         int curLen;
@@ -97,7 +98,7 @@ public class TSortedListBox : TListBox
             if (curLen > searchPos) curLen = searchPos;
             searchPos--;
         }
-        else if (ch == (byte)'.')
+        else if (typed == '.')
         {
             int from = searchPos == 0xFFFF ? 0 : (int)searchPos;
             int loc = -1;
@@ -121,7 +122,7 @@ public class TSortedListBox : TListBox
             if (newPos == 0) oldPos = 0;
             if (newPos < cur.Length)
             {
-                cur[newPos] = (char)ch;
+                cur[newPos] = typed;
                 if (curLen <= newPos) curLen = newPos + 1;
             }
             searchPos = newPos;
@@ -163,7 +164,7 @@ public class TSortedListBox : TListBox
             }
         }
 
-        bool isAlpha = ch >= (byte)'A' && (ch <= (byte)'Z' || (ch >= (byte)'a' && ch <= (byte)'z'));
+        bool isAlpha = typed != '\0' && char.IsLetter(typed);
         if ((searchPos != 0xFFFF ? searchPos : -1) != oldPos || isAlpha)
             ClearEvent(ref @event);
     }

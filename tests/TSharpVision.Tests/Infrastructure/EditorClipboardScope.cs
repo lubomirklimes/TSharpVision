@@ -13,8 +13,8 @@ public sealed class EditorClipboardScope : IDisposable
     private readonly TEditor _savedClipboard;
     private readonly TEditor.TEditorDialog _savedDialog;
     private readonly ushort _savedFlags;
-    private readonly byte[] _savedFindStr;
-    private readonly byte[] _savedReplaceStr;
+    private readonly char[] _savedFindStr;
+    private readonly char[] _savedReplaceStr;
 
     public EditorClipboardScope()
     {
@@ -22,8 +22,8 @@ public sealed class EditorClipboardScope : IDisposable
         _savedDialog    = TEditor.editorDialog;
         _savedFlags     = TEditor.editorFlags;
 
-        _savedFindStr    = (byte[])TEditor.findStr.Clone();
-        _savedReplaceStr = (byte[])TEditor.replaceStr.Clone();
+        _savedFindStr    = (char[])TEditor.findStr.Clone();
+        _savedReplaceStr = (char[])TEditor.replaceStr.Clone();
 
         // Reset to safe defaults.
         TEditor.clipboard    = null;

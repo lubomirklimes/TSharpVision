@@ -762,9 +762,11 @@ public class TTerminal : TView
         // Printable characters are inserted before the keyCode switch to avoid
         // false matches between an uppercase letter's ASCII value and a TV
         // navigation-key constant (e.g. 'G' == kbPgUp, 'L' == kbPgDn).
-        if (charCode >= 32 && charCode < 127)
+        string text = KeyText.PrintableText(ev.keyDown, extendedLegacy: false);
+        if (text.Length > 0)
         {
-            InputInsertChar((char)charCode);
+            foreach (char ch in text)
+                InputInsertChar(ch);
             ClearEvent(ref ev);
             return;
         }

@@ -5,11 +5,11 @@ namespace TSharpVision;
 
 public class TEditor : TView
 {
-    public static byte[] clipboardBuffer;
+    public static char[] clipboardBuffer;
     public static TEditor clipboard;
     public static ushort editorFlags = (ushort)(Views.efBackupFiles | Views.efPromptOnReplace);
-    public static byte[] findStr = new byte[Views.maxFindStrLen];
-    public static byte[] replaceStr = new byte[Views.maxReplaceStrLen];
+    public static char[] findStr = new char[Views.maxFindStrLen];
+    public static char[] replaceStr = new char[Views.maxReplaceStrLen];
     public static uint tabSize = 8;
 
     // editorDialog callback — upstream `TEditorDialog`. Default returns
@@ -21,7 +21,7 @@ public class TEditor : TView
     public TScrollBar hScrollBar;
     public TScrollBar vScrollBar;
     public TIndicator indicator;
-    public byte[] buffer;
+    public char[] buffer;
     public uint bufSize;
     public uint bufLen;
     public uint gapLen;
@@ -93,7 +93,7 @@ public class TEditor : TView
         Update(Views.ufView);
     }
 
-    public byte BufChar(uint p)
+    public char BufChar(uint p)
     {
         if (p >= curPtr) p += gapLen;
         return buffer[p];
@@ -106,7 +106,7 @@ public class TEditor : TView
         int pos = 0;
         while (p < target)
         {
-            if (BufChar(p) == 0x09)
+            if (BufChar(p) == '\t')
                 pos += (int)tabSize - (pos % (int)tabSize) - 1;
             pos++;
             p++;
@@ -118,9 +118,9 @@ public class TEditor : TView
     {
         int pos = 0;
         while (pos < target && p < bufLen
-            && BufChar(p) != 0x0D && BufChar(p) != 0x0A)
+            && BufChar(p) != '\r' && BufChar(p) != '\n')
         {
-            if (BufChar(p) == 0x09)
+            if (BufChar(p) == '\t')
                 pos += (int)tabSize - (pos % (int)tabSize) - 1;
             pos++;
             p++;
@@ -132,8 +132,8 @@ public class TEditor : TView
     public uint LineEnd(uint p)
     {
         if (p == bufLen) return p;
-        byte c = BufChar(p);
-        while (c != 0x0D && c != 0x0A)
+        char c = BufChar(p);
+        while (c != '\r' && c != '\n')
         {
             p++;
             if (p == bufLen) return p;
@@ -146,8 +146,8 @@ public class TEditor : TView
     {
         while (p > 0)
         {
-            byte c = BufChar(p - 1);
-            if (c == 0x0D || c == 0x0A) return p;
+            char c = BufChar(p - 1);
+            if (c == '\r' || c == '\n') return p;
             p--;
         }
         return 0;
@@ -170,10 +170,8 @@ public class TEditor : TView
 
     public uint PrevLine(uint p) => LineStart(PrevChar(p));
 
-    private static bool IsWordChar(byte ch)
-        => (ch >= 'a' && ch <= 'z')
-        || (ch >= 'A' && ch <= 'Z')
-        || (ch >= '0' && ch <= '9')
+    private static bool IsWordChar(char ch)
+        => char.IsLetterOrDigit(ch)
         || ch == '_';
 
     public uint NextWord(uint p)
@@ -224,11 +222,11 @@ public class TEditor : TView
         => curPos.x >= delta.x && curPos.x < delta.x + size.x
            && curPos.y >= delta.y && curPos.y < delta.y + size.y;
 
-    private static int CountLines(byte[] buf, uint offset, uint count)
+    private static int CountLines(char[] buf, uint offset, uint count)
     {
         int n = 0;
         for (uint i = 0; i < count; i++)
-            if (buf[offset + i] == 0x0A) n++;
+            if (buf[offset + i] == '\n') n++;
         return n;
     }
 
@@ -332,11 +330,11 @@ public class TEditor : TView
         SetState(Views.sfCursorIns, !GetState(Views.sfCursorIns));
     }
 
-    public void InitBuffer() => buffer = new byte[bufSize];
+    public void InitBuffer() => buffer = new char[bufSize];
 
     public void DoneBuffer() => buffer = null;
 
-    public bool InsertBuffer(byte[] p, uint offset, uint length,
+    public bool InsertBuffer(char[] p, uint offset, uint length,
                              bool allowUndo, bool selectText)
     {
         selecting = false;
@@ -358,10 +356,10 @@ public class TEditor : TView
         // Snapshot the input so that, if `p` aliases our own buffer
         // (insertFrom uses the source editor's buffer directly), the
         // subsequent in-place memmoves cannot corrupt it.
-        byte[] src = null;
+        char[] src = null;
         if (length > 0)
         {
-            src = new byte[length];
+            src = new char[length];
             Array.Copy(p, (int)offset, src, 0, (int)length);
         }
 
@@ -417,8 +415,25 @@ public class TEditor : TView
                         editor.selEnd - editor.selStart,
                         canUndo, IsClipboard());
 
+    public bool InsertText(char[] text, uint length, bool selectText)
+        => InsertBuffer(text ?? Array.Empty<char>(), 0, length, canUndo, selectText);
+
+    public bool InsertText(string text, bool selectText = false)
+    {
+        char[] chars = string.IsNullOrEmpty(text) ? Array.Empty<char>() : text.ToCharArray();
+        return InsertText(chars, (uint)chars.Length, selectText);
+    }
+
     public bool InsertText(byte[] text, uint length, bool selectText)
-        => InsertBuffer(text ?? Array.Empty<byte>(), 0, length, canUndo, selectText);
+    {
+        if (text == null || length == 0)
+            return InsertText(Array.Empty<char>(), 0, selectText);
+
+        var chars = new char[length];
+        for (uint i = 0; i < length; i++)
+            chars[i] = (char)text[i];
+        return InsertText(chars, length, selectText);
+    }
 
     public bool IsClipboard() => ReferenceEquals(clipboard, this);
 
@@ -435,19 +450,19 @@ public class TEditor : TView
         }
     }
 
-    public void DeleteSelect() => InsertText(null, 0, false);
+    public void DeleteSelect() => InsertText(Array.Empty<char>(), 0, false);
 
     public void NewLine()
     {
         uint p = LineStart(curPtr);
         uint i = p;
-        while (i < curPtr && (buffer[BufPtr(i)] == ' ' || buffer[BufPtr(i)] == 0x09))
+        while (i < curPtr && (buffer[BufPtr(i)] == ' ' || buffer[BufPtr(i)] == '\t'))
             i++;
-        InsertText(new byte[] { 0x0A }, 1, false);
+        InsertText(new char[] { '\n' }, 1, false);
         if (autoIndent)
         {
             uint indentLen = i - p;
-            var indent = new byte[indentLen];
+            var indent = new char[indentLen];
             for (uint k = 0; k < indentLen; k++)
                 indent[k] = buffer[BufPtr(p + k)];
             InsertText(indent, indentLen, false);
@@ -490,10 +505,10 @@ public class TEditor : TView
         var svc = ClipboardService.Current;
         if (svc != null && svc.IsAvailable && svc.TryGetText(out string text))
         {
-            byte[] bytes = ClipboardEncoding.ClipboardStringToBytes(text);
-            if (bytes.Length > 0)
+            char[] chars = ClipboardEncoding.ClipboardStringToChars(text);
+            if (chars.Length > 0)
             {
-                InsertText(bytes, (uint)bytes.Length, false);
+                InsertText(chars, (uint)chars.Length, false);
                 return;
             }
             // Empty payload from the OS clipboard counts as a no-op rather
@@ -535,9 +550,9 @@ public class TEditor : TView
         }
     }
 
-    // Length of a null-terminated upstream `findStr` / `replaceStr` byte
+    // Length of a null-terminated upstream `findStr` / `replaceStr` char
     // buffer (the TEditor statics keep the C-string convention).
-    private static uint ByteStrLen(byte[] s)
+    private static uint CharStrLen(char[] s)
     {
         if (s == null) return 0;
         for (uint i = 0; i < s.Length; i++)
@@ -545,9 +560,9 @@ public class TEditor : TView
         return (uint)s.Length;
     }
 
-    private static uint Scan(TEditor ed, uint startPos, byte[] needle)
+    private static uint Scan(TEditor ed, uint startPos, char[] needle)
     {
-        uint nlen = ByteStrLen(needle);
+        uint nlen = CharStrLen(needle);
         if (nlen == 0) return Views.sfSearchFailed;
         if (ed.bufLen < nlen) return Views.sfSearchFailed;
         uint last = ed.bufLen - nlen;
@@ -561,9 +576,9 @@ public class TEditor : TView
         return Views.sfSearchFailed;
     }
 
-    private static uint IScan(TEditor ed, uint startPos, byte[] needle)
+    private static uint IScan(TEditor ed, uint startPos, char[] needle)
     {
-        uint nlen = ByteStrLen(needle);
+        uint nlen = CharStrLen(needle);
         if (nlen == 0) return Views.sfSearchFailed;
         if (ed.bufLen < nlen) return Views.sfSearchFailed;
         uint last = ed.bufLen - nlen;
@@ -571,22 +586,22 @@ public class TEditor : TView
         {
             uint j = 0;
             while (j < nlen
-                   && ToUpperByte(ed.BufChar(i + j))
-                      == ToUpperByte(needle[j]))
+                   && ToUpperChar(ed.BufChar(i + j))
+                      == ToUpperChar(needle[j]))
                 j++;
             if (j == nlen) return i - startPos;
         }
         return Views.sfSearchFailed;
     }
 
-    private static byte ToUpperByte(byte b)
-        => (b >= (byte)'a' && b <= (byte)'z') ? (byte)(b - 32) : b;
+    private static char ToUpperChar(char ch)
+        => char.ToUpperInvariant(ch);
 
-    public bool Search(byte[] needle, ushort opts)
+    public bool Search(char[] needle, ushort opts)
     {
         uint pos = curPtr;
         uint i;
-        uint nlen = ByteStrLen(needle);
+        uint nlen = CharStrLen(needle);
         do
         {
             i = ((opts & Views.efCaseSensitive) != 0)
@@ -615,6 +630,14 @@ public class TEditor : TView
         return false;
     }
 
+    public bool Search(byte[] needle, ushort opts)
+    {
+        if (needle == null) return Search(Array.Empty<char>(), opts);
+        var chars = new char[needle.Length];
+        for (int i = 0; i < needle.Length; i++) chars[i] = (char)needle[i];
+        return Search(chars, opts);
+    }
+
     public void DoSearchReplace()
     {
         ushort i;
@@ -638,7 +661,7 @@ public class TEditor : TView
                 if (i == Views.cmYes)
                 {
                     Lock();
-                    InsertText(replaceStr, ByteStrLen(replaceStr), false);
+                    InsertText(replaceStr, CharStrLen(replaceStr), false);
                     TrackCursor(false);
                     Unlock();
                 }
@@ -670,7 +693,7 @@ public class TEditor : TView
         }
     }
 
-    private static void CopyToFixedBuffer(byte[] src, byte[] dst)
+    private static void CopyToFixedBuffer(char[] src, char[] dst)
     {
         Array.Clear(dst, 0, dst.Length);
         if (src == null) return;
@@ -835,17 +858,17 @@ public class TEditor : TView
         while (x < width)
         {
             if (p >= bufLen) { b.moveChar(x, ' ', normal, 1); x++; continue; }
-            byte c = BufChar(p);
-            if (c == 0x0D || c == 0x0A) { b.moveChar(x, ' ', normal, 1); x++; continue; }
+            char c = BufChar(p);
+            if (c == '\r' || c == '\n') { b.moveChar(x, ' ', normal, 1); x++; continue; }
             ushort attr = (p >= selStart && p < selEnd) ? selected : normal;
-            if (c == 0x09)
+            if (c == '\t')
             {
                 int next = x + (int)tabSize - (x % (int)tabSize);
                 while (x < next && x < width) { b.moveChar(x, ' ', attr, 1); x++; }
             }
             else
             {
-                b.moveChar(x, (char)c, attr, 1);
+                b.moveChar(x, c, attr, 1);
                 x++;
             }
             p++;
@@ -1032,15 +1055,14 @@ public class TEditor : TView
                 break;
 
             case Events.evKeyDown:
-                if (ev.keyDown.charScan.charCode == 9
-                    || (ev.keyDown.charScan.charCode >= 32
-                        && ev.keyDown.charScan.charCode < 255))
+                string text = KeyText.PrintableText(ev.keyDown, includeTab: true);
+                if (text.Length > 0)
                 {
                     Lock();
                     if (overwrite && !HasSelection())
                         if (curPtr != LineEnd(curPtr))
                             selEnd = NextChar(curPtr);
-                    InsertText(new byte[] { ev.keyDown.charScan.charCode }, 1, false);
+                    InsertText(text);
                     TrackCursor(centerCursor);
                     Unlock();
                 }
@@ -1052,7 +1074,7 @@ public class TEditor : TView
                 {
                     case Views.cmInsertText:
                         if (ev.message.infoPtr is TextInfo ti)
-                            InsertText(ti.Bytes, (uint)ti.Bytes.Length, false);
+                            InsertText(ti.Text, (uint)ti.Text.Length, false);
                         break;
                     default:
                         Lock();
@@ -1200,30 +1222,57 @@ public class TEditor : TView
 // raw `void *` to a C string; our IInfo marker requires a typed wrapper.
 public sealed class TextInfo : IInfo
 {
-    public byte[] Bytes;
-    public TextInfo(byte[] b) { Bytes = b; }
+    public char[] Text;
+    public TextInfo(char[] text) { Text = text ?? Array.Empty<char>(); }
+    public TextInfo(string text) { Text = (text ?? string.Empty).ToCharArray(); }
+    public TextInfo(byte[] bytes)
+    {
+        if (bytes == null) { Text = Array.Empty<char>(); return; }
+        Text = new char[bytes.Length];
+        for (int i = 0; i < bytes.Length; i++) Text[i] = (char)bytes[i];
+    }
 }
 
 public sealed class TFindDialogRec : IInfo
 {
-    public byte[] Find;
+    public char[] Find;
     public ushort Options;
-    public TFindDialogRec(byte[] f, ushort opts)
+    public TFindDialogRec(char[] f, ushort opts)
     {
-        Find = (byte[])f.Clone();
+        Find = (char[])f.Clone();
         Options = opts;
+    }
+    public TFindDialogRec(byte[] f, ushort opts)
+        : this(BytesToChars(f), opts) { }
+
+    private static char[] BytesToChars(byte[] bytes)
+    {
+        if (bytes == null) return Array.Empty<char>();
+        var chars = new char[bytes.Length];
+        for (int i = 0; i < bytes.Length; i++) chars[i] = (char)bytes[i];
+        return chars;
     }
 }
 
 public sealed class TReplaceDialogRec : IInfo
 {
-    public byte[] Find;
-    public byte[] Replace;
+    public char[] Find;
+    public char[] Replace;
     public ushort Options;
-    public TReplaceDialogRec(byte[] f, byte[] r, ushort opts)
+    public TReplaceDialogRec(char[] f, char[] r, ushort opts)
     {
-        Find = (byte[])f.Clone();
-        Replace = (byte[])r.Clone();
+        Find = (char[])f.Clone();
+        Replace = (char[])r.Clone();
         Options = opts;
+    }
+    public TReplaceDialogRec(byte[] f, byte[] r, ushort opts)
+        : this(BytesToChars(f), BytesToChars(r), opts) { }
+
+    private static char[] BytesToChars(byte[] bytes)
+    {
+        if (bytes == null) return Array.Empty<char>();
+        var chars = new char[bytes.Length];
+        for (int i = 0; i < bytes.Length; i++) chars[i] = (char)bytes[i];
+        return chars;
     }
 }

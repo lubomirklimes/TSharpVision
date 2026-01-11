@@ -20,6 +20,14 @@ public static class TEditorFindDialog
         return Encoding.ASCII.GetString(b, 0, n);
     }
 
+    public static string BytesToString(char[] b)
+    {
+        if (b == null || b.Length == 0) return string.Empty;
+        int n = Array.IndexOf(b, '\0');
+        if (n < 0) n = b.Length;
+        return new string(b, 0, n);
+    }
+
     public static void StringToBytes(string s, byte[] dest)
     {
         Array.Clear(dest, 0, dest.Length);
@@ -27,6 +35,14 @@ public static class TEditorFindDialog
         byte[] src = Encoding.ASCII.GetBytes(s);
         int n = Math.Min(src.Length, dest.Length - 1);
         Array.Copy(src, 0, dest, 0, n);
+    }
+
+    public static void StringToBytes(string s, char[] dest)
+    {
+        Array.Clear(dest, 0, dest.Length);
+        if (string.IsNullOrEmpty(s)) return;
+        int n = Math.Min(s.Length, dest.Length - 1);
+        s.CopyTo(0, dest, 0, n);
     }
 
     /// <summary>

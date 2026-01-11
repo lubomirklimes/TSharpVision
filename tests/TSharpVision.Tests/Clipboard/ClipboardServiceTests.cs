@@ -29,10 +29,10 @@ public sealed class ClipboardServiceTests : IDisposable
     private static TEditor MakeEditor(string text)
     {
         var ed = new TEditor(new TRect(0, 0, 40, 10), null, null, null, 1024);
-        byte[] bytes = Encoding.Latin1.GetBytes(text);
-        ed.bufLen = (uint)bytes.Length;
+        char[] chars = (text ?? string.Empty).ToCharArray();
+        ed.bufLen = (uint)chars.Length;
         ed.gapLen = ed.bufSize - ed.bufLen;
-        Array.Copy(bytes, 0, ed.buffer, (int)ed.gapLen, bytes.Length);
+        Array.Copy(chars, 0, ed.buffer, (int)ed.gapLen, chars.Length);
         ed.curPtr = 0;
         ed.curPos = default;
         ed.delta  = default;
@@ -40,8 +40,8 @@ public sealed class ClipboardServiceTests : IDisposable
         ed.drawPtr  = 0;
         ed.limit.x  = TSharpVision.Constants.Views.maxLineLength;
         int lines = 1;
-        for (int i = 0; i < bytes.Length; i++)
-            if (bytes[i] == 0x0A) lines++;
+        for (int i = 0; i < chars.Length; i++)
+            if (chars[i] == '\n') lines++;
         ed.limit.y = lines;
         return ed;
     }
@@ -151,6 +151,24 @@ public sealed class ClipboardServiceTests : IDisposable
         finally { TEditor.clipboard = null; ClipboardService.Reset(); }
     }
 
+    [Fact]
+    public void ClipCopy_MirrorsUnicodeToOsClipboard()
+    {
+        var svc = new InMemoryClipboardService();
+        ClipboardService.Current = svc;
+        var clip = MakeClipEditor();
+        TEditor.clipboard = clip;
+        try
+        {
+            var ed = MakeEditor("Příliš Привет");
+            ed.SetSelect(0, ed.bufLen, false);
+            Assert.True(ed.ClipCopy());
+            Assert.Equal("Příliš Привет", svc.GetText());
+            Assert.Equal("Příliš Привет", ReadAll(clip));
+        }
+        finally { TEditor.clipboard = null; ClipboardService.Reset(); }
+    }
+
     // ── 26b.4 — Cut mirrors to OS clipboard and removes selection ─────────
 
     [Fact]
@@ -187,6 +205,23 @@ public sealed class ClipboardServiceTests : IDisposable
             var ed = MakeEditor("");
             ed.ClipPaste();
             Assert.Equal("world", ReadAll(ed));
+        }
+        finally { TEditor.clipboard = null; ClipboardService.Reset(); }
+    }
+
+    [Fact]
+    public void ClipPaste_UsesUnicodeOsClipboardText()
+    {
+        var svc = new InMemoryClipboardService();
+        svc.SetText("český\nПривет");
+        ClipboardService.Current = svc;
+        var clip = MakeClipEditor();
+        TEditor.clipboard = clip;
+        try
+        {
+            var ed = MakeEditor("");
+            ed.ClipPaste();
+            Assert.Equal("český\nПривет", ReadAll(ed));
         }
         finally { TEditor.clipboard = null; ClipboardService.Reset(); }
     }

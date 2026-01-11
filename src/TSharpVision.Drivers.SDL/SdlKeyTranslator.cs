@@ -145,6 +145,7 @@ public static class SdlKeyTranslator
             char ch = textChar != 0 ? textChar : (char)(shf ? char.ToUpper((char)keycode) : keycode);
             ev = MakeKey(ch, shift);
             ev.keyDown.charScan.charCode = (byte)ch;
+            ev.keyDown.text = ch.ToString();
             return true;
         }
 
@@ -161,6 +162,7 @@ public static class SdlKeyTranslator
             char ch = textChar != 0 ? textChar : (char)keycode;
             ev = MakeKey(ch, shift);
             ev.keyDown.charScan.charCode = (byte)ch;
+            ev.keyDown.text = ch.ToString();
             return true;
         }
 
@@ -170,6 +172,7 @@ public static class SdlKeyTranslator
             char ch = textChar != 0 ? textChar : (char)keycode;
             ev = MakeKey(ch, shift);
             ev.keyDown.charScan.charCode = (byte)ch;
+            ev.keyDown.text = ch.ToString();
             return true;
         }
 

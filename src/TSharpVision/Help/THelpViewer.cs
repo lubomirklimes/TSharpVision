@@ -49,7 +49,7 @@ public class THelpViewer : TScroller
     public override void Draw()
     {
         var b = new TDrawBuffer();
-        var lineBuf = new byte[256];
+        var lineBuf = new char[256];
 
         ushort normal = GetColor(1);
         ushort keyword = GetColor(2);
@@ -73,15 +73,15 @@ public class THelpViewer : TScroller
         {
             b.moveChar(0, ' ', normal, size.x);
             topic.GetLine(i + delta.y, lineBuf);
-            int len = ByteLen(lineBuf);
+            int len = CharLen(lineBuf);
             if (len > delta.x)
             {
                 int copy = System.Math.Min(size.x, len - delta.x);
                 var slice = new char[copy];
                 for (int k = 0; k < copy; k++)
                 {
-                    byte raw = lineBuf[delta.x + k];
-                    slice[k] = raw == 0xFF ? ' ' : (char)raw;
+                    char raw = lineBuf[delta.x + k];
+                    slice[k] = raw == '\xFF' || raw == '\u00A0' ? ' ' : raw;
                 }
                 b.moveBuf(0, slice, normal, copy);
             }
@@ -253,10 +253,10 @@ public class THelpViewer : TScroller
         }
     }
 
-    private static int ByteLen(byte[] b)
+    private static int CharLen(char[] b)
     {
         for (int i = 0; i < b.Length; i++)
-            if (b[i] == 0) return i;
+            if (b[i] == '\0') return i;
         return b.Length;
     }
 }

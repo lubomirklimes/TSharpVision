@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Text;
 using TSharpVision.Constants;
 
 namespace TSharpVision;
@@ -36,40 +37,40 @@ public class TEditorApp : TApplication
     {
         r.b.y = r.a.y + 1;
         return new TMenuBar(r,
-            new TSubMenu("~F~ile", Keys.kbAltF) +
-                new TMenuItem("~N~ew",         Views.cmNew,    Keys.kbNoKey) +
-                new TMenuItem("~O~pen...",     Views.cmOpen,   Keys.kbF3, Views.hcNoContext, "F3") +
+            new TSubMenu(Loc("Menu_File", "~F~ile"), Keys.kbAltF) +
+                new TMenuItem(Loc("Menu_New", "~N~ew"),         Views.cmNew,    Keys.kbNoKey) +
+                new TMenuItem(Loc("Menu_Open", "~O~pen..."),     Views.cmOpen,   Keys.kbF3, Views.hcNoContext, "F3") +
                 TMenuItem.NewLine() +
-                new TMenuItem("~S~ave",        Views.cmSave,   Keys.kbF2,    Views.hcNoContext, "F2") +
-                new TMenuItem("S~a~ve As...",  Views.cmSaveAs, Keys.kbNoKey) +
+                new TMenuItem(Loc("Menu_Save", "~S~ave"),        Views.cmSave,   Keys.kbF2,    Views.hcNoContext, "F2") +
+                new TMenuItem(Loc("Menu_SaveAs", "S~a~ve As..."),  Views.cmSaveAs, Keys.kbNoKey) +
                 TMenuItem.NewLine() +
-                new TMenuItem("E~x~it",        Views.cmQuit,   Keys.kbAltX, Views.hcNoContext, "Alt+X") +
+                new TMenuItem(Loc("Menu_Exit", "E~x~it"),        Views.cmQuit,   Keys.kbAltX, Views.hcNoContext, "Alt+X") +
 
-            new TSubMenu("~E~dit", Keys.kbAltE) +
-                new TMenuItem("~U~ndo",   Views.cmUndo,  Keys.kbNoKey) +
+            new TSubMenu(Loc("Menu_Edit", "~E~dit"), Keys.kbAltE) +
+                new TMenuItem(Loc("Menu_Undo", "~U~ndo"),   Views.cmUndo,  Keys.kbNoKey) +
                 TMenuItem.NewLine() +
-                new TMenuItem("Cu~t~",    Views.cmCut,   Keys.kbShiftDel, Views.hcNoContext, "Shift+Del") +
-                new TMenuItem("~C~opy",   Views.cmCopy,  Keys.kbCtrlIns,  Views.hcNoContext, "Ctrl+Ins") +
-                new TMenuItem("~P~aste",  Views.cmPaste, Keys.kbShiftIns, Views.hcNoContext, "Shift+Ins") +
+                new TMenuItem(Loc("Menu_Cut", "Cu~t~"),    Views.cmCut,   Keys.kbShiftDel, Views.hcNoContext, "Shift+Del") +
+                new TMenuItem(Loc("Menu_Copy", "~C~opy"),   Views.cmCopy,  Keys.kbCtrlIns,  Views.hcNoContext, "Ctrl+Ins") +
+                new TMenuItem(Loc("Menu_Paste", "~P~aste"),  Views.cmPaste, Keys.kbShiftIns, Views.hcNoContext, "Shift+Ins") +
                 TMenuItem.NewLine() +
-                new TMenuItem("C~l~ear",  Views.cmClear, Keys.kbCtrlDel,  Views.hcNoContext, "Ctrl+Del") +
+                new TMenuItem(Loc("Menu_Clear", "C~l~ear"),  Views.cmClear, Keys.kbCtrlDel,  Views.hcNoContext, "Ctrl+Del") +
 
-            new TSubMenu("~S~earch", Keys.kbAltS) +
-                new TMenuItem("~F~ind...",      Views.cmFind,        Keys.kbNoKey) +
-                new TMenuItem("~R~eplace...",   Views.cmReplace,     Keys.kbNoKey) +
-                new TMenuItem("~A~gain",        Views.cmSearchAgain, Keys.kbNoKey) +
+            new TSubMenu(Loc("Menu_Search", "~S~earch"), Keys.kbAltS) +
+                new TMenuItem(Loc("Menu_Find", "~F~ind..."),      Views.cmFind,        Keys.kbNoKey) +
+                new TMenuItem(Loc("Menu_Replace", "~R~eplace..."),   Views.cmReplace,     Keys.kbNoKey) +
+                new TMenuItem(Loc("Menu_Again", "~A~gain"),        Views.cmSearchAgain, Keys.kbNoKey) +
 
-            new TSubMenu("~W~indow", Keys.kbAltW) +
-                new TMenuItem("~S~ize/Move",  Views.cmResize,  Keys.kbCtrlF5, Views.hcNoContext, "Ctrl+F5") +
-                new TMenuItem("~Z~oom",       Views.cmZoom,    Keys.kbF5,     Views.hcNoContext, "F5") +
+            new TSubMenu(Loc("Menu_Window", "~W~indow"), Keys.kbAltW) +
+                new TMenuItem(Loc("Menu_SizeMove", "~S~ize/Move"),  Views.cmResize,  Keys.kbCtrlF5, Views.hcNoContext, "Ctrl+F5") +
+                new TMenuItem(Loc("Menu_Zoom", "~Z~oom"),       Views.cmZoom,    Keys.kbF5,     Views.hcNoContext, "F5") +
                 TMenuItem.NewLine() +
-                new TMenuItem("~T~ile",       Views.cmTile,    Keys.kbNoKey) +
-                new TMenuItem("C~a~scade",    Views.cmCascade, Keys.kbNoKey) +
+                new TMenuItem(Loc("Menu_Tile", "~T~ile"),       Views.cmTile,    Keys.kbNoKey) +
+                new TMenuItem(Loc("Menu_Cascade", "C~a~scade"),    Views.cmCascade, Keys.kbNoKey) +
                 TMenuItem.NewLine() +
-                new TMenuItem("~N~ext",       Views.cmNext,    Keys.kbF6,      Views.hcNoContext, "F6") +
-                new TMenuItem("~P~revious",   Views.cmPrev,    Keys.kbShiftF6, Views.hcNoContext, "Shift+F6") +
+                new TMenuItem(Loc("Menu_Next", "~N~ext"),       Views.cmNext,    Keys.kbF6,      Views.hcNoContext, "F6") +
+                new TMenuItem(Loc("Menu_Previous", "~P~revious"),   Views.cmPrev,    Keys.kbShiftF6, Views.hcNoContext, "Shift+F6") +
                 TMenuItem.NewLine() +
-                new TMenuItem("~C~lose",      Views.cmClose,   Keys.kbAltF3,   Views.hcNoContext, "Alt+F3")
+                new TMenuItem(Loc("Menu_Close", "~C~lose"),      Views.cmClose,   Keys.kbAltF3,   Views.hcNoContext, "Alt+F3")
         );
     }
 
@@ -78,12 +79,12 @@ public class TEditorApp : TApplication
         r.a.y = r.b.y - 1;
         return new TStatusLine(r,
             new TStatusDef(0, 0xFFFF) +
-            new TStatusItem("~F10~ Menu",   Keys.kbF10,   Views.cmMenu) +
-            new TStatusItem("~F2~ Save",    Keys.kbF2,    Views.cmSave) +
-            new TStatusItem("~F3~ Open",    Keys.kbF3,    Views.cmOpen) +
-            new TStatusItem("~Alt+X~ Exit", Keys.kbAltX,  Views.cmQuit) +
-            new TStatusItem("~F5~ Zoom",    Keys.kbF5,    Views.cmZoom) +
-            new TStatusItem("~F6~ Next",    Keys.kbF6,    Views.cmNext) +
+            new TStatusItem(Loc("Status_F10_Menu", "~F10~ Menu"),   Keys.kbF10,   Views.cmMenu) +
+            new TStatusItem(Loc("Status_F2_Save", "~F2~ Save"),    Keys.kbF2,    Views.cmSave) +
+            new TStatusItem(Loc("Status_F3_Open", "~F3~ Open"),    Keys.kbF3,    Views.cmOpen) +
+            new TStatusItem(Loc("Status_AltX_Exit", "~Alt+X~ Exit"), Keys.kbAltX,  Views.cmQuit) +
+            new TStatusItem(Loc("Status_F5_Zoom", "~F5~ Zoom"),    Keys.kbF5,    Views.cmZoom) +
+            new TStatusItem(Loc("Status_F6_Next", "~F6~ Next"),    Keys.kbF6,    Views.cmNext) +
             new TStatusItem(null, Keys.kbAltF3,   Views.cmClose) +
             new TStatusItem(null, Keys.kbCtrlF5,  Views.cmResize) +
             new TStatusItem(null, Keys.kbShiftF6, Views.cmPrev)
@@ -123,6 +124,12 @@ public class TEditorApp : TApplication
 
 
     public virtual TEditWindow OpenEditor(string fileName, bool visible)
+        => OpenEditor(fileName, visible, null);
+
+    public virtual TEditWindow OpenEditor(
+        string fileName,
+        bool visible,
+        TFileEditorOpenOptions openOptions)
     {
         if (DeskTop == null) return null;
 
@@ -140,7 +147,20 @@ public class TEditorApp : TApplication
         if (r.b.y - r.a.y < TEditWindow.MinEditWinSize.y)
             r.b.y = r.a.y + TEditWindow.MinEditWinSize.y;
 
-        var ew = new TEditWindow(r, fileName ?? string.Empty, n);
+        TEditWindow ew;
+        try
+        {
+            ew = new TEditWindow(r, fileName ?? string.Empty, n, openOptions);
+        }
+        catch (DecoderFallbackException)
+        {
+            MsgBox.MessageBox(
+                DeskTop,
+                Loc("File_Err_EncodingDecode", "The file could not be decoded using the selected encoding."),
+                MsgBox.mfError | MsgBox.mfOKButton);
+            return null;
+        }
+
         var validated = (TEditWindow)ValidView(ew);
         if (validated == null) return null;
 
@@ -156,8 +176,11 @@ public class TEditorApp : TApplication
         if (DeskTop == null) return;
 
         var dlg = new TFileDialog("*.*",
-            TSharpVisionIntl.Get("File_Title_Open", "Open File"),
-            "~N~ame", FileDialogOptions.fdOpenButton, 100);
+            Loc("File_Title_Open", "Open File"),
+            Loc("File_Label_Name", "~N~ame"),
+            (ushort)(FileDialogOptions.fdOpenButton
+                | FileDialogOptions.fdEncodingSelector),
+            100);
 
         if (ValidView(dlg) == null) return;
 
@@ -166,7 +189,15 @@ public class TEditorApp : TApplication
         {
             dlg.GetData(out string chosen);
             if (!string.IsNullOrEmpty(chosen))
-                OpenEditor(chosen, true);
+            {
+                OpenEditor(
+                    chosen,
+                    true,
+                    new TFileEditorOpenOptions
+                    {
+                        Encoding = dlg.SelectedEncoding,
+                    });
+            }
         }
     }
 

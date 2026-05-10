@@ -61,6 +61,7 @@ public sealed class AstFormatter
             ResourceKind.Dialog    => "dialog",
             ResourceKind.Menu      => "menu",
             ResourceKind.StatusBar => "statusbar",
+            ResourceKind.Strings   => "strings",
             _                      => "dialog",
         };
 
@@ -72,6 +73,7 @@ public sealed class AstFormatter
             case ResourceKind.Dialog:    WriteDialog(sb, r.Dialog);       break;
             case ResourceKind.Menu:      WriteMenu(sb, r.Menu);           break;
             case ResourceKind.StatusBar: WriteStatusBar(sb, r.StatusBar); break;
+            case ResourceKind.Strings:   WriteStrings(sb, r.Strings);     break;
         }
 
         sb.Append("}\n");
@@ -226,6 +228,21 @@ public sealed class AstFormatter
         }
     }
 
+    private static void WriteStrings(StringBuilder sb, StringsBody s)
+    {
+        if (s == null) return;
+
+        foreach (var entry in s.Entries)
+        {
+            sb.Append("  ");
+            if (IsIdentifier(entry.Key))
+                sb.Append(entry.Key);
+            else
+                sb.Append(QuoteString(entry.Key));
+            sb.Append(" = ").Append(QuoteString(entry.Value)).Append(";\n");
+        }
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────
 
     private static string FormatBounds(BoundsNode b)
@@ -253,5 +270,15 @@ public sealed class AstFormatter
         }
         sb.Append('"');
         return sb.ToString();
+    }
+
+    private static bool IsIdentifier(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return false;
+        if (s[0] != '_' && !char.IsLetter(s[0])) return false;
+        for (int i = 1; i < s.Length; i++)
+            if (s[i] != '_' && !char.IsLetterOrDigit(s[i]))
+                return false;
+        return true;
     }
 }

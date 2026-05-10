@@ -54,6 +54,7 @@ public static class TSharpVisionConfigurationLoader
             {
                 DriverName  = ini.Get("driver", "name"),
                 SdlFontName = ini.Get("sdl",    "fontName"),
+                Language    = ini.Get("localization", "language"),
             };
         }
         catch (Exception ex)

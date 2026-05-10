@@ -50,9 +50,9 @@ public static class TEditorReplaceDialog
         dlg.Insert(checkBoxes);
 
         dlg.Insert(new TButton(new TRect(17, 13, 27, 15),
-            "O~K~", Views.cmOK, ButtonConstants.bfDefault));
+            TSharpVisionIntl.Get("Btn_OK", "~O~K"), Views.cmOK, ButtonConstants.bfDefault));
         dlg.Insert(new TButton(new TRect(28, 13, 38, 15),
-            "Cancel", Views.cmCancel, ButtonConstants.bfNormal));
+            TSharpVisionIntl.Get("Btn_Cancel", "Cancel"), Views.cmCancel, ButtonConstants.bfNormal));
 
         dlg.SelectNext(false);
         return dlg;

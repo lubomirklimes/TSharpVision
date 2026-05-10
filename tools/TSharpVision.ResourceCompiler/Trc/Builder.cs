@@ -52,6 +52,7 @@ public sealed class Builder
                 ResourceKind.Dialog    => BuildDialog(res),
                 ResourceKind.Menu      => BuildMenuBar(res),
                 ResourceKind.StatusBar => BuildStatusLine(res),
+                ResourceKind.Strings   => BuildStrings(res),
                 _                      => null,
             };
 
@@ -259,6 +260,26 @@ public sealed class Builder
         }
 
         return new TStatusLine(rect, firstDef);
+    }
+
+    // Strings
+
+    private TStringResource BuildStrings(ResourceDecl res)
+    {
+        var values = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var entry in res.Strings.Entries)
+        {
+            if (values.ContainsKey(entry.Key))
+            {
+                _diag.Add(new Diagnostic(DiagnosticCodes.DuplicateField,
+                    $"Duplicate string key '{entry.Key}'", entry.Line, entry.Column));
+                continue;
+            }
+
+            values[entry.Key] = entry.Value;
+        }
+
+        return new TStringResource(values);
     }
 
     // Shared helpers

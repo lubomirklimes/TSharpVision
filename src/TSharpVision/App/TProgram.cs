@@ -360,7 +360,7 @@ public class TProgram : TGroup
         return new TStatusLine(r,
             new TStatusDef(0, 0xFFFF) +
             //new TStatusItem("~F1~ Help", 1, CommandCodes.cmHelp) +
-            new TStatusItem("~Alt-X~ Exit", Keys.kbAltX, Views.cmQuit) +
+            new TStatusItem(TSharpVisionIntl.Get("Status_AltX_ExitDash", "~Alt-X~ Exit"), Keys.kbAltX, Views.cmQuit) +
             new TStatusItem(null, Keys.kbF10, Views.cmMenu) +
             new TStatusItem(null, Keys.kbAltF3, Views.cmClose) +
             new TStatusItem(null, Keys.kbF5, Views.cmZoom) +

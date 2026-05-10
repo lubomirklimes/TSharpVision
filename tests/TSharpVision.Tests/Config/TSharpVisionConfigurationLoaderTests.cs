@@ -25,6 +25,7 @@ public sealed class TSharpVisionConfigurationLoaderTests : IDisposable
 
         Assert.Null(config.DriverName);
         Assert.Null(config.SdlFontName);
+        Assert.Null(config.Language);
     }
 
     // ── Reads [driver] name ────────────────────────────────────────────────
@@ -48,6 +49,14 @@ public sealed class TSharpVisionConfigurationLoaderTests : IDisposable
         var config = TSharpVisionConfigurationLoader.LoadFromPath(path);
         Assert.Equal("sdl",           config.DriverName);
         Assert.Equal("Cascadia Mono", config.SdlFontName);
+    }
+
+    [Fact]
+    public void LoadFromPath_ReadsLocalizationLanguage()
+    {
+        string path = WriteCfg(_tmp.Path, "test.cfg", "[localization]\nlanguage=cs");
+        var config = TSharpVisionConfigurationLoader.LoadFromPath(path);
+        Assert.Equal("cs", config.Language);
     }
 
     // ── Console driver ─────────────────────────────────────────────────────

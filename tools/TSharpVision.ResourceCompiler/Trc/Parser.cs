@@ -65,7 +65,7 @@ public sealed class Parser
 
     // ── Resource declaration ──────────────────────────────────────────────────
 
-    // resource dialog|menu|statusbar "key" { body }
+    // resource dialog|menu|statusbar|strings "key" { body }
     private ResourceDecl ParseResource()
     {
         var kw = Consume(); // 'resource'
@@ -78,9 +78,10 @@ public sealed class Parser
             case "dialog":    kind = ResourceKind.Dialog;    break;
             case "menu":      kind = ResourceKind.Menu;      break;
             case "statusbar": kind = ResourceKind.StatusBar; break;
+            case "strings":   kind = ResourceKind.Strings;   break;
             default:
                 _diag.Add(new Diagnostic(DiagnosticCodes.UnexpectedToken,
-                    $"Unknown resource kind '{kindTok.Value}'. Supported: dialog, menu, statusbar.",
+                    $"Unknown resource kind '{kindTok.Value}'. Supported: dialog, menu, statusbar, strings.",
                     kindTok.Line, kindTok.Column));
                 SkipToCloseBrace();
                 return null;
@@ -104,6 +105,7 @@ public sealed class Parser
             case ResourceKind.Dialog:    decl.Dialog    = ParseDialogBody();    break;
             case ResourceKind.Menu:      decl.Menu      = ParseMenuBody();      break;
             case ResourceKind.StatusBar: decl.StatusBar = ParseStatusBarBody(); break;
+            case ResourceKind.Strings:   decl.Strings   = ParseStringsBody();   break;
         }
 
         if (!ExpectPunct(TokenKind.CloseBrace, "'}'")) { /* best-effort */ }
@@ -456,6 +458,47 @@ public sealed class Parser
     }
 
     // ── Menu body ─────────────────────────────────────────────────────────────
+
+    // strings-body = ( (IDENTIFIER | STRING) "=" STRING ";" )*
+    private StringsBody ParseStringsBody()
+    {
+        var body = new StringsBody();
+        while (!AtEof() && !PeekKind(TokenKind.CloseBrace))
+        {
+            var keyTok = Peek();
+            if (keyTok.Kind != TokenKind.Identifier && keyTok.Kind != TokenKind.StringLiteral)
+            {
+                _diag.Add(new Diagnostic(DiagnosticCodes.UnexpectedToken,
+                    $"Expected string key, got '{keyTok.Value}'", keyTok.Line, keyTok.Column));
+                Advance();
+                continue;
+            }
+            Advance();
+
+            if (!ExpectPunct(TokenKind.Equals, "'=' after string key"))
+            {
+                SkipToSemicolon();
+                continue;
+            }
+
+            var valueTok = Expect(TokenKind.StringLiteral, "localized string value");
+            if (valueTok == null)
+            {
+                SkipToSemicolon();
+                continue;
+            }
+
+            ExpectPunct(TokenKind.Semicolon, "';' after string entry");
+            body.Entries.Add(new StringEntryDecl
+            {
+                Key = keyTok.Value,
+                Value = valueTok.Value,
+                Line = keyTok.Line,
+                Column = keyTok.Column,
+            });
+        }
+        return body;
+    }
 
     // menu-body = ( "bounds" "(" x1 "," y1 "," x2 "," y2 ")" ";" )?
     //             ( submenu-decl | item-decl | separator-decl )*

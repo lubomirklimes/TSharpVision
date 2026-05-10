@@ -1,0 +1,36 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\TSharpVision.Drivers.Console\TSharpVision.Drivers.Console.csproj" />
+    <ProjectReference Include="..\..\src\TSharpVision.Drivers.Terminal\TSharpVision.Drivers.Terminal.csproj" />
+    <ProjectReference Include="..\..\src\TSharpVision\TSharpVision.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <IntlResource Include="Resources\app_en.trc" OutputName="app_en.tvr" />
+    <IntlResource Include="Resources\app_cs.trc" OutputName="app_cs.tvr" />
+    <IntlHelp Include="Help\tvintl_en.txt" OutputName="Help\tvintl_en.hlp" SymbolName="Help\tvintl_en.cs" />
+    <IntlHelp Include="Help\tvintl_cs.txt" OutputName="Help\tvintl_cs.hlp" SymbolName="Help\tvintl_cs.cs" />
+  </ItemGroup>
+
+  <Target Name="CompileIntlStringResources" BeforeTargets="Build">
+    <MakeDir Directories="$(OutDir)" />
+    <Exec
+      Command="dotnet run --project &quot;$(MSBuildProjectDirectory)\..\..\tools\TSharpVision.ResourceCompiler\TSharpVision.ResourceCompiler.csproj&quot; -- compile &quot;%(IntlResource.FullPath)&quot; &quot;$(OutDir)%(IntlResource.OutputName)&quot;" />
+  </Target>
+
+  <Target Name="CompileIntlHelp" BeforeTargets="Build">
+    <MakeDir Directories="$(OutDir)Help" />
+    <MakeDir Directories="$(IntermediateOutputPath)Help" />
+    <Exec
+      Command="dotnet run --project &quot;$(MSBuildProjectDirectory)\..\..\tools\TSharpVision.HelpCompiler\TSharpVision.HelpCompiler.csproj&quot; -- --format v2 &quot;%(IntlHelp.FullPath)&quot; &quot;$(OutDir)%(IntlHelp.OutputName)&quot; &quot;$(IntermediateOutputPath)%(IntlHelp.SymbolName)&quot;" />
+  </Target>
+
+</Project>

@@ -1,0 +1,120 @@
+resource strings "sharpvision.intl" {
+  Btn_OK = "~O~K";
+  Btn_Cancel = "~A~nnulla";
+  Btn_Yes = "~S~ì";
+  Btn_No = "~N~o";
+  Btn_Help = "~A~iuto";
+  Btn_Retry = "~R~iprova";
+  Btn_Abort = "~I~nterrompi";
+  Btn_Ignore = "I~g~nora";
+  Btn_Done = "Fine";
+
+  MsgTitle_Error = "Errore";
+  MsgTitle_Warning = "Avviso";
+  MsgTitle_Information = "Informazione";
+  MsgTitle_Confirm = "Conferma";
+
+  File_Title_Open = "Apri file";
+  File_Title_SaveAs = "Salva file con nome";
+  File_Label_Name = "~N~ome";
+  File_Label_Files = "~F~ile";
+  File_Label_Encoding = "~C~odifica";
+  File_Btn_Open = "~A~pri";
+  File_Btn_Add = "A~g~giungi";
+  File_Btn_Select = "~S~eleziona";
+  File_Btn_Replace = "~S~ostituisci";
+  File_Btn_Clear = "~P~ulisci";
+  File_ConfirmOverwrite = "Il file '{0}' esiste già. Sovrascrivere?";
+  File_Err_InvalidFileName = "Nome file non valido.";
+  File_Err_InvalidDir = "Unità o directory non valida.";
+  File_Err_CannotOpenDir = "Impossibile aprire la directory: '{0}'";
+  File_Err_AccessDenied = "Accesso negato: '{0}'";
+  File_Err_InvalidPath = "Percorso non valido: '{0}'";
+  File_Err_PathTooLong = "Il percorso è troppo lungo.";
+  File_Err_NetworkUnavailable = "Percorso di rete non disponibile.";
+  File_Err_NotFound = "File o directory non trovato.";
+  File_Err_EncodingDecode = "Impossibile decodificare il file con la codifica selezionata.";
+  File_Err_EncodingEncode = "Il file contiene caratteri che non possono essere salvati con la codifica selezionata.";
+
+  Encoding_Auto = "Auto";
+  Encoding_UTF8 = "UTF-8";
+  Encoding_Latin1 = "Latin-1";
+  Encoding_CP437 = "CP437";
+  Encoding_CP852 = "CP852";
+  Encoding_Windows1250 = "Windows-1250";
+  Encoding_ISO8859_2 = "ISO-8859-2";
+  Encoding_Kamenicky = "Kamenicky / KEYBCS2";
+
+  ChDir_Title = "Cambia directory";
+  ChDir_Label_DirectoryName = "~N~ome directory";
+  ChDir_Label_DirectoryTree = "Al~b~ero directory";
+  ChDir_Btn_Chdir = "~C~ambia";
+  ChDir_Btn_Revert = "~R~ipristina";
+  DirList_Drives = "Unità";
+
+  Edit_Untitled = "Senza titolo";
+  Edit_Clipboard = "Appunti";
+  Edit_SaveModify = "{0} è stato modificato. Salvare?";
+  Edit_SaveUntitled = "Salvare il file senza titolo?";
+  Edit_Err_Read = "Errore durante la lettura del file '{0}'.";
+  Edit_Err_Write = "Errore durante la scrittura del file '{0}'.";
+  Edit_Err_Create = "Errore durante la creazione del file '{0}'.";
+  Edit_Err_OOM = "Memoria insufficiente per il buffer dell'editor.";
+  Edit_SearchFailed = "Stringa di ricerca non trovata.";
+  Edit_ReplacePrompt = "Sostituire questa occorrenza?";
+
+  Edit_FindTitle = "Trova";
+  Edit_ReplaceTitle = "Sostituisci";
+  Edit_FindText = "~T~esto da trovare";
+  Edit_ReplaceText = "~S~ostituisci con";
+  Edit_Chk_CaseSensitive = "Distingui ~m~aiuscole";
+  Edit_Chk_WholeWords = "Solo parole ~i~ntere";
+  Edit_Chk_PromptOnReplace = "~C~hiedi prima di sostituire";
+  Edit_Chk_ReplaceAll = "Sostituisci ~t~utto";
+
+  Menu_File = "~F~ile";
+  Menu_New = "~N~uovo";
+  Menu_Open = "~A~pri...";
+  Menu_Save = "~S~alva";
+  Menu_SaveAs = "Salva ~c~on nome...";
+  Menu_Exit = "~E~sci";
+  Menu_Edit = "~M~odifica";
+  Menu_Undo = "~A~nnulla";
+  Menu_Cut = "~T~aglia";
+  Menu_Copy = "~C~opia";
+  Menu_Paste = "~I~ncolla";
+  Menu_Clear = "~E~limina";
+  Menu_Search = "~C~erca";
+  Menu_Find = "~T~rova...";
+  Menu_Replace = "~S~ostituisci...";
+  Menu_Again = "Trova ~a~ncora";
+  Menu_Window = "~F~inestra";
+  Menu_SizeMove = "~D~imensiona/Sposta";
+  Menu_Zoom = "~Z~oom";
+  Menu_Tile = "~A~ffianca";
+  Menu_Cascade = "~C~ascata";
+  Menu_Next = "~S~uccessiva";
+  Menu_Previous = "~P~recedente";
+  Menu_Close = "C~h~iudi";
+
+  Status_F10_Menu = "~F10~ Menu";
+  Status_F2_Save = "~F2~ Salva";
+  Status_F3_Open = "~F3~ Apri";
+  Status_AltX_Exit = "~Alt+X~ Esci";
+  Status_AltX_ExitDash = "~Alt-X~ Esci";
+  Status_F5_Zoom = "~F5~ Zoom";
+  Status_F6_Next = "~F6~ Successiva";
+
+  Help_WindowTitle = "Aiuto";
+  Help_NoContext = "\n Nessun aiuto disponibile in questo contesto.";
+  List_Empty = "<vuoto>";
+
+  Color_Title = "Colori";
+  Color_Lbl_Group = "~G~ruppo";
+  Color_Lbl_Item = "~E~lemento";
+  Color_Lbl_Foreground = "~P~rimo piano";
+  Color_Lbl_Background = "~S~fondo";
+  Color_Lbl_Color = "Colore";
+  Color_PreviewText = "Testo ";
+  Color_Btn_Try = "~P~rova";
+}

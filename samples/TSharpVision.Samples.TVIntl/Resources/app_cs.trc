@@ -1,0 +1,93 @@
+resource strings "sharpvision.intl" {
+  Btn_OK = "~O~K";
+  Btn_Cancel = "~Z~rušit";
+  Btn_Help = "~N~ápověda";
+
+  File_Title_Open = "Otevřít soubor";
+  File_Title_SaveAs = "Uložit soubor jako";
+  File_Label_Name = "~N~ázev";
+  File_Label_Files = "~S~oubory";
+  File_Label_Encoding = "~K~ódování";
+  File_Btn_Open = "~O~tevřít";
+  File_Btn_Add = "~P~řidat";
+  File_Btn_Select = "~V~ybrat";
+  File_Btn_Replace = "Na~h~radit";
+  File_Btn_Clear = "Vy~m~azat";
+  File_ConfirmOverwrite = "Soubor '{0}' už existuje. Přepsat?";
+  File_Err_InvalidFileName = "Neplatný název souboru.";
+  File_Err_InvalidDir = "Neplatný disk nebo adresář.";
+  File_Err_CannotOpenDir = "Nelze otevřít adresář: '{0}'";
+  File_Err_AccessDenied = "Přístup odepřen: '{0}'";
+  File_Err_InvalidPath = "Neplatná cesta: '{0}'";
+  File_Err_PathTooLong = "Cesta je příliš dlouhá.";
+  File_Err_NetworkUnavailable = "Síťové umístění není dostupné.";
+  File_Err_NotFound = "Soubor nebo adresář nebyl nalezen.";
+  File_Err_EncodingDecode = "Soubor se nepodařilo dekódovat vybraným kódováním.";
+  File_Err_EncodingEncode = "Soubor obsahuje znaky, které nelze uložit ve vybraném kódování.";
+
+  Encoding_Auto = "Auto";
+  Encoding_UTF8 = "UTF-8";
+  Encoding_Latin1 = "Latin-1";
+  Encoding_CP437 = "CP437";
+  Encoding_CP852 = "CP852";
+  Encoding_Windows1250 = "Windows-1250";
+  Encoding_ISO8859_2 = "ISO-8859-2";
+  Encoding_Kamenicky = "Kamenický / KEYBCS2";
+
+  TVIntl_App_Title = "TSharpVision Intl Demo";
+
+  TVIntl_Menu_File = "~S~oubor";
+  TVIntl_Menu_OpenText = "~O~tevřít soubor...";
+  TVIntl_Menu_OpenTextEncoding = "Otevřít soubor s ~k~ódováním...";
+  TVIntl_Menu_Exit = "~K~onec";
+
+  TVIntl_Menu_Language = "~J~azyk";
+  TVIntl_Menu_LangEnglish = "~A~nglicky";
+  TVIntl_Menu_LangCzech = "~Č~esky";
+  TVIntl_Menu_LangPseudo = "~P~seudo / Debug";
+
+  TVIntl_Menu_Demos = "~U~kázky";
+  TVIntl_Menu_MessageBox = "~Z~práva";
+  TVIntl_Menu_InputBox = "~V~stupní dialog";
+  TVIntl_Menu_FileDialog = "~S~ouborový dialog";
+  TVIntl_Menu_EncodingSample = "~K~ódování";
+  TVIntl_Menu_MissingKey = "~C~hybějící klíč";
+
+  TVIntl_Menu_Help = "~N~ápověda";
+  TVIntl_Menu_HelpIndex = "~I~ndex";
+  TVIntl_Menu_About = "~O~ programu";
+
+  TVIntl_Status_Help = "~F1~ Nápověda";
+  TVIntl_Status_Message = "~F2~ Zpráva";
+  TVIntl_Status_Open = "~F3~ Otevřít";
+  TVIntl_Status_Exit = "~Alt+X~ Konec";
+
+  TVIntl_Dlg_Message_Title = "Lokalizovaná zpráva";
+  TVIntl_Dlg_Message_Text = "Tento text byl vyřešen přes Loc(...).";
+  TVIntl_Dlg_Input_Title = "Vstup";
+  TVIntl_Dlg_Input_Label = "~J~méno:";
+  TVIntl_Dlg_Input_Default = "Světe";
+  TVIntl_Dlg_Greeting_Title = "Pozdrav";
+  TVIntl_Dlg_Greeting_Text = "Ahoj, {0}!";
+  TVIntl_Dlg_File_Title = "Vyber soubor";
+  TVIntl_Dlg_File_Selected_Title = "Vybraný soubor";
+  TVIntl_Dlg_File_Selected_Text = "Vybraná cesta:\n{0}";
+  TVIntl_Dlg_OpenEncoding_Title = "Otevřít soubor s kódováním";
+  TVIntl_Dlg_About_Title = "O programu";
+  TVIntl_Dlg_About_Text = "TSharpVision Intl Demo\n\nUkazuje Loc(...), .tvr resources, přepínání jazyka za běhu a legacy textová kódování.";
+  TVIntl_Dlg_MissingKey_Title = "Chybějící klíč";
+  TVIntl_Dlg_MissingKey_Text = "Byl vyžádán chybějící lokalizační klíč a použil se fallback text.";
+  TVIntl_Dlg_MissingKey_None = "Zatím nebyl zaznamenán žádný chybějící klíč.";
+  TVIntl_Dlg_MissingKey_Recent = "Poslední chybějící klíče:";
+  TVIntl_Dlg_Language_Title = "Jazyk";
+  TVIntl_Dlg_Language_Text = "Jazyk přepnut na {0}.";
+  TVIntl_Dlg_Language_Pseudo_Text = "Pseudo/debug provider je aktivní.";
+  TVIntl_Help_NotFound = "Soubor nápovědy nebyl nalezen.";
+
+  TVIntl_Encoding_Title = "Ukázka kódování";
+  TVIntl_Encoding_Text = "Příliš žluťoučký kůň";
+  TVIntl_Encoding_Auto = "Auto";
+  TVIntl_Encoding_UTF8 = "UTF-8";
+  TVIntl_Encoding_CP852 = "CP852";
+  TVIntl_Encoding_Kamenicky = "Kamenický";
+}

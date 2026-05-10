@@ -1,4 +1,5 @@
 using System;
+using System.Text;
 
 namespace TSharpVision;
 
@@ -322,8 +323,9 @@ public class THelpTopic : TStreamable
             {
                 var bytes = new byte[sz];
                 s.ReadBytes(bytes, sz);
-                for (int j = 0; j < sz; j++)
-                    p.chars[j] = (char)bytes[j];
+                string text = s.HelpLegacyEncoding.Decode(bytes);
+                p.chars = text.ToCharArray();
+                p.size = checked((ushort)p.chars.Length);
             }
             else
             {
@@ -363,14 +365,41 @@ public class THelpTopic : TStreamable
             int size = p.size;
             if (p.chars != null && size > p.chars.Length)
                 size = p.chars.Length;
-            s.WriteShort((ushort)size);
-            s.WriteInt((uint)(p.wrap ? 1 : 0));
             if (s.HelpFormatVersion == FormatV1Latin1)
             {
-                s.WriteBytes(p.text, size);
+                string text = p.chars == null ? string.Empty : new string(p.chars, 0, size);
+                for (int i = 0; i < text.Length; i++)
+                {
+                    if (!s.HelpLegacyEncoding.TryEncodeChar(text[i], out _))
+                    {
+                        throw new InvalidOperationException(
+                            $"Help v1 text contains character U+{(int)text[i]:X4} " +
+                            $"that cannot be encoded as '{s.HelpLegacyEncoding.Name}'.");
+                    }
+                }
+
+                byte[] bytes;
+                try
+                {
+                    bytes = s.HelpLegacyEncoding.Encode(text);
+                }
+                catch (EncoderFallbackException ex)
+                {
+                    throw new InvalidOperationException(
+                        $"Help v1 text contains a character that cannot be encoded as '{s.HelpLegacyEncoding.Name}'. {ex.Message}",
+                        ex);
+                }
+                if (bytes.Length > ushort.MaxValue)
+                    throw new InvalidOperationException("Help v1 paragraph is too long after legacy encoding.");
+
+                s.WriteShort((ushort)bytes.Length);
+                s.WriteInt((uint)(p.wrap ? 1 : 0));
+                s.WriteBytes(bytes, bytes.Length);
             }
             else
             {
+                s.WriteShort((ushort)size);
+                s.WriteInt((uint)(p.wrap ? 1 : 0));
                 for (int i = 0; i < size; i++)
                     s.Write16(p.chars[i]);
             }

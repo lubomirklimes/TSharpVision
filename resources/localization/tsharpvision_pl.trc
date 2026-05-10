@@ -1,0 +1,120 @@
+resource strings "sharpvision.intl" {
+  Btn_OK = "~O~K";
+  Btn_Cancel = "~A~nuluj";
+  Btn_Yes = "~T~ak";
+  Btn_No = "~N~ie";
+  Btn_Help = "P~o~moc";
+  Btn_Retry = "~P~onów";
+  Btn_Abort = "P~r~zerwij";
+  Btn_Ignore = "~I~gnoruj";
+  Btn_Done = "Gotowe";
+
+  MsgTitle_Error = "Błąd";
+  MsgTitle_Warning = "Ostrzeżenie";
+  MsgTitle_Information = "Informacja";
+  MsgTitle_Confirm = "Potwierdzenie";
+
+  File_Title_Open = "Otwórz plik";
+  File_Title_SaveAs = "Zapisz plik jako";
+  File_Label_Name = "~N~azwa";
+  File_Label_Files = "~P~liki";
+  File_Label_Encoding = "~K~odowanie";
+  File_Btn_Open = "~O~twórz";
+  File_Btn_Add = "~D~odaj";
+  File_Btn_Select = "~W~ybierz";
+  File_Btn_Replace = "~Z~astąp";
+  File_Btn_Clear = "Wy~c~zyść";
+  File_ConfirmOverwrite = "Plik '{0}' już istnieje. Nadpisać?";
+  File_Err_InvalidFileName = "Nieprawidłowa nazwa pliku.";
+  File_Err_InvalidDir = "Nieprawidłowy dysk lub katalog.";
+  File_Err_CannotOpenDir = "Nie można otworzyć katalogu: '{0}'";
+  File_Err_AccessDenied = "Odmowa dostępu: '{0}'";
+  File_Err_InvalidPath = "Nieprawidłowa ścieżka: '{0}'";
+  File_Err_PathTooLong = "Ścieżka jest zbyt długa.";
+  File_Err_NetworkUnavailable = "Lokalizacja sieciowa jest niedostępna.";
+  File_Err_NotFound = "Nie znaleziono pliku lub katalogu.";
+  File_Err_EncodingDecode = "Nie można zdekodować pliku wybranym kodowaniem.";
+  File_Err_EncodingEncode = "Plik zawiera znaki, których nie można zapisać w wybranym kodowaniu.";
+
+  Encoding_Auto = "Auto";
+  Encoding_UTF8 = "UTF-8";
+  Encoding_Latin1 = "Latin-1";
+  Encoding_CP437 = "CP437";
+  Encoding_CP852 = "CP852";
+  Encoding_Windows1250 = "Windows-1250";
+  Encoding_ISO8859_2 = "ISO-8859-2";
+  Encoding_Kamenicky = "Kamenicky / KEYBCS2";
+
+  ChDir_Title = "Zmień katalog";
+  ChDir_Label_DirectoryName = "~N~azwa katalogu";
+  ChDir_Label_DirectoryTree = "Dr~z~ewo katalogów";
+  ChDir_Btn_Chdir = "~Z~mień";
+  ChDir_Btn_Revert = "~P~rzywróć";
+  DirList_Drives = "Dyski";
+
+  Edit_Untitled = "Bez nazwy";
+  Edit_Clipboard = "Schowek";
+  Edit_SaveModify = "{0} został zmieniony. Zapisać?";
+  Edit_SaveUntitled = "Zapisać plik bez nazwy?";
+  Edit_Err_Read = "Błąd odczytu pliku '{0}'.";
+  Edit_Err_Write = "Błąd zapisu pliku '{0}'.";
+  Edit_Err_Create = "Błąd tworzenia pliku '{0}'.";
+  Edit_Err_OOM = "Za mało pamięci dla bufora edytora.";
+  Edit_SearchFailed = "Nie znaleziono szukanego tekstu.";
+  Edit_ReplacePrompt = "Zastąpić to wystąpienie?";
+
+  Edit_FindTitle = "Znajdź";
+  Edit_ReplaceTitle = "Zastąp";
+  Edit_FindText = "~T~ekst do znalezienia";
+  Edit_ReplaceText = "~Z~astąp przez";
+  Edit_Chk_CaseSensitive = "Uwzględniaj ~w~ielkość liter";
+  Edit_Chk_WholeWords = "Tylko ~c~ałe słowa";
+  Edit_Chk_PromptOnReplace = "~P~ytaj przed zastąpieniem";
+  Edit_Chk_ReplaceAll = "Zastąp ~w~szystko";
+
+  Menu_File = "~P~lik";
+  Menu_New = "~N~owy";
+  Menu_Open = "~O~twórz...";
+  Menu_Save = "~Z~apisz";
+  Menu_SaveAs = "Zapisz ~j~ako...";
+  Menu_Exit = "~K~oniec";
+  Menu_Edit = "~E~dycja";
+  Menu_Undo = "~C~ofnij";
+  Menu_Cut = "Wy~t~nij";
+  Menu_Copy = "~K~opiuj";
+  Menu_Paste = "~W~klej";
+  Menu_Clear = "Wy~c~zyść";
+  Menu_Search = "~S~zukaj";
+  Menu_Find = "~Z~najdź...";
+  Menu_Replace = "~Z~astąp...";
+  Menu_Again = "Znajdź ~n~astępny";
+  Menu_Window = "~O~kno";
+  Menu_SizeMove = "~R~ozmiar/Przesuń";
+  Menu_Zoom = "~P~owiększ";
+  Menu_Tile = "~S~ąsiadująco";
+  Menu_Cascade = "~K~askadowo";
+  Menu_Next = "~N~astępne";
+  Menu_Previous = "P~o~przednie";
+  Menu_Close = "~Z~amknij";
+
+  Status_F10_Menu = "~F10~ Menu";
+  Status_F2_Save = "~F2~ Zapisz";
+  Status_F3_Open = "~F3~ Otwórz";
+  Status_AltX_Exit = "~Alt+X~ Koniec";
+  Status_AltX_ExitDash = "~Alt-X~ Koniec";
+  Status_F5_Zoom = "~F5~ Powiększ";
+  Status_F6_Next = "~F6~ Następne";
+
+  Help_WindowTitle = "Pomoc";
+  Help_NoContext = "\n Pomoc nie jest dostępna w tym kontekście.";
+  List_Empty = "<puste>";
+
+  Color_Title = "Kolory";
+  Color_Lbl_Group = "~G~rupa";
+  Color_Lbl_Item = "~E~lement";
+  Color_Lbl_Foreground = "~P~ierwszy plan";
+  Color_Lbl_Background = "~T~ło";
+  Color_Lbl_Color = "Kolor";
+  Color_PreviewText = "Tekst ";
+  Color_Btn_Try = "~P~róbuj";
+}

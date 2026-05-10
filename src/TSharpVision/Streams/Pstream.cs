@@ -1,4 +1,5 @@
 using System.IO;
+using TSharpVision.Text;
 
 namespace TSharpVision;
 
@@ -26,6 +27,7 @@ public abstract class Pstream
     protected Stream bp;
     public int state;
     public int HelpFormatVersion = THelpTopic.FormatV2Utf16;
+    public ILegacyTextEncoding HelpLegacyEncoding = LegacyTextEncodings.Latin1;
 
     // Upstream lazily allocates `types` in initTypes() and frees it via
     // atexit. In C# a single eagerly-constructed registry is sufficient.

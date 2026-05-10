@@ -27,6 +27,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using TSharpVision;
+using TSharpVision.Text;
 
 namespace TSharpVision.HelpCompiler;
 
@@ -65,11 +66,12 @@ internal static class Program
         {
             if (!options.Quiet)
                 Console.WriteLine(
-                    "  Syntax  svhc [--format v1|v2] [--warn-as-error] [--quiet] [--no-color] <input>[.txt] [<output>[.hlp] [<symfile>[.cs]]]\n\n" +
+                    "  Syntax  svhc [--format v1|v2] [--encoding name] [--warn-as-error] [--quiet] [--no-color] <input>[.txt] [<output>[.hlp] [<symfile>[.cs]]]\n\n" +
                     "     input    Help source (.topic / paragraph / {cross-ref} syntax)\n" +
                     "     output   Compiled help file (.hlp, 'FBHF' v1 or 'FBH2' v2 magic)\n" +
                     "     symfile  Generated C# class with hcXxx constants\n" +
-                    "     format   v1 = byte/legacy TVHC subset, v2 = UTF-16 plus extensions (default)\n");
+                    "     format   v1 = byte/legacy TVHC subset, v2 = UTF-16 plus extensions (default)\n" +
+                    "     encoding v1 source/output encoding: latin1, cp852, kamenicky, ... (default latin1)\n");
             return 1;
         }
 
@@ -90,12 +92,7 @@ internal static class Program
         var diagnostics = new DiagnosticSink(options);
         try
         {
-            // v1 preserves the byte-oriented TVHC model; v2 reads UTF-8 and
-            // writes UTF-16 help text.
-            Encoding sourceEncoding = options.HelpFormatVersion == THelpFile.FormatV1Latin1
-                ? Encoding.Latin1
-                : Encoding.UTF8;
-            string[] lines = File.ReadAllLines(textName, sourceEncoding);
+            string[] lines = ReadSourceLines(textName, options);
 
             var symbolTable = ScanSymbols(lines, textName);
             CompileTopics(lines, helpName, symbolTable, textName, diagnostics, options);
@@ -122,6 +119,8 @@ internal static class Program
         public bool WarnAsError;
         public bool Quiet;
         public int HelpFormatVersion = THelpFile.FormatV2Utf16;
+        public bool LegacyEncodingSpecified;
+        public ILegacyTextEncoding LegacyEncoding = LegacyTextEncodings.Latin1;
 
         public static CompilerOptions Parse(string[] args)
         {
@@ -150,13 +149,25 @@ internal static class Program
                             throw new ArgumentException("--format requires v1 or v2");
                         options.HelpFormatVersion = ParseFormat(args[++i]);
                         break;
+                    case "--encoding":
+                        if (i + 1 >= args.Length)
+                            throw new ArgumentException("--encoding requires an encoding name");
+                        options.SetLegacyEncoding(args[++i]);
+                        break;
                     default:
                         if (arg.StartsWith("--format=", StringComparison.Ordinal))
                             options.HelpFormatVersion = ParseFormat(arg.Substring("--format=".Length));
+                        else if (arg.StartsWith("--encoding=", StringComparison.Ordinal))
+                            options.SetLegacyEncoding(arg.Substring("--encoding=".Length));
                         else
                             options.Positional.Add(arg);
                         break;
                 }
+            }
+            if (options.LegacyEncodingSpecified
+                && options.HelpFormatVersion != THelpFile.FormatV1Latin1)
+            {
+                throw new ArgumentException("--encoding applies only when compiling --format v1");
             }
             return options;
         }
@@ -169,6 +180,34 @@ internal static class Program
                 return THelpFile.FormatV2Utf16;
             throw new ArgumentException("--format requires v1 or v2");
         }
+
+        private void SetLegacyEncoding(string name)
+        {
+            if (!LegacyTextEncodings.TryGet(name, out var encoding))
+                throw new ArgumentException($"unknown legacy encoding '{name}'");
+
+            LegacyEncoding = encoding;
+            LegacyEncodingSpecified = true;
+        }
+    }
+
+    private static string[] ReadSourceLines(string textName, CompilerOptions options)
+    {
+        if (options.HelpFormatVersion == THelpFile.FormatV1Latin1)
+        {
+            byte[] bytes = File.ReadAllBytes(textName);
+            int offset = bytes.Length >= 3
+                && bytes[0] == 0xEF
+                && bytes[1] == 0xBB
+                && bytes[2] == 0xBF
+                    ? 3
+                    : 0;
+            string text = options.LegacyEncoding.Decode(bytes.AsSpan(offset));
+            text = text.Replace("\r\n", "\n").Replace('\r', '\n');
+            return text.Split('\n');
+        }
+
+        return File.ReadAllLines(textName, Encoding.UTF8);
     }
 
     private enum DiagnosticSeverity
@@ -302,7 +341,10 @@ internal static class Program
         if (File.Exists(helpName)) File.Delete(helpName);
 
         var fp = new Fpstream(helpName);
-        var helpFile = new THelpFile(fp, options.HelpFormatVersion);
+        var helpFile = new THelpFile(
+            fp,
+            options.HelpFormatVersion,
+            new HelpV1CompileOptions { LegacyEncoding = options.LegacyEncoding });
         try
         {
             int idx = 0;
@@ -344,7 +386,7 @@ internal static class Program
                     }
 
                     var para = ReadParagraph(
-                        lines, ref idx, ref byteOffset, refs, sourceName);
+                        lines, ref idx, ref byteOffset, refs, sourceName, options);
                     if (para != null) topic.AddParagraph(para);
                     else if (idx < lines.Length && lines[idx].Length > 0 &&
                              lines[idx][0] == CommandChar)
@@ -504,7 +546,8 @@ internal static class Program
     private static TParagraph ReadParagraph(
         string[] lines, ref int idx, ref int byteOffset,
         List<(string Target, int Offset, byte Length, int LineNo)> refs,
-        string sourceName)
+        string sourceName,
+        CompilerOptions options)
     {
         // Skip leading blank lines (they belong to the previous para's tail
         // in TVHC; here we treat them as paragraph separators by returning
@@ -546,6 +589,7 @@ internal static class Program
             throw Err(sourceName, idx, 1, "SVHC0001", "paragraph too long");
 
         string text = buffer.ToString();
+        ValidateV1Text(text, sourceName, idx, options);
         byteOffset += text.Length;
         return new TParagraph
         {
@@ -554,6 +598,29 @@ internal static class Program
             wrap = state == WrapState.Wrapping,
             next = null,
         };
+    }
+
+    private static void ValidateV1Text(
+        string text,
+        string sourceName,
+        int lineNo,
+        CompilerOptions options)
+    {
+        if (options.HelpFormatVersion != THelpFile.FormatV1Latin1)
+            return;
+
+        for (int i = 0; i < text.Length; i++)
+        {
+            if (!options.LegacyEncoding.TryEncodeChar(text[i], out _))
+            {
+                throw Err(
+                    sourceName,
+                    lineNo,
+                    i + 1,
+                    "SVHC0011",
+                    $"character U+{(int)text[i]:X4} cannot be encoded as {options.LegacyEncoding.Name}");
+            }
+        }
     }
 
     // -------------------------------------------------------------------

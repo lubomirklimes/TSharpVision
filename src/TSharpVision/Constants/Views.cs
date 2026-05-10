@@ -148,6 +148,7 @@ public static class Views
     public const int edSearchFailed  = 8;
     public const int edReplace       = 9;
     public const int edReplacePrompt = 10;
+    public const int edEncodingWriteError = 11;
 
     // TFileList broadcast messages.
     public const ushort cmFileFocused        = 102;

@@ -1,0 +1,120 @@
+resource strings "sharpvision.intl" {
+  Btn_OK = "~O~K";
+  Btn_Cancel = "~Z~rušiť";
+  Btn_Yes = "~Á~no";
+  Btn_No = "~N~ie";
+  Btn_Help = "~P~omocník";
+  Btn_Retry = "S~k~úsiť znova";
+  Btn_Abort = "~P~rerušiť";
+  Btn_Ignore = "~I~gnorovať";
+  Btn_Done = "Hotovo";
+
+  MsgTitle_Error = "Chyba";
+  MsgTitle_Warning = "Upozornenie";
+  MsgTitle_Information = "Informácia";
+  MsgTitle_Confirm = "Potvrdenie";
+
+  File_Title_Open = "Otvoriť súbor";
+  File_Title_SaveAs = "Uložiť súbor ako";
+  File_Label_Name = "~N~ázov";
+  File_Label_Files = "~S~úbory";
+  File_Label_Encoding = "~K~ódovanie";
+  File_Btn_Open = "~O~tvoriť";
+  File_Btn_Add = "~P~ridať";
+  File_Btn_Select = "~V~ybrať";
+  File_Btn_Replace = "Na~h~radiť";
+  File_Btn_Clear = "Vy~m~azať";
+  File_ConfirmOverwrite = "Súbor '{0}' už existuje. Prepísať?";
+  File_Err_InvalidFileName = "Neplatný názov súboru.";
+  File_Err_InvalidDir = "Neplatný disk alebo adresár.";
+  File_Err_CannotOpenDir = "Nie je možné otvoriť adresár: '{0}'";
+  File_Err_AccessDenied = "Prístup odmietnutý: '{0}'";
+  File_Err_InvalidPath = "Neplatná cesta: '{0}'";
+  File_Err_PathTooLong = "Cesta je príliš dlhá.";
+  File_Err_NetworkUnavailable = "Sieťové umiestnenie nie je dostupné.";
+  File_Err_NotFound = "Súbor alebo adresár sa nenašiel.";
+  File_Err_EncodingDecode = "Súbor sa nepodarilo dekódovať vybraným kódovaním.";
+  File_Err_EncodingEncode = "Súbor obsahuje znaky, ktoré nemožno uložiť vo vybranom kódovaní.";
+
+  Encoding_Auto = "Auto";
+  Encoding_UTF8 = "UTF-8";
+  Encoding_Latin1 = "Latin-1";
+  Encoding_CP437 = "CP437";
+  Encoding_CP852 = "CP852";
+  Encoding_Windows1250 = "Windows-1250";
+  Encoding_ISO8859_2 = "ISO-8859-2";
+  Encoding_Kamenicky = "Kamenický / KEYBCS2";
+
+  ChDir_Title = "Zmeniť adresár";
+  ChDir_Label_DirectoryName = "~N~ázov adresára";
+  ChDir_Label_DirectoryTree = "Adresárový s~t~rom";
+  ChDir_Btn_Chdir = "~Z~meniť";
+  ChDir_Btn_Revert = "~V~rátiť";
+  DirList_Drives = "Disky";
+
+  Edit_Untitled = "Bez názvu";
+  Edit_Clipboard = "Schránka";
+  Edit_SaveModify = "Súbor {0} bol zmenený. Uložiť?";
+  Edit_SaveUntitled = "Uložiť nepomenovaný súbor?";
+  Edit_Err_Read = "Chyba pri čítaní súboru '{0}'.";
+  Edit_Err_Write = "Chyba pri zápise súboru '{0}'.";
+  Edit_Err_Create = "Chyba pri vytváraní súboru '{0}'.";
+  Edit_Err_OOM = "Nedostatok pamäte pre buffer editora.";
+  Edit_SearchFailed = "Hľadaný text sa nenašiel.";
+  Edit_ReplacePrompt = "Nahradiť tento výskyt?";
+
+  Edit_FindTitle = "Hľadať";
+  Edit_ReplaceTitle = "Nahradiť";
+  Edit_FindText = "~H~ľadaný text";
+  Edit_ReplaceText = "~N~ahradiť za";
+  Edit_Chk_CaseSensitive = "Rozlišovať ~v~eľkosť písmen";
+  Edit_Chk_WholeWords = "Iba ~c~elé slová";
+  Edit_Chk_PromptOnReplace = "~P~otvrdzovať nahradenie";
+  Edit_Chk_ReplaceAll = "Nahradiť ~v~šetko";
+
+  Menu_File = "~S~úbor";
+  Menu_New = "~N~ový";
+  Menu_Open = "~O~tvoriť...";
+  Menu_Save = "~U~ložiť";
+  Menu_SaveAs = "Uložiť ~a~ko...";
+  Menu_Exit = "~K~oniec";
+  Menu_Edit = "Ú~p~ravy";
+  Menu_Undo = "~S~päť";
+  Menu_Cut = "Vy~s~trihnúť";
+  Menu_Copy = "~K~opírovať";
+  Menu_Paste = "~V~ložiť";
+  Menu_Clear = "Vy~m~azať";
+  Menu_Search = "~H~ľadať";
+  Menu_Find = "~H~ľadať...";
+  Menu_Replace = "~N~ahradiť...";
+  Menu_Again = "Hľadať ~ď~alší";
+  Menu_Window = "~O~kno";
+  Menu_SizeMove = "~V~eľkosť/Presun";
+  Menu_Zoom = "~Z~väčšiť";
+  Menu_Tile = "~D~laždice";
+  Menu_Cascade = "~K~askáda";
+  Menu_Next = "Ď~a~lšie";
+  Menu_Previous = "~P~redchádzajúce";
+  Menu_Close = "~Z~avrieť";
+
+  Status_F10_Menu = "~F10~ Menu";
+  Status_F2_Save = "~F2~ Uložiť";
+  Status_F3_Open = "~F3~ Otvoriť";
+  Status_AltX_Exit = "~Alt+X~ Koniec";
+  Status_AltX_ExitDash = "~Alt-X~ Koniec";
+  Status_F5_Zoom = "~F5~ Zväčšiť";
+  Status_F6_Next = "~F6~ Ďalšie";
+
+  Help_WindowTitle = "Pomocník";
+  Help_NoContext = "\n Pre tento kontext nie je pomocník k dispozícii.";
+  List_Empty = "<prázdne>";
+
+  Color_Title = "Farby";
+  Color_Lbl_Group = "~S~kupina";
+  Color_Lbl_Item = "Polož~k~a";
+  Color_Lbl_Foreground = "~P~opredie";
+  Color_Lbl_Background = "Po~z~adie";
+  Color_Lbl_Color = "Farba";
+  Color_PreviewText = "Text ";
+  Color_Btn_Try = "S~k~úsiť";
+}

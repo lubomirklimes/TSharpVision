@@ -4,7 +4,7 @@ namespace TSharpVision;
 
 // Mirrors the shape of upstream TVIntl
 // a single static facade, a swappable provider, and a default English
-// implementation. No gettext, no .resx, no .tvr, no external files.
+// implementation. No gettext, no .resx.
 //
 // Usage:
 //   TSharpVisionIntl.Get("Btn_OK", "~O~K")          // explicit key + fallback
@@ -31,11 +31,43 @@ public interface ITSharpVisionStringProvider
 }
 
 /// <summary>
+/// Optional hit/miss-aware provider contract.
+/// </summary>
+public interface ITSharpVisionStringLookupProvider : ITSharpVisionStringProvider
+{
+    /// <summary>
+    /// Returns true when <paramref name="key"/> is present and provides the
+    /// localized value without consulting a caller fallback.
+    /// </summary>
+    bool TryGet(string key, out string value);
+}
+
+/// <summary>
+/// Raised when a hit/miss-aware provider definitively misses a localization key.
+/// </summary>
+public sealed class MissingLocalizationKeyEventArgs : System.EventArgs
+{
+    public MissingLocalizationKeyEventArgs(
+        string key,
+        string fallback,
+        ITSharpVisionStringProvider provider)
+    {
+        Key = key;
+        Fallback = fallback;
+        Provider = provider;
+    }
+
+    public string Key { get; }
+    public string Fallback { get; }
+    public ITSharpVisionStringProvider Provider { get; }
+}
+
+/// <summary>
 /// Built-in English string provider. Returns the canonical English literals
 /// that match every hard-coded string in the TSharpVision library.
 /// Unknown keys fall back to the caller-supplied literal.
 /// </summary>
-public sealed class DefaultEnglishStringProvider : ITSharpVisionStringProvider
+public sealed class DefaultEnglishStringProvider : ITSharpVisionStringLookupProvider
 {
     private static readonly Dictionary<string, string> _strings = new()
     {
@@ -72,11 +104,28 @@ public sealed class DefaultEnglishStringProvider : ITSharpVisionStringProvider
         ["File_Err_CannotOpenDir"]  = "Cannot open directory: '{0}'",
         ["File_Err_AccessDenied"]   = "Access denied: '{0}'",
         ["File_Err_InvalidPath"]    = "Invalid path: '{0}'",
+        ["File_Err_PathTooLong"]    = "Path is too long.",
+        ["File_Err_NetworkUnavailable"] = "Network location is unavailable.",
+        ["File_Err_NotFound"]       = "File or directory not found.",
+        ["File_Label_Encoding"]     = "~E~ncoding",
+        ["File_Err_EncodingDecode"] = "The file could not be decoded using the selected encoding.",
+        ["File_Err_EncodingEncode"] = "The file contains characters that cannot be saved using the selected encoding.",
+        ["Encoding_Auto"]           = "Auto",
+        ["Encoding_UTF8"]           = "UTF-8",
+        ["Encoding_Latin1"]         = "Latin-1",
+        ["Encoding_CP437"]          = "CP437",
+        ["Encoding_CP852"]          = "CP852",
+        ["Encoding_Windows1250"]    = "Windows-1250",
+        ["Encoding_ISO8859_2"]      = "ISO-8859-2",
+        ["Encoding_Kamenicky"]      = "Kamenicky / KEYBCS2",
 
         // Change-directory dialog
         ["ChDir_Title"]         = "Change Directory",
+        ["ChDir_Label_DirectoryName"] = "Directory ~n~ame",
+        ["ChDir_Label_DirectoryTree"] = "Directory ~t~ree",
         ["ChDir_Btn_Chdir"]     = "~C~hdir",
         ["ChDir_Btn_Revert"]    = "~R~evert",
+        ["DirList_Drives"]      = "Drives",
 
         // Editor / file editor
         ["Edit_Untitled"]       = "Untitled",
@@ -100,9 +149,47 @@ public sealed class DefaultEnglishStringProvider : ITSharpVisionStringProvider
         ["Edit_Chk_PromptOnReplace"] = "~P~rompt on replace",
         ["Edit_Chk_ReplaceAll"]    = "Replace ~A~ll",
 
+        // Editor menus
+        ["Menu_File"]           = "~F~ile",
+        ["Menu_New"]            = "~N~ew",
+        ["Menu_Open"]           = "~O~pen...",
+        ["Menu_Save"]           = "~S~ave",
+        ["Menu_SaveAs"]         = "S~a~ve As...",
+        ["Menu_Exit"]           = "E~x~it",
+        ["Menu_Edit"]           = "~E~dit",
+        ["Menu_Undo"]           = "~U~ndo",
+        ["Menu_Cut"]            = "Cu~t~",
+        ["Menu_Copy"]           = "~C~opy",
+        ["Menu_Paste"]          = "~P~aste",
+        ["Menu_Clear"]          = "C~l~ear",
+        ["Menu_Search"]         = "~S~earch",
+        ["Menu_Find"]           = "~F~ind...",
+        ["Menu_Replace"]        = "~R~eplace...",
+        ["Menu_Again"]          = "~A~gain",
+        ["Menu_Window"]         = "~W~indow",
+        ["Menu_SizeMove"]       = "~S~ize/Move",
+        ["Menu_Zoom"]           = "~Z~oom",
+        ["Menu_Tile"]           = "~T~ile",
+        ["Menu_Cascade"]        = "C~a~scade",
+        ["Menu_Next"]           = "~N~ext",
+        ["Menu_Previous"]       = "~P~revious",
+        ["Menu_Close"]          = "~C~lose",
+
+        // Status lines
+        ["Status_F10_Menu"]     = "~F10~ Menu",
+        ["Status_F2_Save"]      = "~F2~ Save",
+        ["Status_F3_Open"]      = "~F3~ Open",
+        ["Status_AltX_Exit"]    = "~Alt+X~ Exit",
+        ["Status_AltX_ExitDash"]= "~Alt-X~ Exit",
+        ["Status_F5_Zoom"]      = "~F5~ Zoom",
+        ["Status_F6_Next"]      = "~F6~ Next",
+
         // Help
         ["Help_WindowTitle"]    = "Help",
         ["Help_NoContext"]      = "\n No help available in this context.",
+
+        // Lists
+        ["List_Empty"]          = "<empty>",
 
         // Color dialog
         ["Color_Title"]         = "Colors",
@@ -110,12 +197,18 @@ public sealed class DefaultEnglishStringProvider : ITSharpVisionStringProvider
         ["Color_Lbl_Item"]      = "~I~tem",
         ["Color_Lbl_Foreground"]= "~F~oreground",
         ["Color_Lbl_Background"]= "~B~ackground",
+        ["Color_Lbl_Color"]     = "Color",
+        ["Color_PreviewText"]   = "Text ",
         ["Color_Btn_Try"]       = "~T~ry",
     };
 
     /// <inheritdoc/>
     public string Get(string key, string fallback)
-        => _strings.TryGetValue(key, out var v) ? v : fallback;
+        => TryGet(key, out var v) ? v : fallback;
+
+    /// <inheritdoc/>
+    public bool TryGet(string key, out string value)
+        => _strings.TryGetValue(key, out value);
 }
 
 /// <summary>
@@ -136,12 +229,28 @@ public static class TSharpVisionIntl
     public static ITSharpVisionStringProvider Current { get; set; }
         = new DefaultEnglishStringProvider();
 
+    public static event System.EventHandler<MissingLocalizationKeyEventArgs> MissingKey;
+
     /// <summary>
     /// Translate <paramref name="key"/>, falling back to
     /// <paramref name="fallback"/> if the key is unknown.
     /// </summary>
     public static string Get(string key, string fallback)
-        => Current.Get(key, fallback);
+    {
+        var provider = Current;
+        if (provider is ITSharpVisionStringLookupProvider lookupProvider)
+        {
+            if (lookupProvider.TryGet(key, out string value))
+                return value;
+
+            MissingKey?.Invoke(
+                null,
+                new MissingLocalizationKeyEventArgs(key, fallback, provider));
+            return fallback;
+        }
+
+        return provider.Get(key, fallback);
+    }
 
     /// <summary>
     /// Convenience wrapper matching the upstream <c>_()</c> macro shape.
@@ -152,5 +261,15 @@ public static class TSharpVisionIntl
     /// </para>
     /// </summary>
     public static string _(string englishLiteral, string? key = null)
-        => Current.Get(key ?? englishLiteral, englishLiteral);
+        => Get(key ?? englishLiteral, englishLiteral);
+}
+
+/// <summary>
+/// Translation extension methods for TSharpVision types. These are not strictly
+/// necessary, but provide a convenient way to access localized strings.
+/// </summary>
+public static class TInternationalizationExtensions
+{
+    public static string Loc(string key, string fallback = null)
+        => TSharpVisionIntl.Get(key, fallback ?? key);
 }

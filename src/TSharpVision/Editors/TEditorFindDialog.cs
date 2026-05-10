@@ -74,9 +74,9 @@ public static class TEditorFindDialog
         dlg.Insert(checkBoxes);
 
         dlg.Insert(new TButton(new TRect(14, 9, 24, 11),
-            "O~K~", Views.cmOK, ButtonConstants.bfDefault));
+            TSharpVisionIntl.Get("Btn_OK", "~O~K"), Views.cmOK, ButtonConstants.bfDefault));
         dlg.Insert(new TButton(new TRect(26, 9, 36, 11),
-            "Cancel", Views.cmCancel, ButtonConstants.bfNormal));
+            TSharpVisionIntl.Get("Btn_Cancel", "Cancel"), Views.cmCancel, ButtonConstants.bfNormal));
 
         dlg.SelectNext(false);
         return dlg;

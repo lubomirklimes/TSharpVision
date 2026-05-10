@@ -1,4 +1,5 @@
 using System;
+using TSharpVision.Text;
 
 namespace TSharpVision;
 
@@ -32,6 +33,7 @@ public class THelpFile
     public THelpIndex index;
     public long indexPos;
     public int formatVersion;
+    public ILegacyTextEncoding LegacyEncoding { get; }
 
     public THelpFile(Fpstream s)
         : this(s, FormatV2Utf16)
@@ -39,8 +41,24 @@ public class THelpFile
     }
 
     public THelpFile(Fpstream s, int newFileFormatVersion)
+        : this(s, newFileFormatVersion, LegacyTextEncodings.Latin1)
+    {
+    }
+
+    public THelpFile(Fpstream s, HelpV1LoadOptions options)
+        : this(s, FormatV2Utf16, options?.LegacyEncoding ?? LegacyTextEncodings.Latin1)
+    {
+    }
+
+    public THelpFile(Fpstream s, int newFileFormatVersion, HelpV1CompileOptions options)
+        : this(s, newFileFormatVersion, options?.LegacyEncoding ?? LegacyTextEncodings.Latin1)
+    {
+    }
+
+    public THelpFile(Fpstream s, int newFileFormatVersion, ILegacyTextEncoding legacyEncoding)
     {
         stream = s;
+        LegacyEncoding = legacyEncoding ?? LegacyTextEncodings.Latin1;
         long fileSize = s.Filelength();
         s.In.Seekg(0);
         uint magic = 0;
@@ -65,6 +83,7 @@ public class THelpFile
             indexPos = (int)s.In.Read32();
             s.In.Seekg(indexPos);
             s.In.HelpFormatVersion = formatVersion;
+            s.In.HelpLegacyEncoding = LegacyEncoding;
             index = (THelpIndex)s.In.ReadPointer() ?? new THelpIndex();
             modified = false;
         }
@@ -77,6 +96,7 @@ public class THelpFile
         {
             stream.In.Seekg(pos);
             stream.In.HelpFormatVersion = formatVersion;
+            stream.In.HelpLegacyEncoding = LegacyEncoding;
             return (THelpTopic)stream.In.ReadPointer();
         }
         return InvalidTopic();
@@ -105,6 +125,7 @@ public class THelpFile
     {
         stream.Out.Seekp(indexPos);
         stream.Out.HelpFormatVersion = formatVersion;
+        stream.Out.HelpLegacyEncoding = LegacyEncoding;
         stream.Out.WritePointer(topic);
         indexPos = stream.Out.Tellp();
         modified = true;
@@ -127,6 +148,7 @@ public class THelpFile
         if (!modified) return;
         stream.Out.Seekp(indexPos);
         stream.Out.HelpFormatVersion = formatVersion;
+        stream.Out.HelpLegacyEncoding = LegacyEncoding;
         stream.Out.WritePointer(index);
         long after = stream.Out.Tellp();
         stream.Out.Seekp(0);

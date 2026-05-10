@@ -51,7 +51,7 @@ public static class TEditorDialogHelper
                     string initial = fe?.fileName ?? string.Empty;
                     var dlg = new TFileDialog("*.*",
                         TSharpVisionIntl.Get("File_Title_SaveAs", "Save File As"),
-                        "~N~ame", FileDialogOptions.fdOKButton, 101);
+                        TSharpVisionIntl.Get("File_Label_Name", "~N~ame"), FileDialogOptions.fdOKButton, 101);
                     dlg.SetData(initial);
                     if (deskTop == null) return Views.cmCancel;
                     ushort r = deskTop.ExecView(dlg);
@@ -120,6 +120,15 @@ public static class TEditorDialogHelper
                         string.Format(
                             TSharpVisionIntl.Get("Edit_Err_Write", "Error writing file '{0}'."),
                             info as string),
+                        MsgBox.mfError | MsgBox.mfOKButton);
+                    return Views.cmOK;
+
+                case Views.edEncodingWriteError:
+                    if (deskTop == null) return Views.cmOK;
+                    MsgBox.MessageBox(deskTop,
+                        TSharpVisionIntl.Get(
+                            "File_Err_EncodingEncode",
+                            "The file contains characters that cannot be saved using the selected encoding."),
                         MsgBox.mfError | MsgBox.mfOKButton);
                     return Views.cmOK;
 

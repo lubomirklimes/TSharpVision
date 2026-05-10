@@ -1,0 +1,120 @@
+resource strings "sharpvision.intl" {
+  Btn_OK = "~O~K";
+  Btn_Cancel = "~A~nnuler";
+  Btn_Yes = "~O~ui";
+  Btn_No = "~N~on";
+  Btn_Help = "~A~ide";
+  Btn_Retry = "~R~éessayer";
+  Btn_Abort = "A~b~andonner";
+  Btn_Ignore = "~I~gnorer";
+  Btn_Done = "Terminé";
+
+  MsgTitle_Error = "Erreur";
+  MsgTitle_Warning = "Avertissement";
+  MsgTitle_Information = "Information";
+  MsgTitle_Confirm = "Confirmation";
+
+  File_Title_Open = "Ouvrir un fichier";
+  File_Title_SaveAs = "Enregistrer le fichier sous";
+  File_Label_Name = "~N~om";
+  File_Label_Files = "~F~ichiers";
+  File_Label_Encoding = "~E~ncodage";
+  File_Btn_Open = "~O~uvrir";
+  File_Btn_Add = "~A~jouter";
+  File_Btn_Select = "~S~électionner";
+  File_Btn_Replace = "~R~emplacer";
+  File_Btn_Clear = "E~f~facer";
+  File_ConfirmOverwrite = "Le fichier '{0}' existe déjà. Le remplacer ?";
+  File_Err_InvalidFileName = "Nom de fichier non valide.";
+  File_Err_InvalidDir = "Lecteur ou répertoire non valide.";
+  File_Err_CannotOpenDir = "Impossible d'ouvrir le répertoire : '{0}'";
+  File_Err_AccessDenied = "Accès refusé : '{0}'";
+  File_Err_InvalidPath = "Chemin non valide : '{0}'";
+  File_Err_PathTooLong = "Le chemin est trop long.";
+  File_Err_NetworkUnavailable = "L'emplacement réseau est indisponible.";
+  File_Err_NotFound = "Fichier ou répertoire introuvable.";
+  File_Err_EncodingDecode = "Le fichier n'a pas pu être décodé avec l'encodage sélectionné.";
+  File_Err_EncodingEncode = "Le fichier contient des caractères qui ne peuvent pas être enregistrés avec l'encodage sélectionné.";
+
+  Encoding_Auto = "Auto";
+  Encoding_UTF8 = "UTF-8";
+  Encoding_Latin1 = "Latin-1";
+  Encoding_CP437 = "CP437";
+  Encoding_CP852 = "CP852";
+  Encoding_Windows1250 = "Windows-1250";
+  Encoding_ISO8859_2 = "ISO-8859-2";
+  Encoding_Kamenicky = "Kamenicky / KEYBCS2";
+
+  ChDir_Title = "Changer de répertoire";
+  ChDir_Label_DirectoryName = "~N~om du répertoire";
+  ChDir_Label_DirectoryTree = "Ar~b~orescence";
+  ChDir_Btn_Chdir = "~C~hanger";
+  ChDir_Btn_Revert = "~R~établir";
+  DirList_Drives = "Lecteurs";
+
+  Edit_Untitled = "Sans titre";
+  Edit_Clipboard = "Presse-papiers";
+  Edit_SaveModify = "{0} a été modifié. Enregistrer ?";
+  Edit_SaveUntitled = "Enregistrer le fichier sans nom ?";
+  Edit_Err_Read = "Erreur lors de la lecture du fichier '{0}'.";
+  Edit_Err_Write = "Erreur lors de l'écriture du fichier '{0}'.";
+  Edit_Err_Create = "Erreur lors de la création du fichier '{0}'.";
+  Edit_Err_OOM = "Mémoire insuffisante pour le tampon de l'éditeur.";
+  Edit_SearchFailed = "Chaîne recherchée introuvable.";
+  Edit_ReplacePrompt = "Remplacer cette occurrence ?";
+
+  Edit_FindTitle = "Rechercher";
+  Edit_ReplaceTitle = "Remplacer";
+  Edit_FindText = "~T~exte à rechercher";
+  Edit_ReplaceText = "~R~emplacer par";
+  Edit_Chk_CaseSensitive = "Respecter la ~c~asse";
+  Edit_Chk_WholeWords = "~M~ots entiers seulement";
+  Edit_Chk_PromptOnReplace = "~D~emander avant remplacement";
+  Edit_Chk_ReplaceAll = "Tout rempl~a~cer";
+
+  Menu_File = "~F~ichier";
+  Menu_New = "~N~ouveau";
+  Menu_Open = "~O~uvrir...";
+  Menu_Save = "~E~nregistrer";
+  Menu_SaveAs = "Enregistrer ~s~ous...";
+  Menu_Exit = "~Q~uitter";
+  Menu_Edit = "É~d~ition";
+  Menu_Undo = "~A~nnuler";
+  Menu_Cut = "Cou~p~er";
+  Menu_Copy = "~C~opier";
+  Menu_Paste = "Co~l~ler";
+  Menu_Clear = "E~f~facer";
+  Menu_Search = "~R~echercher";
+  Menu_Find = "~R~echercher...";
+  Menu_Replace = "Rem~p~lacer...";
+  Menu_Again = "Rechercher ~s~uivant";
+  Menu_Window = "~F~enêtre";
+  Menu_SizeMove = "~T~aille/Déplacer";
+  Menu_Zoom = "~Z~oom";
+  Menu_Tile = "~M~osaïque";
+  Menu_Cascade = "~C~ascade";
+  Menu_Next = "~S~uivante";
+  Menu_Previous = "~P~récédente";
+  Menu_Close = "Fer~m~er";
+
+  Status_F10_Menu = "~F10~ Menu";
+  Status_F2_Save = "~F2~ Enregistrer";
+  Status_F3_Open = "~F3~ Ouvrir";
+  Status_AltX_Exit = "~Alt+X~ Quitter";
+  Status_AltX_ExitDash = "~Alt-X~ Quitter";
+  Status_F5_Zoom = "~F5~ Zoom";
+  Status_F6_Next = "~F6~ Suivante";
+
+  Help_WindowTitle = "Aide";
+  Help_NoContext = "\n Aucune aide disponible dans ce contexte.";
+  List_Empty = "<vide>";
+
+  Color_Title = "Couleurs";
+  Color_Lbl_Group = "~G~roupe";
+  Color_Lbl_Item = "É~l~ément";
+  Color_Lbl_Foreground = "~P~remier plan";
+  Color_Lbl_Background = "A~r~rière-plan";
+  Color_Lbl_Color = "Couleur";
+  Color_PreviewText = "Texte ";
+  Color_Btn_Try = "~T~ester";
+}

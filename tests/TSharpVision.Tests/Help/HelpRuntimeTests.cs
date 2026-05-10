@@ -4,6 +4,7 @@ using System.IO;
 using System.Text;
 using TSharpVision;
 using TSharpVision.Constants;
+using TSharpVision.Text;
 using TSharpVision.Tests.Infrastructure;
 using Xunit;
 
@@ -450,6 +451,57 @@ public sealed class HelpRuntimeTests : IDisposable
         var read = hfr.GetTopic(7);
         Assert.Equal("Cafe \xE9\n", read.paragraphs!.Text);
         fpr.Close();
+    }
+
+    [Fact]
+    public void HelpFile_V1_Cp852_ReadsLegacyBytesAsUnicode()
+    {
+        string path = Path.Combine(_tmp.Path, "cp852-v1.hlp");
+        var fpw = new Fpstream(path);
+        var hfw = new THelpFile(
+            fpw,
+            THelpFile.FormatV1Latin1,
+            new HelpV1CompileOptions { LegacyEncoding = LegacyTextEncodings.Cp852 });
+        var topic = new THelpTopic();
+        topic.AddParagraph(new TParagraph { Text = "Příliš žluťoučký kůň\n", wrap = false });
+        hfw.RecordPositionInIndex(7);
+        hfw.PutTopic(topic);
+        hfw.Flush();
+        fpw.Close();
+
+        var fpr = new Fpstream(path);
+        var hfr = new THelpFile(
+            fpr,
+            new HelpV1LoadOptions { LegacyEncoding = LegacyTextEncodings.Cp852 });
+        var read = hfr.GetTopic(7);
+        Assert.Equal("Příliš žluťoučký kůň\n", read.paragraphs!.Text);
+        fpr.Close();
+    }
+
+    [Fact]
+    public void HelpFile_V1_StrictWrite_UnsupportedUnicodeThrows()
+    {
+        string path = Path.Combine(_tmp.Path, "strict-v1.hlp");
+        var fpw = new Fpstream(path);
+        try
+        {
+            var hfw = new THelpFile(
+                fpw,
+                THelpFile.FormatV1Latin1,
+                new HelpV1CompileOptions { LegacyEncoding = LegacyTextEncodings.Cp852 });
+            var topic = new THelpTopic();
+            topic.AddParagraph(new TParagraph { Text = "Unsupported 漢\n", wrap = false });
+            hfw.RecordPositionInIndex(7);
+
+            var ex = Assert.Throws<InvalidOperationException>(() => hfw.PutTopic(topic));
+
+            Assert.Contains("U+6F22", ex.Message);
+            Assert.Contains("cp852", ex.Message);
+        }
+        finally
+        {
+            fpw.Close();
+        }
     }
 
     [Fact]

@@ -89,12 +89,15 @@ public class TDirListBox : TListBox
         // .NET handles forward and back slashes interchangeably on
         // Windows; we keep the upstream backslash → forward conversion
         // for code paths that build display strings off `dir`.
-        if (System.IO.Path.DirectorySeparatorChar == '\\')
-            dir = dir.Replace('\\', '/');
-        const string drives = "Drives";
-        if (HasDriveLetters)
+        if (System.IO.Path.DirectorySeparatorChar == '\\'
+            || (dir.Length >= 2 && dir[0] == '\\' && dir[1] == '\\'))
         {
-            dirs.Insert(new TDirEntry(drives, drives));
+            dir = dir.Replace('\\', '/');
+        }
+        const string drives = "Drives";
+        if (HasDriveLetters && !IsUncPath(dir))
+        {
+            dirs.Insert(new TDirEntry(TSharpVisionIntl.Get("DirList_Drives", "Drives"), drives));
             if (string.Equals(dir, drives, System.StringComparison.Ordinal))
                 ShowDrives(dirs);
             else
@@ -135,7 +138,7 @@ public class TDirListBox : TListBox
         int indent = indentSize;
         int lenSep = PathDir.Length;
         // The first node renders the drive (or '/') prefix.
-        string drivePrefix = SkipDriveName(dir, out string drive);
+        string drivePrefix = SplitRootForDisplay(dir, out string drive);
         // Ensure trailing separator so the segment walker reaches the
         // deepest folder.
         if (drivePrefix.Length > 0 && drivePrefix[drivePrefix.Length - 1] != '/')
@@ -243,13 +246,37 @@ public class TDirListBox : TListBox
     private static bool HasDriveLetters =>
         System.IO.Path.DirectorySeparatorChar == '\\';
 
-    // Returns the path portion after the drive marker and outputs the drive string itself.
-    private static string SkipDriveName(string path, out string drive)
+    // Returns the path portion after the root marker and outputs the root
+    // display string itself.
+    public static string SplitRootForDisplay(string path, out string drive)
     {
         if (string.IsNullOrEmpty(path))
         {
             drive = "/";
             return string.Empty;
+        }
+        if (IsUncPath(path))
+        {
+            int serverStart = 2;
+            int serverEnd = path.IndexOf('/', serverStart);
+            if (serverEnd < 0)
+            {
+                drive = path.EndsWith("/") ? path : path + "/";
+                return string.Empty;
+            }
+
+            int shareStart = serverEnd + 1;
+            int shareEnd = path.IndexOf('/', shareStart);
+            if (shareEnd < 0)
+            {
+                drive = path.EndsWith("/") ? path : path + "/";
+                return string.Empty;
+            }
+
+            // Treat //server/share/ as a single synthetic root. This avoids
+            // rendering an empty segment for the doubled leading separator.
+            drive = path.Substring(0, shareEnd + 1);
+            return path.Substring(shareEnd + 1);
         }
         if (HasDriveLetters && path.Length >= 3 && path[1] == ':')
         {
@@ -259,6 +286,12 @@ public class TDirListBox : TListBox
         drive = "/";
         return path.Length > 0 && path[0] == '/' ? path.Substring(1) : path;
     }
+
+    private static bool IsUncPath(string path)
+        => !string.IsNullOrEmpty(path)
+        && path.Length >= 2
+        && path[0] == '/'
+        && path[1] == '/';
 
     public override ushort DataSize() => 0;
     public override void GetData(ref object rec) { rec = null; }

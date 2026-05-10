@@ -2,6 +2,7 @@
 using System.IO;
 using System.Text;
 using TSharpVision.Constants;
+using TSharpVision.Text;
 
 namespace TSharpVision;
 
@@ -18,13 +19,24 @@ public class TFileEditor : TEditor
     public LineEndingKind SaveLineEnding { get; set; } = DefaultLineEndingForPlatform();
     public bool HadMixedLineEndings { get; private set; }
     public EditorEncodingKind OriginalEncoding { get; private set; } = EditorEncodingKind.Utf8;
+    public ILegacyTextEncoding OriginalLegacyEncoding { get; private set; }
     public bool HadUtf8Bom { get; private set; }
+    private TFileEditorOpenOptions openOptions;
 
     public TFileEditor(TRect bounds, TScrollBar aHScrollBar,
                        TScrollBar aVScrollBar, TIndicator aIndicator,
                        string aFileName)
+        : this(bounds, aHScrollBar, aVScrollBar, aIndicator, aFileName, null)
+    {
+    }
+
+    public TFileEditor(TRect bounds, TScrollBar aHScrollBar,
+                       TScrollBar aVScrollBar, TIndicator aIndicator,
+                       string aFileName,
+                       TFileEditorOpenOptions options)
         : base(bounds, aHScrollBar, aVScrollBar, aIndicator, 4096)
     {
+        openOptions = options ?? new TFileEditorOpenOptions();
         if (string.IsNullOrEmpty(aFileName))
         {
             fileName = string.Empty;
@@ -62,6 +74,7 @@ public class TFileEditor : TEditor
             SaveLineEnding = DefaultLineEndingForPlatform();
             HadMixedLineEndings = false;
             OriginalEncoding = EditorEncodingKind.Utf8;
+            OriginalLegacyEncoding = null;
             HadUtf8Bom = false;
             SetBufLen(0);
             return true;
@@ -78,12 +91,18 @@ public class TFileEditor : TEditor
             return false;
         }
 
-        string text = DecodeFileBytes(fileBytes, out var encoding, out bool bom);
+        string text = DecodeFileBytes(
+            fileBytes,
+            openOptions?.Encoding ?? EditorTextEncoding.Auto,
+            out var encoding,
+            out bool bom,
+            out var legacyEncoding);
         char[] normalized = NormalizeLineEndings(text, out var detected, out var saveAs, out bool mixed);
         OriginalLineEnding = detected;
         SaveLineEnding = saveAs;
         HadMixedLineEndings = mixed;
         OriginalEncoding = encoding;
+        OriginalLegacyEncoding = legacyEncoding;
         HadUtf8Bom = bom;
 
         if (!SetBufSize((uint)normalized.Length))
@@ -162,6 +181,12 @@ public class TFileEditor : TEditor
             if (right > 0)
                 WriteRangeWithLineEndings(f, (int)(curPtr + gapLen), (int)right);
         }
+        catch (EncoderFallbackException)
+        {
+            f.Dispose();
+            editorDialog(Views.edEncodingWriteError, fileName);
+            return false;
+        }
         catch
         {
             f.Dispose();
@@ -184,13 +209,36 @@ public class TFileEditor : TEditor
     private static LineEndingKind DefaultLineEndingForPlatform()
         => OperatingSystem.IsWindows() ? LineEndingKind.CrLf : LineEndingKind.Lf;
 
-    private static string DecodeFileBytes(byte[] source, out EditorEncodingKind encoding, out bool hadBom)
+    private static string DecodeFileBytes(
+        byte[] source,
+        EditorTextEncoding requestedEncoding,
+        out EditorEncodingKind encoding,
+        out bool hadBom,
+        out ILegacyTextEncoding legacyEncoding)
     {
+        requestedEncoding ??= EditorTextEncoding.Auto;
+        legacyEncoding = null;
         hadBom = source.Length >= 3
             && source[0] == 0xEF && source[1] == 0xBB && source[2] == 0xBF;
 
         int offset = hadBom ? 3 : 0;
         var strictUtf8 = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+        if (requestedEncoding.Mode == EditorTextEncodingMode.Utf8)
+        {
+            encoding = hadBom ? EditorEncodingKind.Utf8Bom : EditorEncodingKind.Utf8;
+            return strictUtf8.GetString(source, offset, source.Length - offset);
+        }
+
+        if (requestedEncoding.Mode == EditorTextEncodingMode.Legacy)
+        {
+            encoding = requestedEncoding.LegacyEncoding == LegacyTextEncodings.Latin1
+                ? EditorEncodingKind.Latin1
+                : EditorEncodingKind.Legacy;
+            legacyEncoding = requestedEncoding.LegacyEncoding;
+            hadBom = false;
+            return requestedEncoding.LegacyEncoding.Decode(source);
+        }
+
         try
         {
             string text = strictUtf8.GetString(source, offset, source.Length - offset);
@@ -200,6 +248,7 @@ public class TFileEditor : TEditor
         catch (DecoderFallbackException)
         {
             encoding = EditorEncodingKind.Latin1;
+            legacyEncoding = null;
             hadBom = false;
             return Encoding.Latin1.GetString(source);
         }
@@ -303,10 +352,18 @@ public class TFileEditor : TEditor
             else
                 sb.Append(buffer[i]);
         }
-        byte[] bytes = OriginalEncoding == EditorEncodingKind.Latin1
-            ? Encoding.Latin1.GetBytes(sb.ToString())
-            : Encoding.UTF8.GetBytes(sb.ToString());
+        byte[] bytes = EncodeTextForSave(sb.ToString());
         stream.Write(bytes, 0, bytes.Length);
+    }
+
+    private byte[] EncodeTextForSave(string text)
+    {
+        if (OriginalLegacyEncoding != null)
+            return OriginalLegacyEncoding.Encode(text);
+
+        return OriginalEncoding == EditorEncodingKind.Latin1
+            ? Encoding.Latin1.GetBytes(text)
+            : Encoding.UTF8.GetBytes(text);
     }
 
     private static string MakeBackupName(string path)
@@ -384,7 +441,11 @@ public class TFileEditor : TEditor
     }
 
     // Wire: TEditor base + fileName(string) + selStart(uint32) + selEnd(uint32) + curPtr(uint32).
-    protected TFileEditor(StreamableInit init) : base(init) { fileName = string.Empty; }
+    protected TFileEditor(StreamableInit init) : base(init)
+    {
+        fileName = string.Empty;
+        openOptions = new TFileEditorOpenOptions();
+    }
 
     public override void Write(Opstream os)
     {

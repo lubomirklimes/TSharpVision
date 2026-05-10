@@ -1,0 +1,103 @@
+.topic NoContext=0
+ Bez kontextu
+  -----------
+Pro aktuální prvek není k dispozici konkrétní nápověda.
+
+Použij menu Nápověda / Index pro otevření hlavního indexu nápovědy.
+
+.topic Index=1
+ Index nápovědy
+  -------------
+Tato nápověda patří k ukázce TSharpVision Intl Demo.
+
+Dostupná témata:
+
+ {Hlavní menu:MainMenu}
+ {Okno otevřeného souboru:OpenFileWindow}
+ {Přepínání jazyka:Language}
+ {String resources:Resources}
+ {Ukázka kódování:Encoding}
+ {Diagnostika chybějících klíčů:MissingKey}
+
+Esc zavře nápovědu. Backspace se vrátí zpět.
+
+.topic MainMenu=2
+ Hlavní menu
+  ----------
+Horní menu ukazuje lokalizované texty vyřešené přes Loc(...).
+
+Menu Soubor otevírá textové soubory. Tyto příkazy vytvoří nemodální
+editorové okno, takže F1 v tomto okně otevře kontextovou nápovědu pro
+otevřený soubor.
+
+Menu Jazyk přepíná za běhu mezi angličtinou, češtinou a Pseudo/Debug
+providerem.
+
+Menu Ukázky otevírá lokalizované modální dialogy, souborové dialogy a
+diagnostické příklady. Modální ukázkové dialogy mají vlastní UI a v této
+ukázce nemají samostatná kontextová témata.
+
+Viz také {Okno otevřeného souboru:OpenFileWindow}, {Přepínání jazyka:Language}
+a {String resources:Resources}.
+
+.topic OpenFileWindow=3
+ Okno otevřeného souboru
+  ----------------------
+Editorové okno se otevře příkazem Soubor / Otevřít soubor nebo Soubor /
+Otevřít soubor s kódováním.
+
+Na rozdíl od ukázkových dialogů je toto okno nemodální. Zůstává na ploše
+a může mít fokus klávesnice. Když je otevřené okno aktivní a stiskneš F1,
+zobrazí se právě toto kontextové téma.
+
+Varianta s kódováním předává editoru explicitní TFileEditorOpenOptions.
+Běžný příkaz Otevřít soubor zachová Auto chování: striktní UTF-8 a potom
+fallback na Latin-1.
+
+Viz také {Ukázka kódování:Encoding}.
+
+.topic Language=4
+ Přepínání jazyka
+  ----------------
+Menu Jazyk mění TSharpVisionIntl.Current za běhu aplikace.
+
+Angličtina a čeština se načítají z .tvr string resources. Pseudo/Debug
+provider je implementovaný pouze v tomto sample projektu a zvýrazňuje,
+které texty procházejí lokalizační vrstvou.
+
+Po přepnutí jazyka sample znovu sestaví menu bar a status line. Otevřená
+okna zůstávají na ploše.
+
+Viz také {String resources:Resources}.
+
+.topic Resources=5
+ String resources
+  ----------------
+Tento sample ukládá lokalizované texty do .trc souborů:
+
+  Resources/app_en.trc
+  Resources/app_cs.trc
+
+Během buildu se soubory zkompilují na .tvr pomocí resource compileru. Za
+běhu TResourceStringProvider načte vybraný .tvr soubor a
+TSharpVisionStringProviderChain spadne zpět na vestavěného anglického
+providera, pokud některý klíč chybí.
+
+.topic Encoding=6
+ Ukázka kódování
+  ---------------
+Ukázka kódování zobrazí byty české věty v UTF-8, CP852 a Kamenický /
+KEYBCS2.
+
+Cesta otevření souboru v editoru také umí dostat explicitní kódování. Tato
+volba ovlivňuje pouze obsah souboru. Cesty a vykreslování zůstávají běžné
+Unicode stringy .NET.
+
+.topic MissingKey=7
+ Diagnostika chybějících klíčů
+  ----------------------------
+TSharpVisionIntl.MissingKey je přihlášený při startu aplikace.
+
+Ukázka Chybějící klíč záměrně vyžádá klíč, který v aktivním provideru
+neexistuje, a zobrazí fallback text spolu s posledními diagnostickými
+záznamy.

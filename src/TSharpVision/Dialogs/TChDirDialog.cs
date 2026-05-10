@@ -34,9 +34,14 @@ public class TChDirDialog : TDialog
     {
         options |= Views.ofCentered;
 
-        dirInput = new TInputLine(new TRect(3, 3, 30, 4), 260);
+        dirInput = new TInputLine(
+            new TRect(3, 3, 30, 4),
+            FileDialogConstants.MaxPathLen);
         Insert(dirInput);
-        Insert(new TLabel(new TRect(2, 2, 17, 3), "Directory ~n~ame", dirInput));
+        Insert(new TLabel(
+            new TRect(2, 2, 17, 3),
+            TSharpVisionIntl.Get("ChDir_Label_DirectoryName", "Directory ~n~ame"),
+            dirInput));
         Insert(new THistory(new TRect(30, 3, 33, 4), dirInput, histId));
 
         var sbv = new TScrollBar(new TRect(32, 6, 33, 16));
@@ -48,7 +53,10 @@ public class TChDirDialog : TDialog
 
         dirList = new TDirListBox(new TRect(3, 6, 32, 16), sbv, sbh);
         Insert(dirList);
-        Insert(new TLabel(new TRect(2, 5, 17, 6), "Directory ~t~ree", dirList));
+        Insert(new TLabel(
+            new TRect(2, 5, 17, 6),
+            TSharpVisionIntl.Get("ChDir_Label_DirectoryTree", "Directory ~t~ree"),
+            dirList));
 
         okButton = new TButton(new TRect(35, 6, 45, 8),
                                TSharpVisionIntl.Get("Btn_OK", "~O~K"), Views.cmOK, ButtonConstants.bfDefault);

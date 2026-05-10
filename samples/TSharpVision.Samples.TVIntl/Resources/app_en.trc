@@ -1,0 +1,58 @@
+resource strings "sharpvision.intl" {
+  TVIntl_App_Title = "TSharpVision Intl Demo";
+
+  TVIntl_Menu_File = "~F~ile";
+  TVIntl_Menu_OpenText = "~O~pen file...";
+  TVIntl_Menu_OpenTextEncoding = "Open file with ~e~ncoding...";
+  TVIntl_Menu_Exit = "E~x~it";
+
+  TVIntl_Menu_Language = "~L~anguage";
+  TVIntl_Menu_LangEnglish = "~E~nglish";
+  TVIntl_Menu_LangCzech = "~C~zech";
+  TVIntl_Menu_LangPseudo = "~P~seudo / Debug";
+
+  TVIntl_Menu_Demos = "~D~emos";
+  TVIntl_Menu_MessageBox = "~M~essage box";
+  TVIntl_Menu_InputBox = "~I~nput box";
+  TVIntl_Menu_FileDialog = "~F~ile dialog";
+  TVIntl_Menu_EncodingSample = "~E~ncoding sample";
+  TVIntl_Menu_MissingKey = "~M~issing key";
+
+  TVIntl_Menu_Help = "~H~elp";
+  TVIntl_Menu_HelpIndex = "~I~ndex";
+  TVIntl_Menu_About = "~A~bout";
+
+  TVIntl_Status_Help = "~F1~ Help";
+  TVIntl_Status_Message = "~F2~ Message";
+  TVIntl_Status_Open = "~F3~ Open";
+  TVIntl_Status_Exit = "~Alt+X~ Exit";
+
+  TVIntl_Dlg_Message_Title = "Localized message";
+  TVIntl_Dlg_Message_Text = "This message was resolved through Loc(...).";
+  TVIntl_Dlg_Input_Title = "Input";
+  TVIntl_Dlg_Input_Label = "~N~ame:";
+  TVIntl_Dlg_Input_Default = "World";
+  TVIntl_Dlg_Greeting_Title = "Greeting";
+  TVIntl_Dlg_Greeting_Text = "Hello, {0}!";
+  TVIntl_Dlg_File_Title = "Select a file";
+  TVIntl_Dlg_File_Selected_Title = "Selected file";
+  TVIntl_Dlg_File_Selected_Text = "Selected path:\n{0}";
+  TVIntl_Dlg_OpenEncoding_Title = "Open file with encoding";
+  TVIntl_Dlg_About_Title = "About";
+  TVIntl_Dlg_About_Text = "TSharpVision Intl Demo\n\nShows Loc(...), .tvr resources, runtime language switching and legacy text encodings.";
+  TVIntl_Dlg_MissingKey_Title = "Missing key";
+  TVIntl_Dlg_MissingKey_Text = "A missing localization key was requested and fallback text was used.";
+  TVIntl_Dlg_MissingKey_None = "No missing keys recorded.";
+  TVIntl_Dlg_MissingKey_Recent = "Recent missing keys:";
+  TVIntl_Dlg_Language_Title = "Language";
+  TVIntl_Dlg_Language_Text = "Language switched to {0}.";
+  TVIntl_Dlg_Language_Pseudo_Text = "Pseudo/debug provider is active.";
+  TVIntl_Help_NotFound = "Help file was not found.";
+
+  TVIntl_Encoding_Title = "Encoding sample";
+  TVIntl_Encoding_Text = "Příliš žluťoučký kůň";
+  TVIntl_Encoding_Auto = "Auto";
+  TVIntl_Encoding_UTF8 = "UTF-8";
+  TVIntl_Encoding_CP852 = "CP852";
+  TVIntl_Encoding_Kamenicky = "Kamenicky";
+}

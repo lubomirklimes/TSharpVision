@@ -9,6 +9,7 @@ namespace TSharpVision;
 public class TFileList : TSortedListBox
 {
     public new static readonly string Name = "TFileList";
+    public string LastError { get; private set; } = string.Empty;
 
     // Used by GetKey so the shift-state hack (which biases lookup towards
     // FA_DIREC) survives without TGKey::getShiftState.
@@ -116,8 +117,9 @@ public class TFileList : TSortedListBox
     // tweaks from upstream are ported.
     public virtual void ReadDirectory(string path)
     {
+        LastError = string.Empty;
         var fc = new TFileCollection();
-        string dirPart;
+        string dirPart = string.Empty;
         string pattern;
 
         try
@@ -165,11 +167,17 @@ public class TFileList : TSortedListBox
             }
             catch { /* invalid path: leave parent visible */ }
 
-            if (Directory.Exists(dirPart))
+            if (!Directory.Exists(dirPart))
+            {
+                LastError = TSharpVisionIntl.Get(
+                    "File_Err_NotFound",
+                    "File or directory not found.");
+            }
+            else
             {
                 // Directories first (".", ".." and real subdirs), unfiltered
                 // by the wildcard — matches upstream DOS/Win32/POSIX paths.
-                foreach (var d in EnumerateDirs(dirPart))
+                foreach (var d in EnumerateDirs(dirPart, ex => SetLastError(ex, dirPart)))
                 {
                     string name = Path.GetFileName(d);
                     if (name == ".") continue;
@@ -190,7 +198,10 @@ public class TFileList : TSortedListBox
                     });
                 }
 
-                foreach (var f in EnumerateFiles(dirPart, pattern))
+                foreach (var f in EnumerateFiles(
+                    dirPart,
+                    pattern,
+                    ex => SetLastError(ex, dirPart)))
                 {
                     string name = Path.GetFileName(f);
                     if (ExcludeSpecial(name)) continue;
@@ -198,9 +209,10 @@ public class TFileList : TSortedListBox
                 }
             }
         }
-        catch
+        catch (Exception ex)
         {
             // Safe fallback: leave fc empty — unknown/invalid path.
+            SetLastError(ex, dirPart);
         }
         NewList(fc);
         if (owner is TGroup g)
@@ -228,17 +240,56 @@ public class TFileList : TSortedListBox
         return false;
     }
 
-    private static IEnumerable<string> EnumerateDirs(string dir)
+    private void SetLastError(Exception ex, string path)
     {
-        try { return Directory.EnumerateDirectories(dir); }
-        catch { return Array.Empty<string>(); }
+        LastError = ClassifyDirectoryError(ex, path);
+    }
+
+    private static string ClassifyDirectoryError(Exception ex, string path)
+    {
+        if (ex is PathTooLongException)
+            return TSharpVisionIntl.Get("File_Err_PathTooLong", "Path is too long.");
+        if (ex is UnauthorizedAccessException)
+            return string.Format(
+                TSharpVisionIntl.Get("File_Err_AccessDenied", "Access denied: '{0}'"),
+                path ?? string.Empty);
+        if (ex is DirectoryNotFoundException)
+            return TSharpVisionIntl.Get("File_Err_NotFound", "File or directory not found.");
+        if (ex is IOException io && IsLikelyNetworkUnavailable(io))
+            return TSharpVisionIntl.Get(
+                "File_Err_NetworkUnavailable",
+                "Network location is unavailable.");
+        return string.IsNullOrEmpty(ex?.Message)
+            ? TSharpVisionIntl.Get("File_Err_NotFound", "File or directory not found.")
+            : ex.Message;
+    }
+
+    private static bool IsLikelyNetworkUnavailable(IOException ex)
+    {
+        // Windows network errors are surfaced through HRESULTs. Keep this
+        // heuristic local: it improves UNC diagnostics without introducing
+        // a cross-platform filesystem abstraction.
+        int code = ex.HResult & 0xFFFF;
+        return code == 53   // ERROR_BAD_NETPATH
+            || code == 64   // ERROR_NETNAME_DELETED
+            || code == 67   // ERROR_BAD_NET_NAME
+            || code == 1219; // ERROR_SESSION_CREDENTIAL_CONFLICT
+    }
+
+    private static IEnumerable<string> EnumerateDirs(string dir, Action<Exception> onError)
+    {
+        try { return Directory.EnumerateDirectories(dir).ToList(); }
+        catch (Exception ex) { onError?.Invoke(ex); return Array.Empty<string>(); }
     }
 
     // Enumerates files matching a pattern that may contain multiple masks
     // separated by ';' or ','.  Each sub-mask is tried independently so that
     // e.g. "*.txt;*.cs" works correctly.  Invalid or unsupported patterns are
     // caught and treated as empty matches, so the caller never throws.
-    private static IEnumerable<string> EnumerateFiles(string dir, string pattern)
+    private static IEnumerable<string> EnumerateFiles(
+        string dir,
+        string pattern,
+        Action<Exception> onError)
     {
         if (string.IsNullOrEmpty(pattern)) pattern = "*";
 
@@ -250,8 +301,8 @@ public class TFileList : TSortedListBox
         {
             string m = pattern.Trim();
             if (string.IsNullOrEmpty(m)) m = "*";
-            try { return Directory.EnumerateFiles(dir, m); }
-            catch { return Array.Empty<string>(); }
+            try { return Directory.EnumerateFiles(dir, m).ToList(); }
+            catch (Exception ex) { onError?.Invoke(ex); return Array.Empty<string>(); }
         }
 
         // Multiple masks — gather all matches and deduplicate by file name.
@@ -267,7 +318,7 @@ public class TFileList : TSortedListBox
                     if (seen.Add(Path.GetFileName(f)))
                         result.Add(f);
             }
-            catch { /* ignore individual mask failures */ }
+            catch (Exception ex) { onError?.Invoke(ex); }
         }
         return result;
     }

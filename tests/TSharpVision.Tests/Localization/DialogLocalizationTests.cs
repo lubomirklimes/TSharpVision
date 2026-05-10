@@ -346,6 +346,8 @@ public sealed class DialogLocalizationTests : IDisposable
             new Dictionary<string, string>
             {
                 ["ChDir_Title"]      = "CHDIRTITLE",
+                ["ChDir_Label_DirectoryName"] = "DIRNAMELBL",
+                ["ChDir_Label_DirectoryTree"] = "DIRTREELBL",
                 ["ChDir_Btn_Chdir"]  = "CHDIRBT",
                 ["ChDir_Btn_Revert"] = "REVERTBT",
                 ["Btn_Help"]         = "HELPBT",
@@ -353,6 +355,20 @@ public sealed class DialogLocalizationTests : IDisposable
         var cd = new TChDirDialog(
             ChDirDialogOptions.cdNoLoadDir | ChDirDialogOptions.cdHelpButton, 0);
         Assert.Equal("CHDIRTITLE", cd.title);
+    }
+
+    [Fact]
+    public void TChDirDialog_CustomProvider_Labels_Swapped()
+    {
+        using var scope = new IntlProviderScope(new DictStringProvider(
+            new Dictionary<string, string>
+            {
+                ["ChDir_Label_DirectoryName"] = "DIRNAMELBL",
+                ["ChDir_Label_DirectoryTree"] = "DIRTREELBL",
+            }));
+        var cd = new TChDirDialog(ChDirDialogOptions.cdNoLoadDir, 0);
+        Assert.True(DialogContains(cd, "DIRNAMELBL"));
+        Assert.True(DialogContains(cd, "DIRTREELBL"));
     }
 
     [Fact]
@@ -461,6 +477,7 @@ public sealed class DialogLocalizationTests : IDisposable
                 ["Color_Title"]     = "COLORTITLE",
                 ["Color_Lbl_Group"] = "GROUPLBL",
                 ["Color_Lbl_Item"]  = "ITEMLBL",
+                ["Color_Lbl_Color"] = "COLORLBL",
                 ["Color_Btn_Try"]   = "TRYBTN",
             }));
         var cdlg = new TColorDialog(pal, grp);
@@ -497,6 +514,19 @@ public sealed class DialogLocalizationTests : IDisposable
             }));
         var cdlg = new TColorDialog(pal, grp);
         Assert.True(DialogContains(cdlg, "ITEMLBL"));
+    }
+
+    [Fact]
+    public void TColorDialog_CustomProvider_MonoColorLabel_Swapped()
+    {
+        var (pal, grp) = MakeColorSetup();
+        using var scope = new IntlProviderScope(new DictStringProvider(
+            new Dictionary<string, string>
+            {
+                ["Color_Lbl_Color"] = "COLORLBL",
+            }));
+        var cdlg = new TColorDialog(pal, grp);
+        Assert.True(DialogContains(cdlg, "COLORLBL"));
     }
 
     [Fact]
@@ -679,6 +709,38 @@ public sealed class DialogLocalizationTests : IDisposable
     public void EditorPrompt_Default_HelpNoContext_Present()
     {
         Assert.Contains("No help available", TSharpVisionIntl.Get("Help_NoContext", "?"));
+    }
+
+    [Fact]
+    public void FindDialog_CustomProvider_Buttons_Swapped()
+    {
+        using var scope = new IntlProviderScope(new DictStringProvider(
+            new Dictionary<string, string>
+            {
+                ["Btn_OK"] = "OK_TEST",
+                ["Btn_Cancel"] = "CANCEL_TEST",
+            }));
+        var dlg = TEditorFindDialog.Build(new TFindDialogRec(new char[80], 0), out _, out _);
+        Assert.True(DialogContains(dlg, "OK_TEST"));
+        Assert.True(DialogContains(dlg, "CANCEL_TEST"));
+    }
+
+    [Fact]
+    public void ReplaceDialog_CustomProvider_Buttons_Swapped()
+    {
+        using var scope = new IntlProviderScope(new DictStringProvider(
+            new Dictionary<string, string>
+            {
+                ["Btn_OK"] = "OK_TEST",
+                ["Btn_Cancel"] = "CANCEL_TEST",
+            }));
+        var dlg = TEditorReplaceDialog.Build(
+            new TReplaceDialogRec(new char[80], new char[80], 0),
+            out _,
+            out _,
+            out _);
+        Assert.True(DialogContains(dlg, "OK_TEST"));
+        Assert.True(DialogContains(dlg, "CANCEL_TEST"));
     }
 }
 

@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Text;
 using TSharpVision;
 using TSharpVision.Constants;
+using TSharpVision.Text;
 using TSharpVision.Tests.Infrastructure;
 using Xunit;
 
@@ -71,6 +72,13 @@ public sealed class HelpCompilerTests : IDisposable
     // Writes a UTF-8 source file in the temp directory and returns its path.
     private string WriteSource(string name, string content) =>
         _tmp.CreateFile(name, content);
+
+    private string WriteSource(string name, string content, ILegacyTextEncoding encoding)
+    {
+        string path = Path.Combine(_tmp.Path, name);
+        File.WriteAllBytes(path, encoding.Encode(content));
+        return path;
+    }
 
     // ── tests ─────────────────────────────────────────────────────────────────
 
@@ -220,6 +228,77 @@ public sealed class HelpCompilerTests : IDisposable
         fp.Close();
         Assert.Equal(THelpFile.FormatV1Latin1, hf.formatVersion);
         Assert.Equal("Latin text. ", TopicText(topic));
+    }
+
+    [Fact]
+    public void Compile_FormatV1_Cp852SourceAndOutput_PreservesCzechText()
+    {
+        string src = WriteSource("v1_cp852.txt",
+            ".topic Main=2\n" +
+            "Příliš žluťoučký kůň\n",
+            LegacyTextEncodings.Cp852);
+        string hlp = Path.Combine(_tmp.Path, "v1_cp852.hlp");
+        string sym = Path.Combine(_tmp.Path, "v1_cp852.cs");
+
+        int rc = Run("--format", "v1", "--encoding", "cp852", src, hlp, sym);
+
+        Assert.Equal(0, rc);
+        var fp = new Fpstream(hlp);
+        var hf = new THelpFile(fp, new HelpV1LoadOptions { LegacyEncoding = LegacyTextEncodings.Cp852 });
+        var topic = hf.GetTopic(2);
+        fp.Close();
+        Assert.Equal(THelpFile.FormatV1Latin1, hf.formatVersion);
+        Assert.Equal("Příliš žluťoučký kůň ", TopicText(topic));
+    }
+
+    [Fact]
+    public void Compile_FormatV1_KamenickySourceAndOutput_PreservesCzechTextAndBoxDrawing()
+    {
+        string src = WriteSource("v1_kamenicky.txt",
+            ".topic Main=2\n" +
+            "Příliš žluťoučký kůň ─\n",
+            LegacyTextEncodings.Kamenicky);
+        string hlp = Path.Combine(_tmp.Path, "v1_kamenicky.hlp");
+        string sym = Path.Combine(_tmp.Path, "v1_kamenicky.cs");
+
+        int rc = Run("--format", "v1", "--encoding", "kamenicky", src, hlp, sym);
+
+        Assert.Equal(0, rc);
+        var fp = new Fpstream(hlp);
+        var hf = new THelpFile(fp, new HelpV1LoadOptions { LegacyEncoding = LegacyTextEncodings.Kamenicky });
+        var topic = hf.GetTopic(2);
+        fp.Close();
+        Assert.Equal("Příliš žluťoučký kůň ─ ", TopicText(topic));
+    }
+
+    [Fact]
+    public void Compile_FormatV1_UnknownEncoding_ReturnsError()
+    {
+        string src = WriteSource("v1_unknown_encoding.txt",
+            ".topic Main=2\n" +
+            "Text.\n");
+        string hlp = Path.Combine(_tmp.Path, "v1_unknown_encoding.hlp");
+        string sym = Path.Combine(_tmp.Path, "v1_unknown_encoding.cs");
+
+        var result = RunCaptured("--format", "v1", "--encoding", "does-not-exist", src, hlp, sym);
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("unknown legacy encoding 'does-not-exist'", result.Err);
+    }
+
+    [Fact]
+    public void Compile_FormatV2_WithLegacyEncodingOption_ReturnsError()
+    {
+        string src = WriteSource("v2_encoding_rejected.txt",
+            ".topic Main=2\n" +
+            "Příliš žluťoučký kůň Привет.\n");
+        string hlp = Path.Combine(_tmp.Path, "v2_encoding_rejected.hlp");
+        string sym = Path.Combine(_tmp.Path, "v2_encoding_rejected.cs");
+
+        var result = RunCaptured("--format", "v2", "--encoding", "kamenicky", src, hlp, sym);
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("--encoding applies only when compiling --format v1", result.Err);
     }
 
     [Fact]
@@ -717,6 +796,32 @@ public sealed class HelpCompilerTests : IDisposable
         Assert.Equal(0, rc);
         var fp = new Fpstream(hlp);
         var hf = new THelpFile(fp);
+        var topic = hf.GetTopic(2);
+        fp.Close();
+        Assert.Equal("Čau odkaz. ", TopicText(topic));
+        Assert.Equal(4, topic.crossRefs[0].offset);
+        Assert.Equal(5, topic.crossRefs[0].length);
+        Assert.Equal(3, topic.crossRefs[0].@ref);
+    }
+
+    [Fact]
+    public void Compile_FormatV1_Cp852_CzechBeforeCrossRef_StoresCharacterOffsets()
+    {
+        string src = WriteSource("v1_cp852_xref.txt",
+            ".topic Main=2\n" +
+            "Čau {odkaz:Target}.\n" +
+            "\n" +
+            ".topic Target=3\n" +
+            "Cíl.\n",
+            LegacyTextEncodings.Cp852);
+        string hlp = Path.Combine(_tmp.Path, "v1_cp852_xref.hlp");
+        string sym = Path.Combine(_tmp.Path, "v1_cp852_xref.cs");
+
+        int rc = Run("--format", "v1", "--encoding", "cp852", src, hlp, sym);
+
+        Assert.Equal(0, rc);
+        var fp = new Fpstream(hlp);
+        var hf = new THelpFile(fp, new HelpV1LoadOptions { LegacyEncoding = LegacyTextEncodings.Cp852 });
         var topic = hf.GetTopic(2);
         fp.Close();
         Assert.Equal("Čau odkaz. ", TopicText(topic));

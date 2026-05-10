@@ -28,7 +28,7 @@ public sealed class ConstDirective
 // ── Resource declaration ──────────────────────────────────────────────────────
 
 /// <summary>
-/// <c>resource dialog|menu|statusbar "key" { … }</c>
+/// <c>resource dialog|menu|statusbar|strings "key" { … }</c>
 /// </summary>
 public sealed class ResourceDecl
 {
@@ -39,9 +39,10 @@ public sealed class ResourceDecl
     public DialogBody      Dialog     { get; set; }   // non-null when Kind==Dialog
     public MenuBody        Menu       { get; set; }   // non-null when Kind==Menu
     public StatusBarBody   StatusBar  { get; set; }   // non-null when Kind==StatusBar
+    public StringsBody     Strings    { get; set; }   // non-null when Kind==Strings
 }
 
-public enum ResourceKind { Dialog, Menu, StatusBar }
+public enum ResourceKind { Dialog, Menu, StatusBar, Strings }
 
 // ── Dialog body ───────────────────────────────────────────────────────────────
 
@@ -176,5 +177,26 @@ public sealed class StatusItemDecl
     public string  Key     { get; set; }  // key text; null = kbNoKey
     public int     Line    { get; set; }
     public int     Column  { get; set; }
+}
+
+// ── String table resource ─────────────────────────────────────────────────
+
+/// <summary>
+/// Body of a <c>resource strings "key" { … }</c> declaration.
+/// </summary>
+public sealed class StringsBody
+{
+    public List<StringEntryDecl> Entries { get; } = new();
+}
+
+/// <summary>
+/// One string entry: <c>Identifier = "value";</c> or <c>"key" = "value";</c>.
+/// </summary>
+public sealed class StringEntryDecl
+{
+    public string Key { get; set; }
+    public string Value { get; set; }
+    public int Line { get; set; }
+    public int Column { get; set; }
 }
 

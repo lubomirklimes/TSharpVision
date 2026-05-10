@@ -1,0 +1,120 @@
+resource strings "sharpvision.intl" {
+  Btn_OK = "~O~K";
+  Btn_Cancel = "~A~bbrechen";
+  Btn_Yes = "~J~a";
+  Btn_No = "~N~ein";
+  Btn_Help = "~H~ilfe";
+  Btn_Retry = "~W~iederholen";
+  Btn_Abort = "~A~bbrechen";
+  Btn_Ignore = "~I~gnorieren";
+  Btn_Done = "Fertig";
+
+  MsgTitle_Error = "Fehler";
+  MsgTitle_Warning = "Warnung";
+  MsgTitle_Information = "Information";
+  MsgTitle_Confirm = "Bestätigen";
+
+  File_Title_Open = "Datei öffnen";
+  File_Title_SaveAs = "Datei speichern unter";
+  File_Label_Name = "~N~ame";
+  File_Label_Files = "~D~ateien";
+  File_Label_Encoding = "~K~odierung";
+  File_Btn_Open = "Ö~f~fnen";
+  File_Btn_Add = "~H~inzufügen";
+  File_Btn_Select = "~A~uswählen";
+  File_Btn_Replace = "~E~rsetzen";
+  File_Btn_Clear = "~L~öschen";
+  File_ConfirmOverwrite = "Datei '{0}' existiert bereits. Überschreiben?";
+  File_Err_InvalidFileName = "Ungültiger Dateiname.";
+  File_Err_InvalidDir = "Ungültiges Laufwerk oder Verzeichnis.";
+  File_Err_CannotOpenDir = "Verzeichnis kann nicht geöffnet werden: '{0}'";
+  File_Err_AccessDenied = "Zugriff verweigert: '{0}'";
+  File_Err_InvalidPath = "Ungültiger Pfad: '{0}'";
+  File_Err_PathTooLong = "Der Pfad ist zu lang.";
+  File_Err_NetworkUnavailable = "Netzwerkort ist nicht verfügbar.";
+  File_Err_NotFound = "Datei oder Verzeichnis nicht gefunden.";
+  File_Err_EncodingDecode = "Die Datei konnte mit der gewählten Kodierung nicht dekodiert werden.";
+  File_Err_EncodingEncode = "Die Datei enthält Zeichen, die mit der gewählten Kodierung nicht gespeichert werden können.";
+
+  Encoding_Auto = "Auto";
+  Encoding_UTF8 = "UTF-8";
+  Encoding_Latin1 = "Latin-1";
+  Encoding_CP437 = "CP437";
+  Encoding_CP852 = "CP852";
+  Encoding_Windows1250 = "Windows-1250";
+  Encoding_ISO8859_2 = "ISO-8859-2";
+  Encoding_Kamenicky = "Kamenicky / KEYBCS2";
+
+  ChDir_Title = "Verzeichnis wechseln";
+  ChDir_Label_DirectoryName = "Verzeichnis~n~ame";
+  ChDir_Label_DirectoryTree = "Verzeichnis~b~aum";
+  ChDir_Btn_Chdir = "~W~echseln";
+  ChDir_Btn_Revert = "~Z~urück";
+  DirList_Drives = "Laufwerke";
+
+  Edit_Untitled = "Unbenannt";
+  Edit_Clipboard = "Zwischenablage";
+  Edit_SaveModify = "{0} wurde geändert. Speichern?";
+  Edit_SaveUntitled = "Unbenannte Datei speichern?";
+  Edit_Err_Read = "Fehler beim Lesen der Datei '{0}'.";
+  Edit_Err_Write = "Fehler beim Schreiben der Datei '{0}'.";
+  Edit_Err_Create = "Fehler beim Erstellen der Datei '{0}'.";
+  Edit_Err_OOM = "Nicht genügend Speicher für den Editorpuffer.";
+  Edit_SearchFailed = "Suchtext nicht gefunden.";
+  Edit_ReplacePrompt = "Dieses Vorkommen ersetzen?";
+
+  Edit_FindTitle = "Suchen";
+  Edit_ReplaceTitle = "Ersetzen";
+  Edit_FindText = "Zu suchender ~T~ext";
+  Edit_ReplaceText = "~E~rsetzen durch";
+  Edit_Chk_CaseSensitive = "~G~roß-/Kleinschreibung beachten";
+  Edit_Chk_WholeWords = "Nur ~g~anze Wörter";
+  Edit_Chk_PromptOnReplace = "Beim Ersetzen ~n~achfragen";
+  Edit_Chk_ReplaceAll = "~A~lle ersetzen";
+
+  Menu_File = "~D~atei";
+  Menu_New = "~N~eu";
+  Menu_Open = "Ö~f~fnen...";
+  Menu_Save = "~S~peichern";
+  Menu_SaveAs = "Speichern ~u~nter...";
+  Menu_Exit = "~B~eenden";
+  Menu_Edit = "~B~earbeiten";
+  Menu_Undo = "~R~ückgängig";
+  Menu_Cut = "~A~usschneiden";
+  Menu_Copy = "~K~opieren";
+  Menu_Paste = "~E~infügen";
+  Menu_Clear = "~L~öschen";
+  Menu_Search = "~S~uchen";
+  Menu_Find = "~S~uchen...";
+  Menu_Replace = "~E~rsetzen...";
+  Menu_Again = "~W~eitersuchen";
+  Menu_Window = "~F~enster";
+  Menu_SizeMove = "~G~röße/Verschieben";
+  Menu_Zoom = "~Z~oom";
+  Menu_Tile = "~K~acheln";
+  Menu_Cascade = "Ü~b~erlappen";
+  Menu_Next = "~N~ächstes";
+  Menu_Previous = "~V~orheriges";
+  Menu_Close = "S~c~hließen";
+
+  Status_F10_Menu = "~F10~ Menü";
+  Status_F2_Save = "~F2~ Speichern";
+  Status_F3_Open = "~F3~ Öffnen";
+  Status_AltX_Exit = "~Alt+X~ Beenden";
+  Status_AltX_ExitDash = "~Alt-X~ Beenden";
+  Status_F5_Zoom = "~F5~ Zoom";
+  Status_F6_Next = "~F6~ Nächstes";
+
+  Help_WindowTitle = "Hilfe";
+  Help_NoContext = "\n Für diesen Kontext ist keine Hilfe verfügbar.";
+  List_Empty = "<leer>";
+
+  Color_Title = "Farben";
+  Color_Lbl_Group = "~G~ruppe";
+  Color_Lbl_Item = "~E~intrag";
+  Color_Lbl_Foreground = "~V~ordergrund";
+  Color_Lbl_Background = "~H~intergrund";
+  Color_Lbl_Color = "Farbe";
+  Color_PreviewText = "Text ";
+  Color_Btn_Try = "~T~esten";
+}

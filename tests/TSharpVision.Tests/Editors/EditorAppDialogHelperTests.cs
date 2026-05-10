@@ -64,6 +64,12 @@ public sealed class EditorAppDialogHelperTests : IDisposable
         return cmds;
     }
 
+    private sealed class DictProvider(Dictionary<string, string> values) : ITSharpVisionStringProvider
+    {
+        public string Get(string key, string fallback)
+            => values.TryGetValue(key, out string value) ? value : fallback;
+    }
+
     // ── Group A — TEditorApp construction ─────────────────────────────────────
 
     [Fact]
@@ -137,6 +143,32 @@ public sealed class EditorAppDialogHelperTests : IDisposable
             Assert.Contains(Views.cmQuit, commands);
             Assert.Contains(Views.cmNext, commands);
         }
+        finally { app.ShutDown(); }
+    }
+
+    [Fact]
+    public void TEditorApp_MenuBar_RoutesTextThroughIntlProvider()
+    {
+        using var intl = new IntlProviderScope(new DictProvider(new Dictionary<string, string>
+        {
+            ["Menu_File"] = "~S~oubor",
+        }));
+
+        var app = new TEditorApp();
+        try { Assert.Equal("~S~oubor", app.MenuBar.Menu.Items.Name); }
+        finally { app.ShutDown(); }
+    }
+
+    [Fact]
+    public void TEditorApp_StatusLine_RoutesTextThroughIntlProvider()
+    {
+        using var intl = new IntlProviderScope(new DictProvider(new Dictionary<string, string>
+        {
+            ["Status_F10_Menu"] = "~F10~ Nabídka",
+        }));
+
+        var app = new TEditorApp();
+        try { Assert.Equal("~F10~ Nabídka", app.StatusLine.Defs.Items.Text); }
         finally { app.ShutDown(); }
     }
 

@@ -120,7 +120,10 @@ public class TListViewer : TView
                     // showMarkers / specialChars deferred.
                 }
                 else if (i == 0 && j == 0)
-                    b.moveStr(curCol + 1, "<empty>", GetColor(1));
+                    b.moveStr(
+                        curCol + 1,
+                        TSharpVisionIntl.Get("List_Empty", "<empty>"),
+                        GetColor(1));
 
                 b.moveChar(curCol + width - 1, ColumnSeparator, GetColor(5), 1);
             }

@@ -19,6 +19,15 @@ public class TEditWindow : TWindow
     public TFileEditor editor;
 
     public TEditWindow(TRect bounds, string fileName, int aNumber)
+        : this(bounds, fileName, aNumber, null)
+    {
+    }
+
+    public TEditWindow(
+        TRect bounds,
+        string fileName,
+        int aNumber,
+        TFileEditorOpenOptions openOptions)
         : base(bounds, null, (ushort)aNumber)
     {
         options |= Views.ofTileable;
@@ -40,7 +49,13 @@ public class TEditWindow : TWindow
 
         TRect r = GetExtent();
         r.Grow(-1, -1);
-        editor = new TFileEditor(r, hScrollBar, vScrollBar, indicator, fileName);
+        editor = new TFileEditor(
+            r,
+            hScrollBar,
+            vScrollBar,
+            indicator,
+            fileName,
+            openOptions);
         Insert(editor);
     }
 

@@ -1,0 +1,102 @@
+.topic NoContext=0
+ No Context
+  ----------
+No specific help is available for the current view.
+
+Use Help / Index to open the main help index.
+
+.topic Index=1
+ Help Index
+  ----------
+This help file belongs to the TSharpVision Intl Demo.
+
+Available topics:
+
+ {Main Menu:MainMenu}
+ {Open File Window:OpenFileWindow}
+ {Language Switching:Language}
+ {String Resources:Resources}
+ {Encoding Sample:Encoding}
+ {Missing Key Diagnostics:MissingKey}
+
+Press Esc to close help. Press Backspace to go back.
+
+.topic MainMenu=2
+ Main Menu
+  ---------
+The top menu demonstrates localized strings resolved through Loc(...).
+
+The File menu opens text files. These commands create a modeless editor
+window, so F1 in that window opens context help for the opened file.
+
+The Language menu switches between English, Czech, and Pseudo/Debug
+providers at runtime.
+
+The Demos menu opens localized modal dialogs, file dialogs, and diagnostic
+examples. Modal demo dialogs use their own UI and do not have separate
+context help topics in this sample.
+
+See also {Open File Window:OpenFileWindow}, {Language Switching:Language},
+and {String Resources:Resources}.
+
+.topic OpenFileWindow=3
+ Open File Window
+  ----------------
+The editor window is opened by File / Open file or File / Open file with
+encoding.
+
+Unlike the demo dialogs, this window is modeless. It remains on the desktop
+and can receive keyboard focus. Press F1 while the opened file window is
+active to display this context topic.
+
+The encoding variant passes an explicit TFileEditorOpenOptions value to the
+editor. The default Open file command keeps Auto behavior: strict UTF-8,
+then Latin-1 fallback.
+
+See also {Encoding Sample:Encoding}.
+
+.topic Language=4
+ Language Switching
+  ------------------
+The Language menu changes TSharpVisionIntl.Current at runtime.
+
+English and Czech are loaded from .tvr string resources. The Pseudo/Debug
+provider is implemented only inside this sample project and makes missing
+or untranslated UI obvious.
+
+After switching language, the sample rebuilds the menu bar and status line.
+Open windows remain on the desktop.
+
+See also {String Resources:Resources}.
+
+.topic Resources=5
+ String Resources
+  ----------------
+This sample stores localized strings in .trc files:
+
+  Resources/app_en.trc
+  Resources/app_cs.trc
+
+During build, the sample compiles them to .tvr files with the resource
+compiler. At runtime, TResourceStringProvider loads the selected .tvr file
+and TSharpVisionStringProviderChain falls back to the built-in English
+provider when a key is missing.
+
+.topic Encoding=6
+ Encoding Sample
+  ---------------
+The encoding sample shows byte output for a Czech sentence using UTF-8,
+CP852, and Kamenicky / KEYBCS2.
+
+The editor file-open path can also receive an explicit encoding. This
+selection affects only the file body. Paths and rendering remain ordinary
+Unicode strings in .NET.
+
+.topic MissingKey=7
+ Missing Key Diagnostics
+  -----------------------
+TSharpVisionIntl.MissingKey is subscribed during application startup.
+
+The Missing key demo intentionally requests a key that does not exist in
+the active provider and displays the fallback text together with recent
+diagnostic entries.

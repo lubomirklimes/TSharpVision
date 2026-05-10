@@ -30,6 +30,7 @@ public static class StreamableRegistration
     {
         // ── Streams / resources ──────────────────────────────────────────
         Pstream.RegisterType(TResourceCollection.StreamableClass);
+        Pstream.RegisterType(TStringResource.StreamableClass);
 
         // ── Views ────────────────────────────────────────────────────────
         Pstream.RegisterType(TView.StreamableClassTView);

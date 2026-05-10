@@ -67,14 +67,19 @@ public class TColorDialog : TDialog
         Insert(_bakLabel);
 
         // ── Color preview display ────────────────────────────────────────
-        _display = new TColorDisplay(new TRect(60, 12, 74, 14), "Text ");
+        _display = new TColorDisplay(
+            new TRect(60, 12, 74, 14),
+            TSharpVisionIntl.Get("Color_PreviewText", "Text "));
         Insert(_display);
 
         // ── Mono selector (hidden by default — for mono-mode terminals) ───
         _monoSel = new TMonoSelector(new TRect(60, 3, 75, 7));
         _monoSel.Hide();
         Insert(_monoSel);
-        _monoLabel = new TLabel(new TRect(59, 2, 66, 3), "Color", _monoSel);
+        _monoLabel = new TLabel(
+            new TRect(59, 2, 66, 3),
+            TSharpVisionIntl.Get("Color_Lbl_Color", "Color"),
+            _monoSel);
         _monoLabel.Hide();
         Insert(_monoLabel);
 

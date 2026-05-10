@@ -13,6 +13,7 @@ public static class FileDialogOptions
     public const ushort fdDoneButton    = 0x0040;
     public const ushort fdAddButton     = 0x0080;
     public const ushort fdNoLoadDir     = 0x0100;
+    public const ushort fdEncodingSelector = 0x0200;
 }
 
 // Modal "Open File" dialog. Composed of a TFileInputLine (with history),
@@ -26,26 +27,38 @@ public class TFileDialog : TDialog, IFileDialogContext
     public string wildCard;
     public TFileInputLine fileName;
     public TFileList      fileList;
+    public TRadioButtons  encodingSelector;
     public string         directory;
 
     public string LastError = string.Empty;
 
     public string Directory => directory ?? string.Empty;
     public string WildCard  => wildCard  ?? string.Empty;
+    public EditorTextEncoding SelectedEncoding =>
+        EncodingAt(encodingSelector == null ? 0 : (int)encodingSelector.value);
+
+    private static EditorTextEncoding EncodingAt(int index)
+    {
+        if (index < 0 || index >= EditorEncodingChoices.BuiltIn.Count)
+            index = 0;
+        return EditorEncodingChoices.BuiltIn[index].Encoding;
+    }
 
     public TFileDialog(string aWildCard,
                        string aTitle,
                        string inputName,
                        ushort aOptions,
                        byte   histId)
-        : base(new TRect(15, 1, 64, 21), aTitle)
+        : base(DialogBounds(aOptions), aTitle)
     {
         options |= Views.ofCentered;
         growMode = Views.gfGrowAll;
         flags    = (byte)(flags | Views.wfGrow | Views.wfZoom);
         wildCard = aWildCard ?? "*";
 
-        fileName = new TFileInputLine(new TRect(3, 2, 31, 3), 260);
+        fileName = new TFileInputLine(
+            new TRect(3, 2, 31, 3),
+            FileDialogConstants.MaxPathLen);
         fileName.SetData(wildCard);
         fileName.growMode = Views.gfGrowHiX;
         Insert(fileName);
@@ -103,6 +116,20 @@ public class TFileDialog : TDialog, IFileDialogContext
             r = new TRect(r.a.x, r.a.y + 2, r.b.x, r.b.y + 2);
         }
 
+        if ((aOptions & FileDialogOptions.fdEncodingSelector) != 0)
+        {
+            Insert(new TLabel(
+                new TRect(35, 6, 49, 7),
+                TSharpVisionIntl.Get("File_Label_Encoding", "~E~ncoding"),
+                null));
+            encodingSelector = new TRadioButtons(
+                new TRect(35, 7, 64, 15),
+                EncodingChoiceItems());
+            encodingSelector.growMode = (byte)(Views.gfGrowLoX | Views.gfGrowHiX);
+            encodingSelector.SetData((ushort)0);
+            Insert(encodingSelector);
+        }
+
         var fip = new TFileInfoPane(new TRect(1, 16, 48, 19));
         fip.growMode = (byte)(Views.gfGrowHiX | Views.gfGrowHiY | Views.gfGrowLoY);
         Insert(fip);
@@ -114,10 +141,36 @@ public class TFileDialog : TDialog, IFileDialogContext
             SetUpCurDir();
     }
 
+    private static TRect DialogBounds(ushort options)
+        => (options & FileDialogOptions.fdEncodingSelector) != 0
+            ? new TRect(8, 1, 73, 21)
+            : new TRect(15, 1, 64, 21);
+
+    private static TSItem EncodingChoiceItems()
+    {
+        TSItem head = null;
+        TSItem tail = null;
+        foreach (var choice in EditorEncodingChoices.BuiltIn)
+        {
+            var item = new TSItem(choice.Label, null);
+            if (head == null)
+            {
+                head = item;
+                tail = item;
+            }
+            else
+            {
+                tail.Next = item;
+                tail = item;
+            }
+        }
+        return head;
+    }
+
     public override void SizeLimits(ref TPoint min, ref TPoint max)
     {
         base.SizeLimits(ref min, ref max);
-        min.x = 64 - 15;
+        min.x = encodingSelector == null ? 64 - 15 : 73 - 8;
         min.y = 21 - 1;
     }
 
@@ -125,6 +178,7 @@ public class TFileDialog : TDialog, IFileDialogContext
     {
         fileName = null;
         fileList = null;
+        encodingSelector = null;
         base.ShutDown();
     }
 
@@ -170,6 +224,7 @@ public class TFileDialog : TDialog, IFileDialogContext
     public virtual void ReadDirectory()
     {
         fileList?.ReadDirectory(wildCard);
+        LastError = fileList?.LastError ?? string.Empty;
         SetUpCurDir();
     }
 
@@ -246,6 +301,7 @@ public class TFileDialog : TDialog, IFileDialogContext
                 wildCard  = name;
                 if (command != Views.cmFileInit) fileList?.Select();
                 fileList?.ReadDirectory(directory, wildCard);
+                LastError = fileList?.LastError ?? string.Empty;
             }
             return false;
         }

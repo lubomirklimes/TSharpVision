@@ -16,6 +16,7 @@
     <Project Path="samples/TSharpVision.Samples.Demo02/TSharpVision.Samples.Demo02.csproj" />
     <Project Path="samples/TSharpVision.Samples.TVDemo/TSharpVision.Samples.TVDemo.csproj" />
     <Project Path="samples/TSharpVision.Samples.TVEdit/TSharpVision.Samples.TVEdit.csproj" />
+    <Project Path="samples/TSharpVision.Samples.TVIntl/TSharpVision.Samples.TVIntl.csproj" Id="3d6694da-b801-45e9-8e1f-7ab20c785836" />
   </Folder>
   <Folder Name="/Tools/">
     <Project Path="tests/TSharpVision.HelpCompiler.Tests/TSharpVision.HelpCompiler.Tests.csproj" />

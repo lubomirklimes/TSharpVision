@@ -17,4 +17,10 @@ public sealed class TSharpVisionConfiguration
     /// Null preserves the SDL driver's default font probing.
     /// </summary>
     public string? SdlFontName { get; init; }
+
+    /// <summary>
+    /// Two-letter localization language code, e.g. "cs" or "en".
+    /// Null preserves the built-in English fallback behavior.
+    /// </summary>
+    public string? Language { get; init; }
 }

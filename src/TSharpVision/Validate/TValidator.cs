@@ -21,7 +21,7 @@ public class TValidator : TStreamable
     public ushort Status;
     public ushort Options;
 
-    public new static readonly string Name = "TValidator";
+    public static readonly string Name = "TValidator";
     public override string streamableName => "TValidator";
 
     public static readonly TStreamableClass StreamableClassTValidator =
@@ -76,7 +76,7 @@ public class TValidator : TStreamable
         return this;
     }
 
-    public new static TStreamable Build() =>
+    public static TStreamable Build() =>
         new TValidator(StreamableInit.streamableInit);
 
     /// Register all six validator classes with the stream subsystem.

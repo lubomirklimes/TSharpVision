@@ -27,7 +27,8 @@ public class THistory : TView
 
     public override void Draw()
     {
-        var b = new TDrawBuffer();
+        Span<TScreenChar> row = stackalloc TScreenChar[size.x > 0 ? size.x : 1];
+        var b = new TDrawBuffer(row);
         b.moveCStr(0, Icon, GetColor(0x0102));
         WriteLine(0, 0, size.x, size.y, b);
     }

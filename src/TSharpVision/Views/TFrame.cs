@@ -50,7 +50,8 @@ public class TFrame : TView
     {
         ushort cFrame, cTitle;
         int f, i, l, width;
-        TDrawBuffer b = new TDrawBuffer();
+        Span<TScreenChar> row = stackalloc TScreenChar[size.x > 0 ? size.x : 1];
+        TDrawBuffer b = new TDrawBuffer(row);
 
         if ((state & Views.sfActive) == 0) { cFrame = 0x0101; cTitle = 0x0002; f = 0; }
         else if ((state & Views.sfDragging) != 0) { cFrame = 0x0505; cTitle = 0x0005; f = 0; }
@@ -157,7 +158,8 @@ public class TFrame : TView
         else cFrame = 0x0503;
         cFrame = GetColor(cFrame);
 
-        TDrawBuffer drawBuf = new TDrawBuffer();
+        Span<TScreenChar> iconRow = stackalloc TScreenChar[size.x > 0 ? size.x : 1];
+        TDrawBuffer drawBuf = new TDrawBuffer(iconRow);
         if (ciType == ciClose)
         {
             drawBuf.moveCStr(0, bNormal != 0 ? CloseIcon : AnimIcon, cFrame);

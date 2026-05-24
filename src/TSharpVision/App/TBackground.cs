@@ -18,7 +18,8 @@ public class TBackground : TView
 
     public override void Draw()
     {
-        TDrawBuffer b = new TDrawBuffer();
+        Span<TScreenChar> row = stackalloc TScreenChar[size.x > 0 ? size.x : 1];
+        TDrawBuffer b = new TDrawBuffer(row);
         // Anti-moire substitution (TScreen::avoidMoire == defaultBkgrnd → noMoireFill)
         // is deferred until TScreen exposes those fields; use raw pattern for now.
         b.moveChar(0, pattern, GetColor(0x01), size.x);

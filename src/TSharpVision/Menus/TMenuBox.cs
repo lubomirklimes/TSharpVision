@@ -30,7 +30,6 @@ public class TMenuBox : TMenuView
     // bounds.b is the owner/screen bottom-right boundary.
     private static TRect ComputeRect(TRect bounds, TMenu menu)
     {
-        if (bounds is null) return new TRect(0, 0, 10, 3);
         int w = 10, h = 2;
         if (menu != null)
         {
@@ -90,7 +89,8 @@ public class TMenuBox : TMenuView
 
     public override void Draw()
     {
-        var b = new TDrawBuffer();
+        Span<TScreenChar> row = stackalloc TScreenChar[size.x > 0 ? size.x : 1];
+        var b = new TDrawBuffer(row);
         ushort cNormal      = GetColor(0x0301);
         ushort cSelect      = GetColor(0x0604);
         ushort cNormDis     = GetColor(0x0202);
@@ -150,7 +150,7 @@ public class TMenuBox : TMenuView
         return new TRect(0, 0, 0, 0);
     }
 
-    protected TMenuBox(object streamableInit) : base((TRect)null) { }
+    protected TMenuBox(StreamableInit init) : base(init) { }
 
-    public static new TStreamable Build() => new TMenuBox(new object());
+    public static new TStreamable Build() => new TMenuBox(StreamableInit.streamableInit);
 }

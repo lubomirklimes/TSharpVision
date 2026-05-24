@@ -25,7 +25,7 @@ public class TTerminal : TView
     // Set to true to log raw I/O and parser events to Debug output (DEBUG builds only).
     // Flip to false to silence without removing the instrumentation.
 #if DEBUG
-    private const bool TraceTerminalRawIo = true;
+    private const bool TraceTerminalRawIo = false;
 #else
     private const bool TraceTerminalRawIo = false;
 #endif
@@ -63,8 +63,9 @@ public class TTerminal : TView
 
     // ── Output buffer ─────────────────────────────────────────────────────────
 
-    private readonly List<string> _lines = new();
-    private string _currentLine = string.Empty;
+    private readonly List<string> _lines = new(DefaultMaxLines);
+    private readonly StringBuilder _lineBuilder = new StringBuilder(128);
+    private readonly List<string> _visibleLinesCache = new();
     private int _maxLines = DefaultMaxLines;
     private int _scrollOffset;   // 0 = bottom (newest); k = k lines above bottom
 
@@ -105,16 +106,17 @@ public class TTerminal : TView
 
     private bool _ansiEnabled = true;
     private readonly AnsiTerminalParser _parser = new();
-    private readonly List<TerminalCell[]> _cellLines = new();
+    private readonly List<TerminalCell[]> _cellLines = new(DefaultMaxLines);
+    private TerminalCell[][]? _visibleCellsCache;
     private readonly List<TerminalCell> _currentCells = new();
 
     // Column at which the next output character will be written (0-based).
     // Updated by CR, LF, printable chars, and cursor-movement CSI sequences.
     private int _cursorColumn;
 
-    // The absolute terminal column (0-based) at which _currentLine[0] lives.
+    // The absolute terminal column (0-based) at which _lineBuilder[0] lives.
     // When the shell sends an absolute CUP sequence (ESC[row;colH), we subtract
-    // this base to convert to a logical column within _currentLine.
+    // this base to convert to a logical column within _lineBuilder.
     // Reset to 0 on CommitLine; updated to the new cursor column on CR.
     private int _currentLineBaseColumn;
     // True once _currentLineBaseColumn has been established for the current line
@@ -144,7 +146,7 @@ public class TTerminal : TView
     public IReadOnlyList<string> Lines => _lines.AsReadOnly();
 
     /// <summary>The uncommitted partial line currently being built.</summary>
-    public string CurrentLine => _currentLine;
+    public string CurrentLine => _lineBuilder.ToString();
     /// <summary>The current cursor column within <see cref="CurrentLine"/> (0-based).</summary>
     public int CursorColumn => _cursorColumn;
 
@@ -190,7 +192,10 @@ public class TTerminal : TView
     /// <summary>Appends text and terminates the line.</summary>
     public void WriteLine(string line)
     {
-        Write(line + "\n");
+        if (!string.IsNullOrEmpty(line))
+            AppendText(line);
+        AppendText("\n");
+        DrawView();
     }
 
     /// <summary>Removes all output lines and resets scroll to the bottom.</summary>
@@ -198,7 +203,7 @@ public class TTerminal : TView
     {
         _lines.Clear();
         _cellLines.Clear();
-        _currentLine = string.Empty;
+        _lineBuilder.Clear();
         _currentCells.Clear();
         _cursorColumn = 0;
         _scrollOffset = 0;
@@ -477,24 +482,24 @@ public class TTerminal : TView
     public IReadOnlyList<string> GetVisibleLines(int height)
     {
         if (height <= 0) return Array.Empty<string>();
-        bool hasCurrentLine = _currentLine.Length > 0;
+        bool hasCurrentLine = _lineBuilder.Length > 0;
         int totalLines = _lines.Count + (hasCurrentLine ? 1 : 0);
         int maxOffset = Math.Max(0, totalLines - height);
         int effectiveOffset = Math.Min(_scrollOffset, maxOffset);
         int firstVisible = maxOffset - effectiveOffset;
 
-        var result = new List<string>(height);
+        _visibleLinesCache.Clear();
         for (int i = 0; i < height; i++)
         {
             int idx = firstVisible + i;
             if (idx < _lines.Count)
-                result.Add(_lines[idx]);
+                _visibleLinesCache.Add(_lines[idx]);
             else if (hasCurrentLine && idx == _lines.Count)
-                result.Add(_currentLine);
+                _visibleLinesCache.Add(_lineBuilder.ToString());
             else
-                result.Add(string.Empty);
+                _visibleLinesCache.Add(string.Empty);
         }
-        return result;
+        return _visibleLinesCache;
     }
 
     /// <summary>
@@ -506,23 +511,26 @@ public class TTerminal : TView
     public TerminalCell[][]? GetVisibleCellLines(int height)
     {
         if (!_ansiEnabled || height <= 0) return null;
-        bool hasCurrentLine = _currentCells.Count > 0 || _currentLine.Length > 0;
+        bool hasCurrentLine = _currentCells.Count > 0 || _lineBuilder.Length > 0;
         int totalLines = _lines.Count + (hasCurrentLine ? 1 : 0);
         int maxOffset = Math.Max(0, totalLines - height);
         int effectiveOffset = Math.Min(_scrollOffset, maxOffset);
         int firstVisible = maxOffset - effectiveOffset;
 
-        var result = new TerminalCell[height][];
+        if (_visibleCellsCache == null || _visibleCellsCache.Length < height)
+            _visibleCellsCache = new TerminalCell[height][];
+
         for (int i = 0; i < height; i++)
         {
             int idx = firstVisible + i;
             if (idx < _cellLines.Count)
-                result[i] = _cellLines[idx];
+                _visibleCellsCache[i] = _cellLines[idx];
             else if (hasCurrentLine && idx == _lines.Count)
-                result[i] = _currentCells.ToArray();
-            // else result[i] remains null
+                _visibleCellsCache[i] = _currentCells.ToArray();
+            else
+                _visibleCellsCache[i] = null;
         }
-        return result;
+        return _visibleCellsCache;
     }
 
     // ── Rendering ─────────────────────────────────────────────────────────────
@@ -551,9 +559,10 @@ public class TTerminal : TView
         var visible = GetVisibleLines(count);
         TerminalCell[][]? visibleCells = _ansiEnabled ? GetVisibleCellLines(count) : null;
 
+        Span<TScreenChar> rowBuf = stackalloc TScreenChar[size.x > 0 ? size.x : 1];
         for (int row = 0; row < count; row++)
         {
-            var b = new TDrawBuffer();
+            var b = new TDrawBuffer(rowBuf);
             b.moveChar(0, ' ', TerminalColor, size.x);
 
             TerminalCell[]? cells = visibleCells != null && row < visibleCells.Length
@@ -598,26 +607,17 @@ public class TTerminal : TView
     private void DrawCellsIntoBuffer(ref TDrawBuffer b, TerminalCell[] cells)
     {
         int limit = Math.Min(cells.Length, size.x);
-        int col = 0;
-        int ci = 0;
-        while (ci < limit)
+        for (int ci = 0; ci < limit; ci++)
         {
-            ushort attr = cells[ci].Attr;
-            int runStart = col;
-            var sb = new StringBuilder();
-            while (ci < limit && cells[ci].Attr == attr)
-            {
-                sb.Append(cells[ci].Character);
-                ci++;
-                col++;
-            }
-            b.moveStr(runStart, sb.ToString(), attr);
+            b.putChar(ci, cells[ci].Character);
+            b.putAttribute(ci, cells[ci].Attr);
         }
     }
 
     private void DrawPromptRow(int row)
     {
-        var b = new TDrawBuffer();
+        Span<TScreenChar> rowBuf = stackalloc TScreenChar[size.x > 0 ? size.x : 1];
+        var b = new TDrawBuffer(rowBuf);
         b.moveChar(0, ' ', TerminalColor, size.x);
 
         string promptText = _prompt + _inputBuffer;
@@ -1057,7 +1057,7 @@ public class TTerminal : TView
 
     private int MaxScrollOffset(int height)
     {
-        bool hasCurrentLine = _currentLine.Length > 0;
+        bool hasCurrentLine = _lineBuilder.Length > 0;
         int totalLines = _lines.Count + (hasCurrentLine ? 1 : 0);
         return Math.Max(0, totalLines - height);
     }
@@ -1124,7 +1124,7 @@ public class TTerminal : TView
             }
             else
             {
-                _currentLine += c;
+                _lineBuilder.Append(c);
             }
             i++;
         }
@@ -1136,37 +1136,38 @@ public class TTerminal : TView
             text,
             onChar: (ch, attr) =>
             {
-                TraceTerminal($"TTerminal PARSER: Char('{EscapeForLog(ch)}') at col {_cursorColumn}, lineLen={_currentLine.Length}");
-                if (_cursorColumn < _currentLine.Length)
+                if (TraceTerminalRawIo)
+                    TraceTerminal($"TTerminal PARSER: Char('{EscapeForLog(ch)}') at col {_cursorColumn}, lineLen={_lineBuilder.Length}");
+                if (_cursorColumn < _lineBuilder.Length)
                 {
                     // Overwrite the character at the current column.
-                    var chars = _currentLine.ToCharArray();
-                    chars[_cursorColumn] = ch;
-                    _currentLine = new string(chars);
+                    _lineBuilder[_cursorColumn] = ch;
                     if (_cursorColumn < _currentCells.Count)
                         _currentCells[_cursorColumn] = new TerminalCell(ch, attr);
                 }
                 else
                 {
                     // Append, padding with spaces if the cursor moved past the end.
-                    while (_currentLine.Length < _cursorColumn)
+                    while (_lineBuilder.Length < _cursorColumn)
                     {
-                        _currentLine += ' ';
+                        _lineBuilder.Append(' ');
                         _currentCells.Add(new TerminalCell(' ', _parser.CurrentAttr));
                     }
-                    _currentLine += ch;
+                    _lineBuilder.Append(ch);
                     _currentCells.Add(new TerminalCell(ch, attr));
                 }
                 _cursorColumn++;
             },
             onNewLine: () =>
             {
-                TraceTerminal($"TTerminal PARSER: LF  (col={_cursorColumn}, lineLen={_currentLine.Length})");
+                if (TraceTerminalRawIo)
+                    TraceTerminal($"TTerminal PARSER: LF  (col={_cursorColumn}, lineLen={_lineBuilder.Length})");
                 CommitLine();
             },
             onCarriageReturn: () =>
             {
-                TraceTerminal($"TTerminal PARSER: CR  (col={_cursorColumn}, lineLen={_currentLine.Length})");
+                if (TraceTerminalRawIo)
+                    TraceTerminal($"TTerminal PARSER: CR  (col={_cursorColumn}, lineLen={_lineBuilder.Length})");
                 // CR moves the terminal cursor to the start of the current visual line.
                 // Record the absolute column before resetting so that _currentLineBaseColumn
                 // stays at the left edge of the line (which is 0 for the first write,
@@ -1176,34 +1177,36 @@ public class TTerminal : TView
             },
             onBackspace: () =>
             {
-                TraceTerminal($"TTerminal PARSER: BS  (col={_cursorColumn}, lineLen={_currentLine.Length})");
+                if (TraceTerminalRawIo)
+                    TraceTerminal($"TTerminal PARSER: BS  (col={_cursorColumn}, lineLen={_lineBuilder.Length})");
                 if (_cursorColumn > 0)
                     _cursorColumn--;
             },
             onClearScreen: Clear,
             onEraseInLine: (mode) =>
             {
-                TraceTerminal($"TTerminal PARSER: EraseInLine({mode}) at col {_cursorColumn}, lineLen={_currentLine.Length}");
+                if (TraceTerminalRawIo)
+                    TraceTerminal($"TTerminal PARSER: EraseInLine({mode}) at col {_cursorColumn}, lineLen={_lineBuilder.Length}");
                 switch (mode)
                 {
                     case 0: // erase from cursor to end of line
-                        if (_cursorColumn < _currentLine.Length)
+                        if (_cursorColumn < _lineBuilder.Length)
                         {
-                            _currentLine = _currentLine[.._cursorColumn];
+                            _lineBuilder.Length = _cursorColumn;
                             if (_currentCells.Count > _cursorColumn)
                                 _currentCells.RemoveRange(_cursorColumn, _currentCells.Count - _cursorColumn);
                         }
                         break;
                     case 1: // erase from start of line to cursor (inclusive)
                         {
-                            int len = Math.Min(_cursorColumn + 1, _currentLine.Length);
-                            _currentLine = new string(' ', len) + _currentLine[len..];
+                            int len = Math.Min(_cursorColumn + 1, _lineBuilder.Length);
+                            for (int i = 0; i < len; i++) _lineBuilder[i] = ' ';
                             for (int ci = 0; ci < len && ci < _currentCells.Count; ci++)
                                 _currentCells[ci] = new TerminalCell(' ', TerminalColor);
                         }
                         break;
                     case 2: // erase entire line and reset cursor to column 0
-                        _currentLine = string.Empty;
+                        _lineBuilder.Clear();
                         _currentCells.Clear();
                         _cursorColumn = 0;
                         break;
@@ -1212,25 +1215,28 @@ public class TTerminal : TView
             onCursorColumn: (n) =>
             {
                 int newCol = Math.Max(0, n - 1);
-                TraceTerminal($"TTerminal PARSER: CursorColumn({n}) -> col {newCol}, lineLen={_currentLine.Length}");
+                if (TraceTerminalRawIo)
+                    TraceTerminal($"TTerminal PARSER: CursorColumn({n}) -> col {newCol}, lineLen={_lineBuilder.Length}");
                 _cursorColumn = newCol;
             },
             onCursorRight: (n) =>
             {
-                TraceTerminal($"TTerminal PARSER: CursorRight({n}) col {_cursorColumn}->{_cursorColumn + n}, lineLen={_currentLine.Length}");
+                if (TraceTerminalRawIo)
+                    TraceTerminal($"TTerminal PARSER: CursorRight({n}) col {_cursorColumn}->{_cursorColumn + n}, lineLen={_lineBuilder.Length}");
                 _cursorColumn += n;
             },
             onCursorLeft: (n) =>
             {
                 int newCol = Math.Max(0, _cursorColumn - n);
-                TraceTerminal($"TTerminal PARSER: CursorLeft({n}) col {_cursorColumn}->{newCol}, lineLen={_currentLine.Length}");
+                if (TraceTerminalRawIo)
+                    TraceTerminal($"TTerminal PARSER: CursorLeft({n}) col {_cursorColumn}->{newCol}, lineLen={_lineBuilder.Length}");
                 _cursorColumn = newCol;
             },
             onCursorPosition: (row, col) =>
             {
                 // Convert absolute 1-based terminal column to a logical index within
-                // _currentLine.  _currentLineBaseColumn holds the 0-based absolute column
-                // at which _currentLine[0] lives.
+                // _lineBuilder.  _currentLineBaseColumn holds the 0-based absolute column
+                // at which _lineBuilder[0] lives.
                 int absCol = col - 1;          // 0-based absolute terminal column
                 int logCol;
                 if (!_currentLineBaseColumnKnown)
@@ -1247,21 +1253,22 @@ public class TTerminal : TView
                 {
                     logCol = Math.Max(0, absCol - _currentLineBaseColumn);
                 }
-                TraceTerminal($"TTerminal PARSER: CursorPosition(row={row}, col={col}) absCol={absCol} base={_currentLineBaseColumn} known={_currentLineBaseColumnKnown} -> logCol={logCol}, lineLen={_currentLine.Length}");
+                if (TraceTerminalRawIo)
+                    TraceTerminal($"TTerminal PARSER: CursorPosition(row={row}, col={col}) absCol={absCol} base={_currentLineBaseColumn} known={_currentLineBaseColumnKnown} -> logCol={logCol}, lineLen={_lineBuilder.Length}");
 
                 // Before repositioning: if there is content after the new logical
                 // column and it is all spaces (i.e. the shell just overwrote typed
                 // chars with spaces), trim it so the line does not retain stale blanks.
-                if (logCol < _currentLine.Length)
+                if (logCol < _lineBuilder.Length)
                 {
                     bool trailingAllSpaces = true;
-                    for (int ci = logCol; ci < _currentLine.Length; ci++)
+                    for (int ci = logCol; ci < _lineBuilder.Length; ci++)
                     {
-                        if (_currentLine[ci] != ' ') { trailingAllSpaces = false; break; }
+                        if (_lineBuilder[ci] != ' ') { trailingAllSpaces = false; break; }
                     }
                     if (trailingAllSpaces)
                     {
-                        _currentLine = _currentLine[..logCol];
+                        _lineBuilder.Length = logCol;
                         if (_currentCells.Count > logCol)
                             _currentCells.RemoveRange(logCol, _currentCells.Count - logCol);
                     }
@@ -1275,8 +1282,8 @@ public class TTerminal : TView
     private void CommitLine()
     {
         bool wasAtBottom = _scrollOffset == 0;
-        _lines.Add(_currentLine);
-        _currentLine = string.Empty;
+        _lines.Add(_lineBuilder.ToString());
+        _lineBuilder.Clear();
         _cursorColumn = 0;
         _currentLineBaseColumn = 0;
         _currentLineBaseColumnKnown = false;
@@ -1359,7 +1366,7 @@ public class TTerminal : TView
     /// </summary>
     public int VisualRowToLineIndex(int row, int outputHeight)
     {
-        bool hasCurrentLine = _currentLine.Length > 0;
+        bool hasCurrentLine = _lineBuilder.Length > 0;
         int totalLines = _lines.Count + (hasCurrentLine ? 1 : 0);
         int maxOffset = Math.Max(0, totalLines - outputHeight);
         int effectiveOffset = Math.Min(_scrollOffset, maxOffset);
@@ -1371,7 +1378,7 @@ public class TTerminal : TView
     {
         if (lineIndex < 0) return string.Empty;
         if (lineIndex < _lines.Count) return _lines[lineIndex];
-        if (_currentLine.Length > 0 && lineIndex == _lines.Count) return _currentLine;
+        if (_lineBuilder.Length > 0 && lineIndex == _lines.Count) return _lineBuilder.ToString();
         return string.Empty;
     }
 
@@ -1507,7 +1514,7 @@ public class TTerminal : TView
         os.WriteInt((uint)_lines.Count);
         foreach (string line in _lines)
             os.WriteString(line);
-        os.WriteString(_currentLine);
+        os.WriteString(_lineBuilder.ToString());
     }
 
     public override object Read(Ipstream isStream)
@@ -1518,7 +1525,9 @@ public class TTerminal : TView
         _lines.Clear();
         for (int i = 0; i < count; i++)
             _lines.Add(isStream.ReadString() ?? string.Empty);
-        _currentLine = isStream.ReadString() ?? string.Empty;
+        var currentLine = isStream.ReadString() ?? string.Empty;
+        _lineBuilder.Clear();
+        _lineBuilder.Append(currentLine);
         _scrollOffset = 0;
         return this;
     }

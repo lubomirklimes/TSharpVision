@@ -60,7 +60,8 @@ public class TButton : TView
         ushort cButton, cShadow;
         char ch = ' ';
         int i;
-        var b = new TDrawBuffer();
+        Span<TScreenChar> row = stackalloc TScreenChar[size.x > 0 ? size.x : 1];
+        var b = new TDrawBuffer(row);
 
         if ((state & Views.sfDisabled) != 0)
             cButton = GetColor(0x0404);

@@ -66,7 +66,8 @@ public class TListViewer : TView
         int item;
         ushort normalColor, selectedColor, focusedColor = 0, color;
         int colWidth, curCol, indent;
-        TDrawBuffer b = new TDrawBuffer();
+        Span<TScreenChar> row = stackalloc TScreenChar[size.x > 0 ? size.x : 1];
+        TDrawBuffer b = new TDrawBuffer(row);
 
         if ((state & (Views.sfSelected | Views.sfActive)) == (Views.sfSelected | Views.sfActive))
         {

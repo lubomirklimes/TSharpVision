@@ -47,7 +47,8 @@ public class TCluster : TView
 
     public void DrawBox(string icon, char marker)
     {
-        var b = new TDrawBuffer();
+        Span<TScreenChar> row = stackalloc TScreenChar[size.x > 0 ? size.x : 1];
+        var b = new TDrawBuffer(row);
         ushort cNorm = (state & Views.sfDisabled) != 0
             ? GetColor(0x0505) : GetColor(0x0301);
         ushort cSel = GetColor(0x0402);

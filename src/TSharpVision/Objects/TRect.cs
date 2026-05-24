@@ -1,9 +1,11 @@
-﻿namespace TSharpVision;
+namespace TSharpVision;
 
-public class TRect
+public struct TRect : IEquatable<TRect>
 {
     public TPoint a;
     public TPoint b;
+
+    public static readonly TRect Empty = default;
 
     public TRect(int ax, int ay, int bx, int by)
     {
@@ -54,34 +56,19 @@ public class TRect
         return p.x >= a.x && p.x < b.x && p.y >= a.y && p.y < b.y;
     }
 
-    public static bool operator ==(TRect r1, TRect r2)
-    {
-        return r1.a == r2.a && r1.b == r2.b;
-    }
-    public static bool operator !=(TRect r1, TRect r2)
-    {
-        return !(r1 == r2);
-    }
-
-    public override bool Equals(object obj)
-    {
-        if (obj is TRect)
-            return this == (TRect)obj;
-        return false;
-    }
-
-    public override int GetHashCode()
-    {
-        return a.GetHashCode() ^ b.GetHashCode();
-    }
-
     public bool IsEmpty()
     {
         return a.x >= b.x || a.y >= b.y;
     }
 
-    public override string ToString()
-    {
-        return $"{a} {b}";
-    }
+    public bool Equals(TRect other) => a == other.a && b == other.b;
+
+    public override bool Equals(object? obj) => obj is TRect other && Equals(other);
+
+    public override int GetHashCode() => HashCode.Combine(a.GetHashCode(), b.GetHashCode());
+
+    public static bool operator ==(TRect left, TRect right) => left.Equals(right);
+    public static bool operator !=(TRect left, TRect right) => !left.Equals(right);
+
+    public override string ToString() => $"{a} {b}";
 }

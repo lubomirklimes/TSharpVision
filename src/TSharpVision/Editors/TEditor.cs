@@ -820,9 +820,11 @@ public class TEditor : TView
     public void DrawLines(int y, int count, uint linePtr)
     {
         ushort color = GetColor(0x0201);
+        int lineWidth = Math.Max(delta.x + size.x, 1);
+        Span<TScreenChar> rowBuf = stackalloc TScreenChar[lineWidth];
         while (count-- > 0)
         {
-            var b = new TDrawBuffer();
+            var b = new TDrawBuffer(rowBuf);
             FormatLine(b, linePtr, delta.x + size.x, color);
             // Match upstream `&b[delta.x]`: write the slice of the formatted
             // buffer starting at delta.x, preserving per-cell attributes.

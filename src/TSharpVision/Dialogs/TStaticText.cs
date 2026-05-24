@@ -19,7 +19,8 @@ public class TStaticText : TView
     public override void Draw()
     {
         ushort color = GetColor(1);
-        var b = new TDrawBuffer();
+        Span<TScreenChar> row = stackalloc TScreenChar[size.x > 0 ? size.x : 1];
+        var b = new TDrawBuffer(row);
         GetText(out string s);
         s ??= string.Empty;
         int l = s.Length;

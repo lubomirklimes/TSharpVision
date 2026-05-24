@@ -119,7 +119,8 @@ public class TStatusLine : TView
 
     private void DrawSelect(TStatusItem selected) 
     {
-        TDrawBuffer b = new TDrawBuffer();
+        Span<TScreenChar> row = stackalloc TScreenChar[size.x > 0 ? size.x : 1];
+        TDrawBuffer b = new TDrawBuffer(row);
         ushort color;
 
         ushort cNormal = GetColor(0x0301);

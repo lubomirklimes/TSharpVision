@@ -28,7 +28,8 @@ public class TFileInfoPane : TView
 
     public override void Draw()
     {
-        var b = new TDrawBuffer();
+        Span<TScreenChar> row = stackalloc TScreenChar[size.x > 0 ? size.x : 1];
+        var b = new TDrawBuffer(row);
         ushort color = GetColor(0x01);
 
         // Row 0: full path (directory + wildCard).

@@ -303,9 +303,10 @@ public class TView : TStreamable, IInfo, IDisposable
             SetState(Views.sfVisible, true);
     }
 
-    public virtual void Draw() 
+    public virtual void Draw()
     {
-        TDrawBuffer b = new TDrawBuffer();
+        Span<TScreenChar> row = stackalloc TScreenChar[size.x > 0 ? size.x : 1];
+        TDrawBuffer b = new TDrawBuffer(row);
         b.moveChar(0, ' ', GetColor(1), size.x);
         WriteLine(0, 0, size.x, size.y, b);
     }
@@ -849,7 +850,8 @@ public class TView : TStreamable, IInfo, IDisposable
     public virtual void WriteStr(int x, int y, string str, byte color)
     {
         if (string.IsNullOrEmpty(str)) return;
-        var b = new TDrawBuffer();
+        Span<TScreenChar> row = stackalloc TScreenChar[size.x > 0 ? size.x : 1];
+        var b = new TDrawBuffer(row);
         b.moveStr(0, str, color);
         WriteLine(x, y, str.Length, 1, b);
     }
@@ -857,7 +859,8 @@ public class TView : TStreamable, IInfo, IDisposable
     public virtual void WriteChar(int x, int y, char c, byte color, int count)
     {
         if (count <= 0) return;
-        var b = new TDrawBuffer();
+        Span<TScreenChar> row = stackalloc TScreenChar[size.x > 0 ? size.x : 1];
+        var b = new TDrawBuffer(row);
         b.moveChar(0, c, color, count);
         WriteLine(x, y, count, 1, b);
     }

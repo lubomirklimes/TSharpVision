@@ -13,6 +13,7 @@ public class TGroup : TView
 
     public ScreenBuffer buffer;
     public byte lockFlag;
+    private bool _bufferFreed;
 
     public TRect clip;
     public phaseType phase;
@@ -409,7 +410,7 @@ public class TGroup : TView
             if ((@event.What & Views.positionalEvents) != 0)
             {
                 TEvent positional = @event;
-                Dispatch(FirstThat((v, _) => v.ContainsMouse(positional), null));
+                Dispatch(FirstThat<TEvent>((v, pos) => v.ContainsMouse(pos), positional));
             }
             else
             {
@@ -550,18 +551,26 @@ public class TGroup : TView
     {
         if ((options & Views.ofBuffered) != 0 && buffer != null)
         {
-            buffer = null;
+            _bufferFreed = true;
         }
     }
-    public void GetBuffer() 
-    { 
+    public void GetBuffer()
+    {
         if ((state & Views.sfExposed) != 0)
             if ((options & Views.ofBuffered) != 0)
             {
                 int sz = Math.Max(size.x * size.y * ScreenBuffer.GetSize(), 0);
-                //TVMemMgr::reallocateDiscardable((void * &)buffer, sz);
-                buffer = new ScreenBuffer(sz);
-            }        
+                if (_bufferFreed && buffer != null && buffer.Size == sz)
+                {
+                    buffer.Clear();
+                    _bufferFreed = false;
+                }
+                else
+                {
+                    buffer = new ScreenBuffer(sz);
+                    _bufferFreed = false;
+                }
+            }
     }
 
     protected TGroup(object streamableInit) : base(StreamableInit.streamableInit) { }

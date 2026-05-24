@@ -19,6 +19,12 @@ public sealed class TSharpVisionConfiguration
     public string? SdlFontName { get; init; }
 
     /// <summary>
+    /// Font point size passed to the SDL driver.
+    /// Null preserves the SDL renderer's default point size.
+    /// </summary>
+    public int? SdlFontSize { get; init; }
+
+    /// <summary>
     /// Two-letter localization language code, e.g. "cs" or "en".
     /// Null preserves the built-in English fallback behavior.
     /// </summary>

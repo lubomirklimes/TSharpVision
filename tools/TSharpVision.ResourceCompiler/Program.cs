@@ -68,7 +68,7 @@ internal static class Program
             return 1;
         }
 
-        Console.WriteLine($"  OK — {result.ItemsEmitted} resource(s) written to '{tvrPath}'.");
+        Console.WriteLine($"  OK - {result.ItemsEmitted} resource(s) written to '{tvrPath}'.");
         return 0;
     }
 

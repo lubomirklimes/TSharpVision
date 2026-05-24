@@ -54,6 +54,7 @@ public static class TSharpVisionConfigurationLoader
             {
                 DriverName  = ini.Get("driver", "name"),
                 SdlFontName = ini.Get("sdl",    "fontName"),
+                SdlFontSize = ParseNullablePositiveInt(ini.Get("sdl", "fontSize")),
                 Language    = ini.Get("localization", "language"),
             };
         }
@@ -62,5 +63,18 @@ public static class TSharpVisionConfigurationLoader
             Console.Error.WriteLine($"Warning: failed to read config '{path}': {ex.Message}");
             return new TSharpVisionConfiguration();
         }
+    }
+
+    private static int? ParseNullablePositiveInt(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+
+        if (int.TryParse(value, out int parsed) && parsed > 0)
+            return parsed;
+
+        Console.Error.WriteLine(
+            $"Warning: ignoring invalid [sdl] fontSize value '{value}'.");
+        return null;
     }
 }

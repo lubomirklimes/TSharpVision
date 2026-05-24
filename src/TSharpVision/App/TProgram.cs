@@ -62,8 +62,6 @@ public class TProgram : TGroup
         LastIdleClock = Environment.TickCount;
     }
 
-    private static readonly string exitText = "Exit";
-
     public TProgram()
         : base(new TRect(0, 0, TScreen.ScreenWidth, TScreen.ScreenHeight))
     {

@@ -25,7 +25,8 @@ public class TIndicator : TView
     {
         ushort color;
         char frame;
-        var b = new TDrawBuffer();
+        Span<TScreenChar> row = stackalloc TScreenChar[size.x > 0 ? size.x : 1];
+        var b = new TDrawBuffer(row);
 
         // NB: upstream really does select dragFrame when sfDragging is OFF
         // (and normalFrame when ON). The constants are named for the action

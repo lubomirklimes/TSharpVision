@@ -5,6 +5,16 @@ namespace TSharpVision;
 /// </summary>
 public static class KeyText
 {
+    private static readonly string[] CharTextCache = CreateCharTextCache();
+
+    private static string[] CreateCharTextCache()
+    {
+        var cache = new string[256];
+        for (int i = 0; i < cache.Length; i++)
+            cache[i] = ((char)i).ToString();
+        return cache;
+    }
+
     public static string PrintableText(in KeyDownEvent keyDown, bool includeTab = false, bool extendedLegacy = true)
     {
         if (!string.IsNullOrEmpty(keyDown.text))
@@ -15,7 +25,7 @@ public static class KeyText
             return "\t";
 
         if (ch >= 32 && (extendedLegacy ? ch < 255 : ch < 127))
-            return ((char)ch).ToString();
+            return CharTextCache[ch];
 
         return string.Empty;
     }

@@ -46,15 +46,13 @@ public class TInputLine : TView
 
     public override void Draw()
     {
-        var b = new TDrawBuffer();
+        Span<TScreenChar> row = stackalloc TScreenChar[size.x > 0 ? size.x : 1];
+        var b = new TDrawBuffer(row);
         ushort color = (state & Views.sfFocused) != 0 ? GetColor(2) : GetColor(1);
         b.moveChar(0, ' ', color, size.x);
         int avail = Math.Min(size.x - 2, Math.Max(0, Data.Length - FirstPos));
         if (avail > 0)
-        {
-            string buf = Data.Substring(FirstPos, avail);
-            b.moveStr(1, buf, color);
-        }
+            b.moveStr(1, Data, color, avail, FirstPos);
         if (CanScroll(1)) b.moveChar((ushort)(size.x - 1), '>', GetColor(4), 1);
         if (CanScroll(-1)) b.moveChar(0, '<', GetColor(4), 1);
         if ((state & Views.sfSelected) != 0)
@@ -99,7 +97,7 @@ public class TInputLine : TView
     {
         if (SelStart < SelEnd)
         {
-            Data = Data.Substring(0, SelStart) + Data.Substring(SelEnd);
+            Data = string.Concat(Data.AsSpan(0, SelStart), Data.AsSpan(SelEnd));
             CurPos = SelStart;
         }
     }
@@ -113,7 +111,7 @@ public class TInputLine : TView
         {
             if (l < MaxLen)
             {
-                Data = Data.Substring(0, CurPos) + value + Data.Substring(CurPos);
+                Data = string.Concat(Data.AsSpan(0, CurPos), stackalloc char[1] { value }, Data.AsSpan(CurPos));
                 if (FirstPos > CurPos) FirstPos = CurPos;
                 CurPos++;
             }
@@ -123,9 +121,9 @@ public class TInputLine : TView
             if (CurPos < MaxLen)
             {
                 if (CurPos < Data.Length)
-                    Data = Data.Substring(0, CurPos) + value + Data.Substring(CurPos + 1);
+                    Data = string.Concat(Data.AsSpan(0, CurPos), stackalloc char[1] { value }, Data.AsSpan(CurPos + 1));
                 else
-                    Data = Data + value;
+                    Data = string.Concat(Data.AsSpan(), stackalloc char[1] { value });
                 if (FirstPos > CurPos) FirstPos = CurPos;
                 CurPos++;
             }
@@ -249,7 +247,7 @@ public class TInputLine : TView
                     case Keys.kbBack:
                         if (CurPos > 0)
                         {
-                            Data = Data.Substring(0, CurPos - 1) + Data.Substring(CurPos);
+                            Data = string.Concat(Data.AsSpan(0, CurPos - 1), Data.AsSpan(CurPos));
                             CurPos--;
                             if (FirstPos > 0) FirstPos--;
                         }

@@ -27,7 +27,8 @@ public class TColorDisplay : TView
         byte c = (_data != null) ? _data[_offset] : (byte)0;
         if (c == 0) c = errorAttr;
         int len = _text.Length;
-        var b = new TDrawBuffer();
+        Span<TScreenChar> row = stackalloc TScreenChar[size.x > 0 ? size.x : 1];
+        var b = new TDrawBuffer(row);
         if (len > 0)
             for (int i = 0; i <= size.x / len; i++)
                 b.moveStr(i * len, _text, c);

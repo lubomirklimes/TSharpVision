@@ -22,6 +22,13 @@ public class ScreenDriverFactory
     /// </summary>
     public static string? ConfiguredSdlFontName { get; set; }
 
+    /// <summary>
+    /// Font point size supplied by configuration for the SDL driver.
+    /// Read by the SDL driver during <c>Initialize()</c>.
+    /// Set this before the first <see cref="CreateScreenDriver"/> call.
+    /// </summary>
+    public static int? ConfiguredSdlFontSize { get; set; }
+
     //static ScreenDriverFactory()
     //{
     //    // Get the current directory

@@ -65,7 +65,8 @@ public class TScrollBar : TView
 
     public virtual void DrawPos(int pos)
     {
-        TDrawBuffer b = new TDrawBuffer();
+        Span<TScreenChar> row = stackalloc TScreenChar[GetSize()];
+        TDrawBuffer b = new TDrawBuffer(row);
         char[] aChars = (size.x == 1) ? vChars : hChars;
 
         int s = GetSize() - 1;

@@ -15,6 +15,8 @@ public class ScreenBuffer
 
     public Span<TScreenChar> Data => _buffer;
 
+    public int Size => _buffer.Length;
+
     public ScreenBuffer(int size)
     {
         _buffer = new TScreenChar[size];
@@ -33,7 +35,7 @@ public class ScreenBuffer
     public static int GetSize()
     {
         //return (int)(_width * _height);
-        return 2;
+        return 1;
     }
 
     public TDrawBuffer GetSpan()

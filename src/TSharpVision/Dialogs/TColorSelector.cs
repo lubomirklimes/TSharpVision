@@ -29,7 +29,8 @@ public class TColorSelector : TView
     // icon character filled with raw color attribute c; mark shown in middle.
     public override void Draw()
     {
-        var b = new TDrawBuffer();
+        Span<TScreenChar> row = stackalloc TScreenChar[size.x > 0 ? size.x : 1];
+        var b = new TDrawBuffer(row);
         b.moveChar(0, ' ', 0x70, size.x);   // initialize with gray background
 
         for (int i = 0; i < size.y; i++)

@@ -34,7 +34,7 @@ public class TMemo : TEditor
     {
     }
 
-    public virtual uint DataSize() => bufSize + sizeof(ushort);
+    public override ushort DataSize() => (ushort)(bufSize + sizeof(ushort));
 
     public virtual void GetData(TMemoData data)
     {

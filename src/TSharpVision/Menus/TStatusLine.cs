@@ -7,7 +7,7 @@ public class TStatusLine : TView
 
     static TPalette palette = new TPalette(cpStatusLine, (ushort)(cpStatusLine.Length - 1 ));
 
-    public static readonly string Name = "TStatusLine";
+    public new static readonly string Name = "TStatusLine";
 
     public TStatusItem Items { get; set; }
     public TStatusDef Defs { get; set; }
@@ -288,7 +288,7 @@ public class TStatusLine : TView
         return this;
     }
 
-    public static TStreamable Build() => new TStatusLine(StreamableInit.streamableInit);
+    public new static TStreamable Build() => new TStatusLine(StreamableInit.streamableInit);
 
     public static readonly TStreamableClass StreamableClassTStatusLine =
         new TStreamableClass("TStatusLine", () => new TStatusLine(StreamableInit.streamableInit), 0);

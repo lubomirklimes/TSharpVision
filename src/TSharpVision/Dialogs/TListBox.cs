@@ -54,9 +54,9 @@ public class TListBox : TListViewer
         center = false;
     }
 
-    public virtual ushort DataSize() => 0;
+    public override ushort DataSize() => 0;
 
-    public virtual void GetData(ref object rec)
+    public override void GetData(ref object rec)
     {
         rec = new TListBoxRec { Items = items, Selection = focused };
     }
@@ -77,7 +77,7 @@ public class TListBox : TListViewer
         DrawView();
     }
 
-    public virtual void SetData(object rec)
+    public override void SetData(object rec)
     {
         if (rec is TListBoxRec p)
         {
@@ -110,5 +110,5 @@ public class TListBox : TListViewer
     }
 
     public new static TStreamable Build() { return new TListBox(StreamableInit.streamableInit); }
-    protected virtual string StreamableName() => Name;
+    public override string StreamableName() => Name;
 }

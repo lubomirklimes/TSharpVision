@@ -2,7 +2,7 @@
 
 public class TStaticText : TView
 {
-    public static readonly string Name = "TStaticText";
+    public new static readonly string Name = "TStaticText";
 
     protected string Text;
 

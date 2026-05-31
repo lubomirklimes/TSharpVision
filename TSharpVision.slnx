@@ -28,4 +28,5 @@
   </Folder>
   <Project Path="src/TSharpVision/TSharpVision.csproj" />
   <Project Path="tests/TSharpVision.Tests/TSharpVision.Tests.csproj" />
+  <Project Path="tests/TSharpVision.TestSupport/TSharpVision.TestSupport.csproj" />
 </Solution>

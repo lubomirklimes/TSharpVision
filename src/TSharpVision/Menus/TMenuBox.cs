@@ -4,7 +4,7 @@ namespace TSharpVision;
 // TMenuBox – popup/dropdown menu box created by TMenuView.NewSubView.
 public class TMenuBox : TMenuView
 {
-    public static readonly string Name = "TMenuBox";
+    public new static readonly string Name = "TMenuBox";
 
     // CP437 box-drawing characters for the menu popup frame.
     // Layout (5 chars per row, accessed at offset n):

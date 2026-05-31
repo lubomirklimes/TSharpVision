@@ -50,7 +50,7 @@ public class TDirListBox : TListBox
 
     public override bool IsSelected(int item) => item == cur;
 
-    public TDirCollection List() => _dirs;
+    public new TDirCollection List() => _dirs;
 
     public void UpdateCursorPos()
     {

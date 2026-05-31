@@ -42,7 +42,7 @@ public class TInputLine : TView
         return true;
     }
 
-    public virtual ushort DataSize() => (ushort)(MaxLen + 1);
+    public override ushort DataSize() => (ushort)(MaxLen + 1);
 
     public override void Draw()
     {
@@ -67,7 +67,7 @@ public class TInputLine : TView
         SetCursor(CurPos - FirstPos + 1, 0);
     }
 
-    public virtual void GetData(ref object rec)
+    public override void GetData(ref object rec)
     {
         rec = Data;
     }
@@ -303,7 +303,7 @@ public class TInputLine : TView
         DrawView();
     }
 
-    public virtual void SetData(object rec)
+    public override void SetData(object rec)
     {
         string s = rec switch
         {

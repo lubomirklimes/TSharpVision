@@ -4,7 +4,7 @@ namespace TSharpVision;
 
 public class TGroup : TView
 {
-    public static readonly string Name = "TGroup";
+    public new static readonly string Name = "TGroup";
 
     public TView current;
     public TView last;

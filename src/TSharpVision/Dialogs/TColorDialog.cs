@@ -125,7 +125,7 @@ public class TColorDialog : TDialog
         }
     }
 
-    public virtual int DataSize() => (Pal != null) ? Pal.Data[0] + 1 : 0;
+    public override ushort DataSize() => (ushort)((Pal != null) ? Pal.Data[0] + 1 : 0);
 
     public virtual void GetData(out byte[] rec)
     {

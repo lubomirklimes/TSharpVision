@@ -238,7 +238,7 @@ public class TFileDialog : TDialog, IFileDialogContext
         directory = cur;
     }
 
-    public virtual void SetData(object rec)
+    public override void SetData(object rec)
     {
         if (rec is string s && s.Length > 0 && IsWild(s))
         {

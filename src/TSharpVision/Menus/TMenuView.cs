@@ -7,7 +7,7 @@ public class TMenuView : TView
 
     static TPalette palette = new TPalette(cpMenuView, (ushort)(cpMenuView.Length - 1));
 
-    public static readonly string Name = "TMenuView";
+    public new static readonly string Name = "TMenuView";
     public TMenuView ParentMenu { get; protected set; }
     public TMenu Menu { get; protected set; }
     public TMenuItem Current { get; protected set; }
@@ -523,7 +523,7 @@ public class TMenuView : TView
         return this;
     }
 
-    public static TStreamable Build() => new TMenuView(StreamableInit.streamableInit);
+    public new static TStreamable Build() => new TMenuView(StreamableInit.streamableInit);
 
     public static readonly TStreamableClass StreamableClassTMenuView =
         new TStreamableClass("TMenuView", () => new TMenuView(StreamableInit.streamableInit), 0);

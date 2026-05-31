@@ -2,7 +2,7 @@
 
 public class TParamText : TStaticText
 {
-    public static readonly string Name = "TParamText";
+    public new static readonly string Name = "TParamText";
 
     protected short ParamCount;
     protected object[] ParamList;

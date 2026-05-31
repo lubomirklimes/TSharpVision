@@ -79,7 +79,7 @@ public class TIndicator : TView
     protected TIndicator(StreamableInit init) : base(init) { }
     public override object Read(Ipstream isStream) { base.Read(isStream); return this; }
     public override void Write(Opstream os) { base.Write(os); }
-    public static TStreamable Build() => new TIndicator(StreamableInit.streamableInit);
+    public new static TStreamable Build() => new TIndicator(StreamableInit.streamableInit);
     public static readonly TStreamableClass StreamableClassTIndicator =
         new TStreamableClass("TIndicator", () => new TIndicator(StreamableInit.streamableInit), 0);
 }

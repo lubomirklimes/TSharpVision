@@ -1,4 +1,5 @@
 ﻿using TSharpVision;
+using TSharpVision.Config;
 using System.Reflection;
 
 namespace TSharpVision.Drivers;
@@ -28,6 +29,14 @@ public class ScreenDriverFactory
     /// Set this before the first <see cref="CreateScreenDriver"/> call.
     /// </summary>
     public static int? ConfiguredSdlFontSize { get; set; }
+
+    /// <summary>
+    /// Full configuration loaded by the application at startup.
+    /// Set this before the first <see cref="CreateScreenDriver"/> call.
+    /// GPU drivers use this to read their <c>[sdlgpu]</c> options section
+    /// as a fallback when the corresponding environment variable is not set.
+    /// </summary>
+    public static TSharpVisionConfiguration? Configuration { get; set; }
 
     //static ScreenDriverFactory()
     //{
@@ -123,7 +132,7 @@ public class ScreenDriverFactory
             // Expand friendly config names to internal driver class names.
             if (string.Equals(requested, "sdl", StringComparison.OrdinalIgnoreCase))
             {
-                requested = "SDLDriver";
+                requested = "SDLGpuDriver";
             }
             else if (string.Equals(requested, "console", StringComparison.OrdinalIgnoreCase))
             {

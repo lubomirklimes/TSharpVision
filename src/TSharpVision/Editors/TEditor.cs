@@ -1215,7 +1215,7 @@ public class TEditor : TView
         return this;
     }
 
-    public static TStreamable Build() => new TEditor(StreamableInit.streamableInit);
+    public new static TStreamable Build() => new TEditor(StreamableInit.streamableInit);
     public static readonly TStreamableClass StreamableClassTEditor =
         new TStreamableClass("TEditor", () => new TEditor(StreamableInit.streamableInit), 0);
 }

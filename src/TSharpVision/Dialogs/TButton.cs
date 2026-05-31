@@ -3,7 +3,7 @@ namespace TSharpVision;
 
 public class TButton : TView
 {
-    public static readonly string Name = "TButton";
+    public new static readonly string Name = "TButton";
 
     public string Title { get; protected set; }
     public ushort Command { get; protected set; }

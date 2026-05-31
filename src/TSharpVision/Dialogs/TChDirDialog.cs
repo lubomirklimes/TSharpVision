@@ -75,7 +75,7 @@ public class TChDirDialog : TDialog
         SelectNext(false);
     }
 
-    public virtual uint DataSize() => 0;
+    public override ushort DataSize() => 0;
 
     public override void ShutDown()
     {
@@ -87,7 +87,7 @@ public class TChDirDialog : TDialog
     }
 
     public virtual void GetData(object _) { }
-    public virtual void SetData(object _) { }
+    public override void SetData(object _) { }
 
     public override void HandleEvent(ref TEvent @event)
     {

@@ -3,7 +3,7 @@ namespace TSharpVision;
 
 public class TMenuBar : TMenuView
 {
-    public static readonly string Name = "TMenuBar";
+    public new static readonly string Name = "TMenuBar";
 
     public TMenuBar(TRect bounds, TMenu aMenu) : base(bounds, aMenu, null)
     {

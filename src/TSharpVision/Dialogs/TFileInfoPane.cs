@@ -93,7 +93,7 @@ public class TFileInfoPane : TView
     protected TFileInfoPane(StreamableInit init) : base(init) { }
     public override object Read(Ipstream isStream) { base.Read(isStream); return this; }
     public override void Write(Opstream os) { base.Write(os); }
-    public static TStreamable Build() => new TFileInfoPane(StreamableInit.streamableInit);
+    public new static TStreamable Build() => new TFileInfoPane(StreamableInit.streamableInit);
     public static readonly TStreamableClass StreamableClassTFileInfoPane =
         new TStreamableClass("TFileInfoPane", () => new TFileInfoPane(StreamableInit.streamableInit), 0);
 }

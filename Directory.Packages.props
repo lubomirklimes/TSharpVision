@@ -1,0 +1,25 @@
+<Project>
+  <ItemGroup>
+    <!-- SDL3 -->
+    <PackageVersion Include="SDL3-CS" Version="3.4.10.2" />
+    <PackageVersion Include="SDL3-CS.Linux" Version="3.4.10.2" />
+    <PackageVersion Include="SDL3-CS.Linux.Image" Version="3.4.4.2" />
+    <PackageVersion Include="SDL3-CS.Linux.Shadercross" Version="3.0.0.2" />
+    <PackageVersion Include="SDL3-CS.Linux.TTF" Version="3.2.2.2" />
+    <PackageVersion Include="SDL3-CS.MacOS" Version="3.4.10.2" />
+    <PackageVersion Include="SDL3-CS.MacOS.Image" Version="3.4.4.2" />
+    <PackageVersion Include="SDL3-CS.MacOS.Shadercross" Version="3.0.0.2" />
+    <PackageVersion Include="SDL3-CS.MacOS.TTF" Version="3.2.2.2" />
+    <PackageVersion Include="SDL3-CS.Windows" Version="3.4.10.2" />
+    <PackageVersion Include="SDL3-CS.Windows.Image" Version="3.4.4.2" />
+    <PackageVersion Include="SDL3-CS.Windows.Shadercross" Version="3.0.0.2" />
+    <PackageVersion Include="SDL3-CS.Windows.TTF" Version="3.2.2.2" />
+    <!-- Extensions -->
+    <PackageVersion Include="TextMateSharp" Version="2.0.3" />
+    <!-- Test -->
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.4" />
+    <PackageVersion Include="coverlet.collector" Version="6.0.4" />
+  </ItemGroup>
+</Project>

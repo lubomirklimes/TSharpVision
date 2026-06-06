@@ -1,0 +1,15 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <!-- CS8632: suppressed while nullable migration (waves A–C) is in progress.
+         Affected files already use ? annotations intentionally; the warning fires
+         because the enclosing project still has Nullable=disable. Remove this
+         NoWarn entry project-by-project as each wave completes. -->
+    <NoWarn>$(NoWarn);CS8632</NoWarn>
+  </PropertyGroup>
+</Project>

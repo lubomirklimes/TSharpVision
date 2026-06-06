@@ -1,14 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>disable</Nullable>
-    <AssemblyName>TSharpVision.Terminal</AssemblyName>
-    <RootNamespace>TSharpVision.Terminal</RootNamespace>
-    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
-  </PropertyGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\..\src\TSharpVision\TSharpVision.csproj" />
   </ItemGroup>

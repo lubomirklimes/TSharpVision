@@ -23,10 +23,10 @@ public sealed class TSharpVisionConfigurationLoaderTests : IDisposable
         var config = TSharpVisionConfigurationLoader.LoadFromPath(
             Path.Combine(_tmp.Path, "nonexistent.cfg"));
 
-        Assert.Null(config.DriverName);
-        Assert.Null(config.SdlFontName);
-        Assert.Null(config.SdlFontSize);
-        Assert.Null(config.Language);
+        Assert.Null(config.Driver.Name);
+        Assert.Null(config.Graphics.FontName);
+        Assert.Null(config.Graphics.FontSize);
+        Assert.Null(config.Localization.Language);
     }
 
     // ── Reads [driver] name ────────────────────────────────────────────────
@@ -36,49 +36,49 @@ public sealed class TSharpVisionConfigurationLoaderTests : IDisposable
     {
         string path = WriteCfg(_tmp.Path, "test.cfg", "[driver]\nname=sdl");
         var config = TSharpVisionConfigurationLoader.LoadFromPath(path);
-        Assert.Equal("sdl", config.DriverName);
-        Assert.Null(config.SdlFontName);
-        Assert.Null(config.SdlFontSize);
+        Assert.Equal("sdl", config.Driver.Name);
+        Assert.Null(config.Graphics.FontName);
+        Assert.Null(config.Graphics.FontSize);
     }
 
-    // ── Reads [sdl] fontName ───────────────────────────────────────────────
+    // ── Reads [graphics] fontName ──────────────────────────────────────────
 
     [Fact]
-    public void LoadFromPath_ReadsSdlFontName()
+    public void LoadFromPath_ReadsGraphicsFontName()
     {
         string path = WriteCfg(_tmp.Path, "test.cfg",
-            "[driver]\nname=sdl\n\n[sdl]\nfontName=Cascadia Mono");
+            "[driver]\nname=sdl\n\n[graphics]\nfontName=Cascadia Mono");
         var config = TSharpVisionConfigurationLoader.LoadFromPath(path);
-        Assert.Equal("sdl",           config.DriverName);
-        Assert.Equal("Cascadia Mono", config.SdlFontName);
-        Assert.Null(config.SdlFontSize);
+        Assert.Equal("sdl",           config.Driver.Name);
+        Assert.Equal("Cascadia Mono", config.Graphics.FontName);
+        Assert.Null(config.Graphics.FontSize);
     }
 
     [Fact]
-    public void LoadFromPath_ReadsSdlFontSize()
+    public void LoadFromPath_ReadsGraphicsFontSize()
     {
         string path = WriteCfg(_tmp.Path, "test.cfg",
-            "[driver]\nname=sdl\n\n[sdl]\nfontName=Cascadia Mono\nfontSize=16");
+            "[driver]\nname=sdl\n\n[graphics]\nfontName=Cascadia Mono\nfontSize=16");
         var config = TSharpVisionConfigurationLoader.LoadFromPath(path);
-        Assert.Equal("sdl",           config.DriverName);
-        Assert.Equal("Cascadia Mono", config.SdlFontName);
-        Assert.Equal(16,              config.SdlFontSize);
+        Assert.Equal("sdl",           config.Driver.Name);
+        Assert.Equal("Cascadia Mono", config.Graphics.FontName);
+        Assert.Equal(16,              config.Graphics.FontSize);
     }
 
     [Fact]
-    public void LoadFromPath_InvalidSdlFontSize_ReturnsNull()
+    public void LoadFromPath_InvalidGraphicsFontSize_ReturnsNull()
     {
-        string path = WriteCfg(_tmp.Path, "test.cfg", "[sdl]\nfontSize=large");
+        string path = WriteCfg(_tmp.Path, "test.cfg", "[graphics]\nfontSize=large");
         var config = TSharpVisionConfigurationLoader.LoadFromPath(path);
-        Assert.Null(config.SdlFontSize);
+        Assert.Null(config.Graphics.FontSize);
     }
 
     [Fact]
-    public void LoadFromPath_NonPositiveSdlFontSize_ReturnsNull()
+    public void LoadFromPath_NonPositiveGraphicsFontSize_ReturnsNull()
     {
-        string path = WriteCfg(_tmp.Path, "test.cfg", "[sdl]\nfontSize=0");
+        string path = WriteCfg(_tmp.Path, "test.cfg", "[graphics]\nfontSize=0");
         var config = TSharpVisionConfigurationLoader.LoadFromPath(path);
-        Assert.Null(config.SdlFontSize);
+        Assert.Null(config.Graphics.FontSize);
     }
 
     [Fact]
@@ -86,7 +86,7 @@ public sealed class TSharpVisionConfigurationLoaderTests : IDisposable
     {
         string path = WriteCfg(_tmp.Path, "test.cfg", "[localization]\nlanguage=cs");
         var config = TSharpVisionConfigurationLoader.LoadFromPath(path);
-        Assert.Equal("cs", config.Language);
+        Assert.Equal("cs", config.Localization.Language);
     }
 
     // ── Console driver ─────────────────────────────────────────────────────
@@ -96,9 +96,9 @@ public sealed class TSharpVisionConfigurationLoaderTests : IDisposable
     {
         string path = WriteCfg(_tmp.Path, "test.cfg", "[driver]\nname=console");
         var config = TSharpVisionConfigurationLoader.LoadFromPath(path);
-        Assert.Equal("console", config.DriverName);
-        Assert.Null(config.SdlFontName);
-        Assert.Null(config.SdlFontSize);
+        Assert.Equal("console", config.Driver.Name);
+        Assert.Null(config.Graphics.FontName);
+        Assert.Null(config.Graphics.FontSize);
     }
 
     // ── Case-insensitive section/key matching ──────────────────────────────
@@ -107,11 +107,11 @@ public sealed class TSharpVisionConfigurationLoaderTests : IDisposable
     public void LoadFromPath_CaseInsensitiveSectionAndKey()
     {
         string path = WriteCfg(_tmp.Path, "test.cfg",
-            "[DRIVER]\nNAME=sdl\n[SDL]\nFONTNAME=My Font");
+            "[DRIVER]\nNAME=sdl\n[GRAPHICS]\nFONTNAME=My Font");
         var config = TSharpVisionConfigurationLoader.LoadFromPath(path);
-        Assert.Equal("sdl",     config.DriverName);
-        Assert.Equal("My Font", config.SdlFontName);
-        Assert.Null(config.SdlFontSize);
+        Assert.Equal("sdl",     config.Driver.Name);
+        Assert.Equal("My Font", config.Graphics.FontName);
+        Assert.Null(config.Graphics.FontSize);
     }
 
     // ── Comments and blank lines are ignored ───────────────────────────────
@@ -126,16 +126,38 @@ public sealed class TSharpVisionConfigurationLoaderTests : IDisposable
             [driver]
             name=sdl
 
-            [sdl]
+            [graphics]
             ; font choice
             fontName=Consolas
             """;
 
         string path = WriteCfg(_tmp.Path, "test.cfg", text);
         var config = TSharpVisionConfigurationLoader.LoadFromPath(path);
-        Assert.Equal("sdl",      config.DriverName);
-        Assert.Equal("Consolas", config.SdlFontName);
-        Assert.Null(config.SdlFontSize);
+        Assert.Equal("sdl",      config.Driver.Name);
+        Assert.Equal("Consolas", config.Graphics.FontName);
+        Assert.Null(config.Graphics.FontSize);
+    }
+
+    // ── RawSections exposes all sections ──────────────────────────────────
+
+    [Fact]
+    public void LoadFromPath_ExposesRawSections()
+    {
+        string path = WriteCfg(_tmp.Path, "test.cfg",
+            "[driver]\nname=sdl\n\n[sdl]\npresentMode=vsync\nbackend=vulkan");
+        var config = TSharpVisionConfigurationLoader.LoadFromPath(path);
+
+        Assert.True(config.RawSections.ContainsKey("sdl"));
+        Assert.Equal("vsync",  config.GetRawSection("sdl")!["presentMode"]);
+        Assert.Equal("vulkan", config.GetRawSection("sdl")!["backend"]);
+    }
+
+    [Fact]
+    public void LoadFromPath_GetRawSection_ReturnsNullForMissingSection()
+    {
+        string path = WriteCfg(_tmp.Path, "test.cfg", "[driver]\nname=sdl");
+        var config = TSharpVisionConfigurationLoader.LoadFromPath(path);
+        Assert.Null(config.GetRawSection("sdl"));
     }
 
     // ── ResolveConfigPath ──────────────────────────────────────────────────
@@ -143,8 +165,6 @@ public sealed class TSharpVisionConfigurationLoaderTests : IDisposable
     [Fact]
     public void ResolveConfigPath_ReturnsNonNullPath()
     {
-        // In a test process, GetEntryAssembly() is usually non-null.
-        // We just verify the returned path ends with .cfg.
         string? path = TSharpVisionConfigurationLoader.ResolveConfigPath();
         if (path != null)
             Assert.EndsWith(".cfg", path, StringComparison.OrdinalIgnoreCase);

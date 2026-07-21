@@ -5,7 +5,7 @@ using TSharpVision.Constants;
 using TSharpVision.Drivers.SDL;
 using Xunit;
 
-namespace TSharpVision.Tests.Drivers;
+namespace TSharpVision.Drivers.SDL.Tests;
 
 public sealed class SdlTextInputAndCursorTests
 {
@@ -14,8 +14,6 @@ public sealed class SdlTextInputAndCursorTests
     [Fact]
     public void TextInput_LowercaseA_ProducesLowercaseA()
     {
-        // The SDL driver receives SDL_TEXTINPUT "a" and calls TryTranslate with
-        // the textChar from the event. The key translator must produce 'a'.
         bool ok = SdlKeyTranslator.TryTranslate('a', 0, 'a', out var ev);
         Assert.True(ok);
         Assert.Equal(Events.evKeyDown, ev.What);

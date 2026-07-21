@@ -65,6 +65,10 @@ public class TProgram : TGroup
     public TProgram()
         : base(new TRect(0, 0, TScreen.ScreenWidth, TScreen.ScreenHeight))
     {
+        // The thread that builds the program owns the screen and runs the event loop, so it
+        // is the thread posted events are delivered on.
+        TEventQueue.ClaimUiThread();
+
         Application = this;
         InitScreen();
         state = Views.sfVisible | Views.sfSelected | Views.sfFocused | Views.sfModal | Views.sfExposed;
@@ -101,6 +105,12 @@ public class TProgram : TGroup
     public override void GetEvent(ref TEvent @event)
     {
         TScreen.driver.PumpMessages();
+
+        // One posted event per pass. Every loop reaches this method through the owner chain,
+        // including the nested one a modal view runs via TGroup.ExecView, so a post always
+        // gets delivered straight to its target no matter who currently owns dispatch.
+        // Taking only one keeps posts and input from starving each other.
+        TEventQueue.DeliverPostedEvent();
 
         if (Pending.What != Events.evNothing)
         {
@@ -180,6 +190,15 @@ public class TProgram : TGroup
             }
         }
 
+        // Track help window closure: when the non-modal help window is closed it
+        // broadcasts cmClosingWindow so we can clear the reference.
+        if (@event.What == Events.evBroadcast
+            && @event.message.command == Views.cmClosingWindow
+            && ReferenceEquals(@event.message.infoPtr, _helpWindow))
+        {
+            _helpWindow = null;
+        }
+
         base.HandleEvent(ref @event);
 
         if (@event.What == Events.evCommand)
@@ -191,31 +210,28 @@ public class TProgram : TGroup
                 return;
             }
 
-            // application-level cmHelp dispatch. The viewer window is built
-            // lazily via the virtual GetHelpFile() hook and run modally over
-            // the desktop with the current focused help context. The static
-            // `helpInUse` guard matches upstream's reentrancy interlock.
-            // The actual modal exec is delegated to ExecuteHelp so subclasses
-            // can intercept without reimplementing the dispatch above.
-            if (@event.message.command == Views.cmHelp && !_helpInUse)
+            // application-level cmHelp dispatch. The viewer window is inserted
+            // non-modally into the desktop so the user can keep it open while
+            // working in other windows. If a help window is already open it is
+            // brought to the front instead of opening a second one.
+            if (@event.message.command == Views.cmHelp)
             {
-                var hf = GetHelpFile();
-                if (hf != null)
+                if (_helpWindow != null)
                 {
-                    _helpInUse = true;
-                    try
+                    _helpWindow.Select();
+                }
+                else
+                {
+                    var hf = GetHelpFile();
+                    if (hf != null)
                     {
                         var helpCtxNow = GetHelpCtx();
                         var window = new THelpWindow(hf, helpCtxNow);
                         if (ValidView(window) != null)
                             ExecuteHelp(window);
                     }
-                    finally
-                    {
-                        _helpInUse = false;
-                    }
-                    ClearEvent(ref @event);
                 }
+                ClearEvent(ref @event);
             }
         }
     }
@@ -224,15 +240,18 @@ public class TProgram : TGroup
     // cmHelp dispatch above. Subclasses override to bind a THelpFile.
     public virtual THelpFile GetHelpFile() => null;
 
-    // runs the help window modally over the desktop. Split out so smoke tests can intercept the
-    // modal phase without rebuilding the cmHelp dispatch logic above.
+    // inserts the help window non-modally into the desktop. Split out so smoke
+    // tests can intercept this step without reimplementing the cmHelp dispatch.
     protected virtual void ExecuteHelp(THelpWindow window)
     {
         if (DeskTop != null)
-            DeskTop.ExecView(window);
+        {
+            DeskTop.Insert(window);
+            _helpWindow = window;
+        }
     }
 
-    private static bool _helpInUse;
+    private static THelpWindow? _helpWindow;
 
     public virtual void Idle()
     {
@@ -282,7 +301,11 @@ public class TProgram : TGroup
 
     public override void PutEvent(ref TEvent ev) { Pending = ev; }
 
-    public virtual void Run() { Execute(); }
+    public virtual void Run()
+    {
+        TEventQueue.ClaimUiThread();
+        Execute();
+    }
 
     // Host console resize handler.
     // Called when TProgram.HandleEvent receives cmScreenResized.
@@ -340,12 +363,24 @@ public class TProgram : TGroup
         return p;
     }
 
+    private bool _shutDown;
+
+    /// <summary>The root view has no owner, so it stays a valid post target until shutdown.</summary>
+    internal override bool CanReceivePostedEvents => !_shutDown;
+
     public override void ShutDown()
     {
+        _shutDown = true;
+
         StatusLine = null;
         MenuBar = null;
         DeskTop = null;
         base.ShutDown();
+
+        // After base.ShutDown every view of this program is detached, so its pending posts
+        // are the undeliverable ones. Dropping them releases the view tree without touching
+        // posts that belong to another live application — the post queue is process-wide.
+        TEventQueue.DropUndeliverablePosts();
     }
 
     public virtual void Suspend() { }

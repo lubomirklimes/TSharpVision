@@ -47,4 +47,10 @@ public interface IDriver
     // ---- capability flags ---------------------------------------------
     bool SupportsMouse { get; }
     bool SupportsTrueColor { get; }
+
+    /// <summary>
+    /// True for graphical (windowed) drivers such as SDL.
+    /// False for text-mode drivers (console, terminal).
+    /// </summary>
+    bool SupportsGraphics { get; }
 }

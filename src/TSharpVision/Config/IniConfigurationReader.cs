@@ -69,4 +69,16 @@ public sealed class IniConfigurationReader
             return value;
         return null;
     }
+
+    /// <summary>
+    /// Returns all parsed sections as a read-only dictionary of dictionaries.
+    /// Both section names and keys are case-insensitive.
+    /// </summary>
+    public IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> GetAllSections()
+    {
+        var result = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var kvp in _sections)
+            result[kvp.Key] = kvp.Value;
+        return result;
+    }
 }

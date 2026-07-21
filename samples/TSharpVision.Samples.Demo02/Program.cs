@@ -1,4 +1,4 @@
-﻿// TSharpVision.Demo01
+// TSharpVision.Demo01
 //
 // Run on Windows: dotnet run --project TSharpVision.Samples.HelpDemo
 // The Win32ConsoleDriver is auto-discovered from TSharpVision.Console.dll
@@ -924,15 +924,6 @@ internal class Program
 {
     static int Main(string[] args)
     {
-        // StreamableRegistration ensures all streamable types are available if
-        // any stream/resource code path is exercised (defensive, same pattern as Demo01).
-        StreamableRegistration.RegisterAll();
-
-        // Load configuration before the driver is initialized.
-        var config = TSharpVisionConfigurationLoader.Load();
-        ScreenDriverFactory.ConfiguredDriverName = config.DriverName;
-        ScreenDriverFactory.ConfiguredSdlFontName = config.SdlFontName;
-
-        return AppLifecycleGuard.Run(new TVDemoApp());
+        return TSharpVisionRuntime.Run(() => new TVDemoApp());
     }
 }

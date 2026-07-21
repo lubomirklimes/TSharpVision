@@ -90,6 +90,7 @@ public sealed class NullDriver : IDriver
         return false;
     }
 
-    public bool SupportsMouse => false;
+    public bool SupportsMouse    => false;
     public bool SupportsTrueColor => false;
+    public bool SupportsGraphics  => false;
 }

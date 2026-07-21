@@ -33,8 +33,24 @@ public class THelpWindow : TWindow
     public THelpWindow(THelpFile hFile, ushort context)
         : base(new TRect(0, 0, 50, 18), helpWinTitle, Views.wnNoNumber)
     {
-        var r = new TRect(0, 0, 50, 18);
+        state &= unchecked((ushort)~Views.sfShadow);
         options |= Views.ofCentered;
+        var r = new TRect(0, 0, 50, 18);
+        r.Grow(-2, -1);
+        Insert(new THelpViewer(r,
+            StandardScrollBar((ushort)(Views.sbHorizontal | Views.sbHandleKeyboard)),
+            StandardScrollBar((ushort)(Views.sbVertical | Views.sbHandleKeyboard)),
+            hFile, context));
+    }
+
+    /// <summary>Non-centred help window with explicit bounds — used for IDE startup layout.</summary>
+    public THelpWindow(TRect bounds, THelpFile hFile, ushort context)
+        : base(bounds, helpWinTitle, Views.wnNoNumber)
+    {
+        state &= unchecked((ushort)~Views.sfShadow);
+        flags = (byte)(Views.wfClose | Views.wfMove | Views.wfZoom);
+        options |= Views.ofTileable;
+        var r = GetExtent();
         r.Grow(-2, -1);
         Insert(new THelpViewer(r,
             StandardScrollBar((ushort)(Views.sbHorizontal | Views.sbHandleKeyboard)),

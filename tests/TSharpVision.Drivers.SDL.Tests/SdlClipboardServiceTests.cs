@@ -3,7 +3,7 @@
 using TSharpVision.Drivers.SDL;
 using Xunit;
 
-namespace TSharpVision.Tests.Drivers;
+namespace TSharpVision.Drivers.SDL.Tests;
 
 public sealed class SdlClipboardServiceTests
 {

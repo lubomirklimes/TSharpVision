@@ -20,14 +20,7 @@ internal static class Program
 {
     private static int Main(string[] args)
     {
-        StreamableRegistration.RegisterAll();
-
-        var config = TSharpVisionConfigurationLoader.Load();
-        ScreenDriverFactory.ConfiguredDriverName = config.DriverName;
-        ScreenDriverFactory.ConfiguredSdlFontName = config.SdlFontName;
-
-        var app = new TVIntlApp();
-        return AppLifecycleGuard.Run(app);
+        return TSharpVisionRuntime.Run(() => new TVIntlApp());
     }
 }
 

@@ -18,11 +18,12 @@ public class TView : TStreamable, IInfo, IDisposable
     public ushort helpCtx;
     public static bool commandSetChanged;
 
+    // Every command code is enabled by default; the window commands below start disabled
+    // and are enabled by TWindow.SetState when a window becomes selected.
     private static TCommandSet InitCommands()
     {
         TCommandSet temp = new TCommandSet();
-        for (int i = 0; i < 256; i++)
-            temp.EnableCmd(i);
+        temp.EnableAll();
         temp.DisableCmd(Views.cmZoom);
         temp.DisableCmd(Views.cmClose);
         temp.DisableCmd(Views.cmResize);
@@ -555,18 +556,21 @@ public class TView : TStreamable, IInfo, IDisposable
 
     public static bool CommandEnabled(ushort command)
     {
-        return ((command > 255) || curCommandSet.Has(command));
+        return curCommandSet.Has(command);
     }
 
     public static void DisableCommands(TCommandSet commands)
     {
-        commandSetChanged = commandSetChanged || !((curCommandSet & commands).IsEmpty());
+        // Intersects/IsSupersetOf answer the same questions as the previous
+        // !(cur & commands).IsEmpty() / !cur.Equals(cur | commands) expressions without
+        // allocating a temporary set on every call.
+        commandSetChanged = commandSetChanged || curCommandSet.Intersects(commands);
         curCommandSet.Remove(commands);
     }
 
     public static void EnableCommands(TCommandSet commands)
     {
-        commandSetChanged = commandSetChanged || !curCommandSet.Equals(curCommandSet | commands);
+        commandSetChanged = commandSetChanged || !curCommandSet.IsSupersetOf(commands);
         curCommandSet.Add(commands);
     }
 
@@ -584,11 +588,11 @@ public class TView : TStreamable, IInfo, IDisposable
 
     public static void GetCommands(TCommandSet commands)
     {
-        // upstream copies into out param; we mutate in place
-        for (ushort c = 0; c < 256; c++)
-        {
-            if (curCommandSet.Has(c)) commands.EnableCmd(c); else commands.DisableCmd(c);
-        }
+        // upstream copies into out param; we mutate in place.
+        // The copy must span the whole command range: TGroup.ExecView saves the command set
+        // here and restores it with SetCommands, so a partial copy would silently drop the
+        // state of any command outside the copied range.
+        commands.CopyFrom(curCommandSet);
     }
 
     public static void SetCommands(TCommandSet commands)
@@ -872,6 +876,33 @@ public class TView : TStreamable, IInfo, IDisposable
         else if (owner != null)
             owner.SetCurrent(this, selectMode.normalSelect);
     }
+
+    /// <summary>
+    /// Queues <paramref name="command"/> for delivery to this view, later, on the event-loop
+    /// thread.
+    ///
+    /// <b>Safe to call from any thread</b> — this is the way work finishing on a worker hands
+    /// its result back to a view. The view's <see cref="HandleEvent"/> is invoked on the
+    /// event-loop thread with an <c>evCommand</c> carrying <paramref name="command"/> and
+    /// <paramref name="info"/>; nothing about the view is touched on the calling thread.
+    ///
+    /// Unlike <see cref="PutEvent(ref TEvent)"/>, which feeds an event into the queue for
+    /// whichever group currently owns the loop, a post names its target. It therefore reaches
+    /// this view even while a modal view is executing through <see cref="TGroup.ExecView"/>,
+    /// and that modal view never sees it.
+    ///
+    /// Posts are delivered in the order they were made, one per pass of the event loop, and
+    /// are discarded if this view has left the view tree by the time its turn comes.
+    /// </summary>
+    public void Post(ushort command, IInfo? info = null)
+        => TEventQueue.Post(this, command, info);
+
+    /// <summary>
+    /// Whether a posted event should still be delivered to this view. A view that has been
+    /// removed from its owner is no longer part of the interface, so pending posts for it are
+    /// dropped. <see cref="TProgram"/> overrides this: it is the root and has no owner.
+    /// </summary>
+    internal virtual bool CanReceivePostedEvents => owner != null;
 
     // Convenience overload mirroring upstream putEvent(what,command,infoPtr).
     public void PutEvent(ushort what, ushort command, IInfo? infoPtr)

@@ -100,9 +100,11 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
     private bool _installedClipboardService;
     private readonly Queue<TEvent> _pendingKeys = new();
     private readonly List<byte> _pendingBytes = new(64);
+    private readonly System.Text.StringBuilder _writeBuilder = new(4096);
 
     public bool SupportsMouse    => true;
     public bool SupportsTrueColor => true;
+    public bool SupportsGraphics  => false;
 
     public void Initialize()
     {
@@ -158,6 +160,10 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
             }
 
             _attached = true;
+
+            if (ScreenDriverFactory.WindowTitle is { } title)
+                Write($"\x1b]0;{title}\x07");
+
             ClipboardService.Current = new TerminalClipboardService();
             _installedClipboardService = true;
         }
@@ -259,12 +265,14 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
     public void WriteBuf(int x, int y, int w, int h, Span<TScreenChar> buf)
     {
         if (!_attached || w <= 0 || h <= 0) return;
-        var sb = new System.Text.StringBuilder(w * h + 32);
+        var sb = _writeBuilder;
+        sb.Clear();
+        sb.EnsureCapacity(Math.Min(Math.Max(w * h + 32, 256), 64 * 1024));
         TColorAttr lastAttr = default;
         bool first = true;
         for (int row = 0; row < h; row++)
         {
-            sb.Append($"\x1b[{y + row + 1};{x + 1}H");
+            AppendCaretPosition(sb, x, y + row);
             for (int col = 0; col < w; col++)
             {
                 var sc = buf[row * w + col];
@@ -373,18 +381,35 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
     private static void Write(string s) => Console.Write(s);
 
     private void AppendCaretPosition(System.Text.StringBuilder sb)
-        => sb.Append($"\x1b[{_caretY + 1};{_caretX + 1}H");
+        => AppendCaretPosition(sb, _caretX, _caretY);
+
+    private static void AppendCaretPosition(System.Text.StringBuilder sb, int x, int y)
+    {
+        // CSI rows/columns are 1-based.
+        sb.Append("\x1b[");
+        sb.Append(y + 1);
+        sb.Append(';');
+        sb.Append(x + 1);
+        sb.Append('H');
+    }
 
     /// <summary>
     /// Translate a tvision <see cref="TColorAttr"/> (FG nibble | BG nibble)
     /// into an SGR escape sequence using the same VGA palette as the SDL driver.
     /// </summary>
     public static string AttrToSgr(TColorAttr attr)
+        => SgrCache[(byte)attr];
+
+    private static string[] BuildSgrCache()
     {
-        byte raw = (byte)attr;
-        int fg = raw & 0x0F;
-        int bg = (raw >> 4) & 0x0F;
-        return $"\x1b[0;{VgaToSgr(fg, background: false)};{VgaToSgr(bg, background: true)}m";
+        var cache = new string[256];
+        for (int raw = 0; raw < cache.Length; raw++)
+        {
+            int fg = raw & 0x0F;
+            int bg = (raw >> 4) & 0x0F;
+            cache[raw] = $"\x1b[0;{VgaToSgr(fg, background: false)};{VgaToSgr(bg, background: true)}m";
+        }
+        return cache;
     }
 
     private static string VgaToSgr(int color, bool background)
@@ -418,4 +443,6 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
         0xFFFFFF55, // 14 Yellow
         0xFFFFFFFF, // 15 White
     };
+
+    private static readonly string[] SgrCache = BuildSgrCache();
 }

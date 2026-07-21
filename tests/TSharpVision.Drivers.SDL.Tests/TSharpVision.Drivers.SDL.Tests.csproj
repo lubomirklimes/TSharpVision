@@ -24,6 +24,9 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\TSharpVision.Drivers.SDL\TSharpVision.Drivers.SDL.csproj" />
     <ProjectReference Include="..\..\src\TSharpVision\TSharpVision.csproj" />
+    <!-- Covers the headless diagnostic tool's stroke-size selection logic, which is pure and
+         SDL-free. Referencing the tool keeps that logic in one place instead of duplicating it. -->
+    <ProjectReference Include="..\..\diagnostics\TSharpVision.Diagnostics.SdlGlyphs\TSharpVision.Diagnostics.SdlGlyphs.csproj" />
   </ItemGroup>
 
 </Project>

@@ -21,10 +21,8 @@ public class TScreen : TDisplay
         ScreenBuffer = driver.AllocateScreenBuffer();
     }
 
-    ~TScreen() 
-    {
-        Dispose(disposing: false);
-    }
+    // No finalizer: TScreen owns no unmanaged resource, and Suspend() drives the shared
+    // driver, which a finalizer must not do — see Dispose below.
 
     public static void SetVideoMode(ushort mode)
     {
@@ -73,13 +71,20 @@ public class TScreen : TDisplay
 
     private bool _suspendedOnDispose;
 
+    /// <summary>
+    /// Restores the startup screen mode and cursor. That drives <see cref="TDisplay.driver"/>,
+    /// which is process-wide and may belong to another live application, so it only happens on
+    /// a deterministic <see cref="TDisplay.Dispose()"/> call — never from a finalizer.
+    /// Idempotent: suspending twice would fight whoever resumed in between.
+    /// </summary>
     protected override void Dispose(bool disposing)
     {
-        if (!_suspendedOnDispose)
+        if (disposing && !_suspendedOnDispose)
         {
             _suspendedOnDispose = true;
             Suspend();
         }
+
         base.Dispose(disposing);
     }
 

@@ -170,6 +170,13 @@ public class TTerminal : TView
         }
     }
 
+    /// <summary>
+    /// Applies a custom ANSI→VGA color map to this terminal's parser.
+    /// Takes effect immediately for all subsequent output.
+    /// See <see cref="AnsiTerminalParser.ApplyColorMap"/> for the map format.
+    /// </summary>
+    public void ApplyColorMap(byte[] map16) => _parser.ApplyColorMap(map16);
+
     public int MaxLines
     {
         get => _maxLines;

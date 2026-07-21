@@ -1,32 +1,34 @@
 namespace TSharpVision.Config;
 
 /// <summary>
-/// Minimal configuration model loaded from a .cfg file.
-/// Null values mean "not set" — use existing default behavior.
+/// Runtime configuration for TSharpVision loaded from .cfg files.
+///
+/// Core sections (<see cref="Driver"/>, <see cref="Graphics"/>, <see cref="Localization"/>)
+/// are typed and owned by the core assembly.
+///
+/// Driver-specific sections (e.g. <c>[sdl]</c>) are exposed as raw key/value pairs
+/// via <see cref="RawSections"/> and bound to typed objects through
+/// <see cref="TSharpVision.Drivers.ScreenDriverFactory.RegisterConfigSection{T}"/>.
 /// </summary>
 public sealed class TSharpVisionConfiguration
 {
-    /// <summary>
-    /// Driver to use: "sdl", "console", or a driver class name.
-    /// Null preserves automatic driver selection.
-    /// </summary>
-    public string? DriverName { get; init; }
+    /// <summary>Typed <c>[driver]</c> section — used by core to select the screen driver.</summary>
+    public DriverConfiguration Driver { get; init; } = new();
+
+    /// <summary>Typed <c>[graphics]</c> section — font settings shared by all graphical drivers.</summary>
+    public GraphicsDriverConfiguration Graphics { get; init; } = new();
+
+    /// <summary>Typed <c>[localization]</c> section.</summary>
+    public LocalizationConfiguration Localization { get; init; } = new();
 
     /// <summary>
-    /// Font family name passed to the SDL driver (e.g. "Cascadia Mono").
-    /// Null preserves the SDL driver's default font probing.
+    /// All raw sections parsed from the .cfg file (case-insensitive section and key names).
+    /// Driver assemblies use this to bind their own <see cref="IConfigurationSection"/> instances.
     /// </summary>
-    public string? SdlFontName { get; init; }
+    public IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> RawSections { get; init; }
+        = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>
-    /// Font point size passed to the SDL driver.
-    /// Null preserves the SDL renderer's default point size.
-    /// </summary>
-    public int? SdlFontSize { get; init; }
-
-    /// <summary>
-    /// Two-letter localization language code, e.g. "cs" or "en".
-    /// Null preserves the built-in English fallback behavior.
-    /// </summary>
-    public string? Language { get; init; }
+    /// <summary>Returns the raw key/value pairs for <paramref name="section"/>, or null if absent.</summary>
+    public IReadOnlyDictionary<string, string>? GetRawSection(string section)
+        => RawSections.TryGetValue(section, out var s) ? s : null;
 }

@@ -21,16 +21,16 @@ public sealed class NullDriverEventTests : IDisposable
     [Fact]
     public void Factory_HonorsNullDriverEnvVar()
     {
-        var saved = Environment.GetEnvironmentVariable("TSharpVision_DRIVER");
+        var saved = Environment.GetEnvironmentVariable("TSHARPVISION_DRIVER");
         try
         {
-            Environment.SetEnvironmentVariable("TSharpVision_DRIVER", "NullDriver");
+            Environment.SetEnvironmentVariable("TSHARPVISION_DRIVER", "NullDriver");
             var d = ScreenDriverFactory.CreateScreenDriver();
             Assert.IsType<NullDriver>(d);
         }
         finally
         {
-            Environment.SetEnvironmentVariable("TSharpVision_DRIVER", saved);
+            Environment.SetEnvironmentVariable("TSHARPVISION_DRIVER", saved);
         }
     }
 

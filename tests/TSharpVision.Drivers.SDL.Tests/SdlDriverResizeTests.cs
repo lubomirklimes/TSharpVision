@@ -1,9 +1,9 @@
 // SDL driver resize tests.
-// All tests run headless (TSHARPVISION_NO_SDL=1) or use pure static helpers.
+// All tests run headless (TSharpVision_NO_SDL=1) or use pure static helpers.
 using TSharpVision.Drivers.SDL;
 using Xunit;
 
-namespace TSharpVision.Tests.Drivers;
+namespace TSharpVision.Drivers.SDL.Tests;
 
 public sealed class SdlDriverResizeTests
 {
@@ -67,7 +67,7 @@ public sealed class SdlDriverResizeTests
         Assert.Equal(37, new SDLDriver().GetRows());
     }
 
-    // ── SDLDriver headless: lifecycle still works after adding resize fields ──
+    // ── SDLDriver headless: grid stays at defaults ────────────────────────
 
     [Fact]
     public void SDLDriver_HeadlessInitShutdown_GridStable()

@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>TSharpVision.Diagnostics.SdlGlyphs</RootNamespace>
+    <AssemblyName>TSharpVision.Diagnostics.SdlGlyphs</AssemblyName>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!-- Glyph generation, geometry, checks, font lookup and font metrics all come from the
+       production SDL driver assembly. This tool adds only presentation: scene layout,
+       colour compositing, BMP writing and the CLI. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="TSharpVision.Drivers.SDL.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\TSharpVision.Drivers.SDL\TSharpVision.Drivers.SDL.csproj" />
+    <ProjectReference Include="..\..\src\TSharpVision\TSharpVision.csproj" />
+  </ItemGroup>
+
+</Project>

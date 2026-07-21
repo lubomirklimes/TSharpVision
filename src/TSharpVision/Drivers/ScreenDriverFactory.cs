@@ -1,4 +1,4 @@
-﻿using TSharpVision;
+using TSharpVision;
 using TSharpVision.Config;
 using System.Reflection;
 
@@ -7,59 +7,68 @@ namespace TSharpVision.Drivers;
 public class ScreenDriverFactory
 {
     private static readonly Type[] DriverTypes;
+    private static TSharpVisionConfiguration? _configuration;
+    private static readonly Dictionary<Type, IConfigurationSection> _registeredSections = new();
 
     /// <summary>
-    /// Driver name supplied by configuration (e.g. "sdl", "console").
-    /// Supports the same friendly names as <c>[driver] name</c> in a .cfg file.
-    /// The <c>TSHARPVISION_DRIVER</c> environment variable takes precedence.
-    /// Set this before the first <see cref="CreateScreenDriver"/> call.
+    /// Application window / console title set at startup by
+    /// <see cref="TSharpVisionRuntime.Configure"/>.
+    /// Graphical drivers use it as the OS window title; text-mode drivers
+    /// set the console/terminal title where the platform supports it.
     /// </summary>
-    public static string? ConfiguredDriverName { get; set; }
-
-    /// <summary>
-    /// Font name supplied by configuration for the SDL driver (e.g. "Cascadia Mono").
-    /// Read by the SDL driver during <c>Initialize()</c>.
-    /// Set this before the first <see cref="CreateScreenDriver"/> call.
-    /// </summary>
-    public static string? ConfiguredSdlFontName { get; set; }
-
-    /// <summary>
-    /// Font point size supplied by configuration for the SDL driver.
-    /// Read by the SDL driver during <c>Initialize()</c>.
-    /// Set this before the first <see cref="CreateScreenDriver"/> call.
-    /// </summary>
-    public static int? ConfiguredSdlFontSize { get; set; }
+    public static string? WindowTitle { get; set; }
 
     /// <summary>
     /// Full configuration loaded by the application at startup.
-    /// Set this before the first <see cref="CreateScreenDriver"/> call.
-    /// GPU drivers use this to read their <c>[sdlgpu]</c> options section
-    /// as a fallback when the corresponding environment variable is not set.
+    /// Set this before the first <see cref="CreateScreenDriver"/> call
+    /// (or use <see cref="TSharpVisionRuntime.Configure"/>).
+    /// Assigning a new configuration clears all previously registered sections.
     /// </summary>
-    public static TSharpVisionConfiguration? Configuration { get; set; }
+    public static TSharpVisionConfiguration? Configuration
+    {
+        get => _configuration;
+        set
+        {
+            _configuration = value;
+            _registeredSections.Clear();
+        }
+    }
 
-    //static ScreenDriverFactory()
-    //{
-    //    // Get the current directory
-    //    string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
+    /// <summary>
+    /// Registers a driver-specific configuration section and binds it from
+    /// <see cref="Configuration"/>'s raw sections. Idempotent — repeated calls
+    /// with the same type return the cached (already-bound) instance.
+    /// </summary>
+    public static T RegisterConfigSection<T>() where T : IConfigurationSection, new()
+    {
+        if (_registeredSections.TryGetValue(typeof(T), out var existing))
+            return (T)existing;
 
-    //    // Load all assemblies in the current directory
-    //    var assemblies = Directory.GetFiles(currentDirectory, "*.dll")
-    //        .Select(Assembly.LoadFrom);
+        var instance = new T();
+        if (_configuration?.GetRawSection(instance.SectionName) is { } raw)
+            instance.Bind(raw);
+        _registeredSections[typeof(T)] = instance;
+        return instance;
+    }
 
-    //    // Find all types that implement the IDriver interface
-    //    DriverTypes = assemblies
-    //        .SelectMany(assembly => assembly.GetTypes())
-    //        .Where(type => typeof(IDriver).IsAssignableFrom(type) && !type.IsInterface && !type.IsAbstract)
-    //        .ToArray();
-    //}
+    /// <summary>Returns a previously registered section, or throws if not registered.</summary>
+    public static T GetConfigSection<T>() where T : IConfigurationSection
+    {
+        if (_registeredSections.TryGetValue(typeof(T), out var section))
+            return (T)section;
+        throw new InvalidOperationException(
+            $"Configuration section {typeof(T).Name} has not been registered. " +
+            $"Call RegisterConfigSection<{typeof(T).Name}>() first.");
+    }
+
+    /// <summary>Returns a previously registered section, or null if not registered.</summary>
+    public static T? TryGetConfigSection<T>() where T : class, IConfigurationSection
+        => _registeredSections.TryGetValue(typeof(T), out var section) ? (T)section : null;
 
     static ScreenDriverFactory()
     {
-        // Get the current directory
         string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
 
-        // Load all assemblies in the current directory
         var assemblies = new List<Assembly>();
         foreach (var file in Directory.GetFiles(currentDirectory, "*.dll"))
         {
@@ -90,7 +99,6 @@ public class ScreenDriverFactory
                 }
                 catch (ReflectionTypeLoadException ex)
                 {
-                    // Return only types that were successfully loaded
                     return ex.Types.Where(t => t != null)!;
                 }
             })
@@ -111,11 +119,10 @@ public class ScreenDriverFactory
 
     private static Type? GetDriverTypeForPlatform(Platform platform)
     {
-        // TSharpVISION_DRIVER env var takes precedence over config (useful for CI/tests).
-        // Config-supplied name is the fallback when the env var is absent.
-        string? requested = Environment.GetEnvironmentVariable("TSharpVision_DRIVER");
+        // TSHARPVISION_DRIVER env var takes precedence over config (useful for CI/tests).
+        string? requested = Environment.GetEnvironmentVariable("TSHARPVISION_DRIVER");
         if (string.IsNullOrWhiteSpace(requested))
-            requested = ConfiguredDriverName;
+            requested = _configuration?.Driver.Name;
 
         var candidates = DriverTypes
             .SelectMany(type => type
@@ -129,17 +136,14 @@ public class ScreenDriverFactory
 
         if (!string.IsNullOrWhiteSpace(requested))
         {
-            // Expand friendly config names to internal driver class names.
             if (string.Equals(requested, "sdl", StringComparison.OrdinalIgnoreCase))
             {
                 requested = "SDLGpuDriver";
             }
             else if (string.Equals(requested, "console", StringComparison.OrdinalIgnoreCase))
             {
-                // Pick the highest-priority non-SDL driver for the platform.
                 return candidates
-                    .Where(x => !string.Equals(x.Attribute.Driver, "SDLDriver",
-                                               StringComparison.OrdinalIgnoreCase))
+                    .Where(x => !x.Attribute.Driver.StartsWith("SDL", StringComparison.OrdinalIgnoreCase))
                     .OrderByDescending(x => x.Attribute.Priority)
                     .FirstOrDefault()?.Type;
             }
@@ -166,10 +170,7 @@ public class ScreenDriverFactory
 
     public static IDriver CreateScreenDriver()
     {
-        // Determine the current platform
         Platform platform = GetCurrentPlatform();
-
-        // Find the best matching driver for the platform
         Type driverType = GetDriverTypeForPlatform(platform);
 
         if (driverType != null)

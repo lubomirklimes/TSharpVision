@@ -334,7 +334,7 @@ internal sealed class AnsiTerminalParser
             // Standard foreground (30–37)
             case 30: case 31: case 32: case 33:
             case 34: case 35: case 36: case 37:
-                _fg = AnsiStdFgToVga[code - 30];
+                _fg = _fgStd[code - 30];
                 if (_bold && _fg < 8) _fg = (byte)(_fg + 8);
                 break;
 
@@ -345,7 +345,7 @@ internal sealed class AnsiTerminalParser
             // Standard background (40–47)
             case 40: case 41: case 42: case 43:
             case 44: case 45: case 46: case 47:
-                _bg = AnsiStdBgToVga[code - 40];
+                _bg = _bgStd[code - 40];
                 break;
 
             case 49:
@@ -355,14 +355,14 @@ internal sealed class AnsiTerminalParser
             // Bright foreground (90–97)
             case 90: case 91: case 92: case 93:
             case 94: case 95: case 96: case 97:
-                _fg = AnsiBrightFgToVga[code - 90];
+                _fg = _fgBright[code - 90];
                 break;
 
             // Bright background (100–107) — VGA text mode has no bright background;
             // each bright color is mapped to the nearest standard VGA background color.
             case 100: case 101: case 102: case 103:
             case 104: case 105: case 106: case 107:
-                _bg = AnsiStdBgToVga[code - 100];
+                _bg = _bgStd[code - 100];
                 break;
 
             // All other codes are silently ignored.
@@ -378,12 +378,17 @@ internal sealed class AnsiTerminalParser
 
     // ── Color mapping tables ──────────────────────────────────────────────────
     //
-    // ANSI 30–37 maps to VGA foreground nibble values by the standard ANSI→VGA
-    // ordering: black(0), red(4), green(2), brown(6), blue(1), magenta(5),
-    // cyan(3), light-gray(7).
+    // Instance fields (not static) so each TTerminal instance can have its own
+    // custom ANSI→VGA mapping via ApplyColorMap().
+    //
+    // _fgStd[i]   — foreground nibble for ANSI 30+i (standard, 0–7)
+    // _fgBright[i]— foreground nibble for ANSI 90+i (bright, 0–7)
+    // _bgStd[i]   — background byte (nibble pre-shifted to high position) for
+    //               ANSI 40+i / 100+i
+    //
+    // Default values reproduce the classic ANSI→VGA mapping.
 
-    private static readonly byte[] AnsiStdFgToVga =
-    {
+    private byte[] _fgStd = {
         Colors.fgBlack,        // 30
         Colors.fgRed,          // 31
         Colors.fgGreen,        // 32
@@ -394,9 +399,7 @@ internal sealed class AnsiTerminalParser
         Colors.fgLightGray,    // 37
     };
 
-    // ANSI 90–97: bright foreground variants.
-    private static readonly byte[] AnsiBrightFgToVga =
-    {
+    private byte[] _fgBright = {
         Colors.fgDarkGray,     // 90
         Colors.fgLightRed,     // 91
         Colors.fgLightGreen,   // 92
@@ -407,10 +410,7 @@ internal sealed class AnsiTerminalParser
         Colors.fgWhite,        // 97
     };
 
-    // ANSI 40–47: standard background. VGA background nibble values are
-    // pre-shifted into the high nibble of the attribute byte.
-    private static readonly byte[] AnsiStdBgToVga =
-    {
+    private byte[] _bgStd = {
         Colors.bgBlack,        // 40 / 100
         Colors.bgRed,          // 41 / 101
         Colors.bgGreen,        // 42 / 102
@@ -420,4 +420,22 @@ internal sealed class AnsiTerminalParser
         Colors.bgCyan,         // 46 / 106
         Colors.bgLightGray,    // 47 / 107
     };
+
+    /// <summary>
+    /// Replaces the ANSI→VGA color lookup tables from a 16-entry map.
+    /// Entries 0–7 = standard colors (ANSI 30–37 / 40–47);
+    /// entries 8–15 = bright colors (ANSI 90–97 / 100–107).
+    /// Each value is a VGA foreground nibble (0x00–0x0F); background entries
+    /// are derived by shifting the nibble into the high byte position.
+    /// </summary>
+    public void ApplyColorMap(byte[] map16)
+    {
+        if (map16 == null || map16.Length < 16) return;
+        for (int i = 0; i < 8; i++)
+        {
+            _fgStd[i]    = (byte)(map16[i]     & 0x0F);
+            _fgBright[i] = (byte)(map16[i + 8] & 0x0F);
+            _bgStd[i]    = (byte)((map16[i] & 0x0F) << 4);
+        }
+    }
 }

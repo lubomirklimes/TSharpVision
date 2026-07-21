@@ -1,23 +1,14 @@
 namespace TSharpVision.Drivers.SDL;
 
-// SDL clipboard bridge for the SDL driver.
-//
-// SDL3-CS marshals SDL_GetClipboardText's UTF-8 native pointer to a managed
-// string automatically (including calling SDL_free). This is a main-thread
-// operation; all clipboard calls are expected to originate from the SDL/UI
-// event loop thread (same constraint as SDL_GetClipboardText documentation).
-//
-// Newlines: SDL clipboard text uses LF on most platforms. IClipboardService
-// GetText() normalises to LF to be defensive against any CRLF that a Windows
-// SDL build might return.
-
 /// <summary>
 /// <see cref="IClipboardService"/> implementation backed by SDL3 clipboard APIs.
-/// Provides cross-platform clipboard support for the SDL driver.
+/// <para>
+/// Clipboard access is a main-thread operation in SDL, so all calls are expected to originate
+/// from the SDL event loop thread.
+/// </para>
 /// </summary>
 public sealed class SdlClipboardService : IClipboardService
 {
-    // ISdlClipboard is injected to allow mocking in unit tests.
     private readonly ISdlClipboard _sdl;
 
     /// <summary>Initialises the service using the real SDL3 clipboard calls.</summary>
@@ -25,7 +16,6 @@ public sealed class SdlClipboardService : IClipboardService
 
     internal SdlClipboardService(ISdlClipboard sdl) => _sdl = sdl;
 
-    // SDL clipboard is available on all platforms where SDL3 is initialised.
     public bool IsAvailable => true;
 
     public string? GetText()

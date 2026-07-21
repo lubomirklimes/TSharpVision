@@ -170,9 +170,12 @@ public sealed class Win32ConsoleDriver : IDriver, IDisposable
     private ushort _rows  = 25;
     private ushort _cursorType;
     private readonly Queue<TEvent> _pendingKeys = new();
+    private CHAR_INFO[] _writeLine = Array.Empty<CHAR_INFO>();
+    private readonly INPUT_RECORD[] _inputRecords = new INPUT_RECORD[32];
 
-    public bool SupportsMouse => true;
+    public bool SupportsMouse    => true;
     public bool SupportsTrueColor => false;
+    public bool SupportsGraphics  => false;
 
     /// <summary>
     /// Exposed for smoke tests: returns the P/Invoke marshaled size of CHAR_INFO.
@@ -226,6 +229,9 @@ public sealed class Win32ConsoleDriver : IDriver, IDisposable
             }
 
             _attached = true;
+
+            if (ScreenDriverFactory.WindowTitle is { } title)
+                System.Console.Title = title;
 
             // Register the Windows clipboard service so that editor copy/paste
             // routes through the OS clipboard when this driver is active.
@@ -322,7 +328,7 @@ public sealed class Win32ConsoleDriver : IDriver, IDisposable
         if (!_attached || w <= 0 || h <= 0) return;
         // CHAR_INFO is laid out (UnicodeChar, Attributes); we marshal one
         // row at a time so the buffer-rect math stays simple.
-        var line = new CHAR_INFO[w];
+        var line = EnsureWriteLineCapacity(w);
         for (int row = 0; row < h; row++)
         {
             for (int col = 0; col < w; col++)
@@ -350,6 +356,13 @@ public sealed class Win32ConsoleDriver : IDriver, IDisposable
         }
     }
 
+    private CHAR_INFO[] EnsureWriteLineCapacity(int width)
+    {
+        if (_writeLine.Length < width)
+            _writeLine = new CHAR_INFO[width];
+        return _writeLine;
+    }
+
     public void MakeBeep()
     {
         if (OperatingSystem.IsWindows()) MessageBeep(0xFFFFFFFF);
@@ -360,7 +373,7 @@ public sealed class Win32ConsoleDriver : IDriver, IDisposable
         if (!_attached) return;
 
         // Drain at most 32 records per pump to keep latency bounded.
-        var records = new INPUT_RECORD[32];
+        var records = _inputRecords;
         if (!PeekConsoleInputW(_hIn, records, (uint)records.Length, out uint avail) || avail == 0)
             return;
         if (!ReadConsoleInputW(_hIn, records, avail, out uint read)) return;

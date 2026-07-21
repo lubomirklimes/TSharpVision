@@ -23,20 +23,36 @@ public class TApplication : TProgram
         // initHistory() — TVHistory persistence layer deferred.
     }
 
-    ~TApplication()
-    {
-        Dispose(disposing: false);
-    }
+    // No finalizer. It used to call Dispose(false), which reached the shared event queue and
+    // the shared screen through _teq and tsc — so finalizing an abandoned application
+    // suspended the input queue and the driver belonging to whichever application was
+    // actually running. Deterministic disposal owns that teardown now.
 
+    /// <summary>
+    /// Releases the shared singletons this application set up.
+    ///
+    /// Only on a deterministic call: <paramref name="disposing"/> is false only on the
+    /// finalizer thread, where touching other managed objects is invalid anyway, and where
+    /// suspending process-wide state would race any live application.
+    ///
+    /// The authoritative teardown remains <see cref="TProgram.ShutDown"/>, which
+    /// <see cref="AppLifecycleGuard"/> always calls; this only adds the singleton release for
+    /// callers that dispose explicitly. Repeated calls are harmless.
+    /// </summary>
     protected override void Dispose(bool disposing)
     {
-        // doneHistory() deferred.
-        if (_teq != null)
+        if (disposing)
         {
-            _teq.Dispose();
-            _teq = null;
+            // doneHistory() deferred.
+            if (_teq != null)
+            {
+                _teq.Dispose();
+                _teq = null;
+            }
+
+            tsc.Dispose();
         }
-        tsc.Dispose();
+
         base.Dispose(disposing);
     }
 

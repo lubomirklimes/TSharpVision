@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/Diagnostics/">
+    <Project Path="diagnostics/TSharpVision.Diagnostics.SdlGlyphs/TSharpVision.Diagnostics.SdlGlyphs.csproj" />
+  </Folder>
   <Folder Name="/Drivers/">
     <Project Path="src/TSharpVision.Drivers.Console/TSharpVision.Drivers.Console.csproj" />
     <Project Path="src/TSharpVision.Drivers.SDL/TSharpVision.Drivers.SDL.csproj" />

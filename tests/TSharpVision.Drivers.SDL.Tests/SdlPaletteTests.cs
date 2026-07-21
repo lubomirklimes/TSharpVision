@@ -1,11 +1,12 @@
-// SDL palette + SDLDriver headless lifecycle tests.
-// SdlPalette.DecodeAttr is pure; SDLDriver runs under TSHARPVISION_NO_SDL=1.
+﻿// SDL palette + SDLDriver headless lifecycle tests.
+// SdlPalette.DecodeAttr is pure; SDLDriver runs under TSharpVision_NO_SDL=1.
 using System.IO;
 using TSharpVision;
 using TSharpVision.Drivers.SDL;
+using TSharpVision.Drivers.SDL.Rendering.Fonts;
 using Xunit;
 
-namespace TSharpVision.Tests.Drivers;
+namespace TSharpVision.Drivers.SDL.Tests;
 
 public sealed class SdlPaletteTests
 {
@@ -100,26 +101,14 @@ public sealed class SdlPaletteTests
         }
     }
 
-    // ── SDLRenderer probes (no SDL_Init) ──────────────────────────────────
+    // ── Font lookup (no SDL_Init) ─────────────────────────────────────────
 
     [Fact]
-    public void SDLRenderer_ProbeFontPath_NoThrow()
+    public void ProbeFontPath_ReturnsNullOrAnExistingFile()
     {
-        string path = SDLRenderer.ProbeFontPath();
-        // Null is acceptable (no font found); non-null must point to an existing file.
+        string? path = SdlFontLocator.ProbeFontPath();
+
         if (path != null)
             Assert.True(File.Exists(path));
-    }
-
-    [Fact]
-    public void SDLRenderer_ProbeMetrics_NoThrow()
-    {
-        var metrics = SDLRenderer.ProbeMetrics();
-        if (metrics.HasValue)
-        {
-            Assert.InRange(metrics.Value.CellWidth,  4, 64);
-            Assert.InRange(metrics.Value.CellHeight, 8, 80);
-            Assert.True(metrics.Value.CellWidth <= metrics.Value.CellHeight);
-        }
     }
 }

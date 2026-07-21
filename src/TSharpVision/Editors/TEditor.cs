@@ -799,12 +799,13 @@ public class TEditor : TView
 
     public void SetCmdState(ushort command, bool enable)
     {
-        var s = new TCommandSet();
-        s.EnableCmd(command);
+        // Single-command equivalents of EnableCommands/DisableCommands over a one-element
+        // set — same effect on curCommandSet and on commandSetChanged, without allocating a
+        // TCommandSet on every UpdateCommands() pass.
         if (enable && (state & Views.sfActive) != 0)
-            EnableCommands(s);
+            EnableCommand(command);
         else
-            DisableCommands(s);
+            DisableCommand(command);
     }
 
     public override void Draw()

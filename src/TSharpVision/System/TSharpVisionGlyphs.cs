@@ -90,7 +90,7 @@ public static class TSharpVisionGlyphs
     /// in text-mode video; stored as U+0007 to preserve the current rendering path via
     /// WriteConsoleOutputW.
     /// </summary>
-    public const char RadioChecked   = (char)0x07; // CP437 0x07 bullet glyph
+    public const char RadioChecked   = '●'; // U+25CF BLACK CIRCLE
     /// <summary>ASCII 0x20 — space, radio button unchecked (empty slot).</summary>
     public const char RadioUnchecked = ' ';
 
@@ -111,7 +111,7 @@ public static class TSharpVisionGlyphs
     public const char StatusHintSeparator = '│'; // U+2502
 
     /// <summary>System menu</summary>
-    public const char SystemMenu = '☰';
+    public const char SystemMenu = '≡';
     public const char SystemMenuFallback = '≡'; // ≡
     /*Varianta	Znak	Unicode	Poznámka
     ☰	U+2630 TRIGRAM FOR HEAVEN	Nejčitelnější, často se používá jako menu ikona.

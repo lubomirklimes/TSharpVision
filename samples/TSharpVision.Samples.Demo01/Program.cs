@@ -1,4 +1,4 @@
-﻿#pragma warning disable CA1416 // Runtime OS guards in each method body make platform-specific calls safe.
+#pragma warning disable CA1416 // Runtime OS guards in each method body make platform-specific calls safe.
 using TSharpVision.Config;
 using TSharpVision.Constants;
 using TSharpVision.Drivers;
@@ -580,16 +580,6 @@ internal class Program
 {
     static void Main(string[] args)
     {
-        // StreamableRegistration ensures all streamable types are available if
-        // any stream/resource code path is exercised (defensive, same pattern as Demo01).
-        StreamableRegistration.RegisterAll();
-
-        // Load configuration before the driver is initialized.
-        var config = TSharpVisionConfigurationLoader.Load();
-        ScreenDriverFactory.ConfiguredDriverName = config.DriverName;
-        ScreenDriverFactory.ConfiguredSdlFontName = config.SdlFontName;
-
-        TVDemo demo = new TVDemo();
-        demo.Run();
+        TSharpVisionRuntime.Run(() => new TVDemo());
     }
 }

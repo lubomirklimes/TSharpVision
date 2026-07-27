@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\extensions\TSharpVision.Terminal\TSharpVision.Terminal.csproj" />
+    <ProjectReference Include="..\..\src\TSharpVision.Drivers.Console\TSharpVision.Drivers.Console.csproj" />
+    <ProjectReference Include="..\..\src\TSharpVision.Drivers.SDL\TSharpVision.Drivers.SDL.csproj" />
+    <ProjectReference Include="..\..\src\TSharpVision\TSharpVision.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="TSharpVision.Samples.TVTerm.cfg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Assets\Help\DEMOHELP.HLP">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <TVTermHelp Include="Assets\Help\tvterm.txt"
+                OutputName="Assets\Help\TVTERM.HLP"
+                SymbolName="Help\TVTermHelpCtx.cs" />
+  </ItemGroup>
+
+  <Target Name="CompileTVTermHelp" BeforeTargets="Build">
+    <MakeDir Directories="$(OutDir)Assets\Help" />
+    <MakeDir Directories="$(IntermediateOutputPath)Help" />
+    <Exec Command="dotnet run --project &quot;$(MSBuildProjectDirectory)\..\..\tools\TSharpVision.HelpCompiler\TSharpVision.HelpCompiler.csproj&quot; -- --format v2 &quot;%(TVTermHelp.FullPath)&quot; &quot;$(OutDir)%(TVTermHelp.OutputName)&quot; &quot;$(IntermediateOutputPath)%(TVTermHelp.SymbolName)&quot;" />
+  </Target>
+
+</Project>

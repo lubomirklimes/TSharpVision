@@ -64,6 +64,7 @@ internal sealed class ClockContentView : TView
 // ---------------------------------------------------------------------------
 public sealed class ClockDialog : TDialog
 {
+    public override byte MapColor(int index) => DemoAppearance.GrayWindow(index);
     public const int DlgW = ClockContentView.ViewW + 4;   // 26
     public const int DlgH = ClockContentView.ViewH + 4;   // 6
 

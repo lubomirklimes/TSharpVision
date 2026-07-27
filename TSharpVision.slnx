@@ -11,15 +11,15 @@
     <Project Path="tests/TSharpVision.Drivers.Terminal.Tests/TSharpVision.Drivers.Terminal.Tests.csproj" />
   </Folder>
   <Folder Name="/Extensions/">
+    <Project Path="extensions/TSharpVision.TCodeEditor/TSharpVision.TCodeEditor.csproj" />
     <Project Path="extensions/TSharpVision.Terminal/TSharpVision.Terminal.csproj" />
     <Project Path="tests/TSharpVision.Terminal.Tests/TSharpVision.Terminal.Tests.csproj" />
   </Folder>
   <Folder Name="/Samples/">
-    <Project Path="samples/TSharpVision.Samples.Demo01/TSharpVision.Samples.Demo01.csproj" />
-    <Project Path="samples/TSharpVision.Samples.Demo02/TSharpVision.Samples.Demo02.csproj" />
     <Project Path="samples/TSharpVision.Samples.TVDemo/TSharpVision.Samples.TVDemo.csproj" />
     <Project Path="samples/TSharpVision.Samples.TVEdit/TSharpVision.Samples.TVEdit.csproj" />
     <Project Path="samples/TSharpVision.Samples.TVIntl/TSharpVision.Samples.TVIntl.csproj" Id="3d6694da-b801-45e9-8e1f-7ab20c785836" />
+    <Project Path="samples/TSharpVision.Samples.TVTerm/TSharpVision.Samples.TVTerm.csproj" />
   </Folder>
   <Folder Name="/Tools/">
     <Project Path="tests/TSharpVision.HelpCompiler.Tests/TSharpVision.HelpCompiler.Tests.csproj" />
@@ -33,3 +33,4 @@
   <Project Path="tests/TSharpVision.Tests/TSharpVision.Tests.csproj" />
   <Project Path="tests/TSharpVision.TestSupport/TSharpVision.TestSupport.csproj" />
 </Solution>
+

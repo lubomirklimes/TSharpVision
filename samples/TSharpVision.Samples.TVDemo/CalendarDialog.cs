@@ -119,13 +119,17 @@ internal sealed class CalendarView : TView
 {
     internal CalendarModel Model { get; }
 
-    // Width = 7 cols × 3 chars + (no trailing) = 20; Height = 8 (header+days+6 rows).
-    public const int ViewW = 20;
+    // Seven three-character columns; space for the full month and both arrows.
+    public const int ViewW = 21;
     public const int ViewH = 8;
 
-    // Header row shows "▲  October 2025 ▼" — but we use ASCII arrows.
-    private const char ArrowUp   = '^';   // CP437 0x1E, use ASCII '^'
-    private const char ArrowDown = 'v';   // CP437 0x1F, use ASCII 'v'
+    // Month and year followed by mouse-selectable navigation arrows.
+    private const char ArrowUp   = '▲';
+    private const char ArrowDown = '▼';
+    private const int PreviousColumn = 17;
+    private const int NextColumn = 20;
+
+    public override byte MapColor(int index) => index == 2 ? (byte)0x21 : (byte)0x3E;
 
     public CalendarView(TRect bounds, CalendarModel model) : base(bounds)
     {
@@ -139,11 +143,13 @@ internal sealed class CalendarView : TView
         var color     = (char)GetColor(1);
         var boldColor = (char)GetColor(2);
 
-        // Row 0: "^  MonthName YYYY  v"
+        // Row 0: full month/year with arrows in fixed columns.
         var b0 = new TDrawBuffer();
         b0.moveChar(0, ' ', color, size.x);
-        string header = $"{ArrowUp}  {CalendarModel.MonthNames[Model.Month],-10} {Model.Year}  {ArrowDown}";
+        string header = $"{CalendarModel.MonthNames[Model.Month]} {Model.Year}";
         b0.moveStr(0, header, color);
+        b0.moveChar(PreviousColumn, ArrowUp, color, 1);
+        b0.moveChar(NextColumn, ArrowDown, color, 1);
         WriteLine(0, 0, size.x, 1, b0);
 
         // Row 1: "Su Mo Tu We Th Fr Sa"
@@ -198,8 +204,8 @@ internal sealed class CalendarView : TView
             var pt = MakeLocal(ev.mouse.where);
             if (pt.y == 0)
             {
-                if (pt.x == 0) { Model.PrevMonth(); changed = true; }
-                else if (pt.x == size.x - 1) { Model.NextMonth(); changed = true; }
+                if (pt.x == PreviousColumn) { Model.PrevMonth(); changed = true; }
+                else if (pt.x == NextColumn) { Model.NextMonth(); changed = true; }
             }
             if (changed) ClearEvent(ref ev);
         }
@@ -214,8 +220,9 @@ internal sealed class CalendarView : TView
 // ---------------------------------------------------------------------------
 public sealed class CalendarDialog : TDialog
 {
-    // Dialog inner width = CalendarView.ViewW + 2 (frame) = 22.
-    public const int DlgW = CalendarView.ViewW + 2;   // 22
+    public override byte MapColor(int index) => index is 2 or 3 or 4 ? (byte)0x3F : (byte)0x3E;
+    // Include room for the complete title and the 21-column calendar.
+    public const int DlgW = 26; // Full title plus the frame's 16-column allowance.
     // Dialog inner height = CalendarView.ViewH + 2 (frame) = 10.
     public const int DlgH = CalendarView.ViewH + 2;   // 10
 
@@ -226,10 +233,11 @@ public sealed class CalendarDialog : TDialog
     {
         // TDialog already sets growMode=0, flags=wfMove|wfClose.
         var model = new CalendarModel();
-        View = new CalendarView(new TRect(1, 1, DlgW - 1, DlgH - 1), model);
+        View = new CalendarView(new TRect(2, 1, 2 + CalendarView.ViewW, DlgH - 1), model);
         Insert(View);
     }
 
     // Expose the model for smoke tests.
     public CalendarModel Model => View.Model;
 }
+

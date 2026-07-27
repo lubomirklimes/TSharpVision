@@ -1,0 +1,505 @@
+.topic NoContext=0
+ No Context
+  ----------
+No specific help is available for this view.
+
+Press F1 for the Help Index, or F10 to activate the menu bar.
+
+See also {Help Index:Index}.
+
+.topic Index=1
+ TVTerm Help — Index
+  -------------------
+TVTerm is a TSharpVision demo application that showcases the terminal
+subsystem: multiple session types, ANSI colour rendering, scrollback,
+text selection, and Unicode support.
+
+Main topics:
+
+ {Repeatable demonstrations:ConsolidatedDemos}
+ {Overview:Overview}
+ {Session Types:SessionTypes}
+ {Keyboard Shortcuts:KeyboardShortcuts}
+
+Menu reference:
+
+ {File Menu:FileMenu}
+ {Edit Menu:EditMenu}
+ {View Menu:ViewMenu}
+ {Session Menu:SessionMenu}
+ {Tools Menu:ToolsMenu}
+ {Options Menu:OptionsMenu}
+
+Press Esc to close help. Press Backspace to go to the previous topic.
+
+.topic Overview
+ Overview
+  --------
+TVTerm opens terminal windows on the TSharpVision desktop. Each window
+hosts a TTerminal view that renders character-cell output with VGA colour
+attributes and an optional ANSI escape-sequence parser.
+
+A terminal window can be connected to one of four session backends:
+
+ PTY session    — real pseudo-terminal via ConPTY (Windows) or
+                  POSIX openpty (Linux/macOS). Full interactive shell.
+ Pipe session   — redirected stdin/stdout of a child process. Output
+                  is captured and displayed; no interactive terminal.
+ Fake session   — deterministic scripted output, no real process.
+                  Useful for demos and screenshots.
+ In-memory      — built-in command prompt (help, echo, clear, size).
+                  Active when no external session has been started.
+
+At any time only one session is attached to a terminal window. Switching
+sessions (Restart, Run Command…) stops the current session cleanly before
+starting the new one.
+
+See also {Session Types:SessionTypes}, {File Menu:FileMenu},
+{Session Menu:SessionMenu}.
+
+.topic SessionTypes
+ Session Types
+  -------------
+TVTerm supports four session backends. Each implements ITerminalSession.
+
+PTY (pseudo-terminal)
+ On Windows, ConPTY (Windows 10 1809+) is used. On Linux and macOS the
+ POSIX openpty() call is used. The shell or program receives a real
+ terminal device: colours, cursor movement, Ctrl+C signals, and window
+ resize notifications all work correctly.
+
+ Use File / New Terminal or File / Run Command… (mode PTY) to open a
+ PTY session. The default shell is taken from Options / Terminal Settings
+ or the SHELL environment variable.
+
+Pipe (redirected process)
+ The child process is launched with redirected stdin and stdout. This is
+ simpler than a PTY but programs that check whether their output is a
+ terminal (isatty) may suppress colours or interactive prompts.
+
+ Use File / Run Command… (mode Pipe) or Tools / Pipe: dotnet --info.
+
+Fake (FakePtyTerminalSession)
+ A scripted, deterministic session with no real process. Output is
+ emitted programmatically. Useful for demonstrations and screenshots.
+
+ Use File / New Fake Terminal.
+
+In-memory (InMemoryTerminalSession)
+ The built-in command prompt is always active when no external session
+ is attached. It accepts a small set of commands: help, echo, clear, size.
+
+See also {Repeatable demonstrations:ConsolidatedDemos}
+ {Overview:Overview}, {File Menu:FileMenu}.
+
+.topic FileMenu
+ File Menu  (Alt+F)
+  ------------------
+The File menu manages terminal windows and their content.
+
+ {New Terminal:NewTerminal} (F4)
+   Opens a new terminal window. A PTY or shell session is started
+   automatically based on Options / Terminal Settings.
+
+ {New Fake Terminal:NewFakeTerminal}
+   Opens a terminal with a scripted Fake session. No real process.
+
+ {Run Command…:RunCommand} (F3)
+   Opens a dialog to enter a program path, arguments, working
+   directory, and session mode (Pipe or PTY).
+
+ {Open Log File…:OpenLog}
+   Opens a file chooser. The selected file is read into the terminal
+   as read-only output (in-memory session).
+
+ {Save Output…:SaveOutput}
+   Saves the current scrollback of the active terminal to a text file.
+
+ Close  (Alt+F3)
+   Closes the active terminal window and stops its session.
+
+ Exit  (Alt+X)
+   Quits TVTerm.
+
+See also {Session Types:SessionTypes}, {Session Menu:SessionMenu}.
+
+.topic NewTerminal
+ New Terminal  (F4)
+  ------------------
+Opens a new terminal window on the desktop.
+
+The initial session type depends on Options / Terminal Settings:
+
+ PTY (default)  — starts the configured shell (cmd.exe or $SHELL).
+ Pipe           — starts no external process; in-memory mode is active.
+ Fake           — starts a scripted Fake session immediately.
+ In-memory      — in-memory command prompt only.
+
+If no PTY backend is available on the current platform (older Windows
+or unsupported OS), TVTerm falls back silently to in-memory mode.
+
+The window can be moved (Ctrl+F5, then arrow keys), resized (Ctrl+F5,
+then Shift+arrow), zoomed (F5), and closed (Alt+F3).
+
+See also {New Fake Terminal:NewFakeTerminal}, {Run Command…:RunCommand},
+{Session Types:SessionTypes}.
+
+.topic NewFakeTerminal
+ New Fake Terminal
+  -----------------
+Opens a terminal window using a FakePtyTerminalSession. This session type
+emits scripted output but runs no real process. It is useful for:
+
+ * demos and screenshots without side effects
+ * testing the terminal renderer in isolation
+ * situations where no shell or PTY is available
+
+The Fake session starts immediately and can be interrupted or restarted
+via the Session menu.
+
+See also {New Terminal:NewTerminal}, {Session Types:SessionTypes}.
+
+.topic RunCommand
+ Run Command…  (F3)
+  ------------------
+Opens a dialog with the following fields:
+
+ Program      Path to the executable (required).
+ Arguments    Command-line arguments (optional).
+ Cwd          Working directory (leave blank for current directory).
+ Mode         Pipe or PTY (radio buttons).
+
+Press OK to open a new terminal window and start the process.
+
+Pipe mode is available on all platforms. PTY mode requires ConPTY
+(Windows 10 1809 or later) or a POSIX PTY (Linux/macOS).
+
+See also {Session Types:SessionTypes}, {Session Menu:SessionMenu}.
+
+.topic OpenLog
+ Open Log File…
+  --------------
+Opens a file-chooser dialog. The selected file is read entirely into a new
+terminal window as read-only text. The in-memory session emits the file
+content, so ANSI escape sequences in the file are rendered if ANSI parsing
+is enabled (View / Toggle ANSI).
+
+Input is disabled for log-file windows.
+
+See also {Save Output…:SaveOutput}, {View Menu:ViewMenu}.
+
+.topic SaveOutput
+ Save Output…
+  ------------
+Saves the plain-text content of the active terminal's scrollback to a file
+chosen via a save dialog.
+
+The output is written as one line per entry, without ANSI escape sequences.
+The file is encoded as UTF-8.
+
+See also {Open Log File…:OpenLog}.
+
+.topic EditMenu
+ Edit Menu  (Alt+E)
+  ------------------
+The Edit menu provides clipboard and search operations on the active
+terminal window.
+
+ Copy  (Ctrl+Ins)
+   Copies the current text selection to the clipboard. If no text is
+   selected this command has no effect.
+
+ Paste  (Shift+Ins)
+   Pastes text from the clipboard into the terminal. In Command mode the
+   text is inserted at the input cursor. In Raw Session mode it is sent
+   directly to the session.
+
+ Select All
+   Selects all text currently in the scrollback buffer.
+
+ Clear Selection
+   Cancels the current selection. Same as pressing Escape.
+
+ Find…
+   Opens a search dialog. Enter a search string and optionally enable
+   case-sensitive matching. The first match is highlighted and the
+   scroll position is adjusted to make it visible.
+
+ Find Next
+   Repeats the last search from the current position.
+
+See also {Keyboard Shortcuts:KeyboardShortcuts}.
+
+.topic ViewMenu
+ View Menu  (Alt+V)
+  ------------------
+ Clear Screen
+   Clears all text from the terminal output area. The scrollback
+   buffer is also cleared.
+
+ Scrollback Top
+   Scrolls to the very beginning of the scrollback buffer.
+
+ Scrollback Bottom
+   Scrolls to the bottom of the scrollback buffer (most recent output).
+   Same as pressing End or scrolling down past the last line.
+
+ Toggle ANSI
+   Switches ANSI escape-sequence parsing on or off for the active
+   terminal. When off, escape sequences appear as literal characters.
+   When on, colour and cursor-movement sequences are interpreted.
+
+See also {Edit Menu:EditMenu}, {Keyboard Shortcuts:KeyboardShortcuts}.
+
+.topic SessionMenu
+ Session Menu  (Alt+S)
+  ---------------------
+The Session menu controls the process attached to the active terminal.
+
+ Interrupt  (F9)
+   Sends an interrupt signal to the active session. For PTY sessions this
+   delivers SIGINT (Linux/macOS) or the ETX character 0x03 (Windows).
+   For Pipe sessions it performs a graceful stop.
+
+ Restart
+   Stops the current external session and starts a new one using the same
+   executable, arguments, and working directory. Has no effect when only
+   the in-memory command prompt is active.
+
+ Send EOF
+   Sends the end-of-file character to the session input: Ctrl+Z on Windows,
+   Ctrl+D on Unix. Many shells and programs interpret this as a signal to
+   close their input stream.
+
+ Kill Process
+   Forcefully terminates the session process without waiting for it to
+   exit cleanly. Use this when Interrupt has no effect.
+
+See also {Session Types:SessionTypes}, {Keyboard Shortcuts:KeyboardShortcuts}.
+
+.topic ToolsMenu
+ Tools Menu  (Alt+T)
+  -------------------
+The Tools menu provides diagnostic and demonstration windows.
+
+ {Key Inspector:KeyInspector}
+   Opens a window that displays raw keyboard event data for every key
+   pressed. Useful for debugging keyboard mapping and driver behaviour.
+
+ Unicode Demo
+   Opens a terminal window with a scripted session that emits a variety
+   of Unicode text: box-drawing characters, arrows, mathematical symbols,
+   Latin Extended, Greek, Cyrillic, CJK, and emoji. Exercises the
+   terminal renderer's Unicode-width handling.
+
+ ANSI Demo
+   Opens a terminal window that emits ANSI SGR sequences to demonstrate
+   the 16-colour palette, bold, underline, reverse, and combined
+   attributes. Requires ANSI parsing to be enabled (View / Toggle ANSI).
+
+ Performance Demo
+   Emits 64 KB of text as fast as possible and reports the throughput
+   in MB/s. This measures emission time, not completed screen rendering.
+
+See also {Key Inspector:KeyInspector}.
+
+.topic KeyInspector
+ Key Inspector
+  -------------
+The Key Inspector window intercepts every key-down event and prints the
+raw field values from the TEvent structure into a read-only terminal:
+
+  keyCode    TVision internal key constant (16-bit hex).
+  char       The printable character, taken from kd.text when available.
+  U+         Unicode code point of the character (hex).
+  scan       PC-BIOS scan code. Always 0 in current drivers because
+             Windows Console API, SDL, and ANSI terminal streams do not
+             provide hardware scan codes.
+  shift      Shift-state bitmask: 0001=Shift, 0004=Ctrl, 0008=Alt.
+  charByte   charScan.charCode — the low byte of the character. For
+             characters outside Latin-1 (code point > 255) this is 0.
+  text       kd.text — the full Unicode string from the driver. This is
+             the most reliable source for printable Unicode characters.
+
+Close with Alt+F3.
+
+See also {Keyboard Shortcuts:KeyboardShortcuts}.
+
+.topic OptionsMenu
+ Options Menu  (Alt+O)
+  ---------------------
+ {Terminal Settings…:TerminalSettings}
+   Configure scrollback buffer size, default shell, and default session
+   type for newly opened terminal windows.
+
+ {UI Colors…:UiColors}
+   Open the standard color editor to change the colors of the application
+   chrome: desktop background, menus, windows, dialogs, and buttons.
+   Changes take effect immediately.
+
+ {Terminal Colors…:ColorMapping}
+   View and edit the mapping from the 16 ANSI color codes to VGA nibble
+   values used when rendering colored terminal output.
+
+ {Keyboard Mapping…:KeyboardMapping}
+   View the fixed key bindings in TTerminal and configure the Ctrl+C
+   priority (copy vs. interrupt).
+
+.topic TerminalSettings
+ Terminal Settings
+  -----------------
+Opens a dialog with the following settings:
+
+ Scrollback lines
+   Maximum number of output lines kept in memory per terminal window.
+   Range: 100–1,000,000. Default: 1000.
+
+ Default shell
+   The executable used when opening a PTY shell session via
+   File / New Terminal. If left blank, cmd.exe is used on Windows and
+   the SHELL environment variable is used on other platforms.
+
+ Default session mode
+   The session type used by File / New Terminal:
+
+    PTY       Real pseudo-terminal. Best for interactive use.
+    Pipe      Redirected process pipes. Works without PTY support.
+    Fake      Scripted FakePtyTerminalSession. No real process.
+    In-memory Built-in command prompt only.
+
+Settings are saved to tvterm.json in the application directory.
+
+See also {Session Types:SessionTypes}, {UI Colors…:UiColors},
+{Terminal Colors…:ColorMapping}.
+
+.topic UiColors
+ UI Colors
+  ---------
+Opens the standard TSharpVision color editor. This dialog lets you change
+the colors of the application chrome: desktop fill pattern, menu bar,
+window frames and titles, dialog borders, and buttons.
+
+The editor shows named groups on the left and color-item names on the right.
+Select a group, then an item, and use the foreground / background color
+selectors to change the color. The preview in the center updates live.
+
+Groups and items exposed:
+
+ Desktop    Background — the desktop fill pattern color.
+ Menu       Normal — unselected menu items.
+            Selected — the highlighted menu item.
+ Window     Frame — window border and scroll bars.
+            Title — window title bar.
+ Dialog     Frame — dialog border.
+            Title — dialog title bar.
+ Button     Normal — unselected button.
+            Default — the default (Enter) button.
+
+Changes are applied immediately when you press OK and remain active for
+the current session. To persist a palette across restarts, save the
+application state (not yet implemented).
+
+See also {Terminal Colors…:ColorMapping}, {Terminal Settings…:TerminalSettings}.
+
+.topic ColorMapping
+ Terminal Colors
+  ---------------
+The Terminal Colors dialog shows the 16 ANSI terminal colors and lets you
+change the VGA nibble value used to render each one.
+
+Each row contains:
+
+ Color name   Standard ANSI name (Black, Red, Green, …).
+ ANSI code    SGR codes for foreground / background (e.g. 31 / 41).
+ VGA          Current VGA nibble as a two-character hex value (00–0F).
+ Description  Name of the VGA color at the current nibble.
+
+VGA nibble values:
+  00 Black    04 Red          08 Dark Gray      0C Light Red
+  01 Blue     05 Magenta      09 Light Blue     0D Light Magenta
+  02 Green    06 Brown        0A Light Green    0E Yellow
+  03 Cyan     07 Light Gray   0B Light Cyan     0F White
+
+Press Default to restore all values to the standard ANSI→VGA mapping.
+Press OK to save. Changes are applied immediately to all open terminals
+and persisted to tvterm.json for future sessions.
+
+Settings are saved to tvterm.json.
+
+See also {UI Colors…:UiColors}, {Terminal Settings…:TerminalSettings},
+{Keyboard Mapping…:KeyboardMapping}.
+
+.topic KeyboardMapping
+ Keyboard Mapping
+  ----------------
+The Keyboard Mapping dialog has two sections.
+
+Fixed bindings (informational list)
+ These shortcuts are hardcoded in TTerminal and cannot be changed
+ without modifying the core library:
+
+  Ctrl+C        Copy selection (if text selected); else interrupt.
+  Ctrl+V        Paste clipboard text.
+  Ctrl+A        Move input cursor to start of line.
+  Ctrl+E        Move input cursor to end of line.
+  Enter         Submit input line (Command mode).
+  Up / Down     Navigate command history (Command mode).
+  PgUp / PgDn   Scroll terminal output.
+
+Stored preference: Ctrl+C priority (not applied to terminal input yet).
+
+See also {Color Mapping…:ColorMapping}, {Keyboard Shortcuts:KeyboardShortcuts}.
+
+.topic KeyboardShortcuts
+ Keyboard Shortcuts
+  ------------------
+Application shortcuts:
+
+  F1          Open help.
+  F2 / F10    Activate menu bar.
+  F3          File / Run Command….
+  F4          File / New Terminal.
+  F5          Zoom active window.
+  F6          Switch to next window.
+  F9          Session / Interrupt.
+  Alt+X       Exit TVTerm.
+  Alt+F3      Close active window.
+  Ctrl+F5     Move or resize active window.
+
+Terminal input (Command mode — in-memory prompt):
+
+  Enter       Submit the input line.
+  Up / Down   Navigate command history.
+  Ctrl+A      Move cursor to start of line.
+  Ctrl+E      Move cursor to end of line.
+  Ctrl+C      Copy selection if active; else interrupt session.
+  Ctrl+V      Paste clipboard.
+  PgUp/PgDn   Scroll output.
+  Home / End  Scroll to top / bottom.
+  Escape      Clear selection.
+
+Terminal input (Raw Session mode — PTY shell):
+
+  All keys    Forwarded directly to the shell or process.
+  Ctrl+C      Copy selection if active; else send ETX/SIGINT.
+  Ctrl+V      Paste clipboard.
+  Escape      Clear selection; else forward ESC to shell.
+
+Mouse:
+
+  Left drag   Select text.
+  Wheel       Scroll output.
+  Ctrl+Ins    Copy selection.
+  Shift+Ins   Paste.
+
+See also {Edit Menu:EditMenu}, {Session Menu:SessionMenu}.
+
+.topic ConsolidatedDemos
+ Tools fixtures
+ Tools / Selection Demo opens test lines and an editable local prompt.
+ Pipe: dotnet --info runs redirected output; Short PTY command runs echo.
+ Interactive shell starts raw input; type exit to return to local commands.
+ Session menu provides interrupt, restart, EOF and stop.
+ Wrap toggling is unavailable; wrapping is always enabled.
+
+

@@ -7,7 +7,7 @@
 //   - No black-on-black (0x00) attrs for visible text or frame colors.
 //   - Normal text, keyword, and selected-keyword attributes are visually distinct.
 //
-// All tests are headless (DriverScope / NullDriver) — no real screen, no Demo01.
+// All tests are headless (DriverScope / NullDriver); no interactive sample is required.
 using System.Reflection;
 using TSharpVision;
 using TSharpVision.Tests.Infrastructure;

@@ -250,10 +250,16 @@ internal sealed class CalculatorDisplay : TView
 // ---------------------------------------------------------------------------
 public sealed class CalculatorDialog : TDialog
 {
+    public override byte MapColor(int index) => index switch
+    {
+        10 or 11 or 12 or 13 or 14 => 0x20, // black keys on green
+        19 => 0x1F,                       // white display on blue
+        _ => DemoAppearance.Gray
+    };
     // Button labels matching the upstream keyChar[20] layout.
     private static readonly string[] ButtonLabels =
     {
-        "C",  "<-", "%",  "+-",
+        "C",  "←", "%",  "±",
         "7",  "8",  "9",  "/",
         "4",  "5",  "6",  "*",
         "1",  "2",  "3",  "-",

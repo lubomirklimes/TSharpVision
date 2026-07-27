@@ -113,7 +113,7 @@ public static class InputTrace
             _writer.WriteLine(
                 "[START] Press F10, Alt+F, F1, Alt+X, click menu bar, click status line.");
             _writer.WriteLine(
-                "[START] Each line = one trace stage.  Stages 1-2 = driver, 4 = TProgram, 8 = StatusLine, 7 = MenuView/MenuBar, 9 = Execute, 10 = Demo01.");
+                "[START] Each line = one trace stage.  Stages 1-2 = driver, 4 = TProgram, 8 = StatusLine, 7 = MenuView/MenuBar, 9 = Execute, 10 = sample application.");
         }
         catch
         {

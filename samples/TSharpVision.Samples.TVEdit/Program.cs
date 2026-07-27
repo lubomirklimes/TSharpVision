@@ -1,10 +1,10 @@
 // TSharpVision.Samples.TVEdit — standalone editor sample using TEditorApp.
 //
 // Run:
-//   dotnet run --project TSharpVision.Samples.TVEdit
+//   dotnet run --project samples/TSharpVision.Samples.TVEdit
 //
 // Open files on startup:
-//   dotnet run --project TSharpVision.Samples.TVEdit -- file1.txt file2.txt
+//   dotnet run --project samples/TSharpVision.Samples.TVEdit -- file1.txt file2.txt
 //
 // Force a specific driver:
 //   set TSHARPVISION_DRIVER=Win32ConsoleDriver
@@ -12,7 +12,7 @@
 //   set TSHARPVISION_DRIVER=NullDriver
 //
 // Config file (optional, looked up next to the executable):
-//   TVEdit.cfg
+//   TSharpVision.Samples.TVEdit.cfg
 using TSharpVision;
 using TSharpVision.Config;
 using TSharpVision.Constants;
@@ -22,7 +22,7 @@ return TSharpVisionRuntime.Run(() => new TVEditApp(args));
 
 // ---------------------------------------------------------------------------
 // TVEditApp — thin TEditorApp subclass.
-// Adds startup file-open and an About message box.
+// Adds startup file-open.
 // ---------------------------------------------------------------------------
 internal sealed class TVEditApp : TEditorApp
 {
@@ -46,3 +46,4 @@ internal sealed class TVEditApp : TEditorApp
             FileNew();
     }
 }
+

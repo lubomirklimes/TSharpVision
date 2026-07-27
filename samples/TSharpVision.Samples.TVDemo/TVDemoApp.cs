@@ -6,7 +6,7 @@ namespace TSharpVision.Samples.TVDemo;
 
 // ---------------------------------------------------------------------------
 // TVDemo command constants.
-// Use range 300+ to avoid collisions with library (1-199) and Demo01 (200-210).
+// Sample commands use the application range.
 // ---------------------------------------------------------------------------
 public static class TVDemoCmd
 {
@@ -23,54 +23,20 @@ public static class TVDemoCmd
 
 // ---------------------------------------------------------------------------
 // TVDemoApp — the TVDemo sample application.
-// Provides a File / Demo / Window / Help menu, standard status line,
-// empty desktop background, and routes all Demo commands.
+// Routes accessory commands and ticks live views. Showcase menus, controls,
+// games, help and persistence are organized in separate partial-class files.
 // ---------------------------------------------------------------------------
-public class TVDemoApp : TApplication
+public partial class TVDemoApp : TApplication
 {
     // Window-stagger origin for new modeless windows.
     private int _cascade = 0;
 
-    // Live gadget references used by Idle() for periodic tick.
-    // Set when opened, cleared when the dialogs are no longer needed.
-    private ClockDialog? _clockDialog;
-    private HeapDialog?  _heapDialog;
+    private ushort _nextWinNum = 1;
 
     public TVDemoApp() : base()
     {
-    }
-
-    // -----------------------------------------------------------------------
-    // InitMenuBar
-    // -----------------------------------------------------------------------
-    public override TMenuBar InitMenuBar(TRect r)
-    {
-        r.b.y = r.a.y + 1;
-        return new TMenuBar(r,
-            new TSubMenu("~F~ile", Keys.kbAltF) +
-                new TMenuItem("E~x~it", Views.cmQuit, Keys.kbAltX, Views.hcNoContext, "Alt-X") +
-            new TSubMenu("~D~emo", Keys.kbAltD) +
-                new TMenuItem("~A~SCII Table",  TVDemoCmd.cmAsciiTable, Keys.kbNoKey) +
-                new TMenuItem("~C~alculator",   TVDemoCmd.cmCalculator,  Keys.kbNoKey) +
-                new TMenuItem("Ca~l~endar",      TVDemoCmd.cmCalendar,    Keys.kbNoKey) +
-                new TMenuItem("~P~uzzle",        TVDemoCmd.cmPuzzle,      Keys.kbNoKey) +
-                new TMenuItem("~F~ile Viewer",   TVDemoCmd.cmFileViewer,  Keys.kbNoKey) +
-                new TMenuItem("~M~ouse Dialog",   TVDemoCmd.cmMouseDlg,    Keys.kbNoKey) +
-                TMenuItem.NewLine() +
-                new TMenuItem("C~l~ock",           TVDemoCmd.cmClock,       Keys.kbNoKey) +
-                new TMenuItem("~H~eap / Memory",  TVDemoCmd.cmHeap,        Keys.kbNoKey) +
-            new TSubMenu("~W~indow", Keys.kbAltW) +
-                new TMenuItem("~N~ext",     Views.cmNext,    Keys.kbF6, Views.hcNoContext, "F6") +
-                new TMenuItem("~P~revious", Views.cmPrev,    Keys.kbF5, Views.hcNoContext, "F5") +
-                TMenuItem.NewLine() +
-                new TMenuItem("~C~ascade",  Views.cmCascade, Keys.kbNoKey) +
-                new TMenuItem("~T~ile",     Views.cmTile,    Keys.kbNoKey) +
-                TMenuItem.NewLine() +
-                new TMenuItem("~C~lose",    Views.cmClose,   Keys.kbAltF3) +
-                new TMenuItem("~Z~oom",     Views.cmZoom,    Keys.kbF5) +
-            new TSubMenu("~H~elp", Keys.kbAltH) +
-                new TMenuItem("~A~bout...", TVDemoCmd.cmAbout, Keys.kbNoKey)
-        );
+        OpenWelcomeWindow();
+        LoadPalette();
     }
 
     // -----------------------------------------------------------------------
@@ -85,7 +51,10 @@ public class TVDemoApp : TApplication
             new TStatusItem("~Alt+X~ Exit", Keys.kbAltX, Views.cmQuit) +
             new TStatusItem(null, Keys.kbAltF3, Views.cmClose) +
             new TStatusItem(null, Keys.kbF5,    Views.cmZoom) +
-            new TStatusItem(null, Keys.kbF6,    Views.cmNext)
+            new TStatusItem(null, Keys.kbF6,    Views.cmNext) +
+            new TStatusItem(null, Keys.kbShiftF6, Views.cmPrev) +
+            new TStatusItem(null, Keys.kbCtrlF5, Views.cmResize) +
+            new TStatusItem("~F1~ Help", Keys.kbF1, Views.cmHelp)
         );
     }
 
@@ -97,6 +66,8 @@ public class TVDemoApp : TApplication
         base.HandleEvent(ref ev);
 
         if (ev.What != Events.evCommand) return;
+
+        if (HandleShowcaseCommand(ev.message.command)) { ClearEvent(ref ev); return; }
 
         switch (ev.message.command)
         {
@@ -153,9 +124,12 @@ public class TVDemoApp : TApplication
     public override void Idle()
     {
         base.Idle();
-        // Tick clock and heap if their dialogs are alive (still have an owner).
-        if (_clockDialog?.owner != null) _clockDialog.Tick();
-        if (_heapDialog?.owner  != null) _heapDialog.Tick();
+        // Every open instance must keep updating, not just the newest one.
+        DeskTop.ForEachView(view =>
+        {
+            if (view is ClockDialog clock) clock.Tick();
+            if (view is HeapDialog heap) heap.Tick();
+        });
     }
 
     // -----------------------------------------------------------------------
@@ -265,12 +239,10 @@ public class TVDemoApp : TApplication
         int x = 50 + (_cascade % 2);
         int y = 3  + (_cascade % 3) * 2;
         _cascade++;
-        _clockDialog = new ClockDialog(x, y);
-        var valid = ValidView(_clockDialog);
+        var clock = new ClockDialog(x, y);
+        var valid = ValidView(clock);
         if (valid != null)
             DeskTop!.Insert(valid);
-        else
-            _clockDialog = null;
     }
 
     // -----------------------------------------------------------------------
@@ -281,12 +253,10 @@ public class TVDemoApp : TApplication
         int x = 45 + (_cascade % 2);
         int y = 10 + (_cascade % 2);
         _cascade++;
-        _heapDialog = new HeapDialog(x, y);
-        var valid = ValidView(_heapDialog);
+        var heap = new HeapDialog(x, y);
+        var valid = ValidView(heap);
         if (valid != null)
             DeskTop!.Insert(valid);
-        else
-            _heapDialog = null;
     }
 
     // -----------------------------------------------------------------------
@@ -307,3 +277,5 @@ public class TVDemoApp : TApplication
             DeskTop!.ExecView(valid);
     }
 }
+
+

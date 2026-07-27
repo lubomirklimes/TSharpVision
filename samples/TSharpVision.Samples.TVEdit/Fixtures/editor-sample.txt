@@ -1,0 +1,16 @@
+TSharpVision Editor Sample
+-------------------------
+
+Use this file as a disposable editing fixture: save a copy before modifying it.
+Arrow keys, Backspace, Delete and Enter edit text.
+F5 zooms; Ctrl+F5 moves/resizes; F6 and Shift+F6 cycle windows.
+
+Search token: Turbo Vision
+Search token: Turbo Vision
+Search token: turbo vision
+
+Unicode: Příliš žluťoučký kůň. Καλημέρα. 你好.
+
+Select a line, copy it, paste it in another document, then undo.
+Find Turbo Vision; search again; replace it and verify the chosen scope.
+Save As a new file, close it, and reopen to verify content and encoding.

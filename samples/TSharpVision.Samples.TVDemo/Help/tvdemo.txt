@@ -1,0 +1,45 @@
+.topic NoContext=0
+Use the {Index} to explore TVDemo demonstrations.
+
+.topic Index=1
+ TVDemo Help
+ {Main menu:MainMenu}
+ {Welcome:WelcomeWindow}
+ {Window management:WindowManagement}
+ {Controls showcase:ControlsShowcase}
+ {UI colors:ColorDialog}
+ {Resource dialog:ResourceDialog}
+ {Games}
+ {Other samples:OtherSamples}
+
+Tab selects links, Enter follows a link, Backspace returns, Esc closes help.
+
+.topic MainMenu=2
+File opens plain demonstration windows and a read-only file viewer. Demo contains simple dialogs, controls, input history and a resource-loaded dialog.
+
+Accessories contains ASCII table, calculator, calendar and clock. Games contains puzzle, Tetris and Sokoban. Diagnostics contains mouse and memory displays. Options edits UI colors. Window arranges and restores supported windows.
+
+F10 opens the menu; Alt+letter selects a menu. See {Window management:WindowManagement} and {Other samples:OtherSamples}.
+
+.topic WelcomeWindow=3
+TSharpVision reimplements and extends Borland Turbo Vision in C#/.NET. This application demonstrates general controls, custom views and persistence. Use {Main menu:MainMenu} to explore.
+
+.topic WindowManagement=5
+F6 selects the next window; Shift+F6 selects the previous one. F5 zooms; Ctrl+F5 moves/resizes; Alt+F3 closes. Window offers Tile and Cascade.
+
+Save Desktop State writes plain demonstration windows and the application palette to tvdemo-desktop.tvr next to the executable. Unsupported games, accessories and viewers are reported and excluded. Load validates the snapshot before replacing supported windows; other windows remain open. Saved order is preserved among restored windows, which are placed above retained windows. Only the palette is restored automatically on startup.
+
+.topic ControlsShowcase=6
+Use Tab/Shift+Tab to navigate input, check boxes, radio buttons and language list. Labels have Alt+letter accelerators. OK reports selected values; Cancel dismisses the dialog. Demo/Input History records submitted input and recalls it with the history button.
+
+.topic ColorDialog=7
+Options/UI Colors edits a copy of the live palette. OK applies it and redraws; Cancel discards changes. Window/Save Desktop State persists the palette. See {Window management:WindowManagement}.
+
+.topic ResourceDialog=8
+Demo/Resource Dialog creates tvdemo-dialog.tvr on first use, then loads a dialog from TResourceFile. It demonstrates serialization of a dialog, label, input and buttons. The resource is separate from {desktop snapshots:WindowManagement}.
+
+.topic Games=9
+Puzzle, Tetris and Sokoban demonstrate custom drawing and keyboard input. Tetris: arrows move/rotate, Space drops, P pauses. Game windows are excluded from desktop snapshots. Close timed games to stop their activity.
+
+.topic OtherSamples=10
+TVEdit owns complete editing, file encoding selection, clipboard, undo and search/replace workflows. TVTerm owns TTerminal sessions, ANSI/Unicode output, selection, processes and PTY shells. TVBasic and TVIntl are separate specialized examples.

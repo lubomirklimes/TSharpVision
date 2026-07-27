@@ -1,15 +1,16 @@
-# TVEdit.cfg.example
+# TSharpVision.Samples.TVEdit.cfg.example
 #
-# Copy this file to TVEdit.cfg next to the TVEdit executable.
-# Rename it to TVEdit.cfg (remove the .example suffix).
+# Copy this file to TSharpVision.Samples.TVEdit.cfg next to the TVEdit executable.
+# Rename it to TSharpVision.Samples.TVEdit.cfg (remove the .example suffix).
 # Only the settings you specify are applied; missing settings preserve defaults.
 #
 # Supported keys:
 #   [driver]  name      - Driver to use: sdl | console
-#   [sdl]     fontName  - Font family name for the SDL driver
+#   [graphics]     fontName  - Font family name for the SDL driver
 
 [driver]
 name=sdl
 
-[sdl]
+[graphics]
 fontName=Cascadia Mono
+

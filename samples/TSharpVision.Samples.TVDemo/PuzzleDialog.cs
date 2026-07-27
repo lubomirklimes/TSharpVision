@@ -116,10 +116,9 @@ public sealed class PuzzleModel
 // ---------------------------------------------------------------------------
 internal sealed class PuzzleView : TView
 {
-    // Board display: 4 cols × 4 rows.  Each cell is 4 chars wide × 1 tall.
-    // Total visible area: 16 wide × 4 tall + 1 row for move count.
-    public const int ViewW = 16;
-    public const int ViewH = 5;   // 4 rows + 1 move-count row
+    // Four three-column tiles, followed by the original Move counter.
+    public const int ViewW = 18;
+    public const int ViewH = 4;
 
     public PuzzleModel Model { get; }
 
@@ -136,7 +135,6 @@ internal sealed class PuzzleView : TView
     public override void Draw()
     {
         var color     = (char)GetColor(1);
-        var solColor  = (char)GetColor(2);
 
         for (int row = 0; row < 4; row++)
         {
@@ -146,24 +144,27 @@ internal sealed class PuzzleView : TView
             {
                 int val = Model.At(row, col);
                 if (val == 0)
-                    b.moveStr(col * 4, "    ", color);       // blank
+                    b.moveStr(col * 3, "   ", color);       // blank
                 else
                 {
-                    string cell = $"{val,3} ";
-                    b.moveStr(col * 4, cell, color);
+                    // Tile colors follow the solved checkerboard and travel
+                    // with each letter when it slides, as in the original.
+                    int home = val - 1;
+                    char tileColor = (char)(((home / 4 + home % 4) & 1) != 0 ? 0x71 : 0x1E);
+                    string cell = $" {(char)('A' + val - 1)} ";
+                    b.moveStr(col * 3, cell, tileColor);
                 }
+            }
+            if (row == 1) b.moveStr(13, "Move", color);
+            if (row == 2)
+            {
+                string count = Model.Moves.ToString();
+                if (count.Length > 4) count = "999+";
+                b.moveStr(13 + (4 - count.Length + 1) / 2, count, color);
             }
             WriteLine(0, row, size.x, 1, b);
         }
 
-        // Row 4: move count and solved indicator.
-        var bm = new TDrawBuffer();
-        bm.moveChar(0, ' ', color, size.x);
-        string status = Model.IsSolved()
-            ? $"Moves:{Model.Moves,4}  SOLVED!"
-            : $"Moves:{Model.Moves,4}";
-        bm.moveStr(0, status, Model.IsSolved() ? solColor : color);
-        WriteLine(0, 4, size.x, 1, bm);
     }
 
     public override void HandleEvent(ref TEvent ev)
@@ -180,9 +181,9 @@ internal sealed class PuzzleView : TView
         else if (ev.What == Events.evMouseDown)
         {
             var pt = MakeLocal(ev.mouse.where);
-            int col = pt.x / 4;
+            int col = pt.x / 3;
             int row = pt.y;
-            if (col >= 0 && col < 4 && row >= 0 && row < 4)
+            if (pt.x >= 0 && col < 4 && row >= 0 && row < 4)
             {
                 changed = Model.TryMove(row, col);
                 ClearEvent(ref ev);
@@ -194,46 +195,32 @@ internal sealed class PuzzleView : TView
 }
 
 // ---------------------------------------------------------------------------
-// PuzzleDialog — TDialog hosting the PuzzleView + Shuffle button.
+// PuzzleDialog — compact blue letter puzzle.
 // Fixed size, no resize/grow/zoom.  Opened modeless by TVDemoApp.
 // ---------------------------------------------------------------------------
 public sealed class PuzzleDialog : TDialog
 {
-    // Inner area: ViewW + 2 frame = 18; add 2 each side padding = 22 min.
-    public const int DlgW = PuzzleView.ViewW + 4;   // 20
-    public const int DlgH = PuzzleView.ViewH + 4;   // 9
-
-    // Command for the Shuffle button.
-    public const ushort CmShuffle = 350;
+    public override byte MapColor(int index) => index <= 5 ? (byte)0x17 : (byte)0x1E;
+    // Padding leaves enough room for the full title.
+    public const int DlgW = 22; // Full title plus the close icon's frame allowance.
+    public const int DlgH = PuzzleView.ViewH + 2; // Only the board and frame.
 
     internal PuzzleView View { get; }
 
     public PuzzleDialog(int left = 30, int top = 3)
         : base(new TRect(left, top, left + DlgW, top + DlgH), "Puzzle")
     {
-        // TDialog already sets growMode=0, flags=wfMove|wfClose.
+        flags = Views.wfMove | Views.wfClose;
         var model = new PuzzleModel();
         model.Shuffle();
-        View = new PuzzleView(new TRect(2, 1, 2 + PuzzleView.ViewW, 1 + PuzzleView.ViewH), model);
+        View = new PuzzleView(new TRect(1, 1, 1 + PuzzleView.ViewW, 1 + PuzzleView.ViewH), model);
         Insert(View);
 
-        // "Shuffle" button on the last row.
-        Insert(new TButton(
-            new TRect(2, DlgH - 3, DlgW - 2, DlgH - 1),
-            "~S~huffle", CmShuffle, ButtonConstants.bfNormal));
     }
 
     // Expose model for smoke tests.
     public PuzzleModel Model => View.Model;
 
-    public override void HandleEvent(ref TEvent ev)
-    {
-        base.HandleEvent(ref ev);
-        if (ev.What == Events.evCommand && ev.message.command == CmShuffle)
-        {
-            Model.Shuffle();
-            View.DrawView();
-            ClearEvent(ref ev);
-        }
-    }
 }
+
+

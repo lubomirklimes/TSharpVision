@@ -22,5 +22,13 @@
     <ProjectReference Include="..\..\src\TSharpVision\TSharpVision.csproj" />
     <ProjectReference Include="..\TSharpVision.TestSupport\TSharpVision.TestSupport.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- Exercise the sample against NullDriver without referencing executable drivers. -->
+    <Compile Include="..\..\samples\TSharpVision.Samples.TVDemo\*.cs"
+             Exclude="..\..\samples\TSharpVision.Samples.TVDemo\Program.cs"
+             Link="Samples\TVDemo\%(Filename)%(Extension)" />
+    <None Include="..\..\samples\TSharpVision.Samples.TVDemo\Help\tvdemo.hlp"
+          Link="Help\tvdemo.hlp" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 
 </Project>

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using TSharpVision.Constants;
 
 namespace TSharpVision;
@@ -103,67 +103,74 @@ public class TEditor : TView
 
     public int CharPos(uint p, uint target)
     {
-        int pos = 0;
-        while (p < target)
-        {
-            if (BufChar(p) == '\t')
-                pos += (int)tabSize - (pos % (int)tabSize) - 1;
-            pos++;
-            p++;
-        }
-        return pos;
+        int column = 0;
+        foreach (var boundary in ColumnBoundaries(p, Math.Min(target, bufLen)))
+            column = boundary.Column;
+        return column;
     }
 
     public uint CharPtr(uint p, int target)
     {
-        int pos = 0;
-        while (pos < target && p < bufLen
-            && BufChar(p) != '\r' && BufChar(p) != '\n')
+        uint result = Math.Min(p, bufLen);
+        foreach (var boundary in ColumnBoundaries(result, LineEnd(result)))
         {
-            if (BufChar(p) == '\t')
-                pos += (int)tabSize - (pos % (int)tabSize) - 1;
-            pos++;
-            p++;
+            if (boundary.Column > Math.Max(0, target)) break;
+            result = boundary.Offset;
         }
-        if (pos > target) p--;
-        return p;
+        return result;
+    }
+
+    private IEnumerable<(uint Offset, int Column)> ColumnBoundaries(uint origin, uint end)
+    {
+        long column = 0;
+        long stopWidth = Math.Max(1L, tabSize);
+        for (uint offset = Math.Min(origin, bufLen); offset < end; ++offset)
+        {
+            column = BufChar(offset) switch
+            {
+                '\t' => (column / stopWidth + 1) * stopWidth,
+                _ => column + 1
+            };
+            yield return (offset + 1, (int)Math.Min(column, int.MaxValue));
+        }
     }
 
     public uint LineEnd(uint p)
     {
-        if (p == bufLen) return p;
-        char c = BufChar(p);
-        while (c != '\r' && c != '\n')
-        {
-            p++;
-            if (p == bufLen) return p;
-            c = BufChar(p);
-        }
-        return p;
+        return FindLineBreak(Math.Min(p, bufLen), bufLen, false) ?? bufLen;
     }
 
     public uint LineStart(uint p)
     {
-        while (p > 0)
+        uint? terminator = FindLineBreak(0, Math.Min(p, bufLen), true);
+        return terminator.HasValue ? terminator.Value + 1 : 0;
+    }
+
+    // Search physical segments with the runtime span primitives; never scan gap contents.
+    private uint? FindLineBreak(uint start, uint end, bool lastMatch)
+    {
+        while (start < end)
         {
-            char c = BufChar(p - 1);
-            if (c == '\r' || c == '\n') return p;
-            p--;
+            uint segmentStart = lastMatch && end > curPtr ? Math.Max(start, curPtr) : start;
+            uint segmentEnd = !lastMatch && start < curPtr ? Math.Min(end, curPtr) : end;
+            var segment = buffer.AsSpan((int)BufPtr(segmentStart), (int)(segmentEnd - segmentStart));
+            int index = lastMatch ? segment.LastIndexOfAny('\r', '\n') : segment.IndexOfAny('\r', '\n');
+            if (index >= 0) return segmentStart + (uint)index;
+            if (lastMatch) end = segmentStart;
+            else start = segmentEnd;
         }
-        return 0;
+        return null;
     }
 
     public uint NextChar(uint p)
     {
-        if (p == bufLen) return p;
-        p++;
-        return p;
+        return p < bufLen ? p + 1 : bufLen;
     }
 
     public uint PrevChar(uint p)
     {
-        if (p == 0) return p;
-        return p - 1;
+        uint offset = Math.Min(p, bufLen);
+        return offset > 0 ? offset - 1 : 0;
     }
 
     public uint NextLine(uint p) => NextChar(LineEnd(p));

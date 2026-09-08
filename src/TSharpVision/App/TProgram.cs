@@ -216,9 +216,14 @@ public class TProgram : TGroup
             // brought to the front instead of opening a second one.
             if (@event.message.command == Views.cmHelp)
             {
+                // Close notifications are queued; do not reuse a detached window
+                // if another request arrives before its notification is dispatched.
+                if (_helpWindow != null && !ReferenceEquals(_helpWindow.owner, DeskTop))
+                    _helpWindow = null;
                 if (_helpWindow != null)
                 {
                     _helpWindow.Select();
+                    ClearEvent(ref @event);
                 }
                 else
                 {
@@ -227,11 +232,13 @@ public class TProgram : TGroup
                     {
                         var helpCtxNow = GetHelpCtx();
                         var window = new THelpWindow(hf, helpCtxNow);
-                        if (ValidView(window) != null)
+                        if (DeskTop != null && ValidView(window) != null)
+                        {
                             ExecuteHelp(window);
+                            ClearEvent(ref @event);
+                        }
                     }
                 }
-                ClearEvent(ref @event);
             }
         }
     }
@@ -251,7 +258,7 @@ public class TProgram : TGroup
         }
     }
 
-    private static THelpWindow? _helpWindow;
+    private THelpWindow? _helpWindow;
 
     public virtual void Idle()
     {
@@ -371,6 +378,7 @@ public class TProgram : TGroup
     public override void ShutDown()
     {
         _shutDown = true;
+        _helpWindow = null;
 
         StatusLine = null;
         MenuBar = null;

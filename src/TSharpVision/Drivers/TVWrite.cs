@@ -1,4 +1,4 @@
-﻿using TSharpVision.Constants;
+using TSharpVision.Constants;
 using TSharpVision;
 namespace TSharpVision.Drivers;
 
@@ -7,9 +7,10 @@ namespace TSharpVision.Drivers;
 //
 // OVERVIEW
 // --------
-// C# port of tvision/source/tvwrite.asm.  Copies one draw-buffer row into the
-// owner's ScreenBuffer, handling coordinate translation, clipping, z-order
-// occlusion, shadow-attribute overlays, and multi-level buffer propagation.
+// Source chain: Borland tvwrite.asm -> magiblot MIT C++ translation -> managed port.
+// Copies one draw-buffer row into the owner's ScreenBuffer, handling coordinate
+// translation, clipping, z-order occlusion, shadow-attribute overlays,
+// and multi-level buffer propagation.
 //
 // COORDINATE SPACES
 // -----------------

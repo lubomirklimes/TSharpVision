@@ -49,7 +49,15 @@ internal sealed class TerminalAtlas : IDisposable
         _atlasRowCount = AtlasHeight / cellHeight;
         _cpu           = new byte[AtlasWidth * AtlasHeight];
         _slots         = new Dictionary<GpuGlyphKey, int>();
-        CreateGpuResources();
+        try
+        {
+            CreateGpuResources();
+        }
+        catch
+        {
+            Dispose();
+            throw;
+        }
         _dirty = true;
     }
 
@@ -85,6 +93,8 @@ internal sealed class TerminalAtlas : IDisposable
             Size  = (uint)(AtlasWidth * AtlasHeight),
         };
         _transferBuf = SDL3.SDL.CreateGPUTransferBuffer(_device, in xferInfo);
+        if (_texture == IntPtr.Zero || _sampler == IntPtr.Zero || _transferBuf == IntPtr.Zero)
+            throw new InvalidOperationException($"[SDLGpu] Failed to create glyph atlas: {SDL3.SDL.GetError()}");
     }
 
     // Returns UV rect for the glyph. Allocates a new slot if this is the first

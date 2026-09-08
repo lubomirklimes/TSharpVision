@@ -1,4 +1,4 @@
-﻿using TSharpVision.Constants;
+using TSharpVision.Constants;
 namespace TSharpVision;
 
 public class TWindow : TGroup
@@ -13,6 +13,8 @@ public class TWindow : TGroup
     public short palette;
     public TFrame frame;
     public string title;
+    private bool _closeInProgress;
+    private bool _closeCompleted;
 
     public TWindow(TRect bounds, string aTitle, ushort aNumber) : base(bounds)
     {
@@ -35,14 +37,22 @@ public class TWindow : TGroup
 
     public virtual void Close()
     {
-        if (Valid(Views.cmClose))
+        // Managed queue-before-detach contract.
+        if (_closeInProgress || _closeCompleted) return;
+        _closeInProgress = true;
+        try
         {
-            // Notify the application that we're closing.
-            // Upstream: message(TProgram::application, evBroadcast, cmClosingWindow, this).
-            PutEvent(Events.evBroadcast, Views.cmClosingWindow, this as IInfo);
+            if (!Valid(Views.cmClose)) return;
+            TEvent notification = default;
+            notification.What = Events.evBroadcast;
+            notification.message.command = Views.cmClosingWindow;
+            notification.message.infoPtr = this;
+            PutEvent(ref notification);
             frame = null;
             owner?.Remove(this);
+            _closeCompleted = true;
         }
+        finally { _closeInProgress = false; }
     }
 
     public override void ShutDown()

@@ -1,4 +1,4 @@
-﻿using TSharpVision.Constants;
+using TSharpVision.Constants;
 namespace TSharpVision;
 
 public class TFrame : TView
@@ -152,81 +152,59 @@ public class TFrame : TView
 
     public void DrawIcon(int bNormal, int ciType)
     {
-        ushort cFrame;
-        if ((state & Views.sfActive) == 0) cFrame = 0x0101;
-        else if ((state & Views.sfDragging) != 0) cFrame = 0x0505;
-        else cFrame = 0x0503;
-        cFrame = GetColor(cFrame);
-
-        Span<TScreenChar> iconRow = stackalloc TScreenChar[size.x > 0 ? size.x : 1];
-        TDrawBuffer drawBuf = new TDrawBuffer(iconRow);
-        if (ciType == ciClose)
+        int x = ciType == ciClose ? 2 : size.x - 5;
+        if (x < 0 || x + 3 > size.x || size.y == 0) return;
+        string glyph = AnimIcon;
+        if (bNormal != 0)
         {
-            drawBuf.moveCStr(0, bNormal != 0 ? CloseIcon : AnimIcon, cFrame);
-            WriteLine(2, 0, 3, 1, drawBuf);
+            glyph = CloseIcon;
+            if (ciType != ciClose)
+            {
+                if (owner == null) return;
+                TPoint minimum = default, maximum = default;
+                owner.SizeLimits(ref minimum, ref maximum);
+                glyph = owner.size == maximum ? UnZoomIcon : ZoomIcon;
+            }
         }
-        else
-        {
-            TPoint minSize = default, maxSize = default;
-            owner.SizeLimits(ref minSize, ref maxSize);
-            string icon = bNormal != 0
-                ? (owner.size == maxSize ? UnZoomIcon : ZoomIcon)
-                : AnimIcon;
-            drawBuf.moveCStr(0, icon, cFrame);
-            WriteLine(size.x - 5, 0, 3, 1, drawBuf);
-        }
+        ushort palette = (state & Views.sfActive) == 0 ? (ushort)0x0101
+            : (state & Views.sfDragging) != 0 ? (ushort)0x0505 : (ushort)0x0503;
+        Span<TScreenChar> cells = stackalloc TScreenChar[3];
+        cells.Clear();
+        new TDrawBuffer(cells).moveCStr(0, glyph, GetColor(palette));
+        WriteLine(x, 0, 3, 1, cells);
     }
 
     public override void HandleEvent(ref TEvent @event)
     {
         base.HandleEvent(ref @event);
+        bool pressed = @event.What == Events.evMouseDown;
+        if ((!pressed && @event.What != Events.evMouseUp)
+            || owner is not TWindow window
+            || (state & Views.sfActive) == 0
+            || ((state | window.state) & Views.sfDisabled) != 0) return;
 
-        if ((@event.What & (Events.evMouseDown | Events.evMouseUp)) != 0
-            && (state & Views.sfActive) != 0)
+        TPoint point = MakeLocal(@event.mouse.where);
+        if (point.x < 0 || point.x >= size.x || point.y < 0 || point.y >= size.y) return;
+        bool title = point.y == 0;
+        bool close = title && point.x >= 2 && point.x < 5;
+        bool zoom = title && point.x >= size.x - 5 && point.x < size.x - 2;
+        ushort command = close && (window.flags & Views.wfClose) != 0 ? Views.cmClose
+            : title && (zoom || @event.mouse.doubleClick) && (window.flags & Views.wfZoom) != 0
+                ? Views.cmZoom : (ushort)0;
+        if (command != 0)
         {
-            TPoint mouse = MakeLocal(@event.mouse.where);
-            var win = owner as TWindow;
-            byte flags = win?.flags ?? 0;
-
-            if (mouse.y == 0)
-            {
-                bool overClose = mouse.y == 0 && mouse.x >= 2 && mouse.x <= 4;
-                bool overZoom  = mouse.y == 0 && mouse.x >= size.x - 5 && mouse.x <= size.x - 3;
-
-                if ((flags & Views.wfClose) != 0 && overClose)
-                {
-                    if (@event.What == Events.evMouseUp)
-                        PutEvent(Events.evCommand, Views.cmClose, owner as IInfo);
-                    ClearEvent(ref @event);
-                }
-                else if (@event.mouse.doubleClick
-                         || ((flags & Views.wfZoom) != 0 && overZoom))
-                {
-                    if (@event.mouse.doubleClick)
-                    {
-                        PutEvent(Events.evCommand, Views.cmZoom, owner as IInfo);
-                        ClearEvent(ref @event);
-                    }
-                    else
-                    {
-                        if (@event.What == Events.evMouseUp)
-                            PutEvent(Events.evCommand, Views.cmZoom, owner as IInfo);
-                        ClearEvent(ref @event);
-                    }
-                }
-                else if ((flags & Views.wfMove) != 0
-                         && (@event.What & Events.evMouseDown) != 0)
-                    DragWindow(ref @event, Views.dmDragMove);
-            }
-            else if ((@event.What & Events.evMouseDown) != 0
-                     && mouse.x >= size.x - 2 && mouse.y >= size.y - 1)
-            {
-                if ((flags & Views.wfGrow) != 0)
-                    DragWindow(ref @event, Views.dmDragGrow);
-            }
+            if (!CommandEnabled(command)) return;
+            if (!pressed || (command == Views.cmZoom && @event.mouse.doubleClick))
+                PutEvent(Events.evCommand, command, window);
+            ClearEvent(ref @event);
+            return;
         }
-    }
 
+        byte mode = title && (window.flags & Views.wfMove) != 0 ? Views.dmDragMove
+            : point.y == size.y - 1 && point.x >= size.x - 2 && (window.flags & Views.wfGrow) != 0
+                ? Views.dmDragGrow : (byte)0;
+        if (pressed && mode != 0) DragWindow(ref @event, mode);
+    }
     public override void SetState(ushort aState, bool enable)
     {
         base.SetState(aState, enable);

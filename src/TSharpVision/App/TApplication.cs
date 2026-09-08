@@ -1,8 +1,13 @@
-﻿namespace TSharpVision;
+namespace TSharpVision;
 
 // TApplication is the canonical entry point. It owns the lifetime
 // of the static event queue (singleton-guarded like the upstream `static
 // TEventQueue *teq = 0;`, and bridges Suspend/Resume to TEventQueue + TScreen.
+/// <summary>
+/// Base application with a desktop, status line and event loop. Derive from this
+/// type to add views, then start it with <see cref="TSharpVisionRuntime.Run"/>.
+/// The default status line binds Alt+X to quit.
+/// </summary>
 public class TApplication : TProgram
 {
     // Upstream stores `teq` as a file-static singleton; we mirror that with

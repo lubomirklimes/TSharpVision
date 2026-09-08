@@ -55,9 +55,16 @@ public class TDisplay : IDisposable
         if (driver == null)
         {
             driver = ScreenDriverFactory.CreateScreenDriver();
-            //ScreenBuffer screenBuffer = new ScreenBuffer(800, 600);
-            //screenBuffer.
-            driver.Initialize();
+            try
+            {
+                driver.Initialize();
+            }
+            catch
+            {
+                // A later application must not reuse a driver whose startup failed.
+                driver = null!;
+                throw;
+            }
         }
         // Driver already initialized by an earlier TDisplay/TScreen
         // construction (or by the host harness); reuse it. Upstream

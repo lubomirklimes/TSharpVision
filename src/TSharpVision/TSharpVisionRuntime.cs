@@ -46,7 +46,13 @@ public static class TSharpVisionRuntime
     /// Window / console title. When <see langword="null"/> the entry assembly
     /// name is used.
     /// </param>
-    /// <returns>0 on clean exit; 1 when an unhandled exception was caught.</returns>
+    /// <remarks>
+    /// Select the driver before calling this method, for example with the
+    /// TSHARPVISION_DRIVER environment variable. The driver package must be installed.
+    /// Event-loop exceptions are rethrown after application and driver shutdown.
+    /// Configuration and application-construction exceptions propagate to the caller.
+    /// </remarks>
+    /// <returns>0 on clean exit.</returns>
     public static int Run(Func<TApplication> appFactory, string? title = null)
     {
         StreamableRegistration.RegisterAll();

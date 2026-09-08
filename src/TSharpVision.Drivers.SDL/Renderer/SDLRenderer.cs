@@ -89,38 +89,46 @@ public sealed class SDLRenderer : IDisposable, ISDLRenderer
         if (!SDL3.TTF.Init())
             throw new Exception("SDL_ttf could not initialize! " + SDL3.SDL.GetError());
 
-        string? fontPath = null;
-        if (!string.IsNullOrWhiteSpace(fontName))
+        try
         {
-            fontPath = SdlFontLocator.ProbeFontPathByName(fontName);
+            string? fontPath = null;
+            if (!string.IsNullOrWhiteSpace(fontName))
+            {
+                fontPath = SdlFontLocator.ProbeFontPathByName(fontName);
+                if (fontPath == null)
+                    Console.Error.WriteLine($"[SDLRenderer] Warning: font '{fontName}' not found; falling back to default.");
+            }
+
+            fontPath ??= SdlFontLocator.ProbeFontPath();
             if (fontPath == null)
-                Console.Error.WriteLine($"[SDLRenderer] Warning: font '{fontName}' not found; falling back to default.");
+                throw new Exception("[SDLRenderer] No suitable monospace font found on this system.");
+
+            int fontPtSize = fontSize ?? DefaultFontPtSize;
+            _font = SDL3.TTF.OpenFont(fontPath, fontPtSize);
+            if (_font == IntPtr.Zero)
+                throw new Exception($"[SDLRenderer] Failed to load font '{fontPath}': " + SDL3.SDL.GetError());
+
+            _fontPath   = fontPath;
+            SdlFontMetrics.ComputeMetrics(_font, out _cellWidth, out _cellHeight);
+
+            _ascent     = SDL3.TTF.GetFontAscent(_font);
+            _descent    = SDL3.TTF.GetFontDescent(_font);
+            _fontHeight = SDL3.TTF.GetFontHeight(_font);
+            _lineSkip   = SDL3.TTF.GetFontLineSkip(_font);
+
+            TryAddSymbolFallback(fontPtSize);
+
+            _generatedGlyphs = new CellGlyphBitmapCache(
+                new Cp437GlyphGenerator(_cellWidth, _cellHeight));
+
+            if (SdlRendererPerformanceDiagnostics.Enabled)
+                LogStartupDiagnostics(fontPtSize);
         }
-
-        fontPath ??= SdlFontLocator.ProbeFontPath();
-        if (fontPath == null)
-            throw new Exception("[SDLRenderer] No suitable monospace font found on this system.");
-
-        int fontPtSize = fontSize ?? DefaultFontPtSize;
-        _font = SDL3.TTF.OpenFont(fontPath, fontPtSize);
-        if (_font == IntPtr.Zero)
-            throw new Exception($"[SDLRenderer] Failed to load font '{fontPath}': " + SDL3.SDL.GetError());
-
-        _fontPath   = fontPath;
-        SdlFontMetrics.ComputeMetrics(_font, out _cellWidth, out _cellHeight);
-
-        _ascent     = SDL3.TTF.GetFontAscent(_font);
-        _descent    = SDL3.TTF.GetFontDescent(_font);
-        _fontHeight = SDL3.TTF.GetFontHeight(_font);
-        _lineSkip   = SDL3.TTF.GetFontLineSkip(_font);
-
-        TryAddSymbolFallback(fontPtSize);
-
-        _generatedGlyphs = new CellGlyphBitmapCache(
-            new Cp437GlyphGenerator(_cellWidth, _cellHeight));
-
-        if (SdlRendererPerformanceDiagnostics.Enabled)
-            LogStartupDiagnostics(fontPtSize);
+        catch
+        {
+            Dispose();
+            throw;
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────

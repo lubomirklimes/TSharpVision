@@ -1,4 +1,4 @@
-﻿using TSharpVision.Constants;
+using TSharpVision.Constants;
 namespace TSharpVision;
 
 public class TScrollBar : TView
@@ -81,15 +81,23 @@ public class TScrollBar : TView
             char filled = aChars[csbBright];
             b.moveChar(1, filled, GetColor(1), s - 1);
             b.moveChar(pos, aChars[csbMark], GetColor(3), 1);
-            if ((state & Views.sfFocused) != 0)
-            {
-                SetCursor(pos, 0);
-                ResetCursor();
-            }
         }
 
         b.moveChar(s, aChars[csbDown], GetColor(2), 1);
         WriteBuf(0, 0, size.x, size.y, b);
+        UpdateThumbCursor(pos);
+    }
+
+    private void UpdateThumbCursor(int position)
+    {
+        if ((state & Views.sfFocused) == 0) return;
+        if (maxVal <= minVal || (state & Views.sfDisabled) != 0)
+        {
+            TScreen.driver?.SetCursorType(0);
+            return;
+        }
+        TPoint thumb = size.x == 1 ? new TPoint(0, position) : new TPoint(position, 0);
+        SetCursor(thumb.x, thumb.y);
     }
 
     public override TPalette GetPalette() => _palette;

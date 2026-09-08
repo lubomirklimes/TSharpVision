@@ -48,20 +48,27 @@ public class SDLGpuDriver : IDisposable, IDriver
 
     public Action<IRenderer>? MessageLoop { get; set; }
 
-    public void Initialize()
+    public void Initialize() => Initialize(() =>
     {
-        if (Environment.GetEnvironmentVariable("TSharpVision_NO_SDL") == "1") return;
+        if (!SDL3.SDL.Init(SDL3.SDL.InitFlags.Video))
+            throw new InvalidOperationException($"SDL_Init failed: {SDL3.SDL.GetError()}");
+    });
+
+    // Injectable first native operation for headless failure regression tests.
+    internal void Initialize(Action initializeVideo)
+    {
+        if (_attached) return;
+        if (Environment.GetEnvironmentVariable("TSharpVision_NO_SDL") == "1")
+        {
+            Console.Error.WriteLine("[SDL] Initialization explicitly disabled by TSharpVision_NO_SDL=1; driver remains detached.");
+            return;
+        }
 
         bool sdlInitialized = false;
         try
         {
-            try
-            {
-                if (!SDL3.SDL.Init(SDL3.SDL.InitFlags.Video))
-                    return;
-                sdlInitialized = true;
-            }
-            catch (DllNotFoundException) { return; }
+            initializeVideo();
+            sdlInitialized = true;
 
             var windowFlags = SDL3.SDL.WindowFlags.Resizable;
 
@@ -74,8 +81,7 @@ public class SDLGpuDriver : IDisposable, IDriver
 
             if (_window == IntPtr.Zero)
             {
-                SDL3.SDL.Quit();
-                return;
+                throw new InvalidOperationException($"SDL window creation failed: {SDL3.SDL.GetError()}");
             }
 
             var sdl      = ScreenDriverFactory.RegisterConfigSection<SdlDriverConfiguration>();
@@ -101,13 +107,14 @@ public class SDLGpuDriver : IDisposable, IDriver
             TScreen.ScreenWidth  = _cols;
             TScreen.ScreenHeight = _rows;
         }
-        catch
+        catch (Exception ex)
         {
             try { _gpuRenderer?.Dispose(); } catch { }
             _gpuRenderer = null;
             if (_window != IntPtr.Zero) { try { SDL3.SDL.DestroyWindow(_window); } catch { } _window = IntPtr.Zero; }
             if (sdlInitialized) { try { SDL3.SDL.Quit(); } catch { } }
             _attached = false;
+            throw new InvalidOperationException($"{GetType().Name} initialization failed: {ex.Message}", ex);
         }
     }
 

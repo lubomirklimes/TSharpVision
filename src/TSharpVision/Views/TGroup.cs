@@ -1,4 +1,4 @@
-﻿using TSharpVision.Constants;
+using TSharpVision.Constants;
 
 namespace TSharpVision;
 
@@ -148,6 +148,8 @@ public class TGroup : TView
     
     public void Remove(TView p)
     {
+        if (!ReferenceEquals(p.owner, this)) return;
+        TView previousCurrent = current;
         ushort saveState = p.state;
         p.Hide();
         RemoveView(p);
@@ -155,26 +157,22 @@ public class TGroup : TView
         p.Next = null;
         if ((saveState & Views.sfVisible) != 0)
             p.Show();
+        // Hiding a selectable child resets selection. Removing a background
+        // window must not steal focus from the window the user has activated.
+        if (!ReferenceEquals(previousCurrent, p) && previousCurrent != null
+            && ReferenceEquals(previousCurrent.owner, this)
+            && (previousCurrent.state & (Views.sfVisible | Views.sfDisabled)) == Views.sfVisible)
+            SetCurrent(previousCurrent, selectMode.normalSelect);
     }
 
     public void RemoveView(TView p)
     {
-        if (last == null) return;
-        TView view = last;
-        TView akt = view.Next;
-        while (akt != p && akt != last)
-        {
-            view = akt;
-            akt = view.Next;
-        }
-        if (akt == p)
-        {
-            akt = p.Next;
-            view.Next = akt;
-            if (last != p) return;
-            if (akt == p) view = null;
-            last = view;
-        }
+        // Membership first, then splice one ring edge. Lifecycle belongs to Remove.
+        var member = FirstThat((child, sought) => ReferenceEquals(child, sought), p);
+        if (member == null) return;
+        var predecessor = ReferenceEquals(member.Next, member) ? null : member.Prev();
+        if (predecessor != null) predecessor.Next = member.Next;
+        if (ReferenceEquals(last, member)) last = predecessor;
     }
     public void ResetCurrent() 
     {

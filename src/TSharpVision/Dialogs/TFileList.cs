@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using TSharpVision.Constants;
 namespace TSharpVision;
 
@@ -113,8 +113,7 @@ public class TFileList : TSortedListBox
         => ReadDirectory((dir ?? string.Empty) + (wildCard ?? string.Empty));
 
     // Walks the directory using System.IO.Directory: dirs first, then
-    // files matching the wildcard. The fcolHide* and root-skip-".."
-    // tweaks from upstream are ported.
+    // files matching the wildcard. Root-parent handling retains upstream behavior.
     public virtual void ReadDirectory(string path)
     {
         LastError = string.Empty;
@@ -226,18 +225,16 @@ public class TFileList : TSortedListBox
 
     protected static bool ExcludeSpecial(string name)
     {
-        if (string.IsNullOrEmpty(name)) return false;
-        uint o = TFileCollection.SortOptions;
-        int len = name.Length;
-        if ((o & FileCollectionOptions.fcolHideEndTilde) != 0 && name[len - 1] == '~')
-            return true;
-        if ((o & FileCollectionOptions.fcolHideEndBkp) != 0 && len > 4
-            && string.Equals(name.Substring(len - 4), ".bkp",
-                              StringComparison.OrdinalIgnoreCase))
-            return true;
-        if ((o & FileCollectionOptions.fcolHideStartDot) != 0 && name[0] == '.')
-            return true;
-        return false;
+        // Classify names independently of the enabled filter, traversal owns directory rules.
+        uint categories = 0;
+        if (!string.IsNullOrEmpty(name))
+        {
+            if (name.StartsWith('.')) categories |= FileCollectionOptions.fcolHideStartDot;
+            if (name.EndsWith('~')) categories |= FileCollectionOptions.fcolHideEndTilde;
+            if (name.Length >= 5 && name.EndsWith(".bkp", StringComparison.OrdinalIgnoreCase))
+                categories |= FileCollectionOptions.fcolHideEndBkp;
+        }
+        return (TFileCollection.SortOptions & categories) != 0;
     }
 
     private void SetLastError(Exception ex, string path)

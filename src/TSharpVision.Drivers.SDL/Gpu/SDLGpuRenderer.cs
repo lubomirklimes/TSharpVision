@@ -72,6 +72,7 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
 
     // GPU shader pipeline (shader-based, replaces CPU compositing when available).
     private TerminalGpuPipeline? _termPipeline;
+    private bool _ttfInitialized;
 
     // Cell-sized CP437 B0-DF bitmaps, built in LoadFont. Same generator and shading mode as
     // SDLRenderer, so both back-ends draw identical bitmaps.
@@ -201,10 +202,10 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
         {
             if (!SDL3.TTF.Init())
             {
-                Console.Error.WriteLine($"[SDLGpu] SDL_ttf init failed — text will not render.");
-                return;
+                throw new InvalidOperationException($"SDL_ttf init failed: {SDL3.SDL.GetError()}");
             }
 
+            _ttfInitialized = true;
             string? fontPath = null;
             if (!string.IsNullOrWhiteSpace(_fontName))
             {
@@ -217,17 +218,15 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
 
             if (fontPath == null)
             {
-                Console.Error.WriteLine("[SDLGpu] No monospace font found — text will not render.");
-                return;
+                throw new InvalidOperationException("No suitable monospace font found.");
             }
 
             int ptSize = _fontSize ?? DefaultFontPtSize;
             _font = SDL3.TTF.OpenFont(fontPath, ptSize);
             if (_font == IntPtr.Zero)
             {
-                Console.Error.WriteLine(
+                throw new InvalidOperationException(
                     $"[SDLGpu] Could not open font '{fontPath}': {SDL3.SDL.GetError()}");
-                return;
             }
 
             SdlFontMetrics.ComputeMetrics(_font, out _cellWidth, out _cellHeight);
@@ -245,7 +244,7 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"[SDLGpu] Font load failed ({ex.Message}) — text will not render.");
+            throw new InvalidOperationException($"[SDLGpu] Font load failed: {ex.Message}", ex);
         }
     }
 
@@ -1076,7 +1075,11 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
         {
             SDL3.TTF.CloseFont(_font);
             _font = IntPtr.Zero;
+        }
+        if (_ttfInitialized)
+        {
             SDL3.TTF.Quit();
+            _ttfInitialized = false;
         }
 
         if (_device != IntPtr.Zero)

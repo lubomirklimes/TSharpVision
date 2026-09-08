@@ -1,6 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <PackageId>TSharpVision.Drivers.SDL</PackageId>
+    <Description>SDL3 graphical display and input drivers for TSharpVision, including SDL renderer and GPU renderer backends.</Description>
+    <PackageTags>tsharpvision;tui;sdl3;graphics;gpu;driver</PackageTags>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
@@ -30,15 +33,12 @@
   <ItemGroup>
     <PackageReference Include="SDL3-CS" />
     <PackageReference Include="SDL3-CS.Linux" />
-    <PackageReference Include="SDL3-CS.Linux.Image" />
     <PackageReference Include="SDL3-CS.Linux.Shadercross" />
     <PackageReference Include="SDL3-CS.Linux.TTF" />
     <PackageReference Include="SDL3-CS.MacOS" />
-    <PackageReference Include="SDL3-CS.MacOS.Image" />
     <PackageReference Include="SDL3-CS.MacOS.Shadercross" />
     <PackageReference Include="SDL3-CS.MacOS.TTF" />
     <PackageReference Include="SDL3-CS.Windows" />
-    <PackageReference Include="SDL3-CS.Windows.Image" />
     <PackageReference Include="SDL3-CS.Windows.Shadercross" />
     <PackageReference Include="SDL3-CS.Windows.TTF" />
   </ItemGroup>

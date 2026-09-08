@@ -1,6 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <PackageId>TSharpVision.Drivers.Terminal</PackageId>
+    <Description>ANSI/POSIX terminal display and input driver for TSharpVision terminal UI applications.</Description>
+    <PackageTags>tsharpvision;tui;terminal;ansi;posix;driver</PackageTags>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 

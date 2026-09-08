@@ -1,6 +1,7 @@
 // Paradox-style picture mask matching.
 //
-// Picture grammar (from tpxvalid.cc):
+// Retained adapted Borland TVALIDAT.CPP parser; SET tpxvalid.cc was also a reference.
+// Picture grammar:
 //   #   = digit
 //   ?   = letter (alpha)
 //   &   = letter → force uppercase

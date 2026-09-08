@@ -1,4 +1,4 @@
-﻿using TSharpVision.Constants;
+using TSharpVision.Constants;
 using TSharpVision.Drivers;
 
 namespace TSharpVision;
@@ -320,6 +320,7 @@ public class TView : TStreamable, IInfo, IDisposable
             DrawCursor();
         }
     }
+
     public bool Exposed()
     {
         // L0: sfExposed a not zero size

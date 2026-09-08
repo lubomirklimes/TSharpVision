@@ -24,7 +24,7 @@ public sealed class HelpProgramContractTests : IDisposable
     public void F1_FromDialog_OpensHelpWindow_ForFocusedView()
     {
         using var help = BuildHelpFile();
-        var app = new HelpContractProgram(help.File) { RunHelpModally = false };
+        var app = new HelpContractProgram(help.File) { InsertHelpWindow = false };
         try
         {
             var (dialog, child) = InsertFocusedDialogChild(app, 42);
@@ -48,7 +48,7 @@ public sealed class HelpProgramContractTests : IDisposable
     public void F1_FromDialog_RestoresFocus_OnClose()
     {
         using var help = BuildHelpFile();
-        var app = new HelpContractProgram(help.File) { RunHelpModally = true };
+        var app = new HelpContractProgram(help.File) { InsertHelpWindow = true };
         try
         {
             var (dialog, child) = InsertFocusedDialogChild(app, 42);
@@ -58,8 +58,19 @@ public sealed class HelpProgramContractTests : IDisposable
 
             Assert.Equal(Events.evNothing, ev.What);
             Assert.Equal(1, app.ExecuteHelpCount);
+            Assert.Same(app.LastHelpWindow, app.DeskTop.current);
+            Assert.True(app.LastHelpWindow.GetState(Views.sfFocused));
+            TEvent close = default;
+            close.What = Events.evCommand;
+            close.message.command = Views.cmClose;
+            app.HandleEvent(ref close);
+
+            Assert.Equal(Events.evNothing, close.What);
+            Assert.Null(app.LastHelpWindow.owner);
+            Assert.False(app.LastHelpWindow.GetState(Views.sfFocused));
             Assert.Same(dialog, app.DeskTop.current);
             Assert.Same(child, dialog.current);
+            Assert.True(child.GetState(Views.sfFocused));
         }
         finally
         {
@@ -71,7 +82,7 @@ public sealed class HelpProgramContractTests : IDisposable
     public void CmHelp_ConsumesEvent_WhenHelpFileExists()
     {
         using var help = BuildHelpFile();
-        var app = new HelpContractProgram(help.File) { RunHelpModally = false };
+        var app = new HelpContractProgram(help.File) { InsertHelpWindow = false };
         try
         {
             InsertFocusedDialogChild(app, 42);
@@ -111,7 +122,7 @@ public sealed class HelpProgramContractTests : IDisposable
     public void CmHelp_HcNoContext_OpensInvalidContextTopic()
     {
         using var help = BuildHelpFile();
-        var app = new HelpContractProgram(help.File) { RunHelpModally = false };
+        var app = new HelpContractProgram(help.File) { InsertHelpWindow = false };
         try
         {
             InsertFocusedDialogChild(app, Views.hcNoContext);
@@ -127,6 +138,131 @@ public sealed class HelpProgramContractTests : IDisposable
         {
             app.ShutDown();
         }
+    }
+
+    [Fact]
+    public void RepeatedHelpCloseBeforeNotificationCreatesFreshWindow()
+    {
+        using var help = BuildHelpFile();
+        var app = new HelpContractProgram(help.File) { InsertHelpWindow = true };
+        try
+        {
+            var (dialog, child) = InsertFocusedDialogChild(app, 42);
+            for (int i = 0; i < 3; i++)
+            {
+                var request = HelpCommand();
+                app.HandleEvent(ref request);
+                var window = app.LastHelpWindow;
+                Assert.Same(window, app.DeskTop.current);
+                window.Close();
+                Assert.Null(window.owner);
+                Assert.False(window.GetState(Views.sfFocused));
+                Assert.Same(dialog, app.DeskTop.current);
+                Assert.Same(child, dialog.current);
+            }
+            Assert.Equal(3, app.ExecuteHelpCount);
+        }
+        finally { app.ShutDown(); }
+    }
+
+    [Fact]
+    public void ClosingBackgroundHelpPreservesChosenWindowAndIgnoresOldNotification()
+    {
+        using var help = BuildHelpFile();
+        var app = new HelpContractProgram(help.File) { InsertHelpWindow = true };
+        try
+        {
+            var (dialog, child) = InsertFocusedDialogChild(app, 42);
+            app.DeskTop.Insert(new TWindow(new TRect(3, 3, 32, 12), "Other", Views.wnNoNumber));
+            var request = HelpCommand(); app.HandleEvent(ref request);
+            var oldHelp = app.LastHelpWindow;
+            // Select without changing the z-order, so help remains the front child.
+            dialog.options &= unchecked((ushort)~Views.ofTopSelect);
+            dialog.Select();
+            oldHelp.Close();
+            Assert.Same(dialog, app.DeskTop.current);
+            Assert.True(child.GetState(Views.sfFocused));
+            request = HelpCommand(); app.HandleEvent(ref request);
+            var newHelp = app.LastHelpWindow;
+            Assert.NotSame(oldHelp, newHelp);
+            TEvent notification = default;
+            notification.What = Events.evBroadcast;
+            notification.message.command = Views.cmClosingWindow;
+            notification.message.infoPtr = oldHelp;
+            app.HandleEvent(ref notification);
+            request = HelpCommand(); app.HandleEvent(ref request);
+            Assert.Equal(2, app.ExecuteHelpCount);
+            Assert.Same(newHelp, app.DeskTop.current);
+        }
+        finally { app.ShutDown(); }
+    }
+
+    [Fact]
+    public void DesktopHelpCloseDoesNotSelectRemovedPreviousDialog()
+    {
+        using var help = BuildHelpFile();
+        var app = new HelpContractProgram(help.File) { InsertHelpWindow = true };
+        try
+        {
+            var (dialog, _) = InsertFocusedDialogChild(app, 42);
+            var request = HelpCommand(); app.HandleEvent(ref request);
+            dialog.ShutDown();
+            app.LastHelpWindow.Close();
+            Assert.Null(dialog.owner);
+            Assert.NotSame(dialog, app.DeskTop.current);
+            request = HelpCommand(); app.HandleEvent(ref request);
+            Assert.Equal(Events.evNothing, request.What);
+            Assert.Same(app.LastHelpWindow, app.DeskTop.current);
+            app.LastHelpWindow.Close();
+            Assert.NotSame(app.LastHelpWindow, app.DeskTop.current);
+        }
+        finally { app.ShutDown(); }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void F1StatusBindingConsumesOnlyAvailableHelp(bool available)
+    {
+        using var help = BuildHelpFile();
+        var app = new HelpContractProgram(available ? help.File : null) { InsertHelpWindow = true };
+        try
+        {
+            InsertFocusedDialogChild(app, 42);
+            var status = new TStatusLine(new TRect(0, 0, 80, 1),
+                new TStatusDef(0, 0xffff) + new TStatusItem("Help", Keys.kbF1, Views.cmHelp));
+            TEvent request = default;
+            request.What = Events.evKeyDown;
+            request.keyDown.keyCode = Keys.kbF1;
+            status.HandleEvent(ref request);
+            Assert.Equal(Events.evCommand, request.What);
+            Assert.Equal(Views.cmHelp, request.message.command);
+            app.HandleEvent(ref request);
+            Assert.Equal(available ? Events.evNothing : Events.evCommand, request.What);
+            if (available) Assert.NotNull(app.LastHelpWindow);
+            else { Assert.Null(app.LastHelpWindow); Assert.Equal(Views.cmHelp, request.message.command); }
+            status.ShutDown();
+        }
+        finally { app.ShutDown(); }
+    }
+
+    [Fact]
+    public void ShutdownDoesNotLeakHelpIntoNextProgram()
+    {
+        using var help = BuildHelpFile();
+        var first = new HelpContractProgram(help.File) { InsertHelpWindow = true };
+        var request = HelpCommand();
+        first.HandleEvent(ref request);
+        first.ShutDown();
+        var second = new HelpContractProgram(null) { InsertHelpWindow = true };
+        try
+        {
+            request = HelpCommand(); second.HandleEvent(ref request);
+            Assert.Equal(Events.evCommand, request.What);
+            Assert.Null(second.LastHelpWindow);
+            Assert.NotSame(first.LastHelpWindow, second.DeskTop.current);
+        }
+        finally { second.ShutDown(); }
     }
 
     private HelpFileHandle BuildHelpFile()
@@ -216,12 +352,11 @@ public sealed class HelpProgramContractTests : IDisposable
 
     private sealed class HelpContractProgram : TProgram
     {
-        private bool _closingHelp;
         private readonly THelpFile _helpFile;
 
         public HelpContractProgram(THelpFile helpFile) => _helpFile = helpFile;
 
-        public bool RunHelpModally { get; init; }
+        public bool InsertHelpWindow { get; init; }
         public int ExecuteHelpCount { get; private set; }
         public THelpWindow LastHelpWindow { get; private set; }
 
@@ -231,32 +366,12 @@ public sealed class HelpProgramContractTests : IDisposable
         {
             ExecuteHelpCount++;
             LastHelpWindow = window;
-            if (!RunHelpModally)
+            if (!InsertHelpWindow)
                 return;
 
-            _closingHelp = true;
-            try
-            {
-                base.ExecuteHelp(window);
-            }
-            finally
-            {
-                _closingHelp = false;
-            }
+            base.ExecuteHelp(window);
         }
 
-        public override void GetEvent(ref TEvent @event)
-        {
-            if (_closingHelp)
-            {
-                @event = default;
-                @event.What = Events.evCommand;
-                @event.message.command = Views.cmClose;
-                _closingHelp = false;
-                return;
-            }
-            base.GetEvent(ref @event);
-        }
     }
 
     private sealed class HelpFileHandle : IDisposable

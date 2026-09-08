@@ -6,10 +6,42 @@
     <Nullable>enable</Nullable>
     <AnalysisLevel>latest</AnalysisLevel>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <!-- Explicit initial release allowlist. All other projects stay non-packable. -->
+    <IsPackable>false</IsPackable>
+    <IsPackable Condition="'$(MSBuildProjectName)' == 'TSharpVision' Or
+                           '$(MSBuildProjectName)' == 'TSharpVision.Drivers.Console' Or
+                           '$(MSBuildProjectName)' == 'TSharpVision.Drivers.Terminal' Or
+                           '$(MSBuildProjectName)' == 'TSharpVision.Drivers.SDL'">true</IsPackable>
     <!-- CS8632: suppressed while nullable migration (waves A–C) is in progress.
          Affected files already use ? annotations intentionally; the warning fires
          because the enclosing project still has Nullable=disable. Remove this
          NoWarn entry project-by-project as each wave completes. -->
     <NoWarn>$(NoWarn);CS8632</NoWarn>
   </PropertyGroup>
+
+  <PropertyGroup Condition="'$(IsPackable)' == 'true'">
+    <Version Condition="'$(Version)' == ''">0.1.0-dev.1</Version>
+    <Authors>Lubomir Klimes</Authors>
+    <RepositoryUrl>https://github.com/lubomirklimes/TSharpVision</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/lubomirklimes/TSharpVision</PackageProjectUrl>
+    <!-- License/provenance approval remains a separate publication prerequisite. -->
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <DebugType>portable</DebugType>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true' Or '$(GITHUB_ACTIONS)' == 'true' Or '$(TF_BUILD)' == 'true'">true</ContinuousIntegrationBuild>
+    <EnablePackageValidation>true</EnablePackageValidation>
+    <!-- The SDK defaults Company to Authors; do not emit an inferred company. -->
+    <GenerateAssemblyCompanyAttribute>false</GenerateAssemblyCompanyAttribute>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(IsPackable)' == 'true'">
+    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
 </Project>

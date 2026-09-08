@@ -85,22 +85,29 @@ public class SDLDriver : IDisposable, IDriver
 
     public Action<IRenderer>? MessageLoop { get; set; }
 
-    public void Initialize()
+    public void Initialize() => Initialize(() =>
+    {
+        if (!SDL3.SDL.Init(SDL3.SDL.InitFlags.Video))
+            throw new InvalidOperationException($"SDL_Init failed: {SDL3.SDL.GetError()}");
+    });
+
+    // Injectable first native operation for headless failure regression tests.
+    internal void Initialize(Action initializeVideo)
     {
         // Headless guard: skip SDL when explicitly disabled (e.g., during
-        // smoke tests) or when the process can't open a display.
-        if (Environment.GetEnvironmentVariable("TSharpVision_NO_SDL") == "1") return;
+        // smoke tests). Actual startup failures propagate after cleanup.
+        if (_attached) return;
+        if (Environment.GetEnvironmentVariable("TSharpVision_NO_SDL") == "1")
+        {
+            Console.Error.WriteLine("[SDL] Initialization explicitly disabled by TSharpVision_NO_SDL=1; driver remains detached.");
+            return;
+        }
 
         bool sdlInitialized = false;
         try
         {
-            try
-            {
-                if (!SDL3.SDL.Init(SDL3.SDL.InitFlags.Video))
-                    return; // No display available; stay detached.
-                sdlInitialized = true;
-            }
-            catch (DllNotFoundException) { return; }
+            initializeVideo();
+            sdlInitialized = true;
 
             int w = _cellWidth  * GetCols();
             int h = _cellHeight * GetRows();
@@ -110,8 +117,7 @@ public class SDLDriver : IDisposable, IDriver
             {
                 SDL3.SDL.LogError(SDL3.SDL.LogCategory.Application,
                     $"Error creating window and renderer: {SDL3.SDL.GetError()}");
-                SDL3.SDL.Quit();
-                return;
+                throw new InvalidOperationException($"SDL window creation failed: {SDL3.SDL.GetError()}");
             }
 
             // SDLRenderer construction may throw (font not found).
@@ -143,7 +149,7 @@ public class SDLDriver : IDisposable, IDriver
             // Register SDL clipboard so that editor copy/paste routes through SDL3.
             ClipboardService.Current = new SdlClipboardService();
         }
-        catch
+        catch (Exception ex)
         {
             // Clean up any partially-constructed SDL resources.
             try { sdlRenderer?.Dispose(); } catch { }
@@ -152,6 +158,7 @@ public class SDLDriver : IDisposable, IDriver
             if (window   != IntPtr.Zero) { try { SDL3.SDL.DestroyWindow(window);     } catch { } window   = IntPtr.Zero; }
             if (sdlInitialized) { try { SDL3.SDL.Quit(); } catch { } }
             _attached = false;
+            throw new InvalidOperationException($"{GetType().Name} initialization failed: {ex.Message}", ex);
         }
     }
 

@@ -336,7 +336,7 @@ public static class AnsiKeyDecoder
     }
 
     // Promote a plain key to its Ctrl-prefixed sibling when the modifier
-    // bitmask carries Ctrl. Mirrors `wn_kbCodes` upstream.
+    // bitmask carries Ctrl, using the named TSharpVision key constants.
     private static ushort WithCtrlPrefix(ushort baseCode, ushort sh)
     {
         bool ctrl = (sh & Keys.kbCtrlShift) != 0;

@@ -198,7 +198,7 @@ public sealed class TResourceFile
         }
 
         // Step 2 — determine write order: sort by original position so we
-        // write sequentially (matches RHIDE behaviour; minimises seeking).
+        // preserve physical resource order independently of the key-sorted index.
         var order = new int[count];
         for (int i = 0; i < count; i++) order[i] = i;
         System.Array.Sort(order, (a, b) => _index.At(a).pos.CompareTo(_index.At(b).pos));

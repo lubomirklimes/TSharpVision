@@ -1,137 +1,126 @@
-// Win32 console key-event translation. Upstream tvision uses
-// `KEY_EVENT_RECORD` from ReadConsoleInputW + a static lookup table
-// (tvision/win32/winntsys.cc:wn_kbCodes) to fold (vk, modifier-state) into
-// a tvision keycode. This file ports that table verbatim and exposes a
-// pure function so it can be unit-tested without a real console.
 using TSharpVision.Constants;
 
 namespace TSharpVision.Drivers.Console;
 
 /// <summary>
-/// Pure translator from a Windows console key record into a tvision
-/// <see cref="TEvent"/>. No P/Invoke — driver code marshals the
-/// INPUT_RECORD into the four primitive parameters here.
+/// Maps documented Win32 console input to TSharpVision's public key contract.
 /// </summary>
 public static class Win32KeyTranslator
 {
-    // Upstream control-key flags (winntsys.cc:39).
-    public const uint LEFT_CTRL_PRESSED  = 0x0008;
+    public const uint LEFT_CTRL_PRESSED = 0x0008;
     public const uint RIGHT_CTRL_PRESSED = 0x0004;
-    public const uint LEFT_ALT_PRESSED   = 0x0002;
-    public const uint RIGHT_ALT_PRESSED  = 0x0001;
-    public const uint SHIFT_PRESSED      = 0x0010;
-    public const uint NUMLOCK_ON         = 0x0020;
-    public const uint SCROLLLOCK_ON      = 0x0040;
-    public const uint CAPSLOCK_ON        = 0x0080;
-    public const uint ENHANCED_KEY       = 0x0100;
+    public const uint LEFT_ALT_PRESSED = 0x0002;
+    public const uint RIGHT_ALT_PRESSED = 0x0001;
+    public const uint SHIFT_PRESSED = 0x0010;
+    public const uint NUMLOCK_ON = 0x0020;
+    public const uint SCROLLLOCK_ON = 0x0040;
+    public const uint CAPSLOCK_ON = 0x0080;
+    public const uint ENHANCED_KEY = 0x0100;
 
-    /// <summary>
-    /// Translate a Windows console key event into a TEvent. Returns false
-    /// when the event isn't a meaningful keydown (key-up, dead modifier,
-    /// pure shift/ctrl press without any character).
-    /// </summary>
-    /// <param name="keyDown">true when bKeyDown is non-zero.</param>
-    /// <param name="vk">VirtualKeyCode (wVirtualKeyCode).</param>
-    /// <param name="ch">UnicodeChar from the INPUT_RECORD.</param>
-    /// <param name="ctrlState">dwControlKeyState bitmask.</param>
+    private static readonly ushort[] ControlLetters =
+    [
+        Keys.kbCtrlA, Keys.kbCtrlB, Keys.kbCtrlC, Keys.kbCtrlD, Keys.kbCtrlE, Keys.kbCtrlF,
+        Keys.kbCtrlG, Keys.kbCtrlH, Keys.kbCtrlI, Keys.kbCtrlJ, Keys.kbCtrlK, Keys.kbCtrlL,
+        Keys.kbCtrlM, Keys.kbCtrlN, Keys.kbCtrlO, Keys.kbCtrlP, Keys.kbCtrlQ, Keys.kbCtrlR,
+        Keys.kbCtrlS, Keys.kbCtrlT, Keys.kbCtrlU, Keys.kbCtrlV, Keys.kbCtrlW, Keys.kbCtrlX,
+        Keys.kbCtrlY, Keys.kbCtrlZ
+    ];
+    private static readonly ushort[] AltLetters =
+    [
+        Keys.kbAltA, Keys.kbAltB, Keys.kbAltC, Keys.kbAltD, Keys.kbAltE, Keys.kbAltF,
+        Keys.kbAltG, Keys.kbAltH, Keys.kbAltI, Keys.kbAltJ, Keys.kbAltK, Keys.kbAltL,
+        Keys.kbAltM, Keys.kbAltN, Keys.kbAltO, Keys.kbAltP, Keys.kbAltQ, Keys.kbAltR,
+        Keys.kbAltS, Keys.kbAltT, Keys.kbAltU, Keys.kbAltV, Keys.kbAltW, Keys.kbAltX,
+        Keys.kbAltY, Keys.kbAltZ
+    ];
+    private static readonly ushort[] AltDigits =
+        [Keys.kbAlt0, Keys.kbAlt1, Keys.kbAlt2, Keys.kbAlt3, Keys.kbAlt4,
+         Keys.kbAlt5, Keys.kbAlt6, Keys.kbAlt7, Keys.kbAlt8, Keys.kbAlt9];
+    private static readonly ushort[] FunctionKeys =
+        [Keys.kbF1, Keys.kbF2, Keys.kbF3, Keys.kbF4, Keys.kbF5, Keys.kbF6,
+         Keys.kbF7, Keys.kbF8, Keys.kbF9, Keys.kbF10, Keys.kbF11, Keys.kbF12];
+
+    // Win32 VK identity -> target command identity. This is data from two public APIs.
+    private static readonly Dictionary<ushort, (ushort Normal, ushort Ctrl)> Navigation = new()
+    {
+        [0x24] = (Keys.kbHome, Keys.kbCtrlHome), [0x26] = (Keys.kbUp, Keys.kbUp),
+        [0x21] = (Keys.kbPgUp, Keys.kbCtrlPgUp),
+        [0x25] = (Keys.kbLeft, Keys.kbCtrlLeft), [0x27] = (Keys.kbRight, Keys.kbCtrlRight),
+        [0x23] = (Keys.kbEnd, Keys.kbCtrlEnd),
+        [0x28] = (Keys.kbDown, Keys.kbDown), [0x22] = (Keys.kbPgDn, Keys.kbCtrlPgDn),
+        [0x2D] = (Keys.kbIns, Keys.kbCtrlIns),
+        [0x2E] = (Keys.kbDel, Keys.kbCtrlDel)
+    };
+    private static readonly Dictionary<ushort, (ushort Normal, ushort Shift, ushort Ctrl, ushort Alt)> Editing = new()
+    {
+        [0x08] = (Keys.kbBack, Keys.kbBack, Keys.kbCtrlBack, Keys.kbAltBack),
+        [0x09] = (Keys.kbTab, Keys.kbShiftTab, Keys.kbTab, Keys.kbTab),
+        [0x0D] = (Keys.kbEnter, Keys.kbEnter, Keys.kbCtrlEnter, Keys.kbEnter),
+        [0x1B] = (Keys.kbEsc, Keys.kbEsc, Keys.kbEsc, Keys.kbEsc)
+    };
+    private static readonly (uint Input, ushort Output)[] StateFlags =
+    [
+        (SHIFT_PRESSED, Keys.kbShift),
+        (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED, Keys.kbCtrlShift),
+        (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED, Keys.kbAltShift),
+        (CAPSLOCK_ON, Keys.kbCapsState), (NUMLOCK_ON, Keys.kbNumState),
+        (SCROLLLOCK_ON, Keys.kbScrollState)
+    ];
+
     public static bool TryTranslate(bool keyDown, ushort vk, char ch, uint ctrlState, out TEvent ev)
     {
         ev = default;
-        if (!keyDown) return false;
+        if (!keyDown || vk is 0x10 or 0x11 or 0x12 or 0x14 or 0x5B or 0x5C
+            or 0x90 or 0x91 or >= 0xA0 and <= 0xA5) return false;
 
-        bool shift = (ctrlState & SHIFT_PRESSED) != 0;
-        bool ctrl  = (ctrlState & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED)) != 0;
-        bool alt   = (ctrlState & (LEFT_ALT_PRESSED  | RIGHT_ALT_PRESSED))  != 0;
+        ushort state = 0;
+        foreach (var flag in StateFlags)
+            if ((ctrlState & flag.Input) != 0) state |= flag.Output;
+        bool control = (state & Keys.kbCtrlShift) != 0;
+        bool alt = (state & Keys.kbAltShift) != 0;
+        bool shift = (state & Keys.kbShift) != 0;
+        bool printable = ch != '\0' && !char.IsControl(ch);
 
-        ushort kc = MapSpecial(vk, shift, ctrl, alt);
-        if (kc == 0)
-        {
-            // Alt+letter / Alt+digit translate regardless of whether the
-            // console delivered a character payload.
-            if (alt && !ctrl && vk >= 'A' && vk <= 'Z')
-            {
-                kc = (ushort)(Keys.kbAltA + (vk - 'A'));
-            }
-            else if (alt && !ctrl && vk >= 0x30 && vk <= 0x39)
-            {
-                kc = vk == 0x30 ? Keys.kbAlt0 : (ushort)(Keys.kbAlt1 + (vk - 0x31));
-            }
-            else if (ch == 0)
-            {
-                // Bare modifier press (Shift/Ctrl/Alt by themselves).
-                return false;
-            }
-            else if (ctrl && ch >= 1 && ch <= 26)
-            {
-                // Ctrl-A..Ctrl-Z share the upstream layout 0x0101..0x011A.
-                kc = (ushort)(0x0100 | ch);
-            }
-            else
-            {
-                kc = ch;
-            }
-        }
+        // The input signature has no layout identity. Prefer supplied text for Ctrl+Alt.
+        if (printable && control && alt)
+            return EmitText(ch, state, out ev);
 
+        ushort command = 0;
+        if (vk >= 'A' && vk <= 'Z' && (control || alt))
+            command = (alt ? AltLetters : ControlLetters)[vk - 'A'];
+        else if (alt && vk >= '0' && vk <= '9') command = AltDigits[vk - '0'];
+        else if (alt && vk == 0x20) command = Keys.kbAltSpace;
+        else if (alt && vk == 0xBD) command = Keys.kbAltMinus;
+        else if (alt && vk == 0xBB) command = Keys.kbAltEqual;
+        else if (vk >= 0x70 && vk <= 0x7B)
+            command = (ushort)(FunctionKeys[vk - 0x70] | (alt ? 0x0200 : control ? 0x0100 : shift ? 0x0080 : 0));
+        else if (Navigation.TryGetValue(vk, out var navigation))
+            command = (ushort)((control ? navigation.Ctrl : navigation.Normal)
+                | (shift && vk is 0x2D or 0x2E ? 0x0080 : 0));
+        else if (Editing.TryGetValue(vk, out var editing))
+            command = alt && editing.Alt != editing.Normal ? editing.Alt
+                : control && editing.Ctrl != editing.Normal ? editing.Ctrl : shift ? editing.Shift : editing.Normal;
+        else if (control && vk == 0x2C) command = Keys.kbCtrlPrtSc;
+
+        if (command == 0) return EmitText(ch, state, out ev);
         ev.What = Events.evKeyDown;
-        ev.keyDown.keyCode = kc;
-        ev.keyDown.charScan.charCode = (byte)(ch & 0xFF);
-        ev.keyDown.charScan.scanCode = 0; // PC-BIOS scancode unavailable.
-        ev.keyDown.shiftState = (ushort)(
-            (shift ? Keys.kbShift   : 0) |
-            (ctrl  ? Keys.kbCtrlShift : 0) |
-            (alt   ? Keys.kbAltShift  : 0));
-        if (ch >= 32 && ch != 0x7F && !ctrl && !alt)
-            ev.keyDown.text = ch.ToString();
+        ev.keyDown.keyCode = command;
+        ev.keyDown.shiftState = state;
         return true;
     }
 
-    /// <summary>
-    /// Map a virtual-key + modifier into a tvision keycode for the keys
-    /// that don't have a printable Unicode payload. Returns 0 when the
-    /// caller should fall back to <c>ch</c>.
-    /// </summary>
-    private static ushort MapSpecial(ushort vk, bool shift, bool ctrl, bool alt)
+    private static bool EmitText(char character, ushort state, out TEvent ev)
     {
-        switch (vk)
+        ev = default;
+        if (character == '\0') return false;
+        ev.What = Events.evKeyDown;
+        ev.keyDown.shiftState = state;
+        if (!char.IsControl(character)) ev.keyDown.text = character.ToString();
+        if (character <= byte.MaxValue)
         {
-            case 0x08: return alt ? Keys.kbAltBack : (ctrl ? Keys.kbCtrlBack : Keys.kbBack);
-            case 0x09: return shift ? Keys.kbShiftTab : Keys.kbTab;
-            case 0x0D: return ctrl ? Keys.kbCtrlEnter : Keys.kbEnter;
-            case 0x1B: return Keys.kbEsc;
-
-            case 0x21: // PgUp
-                return ctrl ? Keys.kbCtrlPgUp : Keys.kbPgUp;
-            case 0x22: // PgDn
-                return ctrl ? Keys.kbCtrlPgDn : Keys.kbPgDn;
-            case 0x23: // End
-                return ctrl ? Keys.kbCtrlEnd : Keys.kbEnd;
-            case 0x24: // Home
-                return ctrl ? Keys.kbCtrlHome : Keys.kbHome;
-            case 0x25: // Left
-                return ctrl ? Keys.kbCtrlLeft : Keys.kbLeft;
-            case 0x26: // Up
-                return Keys.kbUp;
-            case 0x27: // Right
-                return ctrl ? Keys.kbCtrlRight : Keys.kbRight;
-            case 0x28: // Down
-                return Keys.kbDown;
-            case 0x2D: // Insert
-                return ctrl ? Keys.kbCtrlIns : (shift ? Keys.kbShiftIns : Keys.kbIns);
-            case 0x2E: // Delete
-                return ctrl ? Keys.kbCtrlDel : (shift ? Keys.kbShiftDel : Keys.kbDel);
-
-            // F1..F12: vk 0x70..0x7B.
-            case 0x70: case 0x71: case 0x72: case 0x73:
-            case 0x74: case 0x75: case 0x76: case 0x77:
-            case 0x78: case 0x79: case 0x7A: case 0x7B:
-            {
-                int n = vk - 0x70; // 0..11
-                if (alt)   return (ushort)(Keys.kbAltF1   + n);
-                if (ctrl)  return (ushort)(Keys.kbCtrlF1  + n);
-                if (shift) return (ushort)(Keys.kbShiftF1 + n);
-                return (ushort)(Keys.kbF1 + n);
-            }
+            ev.keyDown.keyCode = character;
+            ev.keyDown.charScan = new CharScanType((byte)character, 0);
         }
-        return 0;
+        return true;
     }
 }

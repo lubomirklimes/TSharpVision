@@ -106,15 +106,15 @@ public class ScreenDriverFactory
             .ToArray();
     }
 
-    private static Platform GetCurrentPlatform()
+    private static Platform GetCurrentPlatform() => ClassifyPlatform(
+        OperatingSystem.IsWindows(), OperatingSystem.IsMacOS(), OperatingSystem.IsLinux());
+
+    private static Platform ClassifyPlatform(bool windows, bool macOS, bool linux)
     {
-        return Environment.OSVersion.Platform switch
-        {
-            PlatformID.Unix => Platform.Linux,
-            PlatformID.MacOSX => Platform.MacOS,
-            PlatformID.Win32NT => Platform.Windows,
-            _ => throw new Exception("Unsupported platform.")
-        };
+        if (windows) return Platform.Windows;
+        if (macOS) return Platform.MacOS;
+        if (linux) return Platform.Linux;
+        throw new PlatformNotSupportedException("Unsupported platform.");
     }
 
     private static Type? GetDriverTypeForPlatform(Platform platform)

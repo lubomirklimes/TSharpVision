@@ -1,6 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <PackageId>TSharpVision.Drivers.Console</PackageId>
+    <Description>Windows console display and input driver for TSharpVision terminal UI applications.</Description>
+    <PackageTags>tsharpvision;tui;console;windows;driver</PackageTags>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 

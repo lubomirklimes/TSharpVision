@@ -169,12 +169,12 @@ public class TDeskTop : TGroup
         ForEachView(p => { if (Tileable(p)) numTileable++; });
         if (numTileable > 0)
         {
-            int numCols = 0, numRows = 0;
-            // Upstream trick: reverse partitioning when dsktTileVertical.
-            if ((flagsOptions & Views.dsktTileVertical) != 0)
-                MostEqualDivisors(numTileable, ref numRows, ref numCols);
-            else
-                MostEqualDivisors(numTileable, ref numCols, ref numRows);
+            // Choose axes after computing the unchanged, orientation-neutral partition.
+            int shortAxis = 0, longAxis = 0;
+            MostEqualDivisors(numTileable, ref shortAxis, ref longAxis);
+            bool vertical = (flagsOptions & Views.dsktTileVertical) != 0;
+            int numCols = vertical ? longAxis : shortAxis;
+            int numRows = vertical ? shortAxis : longAxis;
             if ((r.b.x - r.a.x) / numCols == 0
              || (r.b.y - r.a.y) / numRows == 0)
             {

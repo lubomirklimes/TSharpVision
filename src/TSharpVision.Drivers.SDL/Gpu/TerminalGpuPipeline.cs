@@ -58,91 +58,6 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
     private bool _disposed;
     private bool _shaderCrossInitialized;
 
-    // ─── Shadercross native dependency loader ────────────────────────────────
-
-    // .NET 5+ uses SetDefaultDllDirectories which removes the loaded DLL's own
-    // directory from the Windows DLL search. SDL3_shadercross.dll ships companion
-    // DLLs (spirv-cross-c-shared, dxcompiler, dxil) in the same NuGet native dir —
-    // they won't be found unless we act first. Three layers so at least one works:
-    //   1. NativeLibrary.TryLoad with explicit full paths for companion DLLs.
-    //      Windows reuses already-loaded modules for import resolution, bypassing search.
-    //   2. AddDllDirectory on the native dir (backup for indirect loads).
-    //   3. SetDllImportResolver on the ShaderCross assembly so SDL3_shadercross itself
-    //      loads from the exact computed path, not via probing.
-
-    [DllImport("kernel32", SetLastError = true, CharSet = CharSet.Unicode)]
-    private static extern IntPtr AddDllDirectory(string lpPathName);
-
-    private static string? _shadercrossNativeDir;
-
-    private static void PreloadShadercrossCompanions()
-    {
-        if (!OperatingSystem.IsWindows()) return;
-
-        string nugetHome = Environment.GetEnvironmentVariable("NUGET_PACKAGES")
-            ?? Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                ".nuget", "packages");
-
-        string rid = RuntimeInformation.ProcessArchitecture switch
-        {
-            Architecture.Arm64 => "win-arm64",
-            Architecture.X86   => "win-x86",
-            _                  => "win-x64",
-        };
-
-        string pkgDir = Path.Combine(nugetHome, "sdl3-cs.windows.shadercross");
-        if (!Directory.Exists(pkgDir))
-        {
-            return;
-        }
-
-        string? verDir = Directory.GetDirectories(pkgDir)
-            .OrderByDescending(static d => d).FirstOrDefault();
-        if (verDir is null) return;
-
-        string nativeDir = Path.Combine(verDir, "runtimes", rid, "native");
-        if (!Directory.Exists(nativeDir))
-        {
-            return;
-        }
-
-        _shadercrossNativeDir = nativeDir;
-
-        // Layer 1: pre-load companions into the process so Windows finds them in module list
-        foreach (string dep in new[] { "spirv-cross-c-shared", "dxcompiler", "dxil" })
-        {
-            string path = Path.Combine(nativeDir, dep + ".dll");
-            if (File.Exists(path))
-            {
-                NativeLibrary.TryLoad(path, out _);
-            }
-        }
-
-        // Layer 2: add dir to Windows DLL search path
-        AddDllDirectory(nativeDir);
-
-        // Layer 3: resolve SDL3_shadercross itself from the exact computed path
-        try
-        {
-            NativeLibrary.SetDllImportResolver(typeof(SDL3.ShaderCross).Assembly,
-                (name, _, _) =>
-                {
-                    if (name == "SDL3_shadercross" && _shadercrossNativeDir is { } dir)
-                    {
-                        string fullPath = Path.Combine(dir, "SDL3_shadercross.dll");
-                        if (File.Exists(fullPath) && NativeLibrary.TryLoad(fullPath, out IntPtr h))
-                            return h;
-                    }
-                    return IntPtr.Zero;
-                });
-        }
-        catch (InvalidOperationException)
-        {
-            // Resolver already registered for this assembly (retry after earlier failure)
-        }
-    }
-
     internal TerminalGpuPipeline(
         IntPtr device,
         IntPtr window,
@@ -158,33 +73,44 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
         _maxBgBytes    = (_maxCells + 1) * 6 * sizeof(BgVertex);
         _maxGlyphBytes = _maxCells       * 6 * sizeof(GlyphVertex);
 
-        PreloadShadercrossCompanions();
-        _shaderCrossInitialized = SDL3.ShaderCross.Init();
-        if (!_shaderCrossInitialized)
-            throw new InvalidOperationException(
-                $"[SDLGpu] SDL_ShaderCross_Init failed: {SDL3.SDL.GetError()}");
+        IntPtr bgVs = IntPtr.Zero, bgPs = IntPtr.Zero, glyphVs = IntPtr.Zero, glyphPs = IntPtr.Zero;
+        try
+        {
+            // SDL3-CS imports use the application's resolved native runtime assets.
+            _shaderCrossInitialized = SDL3.ShaderCross.Init();
+            if (!_shaderCrossInitialized)
+                throw new InvalidOperationException(
+                    $"[SDLGpu] SDL_ShaderCross_Init failed: {SDL3.SDL.GetError()}");
 
-        SDL3.SDL.GPUTextureFormat swapFmt =
-            SDL3.SDL.GetGPUSwapchainTextureFormat(device, window);
+            SDL3.SDL.GPUTextureFormat swapFmt =
+                SDL3.SDL.GetGPUSwapchainTextureFormat(device, window);
 
-        IntPtr bgVs    = LoadShaderFromSpirv("TSharpVision.Drivers.SDL.Gpu.Shaders.BgVert.spv",    SDL3.ShaderCross.ShaderStage.Vertex);
-        IntPtr bgPs    = LoadShaderFromSpirv("TSharpVision.Drivers.SDL.Gpu.Shaders.BgFrag.spv",    SDL3.ShaderCross.ShaderStage.Fragment);
-        IntPtr glyphVs = LoadShaderFromSpirv("TSharpVision.Drivers.SDL.Gpu.Shaders.GlyphVert.spv", SDL3.ShaderCross.ShaderStage.Vertex);
-        IntPtr glyphPs = LoadShaderFromSpirv("TSharpVision.Drivers.SDL.Gpu.Shaders.GlyphFrag.spv", SDL3.ShaderCross.ShaderStage.Fragment);
+            bgVs = LoadShaderFromSpirv("TSharpVision.Drivers.SDL.Gpu.Shaders.BgVert.spv",    SDL3.ShaderCross.ShaderStage.Vertex);
+            bgPs = LoadShaderFromSpirv("TSharpVision.Drivers.SDL.Gpu.Shaders.BgFrag.spv",    SDL3.ShaderCross.ShaderStage.Fragment);
+            glyphVs = LoadShaderFromSpirv("TSharpVision.Drivers.SDL.Gpu.Shaders.GlyphVert.spv", SDL3.ShaderCross.ShaderStage.Vertex);
+            glyphPs = LoadShaderFromSpirv("TSharpVision.Drivers.SDL.Gpu.Shaders.GlyphFrag.spv", SDL3.ShaderCross.ShaderStage.Fragment);
 
-        _bgPipeline    = CreateBgPipeline(bgVs, bgPs, swapFmt);
-        _glyphPipeline = CreateGlyphPipeline(glyphVs, glyphPs, swapFmt);
+            _bgPipeline    = CreateBgPipeline(bgVs, bgPs, swapFmt);
+            _glyphPipeline = CreateGlyphPipeline(glyphVs, glyphPs, swapFmt);
 
-        SDL3.SDL.ReleaseGPUShader(device, bgVs);
-        SDL3.SDL.ReleaseGPUShader(device, bgPs);
-        SDL3.SDL.ReleaseGPUShader(device, glyphVs);
-        SDL3.SDL.ReleaseGPUShader(device, glyphPs);
 
-        _atlas = new TerminalAtlas(device, cellWidth, cellHeight);
+            _atlas = new TerminalAtlas(device, cellWidth, cellHeight);
 
-        CreateVertexBuffers();
+            CreateVertexBuffers();
+        }
+        catch
+        {
+            Dispose();
+            throw;
+        }
+        finally
+        {
+            if (bgVs != IntPtr.Zero) SDL3.SDL.ReleaseGPUShader(device, bgVs);
+            if (bgPs != IntPtr.Zero) SDL3.SDL.ReleaseGPUShader(device, bgPs);
+            if (glyphVs != IntPtr.Zero) SDL3.SDL.ReleaseGPUShader(device, glyphVs);
+            if (glyphPs != IntPtr.Zero) SDL3.SDL.ReleaseGPUShader(device, glyphPs);
+        }
     }
-
     // ─── Shader loading ──────────────────────────────────────────────────────
 
     private IntPtr LoadShaderFromSpirv(string resourceName, SDL3.ShaderCross.ShaderStage stage)
@@ -662,7 +588,7 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
         if (_disposed) return;
         _disposed = true;
 
-        _atlas.Dispose();
+        _atlas?.Dispose();
 
         if (_glyphTransferBuf != IntPtr.Zero) SDL3.SDL.ReleaseGPUTransferBuffer(_device, _glyphTransferBuf);
         if (_bgTransferBuf    != IntPtr.Zero) SDL3.SDL.ReleaseGPUTransferBuffer(_device, _bgTransferBuf);

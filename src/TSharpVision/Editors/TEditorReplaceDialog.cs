@@ -7,6 +7,7 @@ namespace TSharpVision;
 // TEditorReplaceDialog — builds and executes the editor Replace dialog.
 //
 // Static factory that mirrors the upstream layout.
+/// <summary>Builds and runs dialogs for search-and-replace criteria.</summary>
 public static class TEditorReplaceDialog
 {
     /// <summary>

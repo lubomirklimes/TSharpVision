@@ -15,6 +15,7 @@ public static class KeyText
         return cache;
     }
 
+    /// <summary>Returns explicit event text when present; otherwise converts printable legacy bytes, optionally including Tab and bytes 127 through 254, or returns empty text.</summary>
     public static string PrintableText(in KeyDownEvent keyDown, bool includeTab = false, bool extendedLegacy = true)
     {
         if (!string.IsNullOrEmpty(keyDown.text))

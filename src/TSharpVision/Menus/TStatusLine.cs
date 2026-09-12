@@ -1,17 +1,23 @@
-﻿using TSharpVision.Constants;
+using TSharpVision.Constants;
 namespace TSharpVision;
 
+/// <summary>Displays context-sensitive command shortcuts and handles their key bindings.</summary>
 public class TStatusLine : TView
 {
+    /// <summary>Palette mapping for normal, disabled, highlighted, and selected status text.</summary>
     public const string cpStatusLine = "\x02\x03\x04\x05\x06\x07";
 
     static TPalette palette = new TPalette(cpStatusLine, (ushort)(cpStatusLine.Length - 1 ));
 
+    /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public new static readonly string Name = "TStatusLine";
 
+    /// <summary>Shortcut chain selected for the current help context, or null when no definition matches.</summary>
     public TStatusItem Items { get; set; }
+    /// <summary>Head of the help-context range definitions used to select active shortcuts.</summary>
     public TStatusDef Defs { get; set; }
 
+    /// <summary>Creates a status line in owner-relative character-cell bounds and selects shortcuts from the referenced definitions.</summary>
     public TStatusLine(TRect bounds, TStatusDef aDefs)
         : base(bounds)
     {
@@ -23,20 +29,24 @@ public class TStatusLine : TView
         FindItems();        
     }
 
+    /// <summary>Finalizes the status line without additional resource cleanup.</summary>
     ~TStatusLine()
     {
     }
 
+    /// <inheritdoc />
     public override void Draw()
     {
         DrawSelect(null);
     }
 
+    /// <inheritdoc />
     public override TPalette GetPalette()
     {
         return palette;
     }
 
+    /// <inheritdoc />
     public override void HandleEvent(ref TEvent @event)
     {
         base.HandleEvent(ref @event);
@@ -87,14 +97,13 @@ public class TStatusLine : TView
         }
     }
 
+    /// <summary>Returns additional hint text for a help context; the base implementation returns an empty string.</summary>
     public virtual string Hint(ushort aHelpCtx)
     {
         return "";
     }
 
-    // Polled from TProgram::idle(). Pulls the current help context from
-    // the modal TopView and, when it changed, rebuilds Items from the
-    // matching TStatusDef and repaints.
+    /// <summary>Checks the modal top view's help context and refreshes shortcuts and drawing when it changes.</summary>
     public void Update()
     {
         TView p = TopView();
@@ -213,6 +222,7 @@ public class TStatusLine : TView
 
     // ── Streaming ─────────────────────────────────────────────────────────
 
+    /// <summary>Creates an instance for restoration from a stream without running normal initialization.</summary>
     protected TStatusLine(StreamableInit init) : base(init) { }
 
     // Upstream writeItems: WriteInt(count) + foreach item: WriteString(text) + WriteShort(keyCode) + WriteShort(command).
@@ -243,6 +253,7 @@ public class TStatusLine : TView
         }
     }
 
+    /// <inheritdoc />
     public override void Write(Opstream os)
     {
         base.Write(os);
@@ -280,6 +291,7 @@ public class TStatusLine : TView
         return first;
     }
 
+    /// <inheritdoc />
     public override object Read(Ipstream isStream)
     {
         base.Read(isStream);
@@ -288,10 +300,13 @@ public class TStatusLine : TView
         return this;
     }
 
+    /// <summary>Creates an instance for stream restoration; its stored state must be read before use.</summary>
     public new static TStreamable Build() => new TStatusLine(StreamableInit.streamableInit);
 
+    /// <summary>Stream registry descriptor and factory for restoring this concrete type.</summary>
     public static readonly TStreamableClass StreamableClassTStatusLine =
         new TStreamableClass("TStatusLine", () => new TStatusLine(StreamableInit.streamableInit), 0);
 
+    /// <inheritdoc />
     public override string ToString() { return Name; }
 }

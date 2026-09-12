@@ -47,6 +47,7 @@ public interface ITSharpVisionStringLookupProvider : ITSharpVisionStringProvider
 /// </summary>
 public sealed class MissingLocalizationKeyEventArgs : System.EventArgs
 {
+    /// <summary>Captures an unresolved localization key, the text used instead, and the provider that lacked it.</summary>
     public MissingLocalizationKeyEventArgs(
         string key,
         string fallback,
@@ -57,8 +58,11 @@ public sealed class MissingLocalizationKeyEventArgs : System.EventArgs
         Provider = provider;
     }
 
+    /// <summary>Localization key that could not be resolved.</summary>
     public string Key { get; }
+    /// <summary>Caller-supplied text returned for the unresolved key.</summary>
     public string Fallback { get; }
+    /// <summary>Provider queried when the key was found to be missing.</summary>
     public ITSharpVisionStringProvider Provider { get; }
 }
 
@@ -229,6 +233,7 @@ public static class TSharpVisionIntl
     public static ITSharpVisionStringProvider Current { get; set; }
         = new DefaultEnglishStringProvider();
 
+    /// <summary>Raised synchronously when a lookup-capable current provider lacks a key, before its fallback is returned.</summary>
     public static event System.EventHandler<MissingLocalizationKeyEventArgs> MissingKey;
 
     /// <summary>
@@ -270,6 +275,7 @@ public static class TSharpVisionIntl
 /// </summary>
 public static class TInternationalizationExtensions
 {
+    /// <summary>Resolves a localization key, using the supplied fallback or the key itself when fallback is null.</summary>
     public static string Loc(string key, string fallback = null)
         => TSharpVisionIntl.Get(key, fallback ?? key);
 }

@@ -17,10 +17,12 @@ public class TApplication : TProgram
     // TScreen mirrors a static singleton too (statics live on the type),
     // but we keep an instance field so the GC pins it for the application's
     // lifetime — disposal at TApplication finalize/Dispose tears it down.
+    /// <summary>Screen lifetime object used to suspend and resume the application's display backend.</summary>
     protected TScreen tsc = new TScreen();
 
     // TSystemError port deferred (signal/abort handlers — driver concern).
 
+    /// <summary>Creates the application desktop and screen and initializes the shared event queue if needed.</summary>
     public TApplication() : base()
     {
         if (_teq == null)
@@ -61,12 +63,14 @@ public class TApplication : TProgram
         base.Dispose(disposing);
     }
 
+    /// <summary>Suspends the shared event queue and screen backend.</summary>
     public override void Suspend()
     {
         TEventQueue.Suspend();
         TScreen.Suspend();
     }
 
+    /// <summary>Resumes the screen and event queue and restarts idle-time tracking.</summary>
     public override void Resume()
     {
         TScreen.Resume();

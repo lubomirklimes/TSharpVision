@@ -60,6 +60,7 @@ public static class ClipboardEncoding
         return sb.ToString();
     }
 
+    /// <summary>Copies a UTF-16 buffer slice without newline conversion; null storage or nonpositive length produces an empty string.</summary>
     public static string CharsToClipboardString(char[] buffer, int start, int length)
     {
         if (buffer == null || length <= 0) return string.Empty;
@@ -105,6 +106,7 @@ public static class ClipboardEncoding
         return result;
     }
 
+    /// <summary>Converts clipboard text to UTF-16 editor text, normalizing CRLF and CR to LF and replacing NUL; empty or oversized input returns an empty array.</summary>
     public static char[] ClipboardStringToChars(string? text)
     {
         if (string.IsNullOrEmpty(text)) return Array.Empty<char>();

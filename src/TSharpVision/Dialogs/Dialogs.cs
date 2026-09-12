@@ -1,11 +1,14 @@
 using TSharpVision.Constants;
 namespace TSharpVision;
 
+/// <summary>Shared, in-memory input histories identified by unsigned history IDs.</summary>
 public static class THistoryList
 {
     private static readonly Dictionary<ushort, List<string>> _store = new();
+    /// <summary>Maximum number of entries retained per history ID.</summary>
     public const int HistorySize = 64;
 
+    /// <summary>Moves a nonempty string to the front of the history, removing duplicates and discarding the oldest entry when full.</summary>
     public static void Add(ushort id, string str)
     {
         if (string.IsNullOrEmpty(str)) return;
@@ -19,9 +22,11 @@ public static class THistoryList
         if (list.Count > HistorySize) list.RemoveAt(list.Count - 1);
     }
 
+    /// <summary>Returns the number of entries for a history ID, or zero when it has no history.</summary>
     public static int Count(ushort id) =>
         _store.TryGetValue(id, out var list) ? list.Count : 0;
 
+    /// <summary>Returns an entry by zero-based recency index, newest first; missing IDs or indices return an empty string.</summary>
     public static string Str(ushort id, int index)
     {
         if (!_store.TryGetValue(id, out var list)) return string.Empty;
@@ -29,23 +34,35 @@ public static class THistoryList
         return list[index];
     }
 
+    /// <summary>Removes all entries for all history IDs.</summary>
     public static void Clear()
     {
         _store.Clear();
     }
 }
 
+/// <summary>Builds and runs standard message and text-input dialogs within a host group.</summary>
 public static class MsgBox
 {
+    /// <summary>Selects the warning title for a message dialog.</summary>
     public const ushort mfWarning     = 0x0000;
+    /// <summary>Selects the error title for a message dialog.</summary>
     public const ushort mfError       = 0x0001;
+    /// <summary>Selects the information title for a message dialog.</summary>
     public const ushort mfInformation = 0x0002;
+    /// <summary>Selects the confirmation title for a message dialog.</summary>
     public const ushort mfConfirmation= 0x0003;
+    /// <summary>Includes a Yes button returning cmYes.</summary>
     public const ushort mfYesButton   = 0x0100;
+    /// <summary>Includes a No button returning cmNo.</summary>
     public const ushort mfNoButton    = 0x0200;
+    /// <summary>Includes an OK button returning cmOK.</summary>
     public const ushort mfOKButton    = 0x0400;
+    /// <summary>Includes a Cancel button returning cmCancel.</summary>
     public const ushort mfCancelButton= 0x0800;
+    /// <summary>Includes Yes, No, and Cancel responses.</summary>
     public const ushort mfYesNoCancel = mfYesButton | mfNoButton | mfCancelButton;
+    /// <summary>Includes OK and Cancel responses.</summary>
     public const ushort mfOKCancel    = mfOKButton | mfCancelButton;
 
     private static readonly string[] ButtonNames =
@@ -60,6 +77,7 @@ public static class MsgBox
     private static readonly string[] TitleKeys =
         { "MsgTitle_Warning", "MsgTitle_Error", "MsgTitle_Information", "MsgTitle_Confirm" };
 
+    /// <summary>Creates a message dialog at owner-relative cell bounds with the requested title category and response buttons; does not execute it.</summary>
     public static TDialog BuildMessageBox(TRect r, string msg, ushort options)
     {
         var dialog = new TDialog(r, TSharpVisionIntl.Get(TitleKeys[options & 0x3], Titles[options & 0x3]));
@@ -91,6 +109,7 @@ public static class MsgBox
         return dialog;
     }
 
+    /// <summary>Runs a message dialog at host-relative cell bounds and returns its response command, or zero for a null host.</summary>
     public static ushort MessageBoxRect(TGroup host, TRect r, string msg, ushort options)
     {
         var dialog = BuildMessageBox(r, msg, options);
@@ -98,6 +117,7 @@ public static class MsgBox
         return host.ExecView(dialog);
     }
 
+    /// <summary>Returns centered 40-by-9 cell dialog bounds using the host size, or an 80-by-25 reference area for a null host.</summary>
     public static TRect DefaultRect(TGroup host)
     {
         var r = new TRect(0, 0, 40, 9);
@@ -106,9 +126,11 @@ public static class MsgBox
         return r;
     }
 
+    /// <summary>Runs a centered message dialog and returns its response command, or zero for a null host.</summary>
     public static ushort MessageBox(TGroup host, string msg, ushort options)
         => MessageBoxRect(host, DefaultRect(host), msg, options);
 
+    /// <summary>Creates a dialog with labeled input, initial text, and a character limit at owner-relative cell bounds; does not execute it.</summary>
     public static TDialog BuildInputBox(TRect bounds, string title,
                                         string aLabel, string s, int limit)
     {
@@ -135,6 +157,7 @@ public static class MsgBox
         return dialog;
     }
 
+    /// <summary>Runs a text-input dialog at host-relative cell bounds and returns its command and text; cancellation preserves the original text.</summary>
     public static (ushort code, string value) InputBoxRect(TGroup host,
         TRect bounds, string title, string aLabel, string s, int limit)
     {
@@ -147,6 +170,7 @@ public static class MsgBox
         return (code, result);
     }
 
+    /// <summary>Runs a centered text-input dialog and returns its command and text; cancellation preserves the original text.</summary>
     public static (ushort code, string value) InputBox(TGroup host,
         string title, string aLabel, string s, int limit)
     {
@@ -173,4 +197,5 @@ public static class MsgBox
     }
 }
 
+/// <summary>Empty compatibility placeholder; use TStringCollection to store and stream strings.</summary>
 public class TStringCollectionStub { }

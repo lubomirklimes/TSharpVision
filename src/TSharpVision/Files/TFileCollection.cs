@@ -1,23 +1,31 @@
 namespace TSharpVision;
 
+/// <summary>Sorted file-search records using shared filename and directory-ordering options.</summary>
 public class TFileCollection : TSortedCollection
 {
+    /// <summary>Backing record list; callers modifying it directly must preserve the current sort order.</summary>
     public List<TSearchRec> Items = new();
 
+    /// <summary>Shared sorting and filtering options; defaults to directories and parent last with case-insensitive name comparison.</summary>
     public static uint SortOptions =
         FileCollectionOptions.fcolParentLast
       | FileCollectionOptions.fcolDirsLast
       | FileCollectionOptions.fcolCaseInsensitive;
 
+    /// <summary>Creates an empty file collection with duplicate entries enabled.</summary>
     public TFileCollection()
     {
         Duplicates = true;
     }
 
+    /// <inheritdoc />
     public override int Count => Items.Count;
+    /// <inheritdoc />
     public override object At(int index) => Items[index];
+    /// <inheritdoc />
     public override object KeyOf(object item) => item; // upstream getName(key)
 
+    /// <inheritdoc />
     public override int Compare(object key1, object key2)
     {
         var a = (TSearchRec)key1;
@@ -57,6 +65,7 @@ public class TFileCollection : TSortedCollection
         return Cmp(n1, n2);
     }
 
+    /// <summary>Inserts a non-null record at its sorted position, retaining the supplied object; null is ignored.</summary>
     public virtual void Insert(TSearchRec item)
     {
         if (item == null) return;

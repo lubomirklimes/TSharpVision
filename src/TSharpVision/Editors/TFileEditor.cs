@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Text;
 using TSharpVision.Constants;
@@ -6,23 +6,29 @@ using TSharpVision.Text;
 
 namespace TSharpVision;
 
-// TFileEditor: a TEditor that backs its gap buffer with an
-// on-disk file. Adds load/save/saveAs, override SetBufSize for realloc on
-// growth, override Valid for unsaved-modify prompt, and the cmSave/cmSaveAs
-// handlers.
+/// <summary>File-backed editor that tracks encoding and line endings, saves changes, and prompts before discarding modified content.</summary>
 public class TFileEditor : TEditor
 {
+    /// <summary>Filename extension used for backups when the backup-files option is enabled.</summary>
     public static string backupExt = ".bak";
 
+    /// <summary>Associated file path; empty for an unnamed document.</summary>
     public string fileName;
+    /// <summary>Line-ending convention detected when content was loaded.</summary>
     public LineEndingKind OriginalLineEnding { get; private set; } = LineEndingKind.Unknown;
+    /// <summary>Line-ending convention requested when serializing the editor's LF-normalized text.</summary>
     public LineEndingKind SaveLineEnding { get; set; } = DefaultLineEndingForPlatform();
+    /// <summary>Whether the loaded file contained multiple line-ending conventions.</summary>
     public bool HadMixedLineEndings { get; private set; }
+    /// <summary>Encoding recognized or selected when the document was loaded.</summary>
     public EditorEncodingKind OriginalEncoding { get; private set; } = EditorEncodingKind.Utf8;
+    /// <summary>Legacy codec associated with the loaded file, or null for UTF-8.</summary>
     public ILegacyTextEncoding OriginalLegacyEncoding { get; private set; }
+    /// <summary>Whether the loaded file began with a UTF-8 byte-order mark.</summary>
     public bool HadUtf8Bom { get; private set; }
     private TFileEditorOpenOptions openOptions;
 
+    /// <summary>Creates a file editor at owner-relative cell bounds and loads the path using automatic encoding detection; empty path creates an unnamed document.</summary>
     public TFileEditor(TRect bounds, TScrollBar aHScrollBar,
                        TScrollBar aVScrollBar, TIndicator aIndicator,
                        string aFileName)
@@ -30,6 +36,7 @@ public class TFileEditor : TEditor
     {
     }
 
+    /// <summary>Creates a file editor with associated controls and loads the path using the supplied decoding policy; null options use defaults.</summary>
     public TFileEditor(TRect bounds, TScrollBar aHScrollBar,
                        TScrollBar aVScrollBar, TIndicator aIndicator,
                        string aFileName,
@@ -49,6 +56,7 @@ public class TFileEditor : TEditor
         }
     }
 
+    /// <inheritdoc />
     public override void HandleEvent(ref TEvent ev)
     {
         base.HandleEvent(ref ev);
@@ -64,6 +72,7 @@ public class TFileEditor : TEditor
         }
     }
 
+    /// <summary>Loads and normalizes file content while recording encoding and line endings; a missing file is accepted as a new document, and read failure returns false.</summary>
     public bool LoadFile()
     {
         if (!File.Exists(fileName))
@@ -118,6 +127,7 @@ public class TFileEditor : TEditor
         return true;
     }
 
+    /// <summary>Saves to the current path or invokes Save As for an unnamed document; returns whether saving succeeded.</summary>
     public bool Save()
     {
         if (string.IsNullOrEmpty(fileName))
@@ -125,6 +135,7 @@ public class TFileEditor : TEditor
         return SaveFile();
     }
 
+    /// <summary>Prompts for a destination, expands the accepted filename, and saves; returns false on cancellation or failure.</summary>
     public bool SaveAs()
     {
         bool res = false;
@@ -144,6 +155,7 @@ public class TFileEditor : TEditor
         return res;
     }
 
+    /// <summary>Writes content using the selected line endings and retained encoding, optionally backing up the old file; clears modified state on success.</summary>
     public bool SaveFile()
     {
         if ((editorFlags & Views.efBackupFiles) != 0
@@ -375,6 +387,7 @@ public class TFileEditor : TEditor
         return Path.Combine(dir, baseName + backupExt);
     }
 
+    /// <inheritdoc />
     public override bool SetBufSize(uint newSize)
     {
         newSize = (newSize + 0x0FFFu) & 0xFFFFF000u;
@@ -405,6 +418,7 @@ public class TFileEditor : TEditor
         return true;
     }
 
+    /// <inheritdoc />
     public override void ShutDown()
     {
         SetCmdState(Views.cmSave, false);
@@ -412,6 +426,7 @@ public class TFileEditor : TEditor
         base.ShutDown();
     }
 
+    /// <inheritdoc />
     public override void UpdateCommands()
     {
         base.UpdateCommands();
@@ -419,6 +434,7 @@ public class TFileEditor : TEditor
         SetCmdState(Views.cmSaveAs, true);
     }
 
+    /// <inheritdoc />
     public override bool Valid(ushort command)
     {
         if (command == Views.cmValid)
@@ -441,12 +457,14 @@ public class TFileEditor : TEditor
     }
 
     // Wire: TEditor base + fileName(string) + selStart(uint32) + selEnd(uint32) + curPtr(uint32).
+    /// <summary>Creates an instance for restoration from a stream without running normal initialization.</summary>
     protected TFileEditor(StreamableInit init) : base(init)
     {
         fileName = string.Empty;
         openOptions = new TFileEditorOpenOptions();
     }
 
+    /// <inheritdoc />
     public override void Write(Opstream os)
     {
         base.Write(os);
@@ -456,6 +474,7 @@ public class TFileEditor : TEditor
         os.WriteInt(curPtr);
     }
 
+    /// <inheritdoc />
     public override object Read(Ipstream isStream)
     {
         base.Read(isStream);
@@ -480,7 +499,9 @@ public class TFileEditor : TEditor
         return this;
     }
 
+    /// <summary>Creates an instance for stream restoration; its stored state must be read before use.</summary>
     public new static TStreamable Build() => new TFileEditor(StreamableInit.streamableInit);
+    /// <summary>Stream registry descriptor and factory for restoring this concrete type.</summary>
     public static readonly TStreamableClass StreamableClassTFileEditor =
         new TStreamableClass("TFileEditor", () => new TFileEditor(StreamableInit.streamableInit), 0);
 }

@@ -14,16 +14,22 @@ public static class LegacyTextEncodings
         new(StringComparer.OrdinalIgnoreCase);
     private static bool _codePagesRegistered;
 
+    /// <summary>ISO-8859-1 encoding mapping each byte to the same Unicode code-unit value.</summary>
     public static readonly ILegacyTextEncoding Latin1 =
         new DotNetLegacyTextEncoding("latin1", 28591);
+    /// <summary>IBM PC code page 437 encoding for legacy DOS text.</summary>
     public static readonly ILegacyTextEncoding Cp437 =
         new DotNetLegacyTextEncoding("cp437", 437);
+    /// <summary>DOS Latin-2 code page 852 encoding for Central European text.</summary>
     public static readonly ILegacyTextEncoding Cp852 =
         new DotNetLegacyTextEncoding("cp852", 852);
+    /// <summary>Windows code page 1250 encoding for Central European text.</summary>
     public static readonly ILegacyTextEncoding Windows1250 =
         new DotNetLegacyTextEncoding("windows-1250", 1250);
+    /// <summary>ISO-8859-2 Latin-2 encoding for Central European text.</summary>
     public static readonly ILegacyTextEncoding Iso8859_2 =
         new DotNetLegacyTextEncoding("iso-8859-2", 28592);
+    /// <summary>Table-based Kamenicky encoding for legacy Czech and Slovak text.</summary>
     public static readonly ILegacyTextEncoding Kamenicky =
         new SingleByteTextEncoding("kamenicky", KamenickyEncodingTable.ByteToChar);
 
@@ -51,6 +57,7 @@ public static class LegacyTextEncodings
         }
     }
 
+    /// <summary>Finds a registered encoding by trimmed case-insensitive name; returns false and null for blank or unknown names.</summary>
     public static bool TryGet(string name, out ILegacyTextEncoding encoding)
     {
         if (string.IsNullOrWhiteSpace(name))
@@ -63,6 +70,7 @@ public static class LegacyTextEncodings
             return Registry.TryGetValue(name.Trim(), out encoding);
     }
 
+    /// <summary>Registers a non-null encoding under a nonblank trimmed name; duplicate case-insensitive names throw ArgumentException.</summary>
     public static void Register(string name, ILegacyTextEncoding encoding)
     {
         ValidateRegistration(name, encoding);
@@ -70,6 +78,7 @@ public static class LegacyTextEncodings
             Registry.Add(name.Trim(), encoding);
     }
 
+    /// <summary>Registers a valid encoding and name if absent; returns false for a duplicate, while invalid arguments still throw.</summary>
     public static bool TryRegister(string name, ILegacyTextEncoding encoding)
     {
         ValidateRegistration(name, encoding);
@@ -83,6 +92,7 @@ public static class LegacyTextEncodings
         }
     }
 
+    /// <summary>Registers a copied 256-character byte mapping; the first byte for each repeated character is used for encoding.</summary>
     public static void RegisterSingleByte(string name, IReadOnlyList<char> byteToChar)
         => Register(name, new SingleByteTextEncoding(name, byteToChar));
 

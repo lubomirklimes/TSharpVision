@@ -8,9 +8,12 @@ public class TFilterValidator : TValidator
     /// not in this string is rejected.
     protected string ValidChars;
 
+    /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public new static readonly string Name = "TFilterValidator";
+    /// <inheritdoc />
     public override string streamableName => "TFilterValidator";
 
+    /// <summary>Stream registry descriptor and factory for restoring this concrete type.</summary>
     public static readonly TStreamableClass StreamableClassTFilterValidator =
         new TStreamableClass("TFilterValidator",
             () => new TFilterValidator(StreamableInit.streamableInit), 0);
@@ -22,8 +25,10 @@ public class TFilterValidator : TValidator
         ValidChars = validChars ?? string.Empty;
     }
 
+    /// <summary>Creates a filter validator for restoration; Read must supply its valid-character set before use.</summary>
     protected TFilterValidator(StreamableInit _) : base(_) { }
 
+    /// <inheritdoc />
     public override bool IsValid(string s)
     {
         if (s == null) return true;
@@ -32,16 +37,20 @@ public class TFilterValidator : TValidator
         return true;
     }
 
+    /// <inheritdoc />
     public override bool IsValidInput(string s, bool suppressFill) => IsValid(s);
 
+    /// <inheritdoc />
     public override void Error() { }
 
+    /// <inheritdoc />
     public override void Write(Opstream os)
     {
         base.Write(os);
         os.WriteString(ValidChars);
     }
 
+    /// <inheritdoc />
     public override object Read(Ipstream isStream)
     {
         base.Read(isStream);
@@ -49,6 +58,7 @@ public class TFilterValidator : TValidator
         return this;
     }
 
+    /// <summary>Creates an instance for stream restoration; its stored state must be read before use.</summary>
     public new static TStreamable Build() =>
         new TFilterValidator(StreamableInit.streamableInit);
 }

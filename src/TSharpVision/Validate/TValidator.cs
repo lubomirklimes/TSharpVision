@@ -3,37 +3,52 @@ namespace TSharpVision;
 /// Transfer-operation codes passed to TValidator.Transfer.
 public enum TVTransfer
 {
+    /// <summary>Queries the byte size required for the validator's transferred data.</summary>
     vtDataSize = 0,
+    /// <summary>Requests conversion from application data to input text.</summary>
     vtSetData  = 1,
+    /// <summary>Requests conversion from input text to application data.</summary>
     vtGetData  = 2,
 }
 
 /// Abstract base for all input validators.
 public class TValidator : TStreamable
 {
+    /// <summary>Validator configuration has no reported syntax error.</summary>
     public const ushort VsOk      = 0;
+    /// <summary>Validator configuration contains a syntax error, such as an invalid picture mask.</summary>
     public const ushort VsSyntax  = 1;
 
+    /// <summary>Enables picture-literal filling when partial-input validation does not suppress it.</summary>
     public const ushort VoFill      = 0x0001;
+    /// <summary>Enables validator-specific conversion between input text and application data.</summary>
     public const ushort VoTransfer  = 0x0002;
+    /// <summary>Compatibility option for validation on appended input; currently not interpreted by the input-line implementation.</summary>
     public const ushort VoOnAppend  = 0x0004;
 
+    /// <summary>Configuration status, normally VsOk or VsSyntax; this is not the result of the latest input check.</summary>
     public ushort Status;
+    /// <summary>Combined option bits controlling filling, data transfer, and append-validation policy.</summary>
     public ushort Options;
 
+    /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public static readonly string Name = "TValidator";
+    /// <inheritdoc />
     public override string streamableName => "TValidator";
 
+    /// <summary>Stream registry descriptor and factory for restoring this concrete type.</summary>
     public static readonly TStreamableClass StreamableClassTValidator =
         new TStreamableClass("TValidator",
             () => new TValidator(StreamableInit.streamableInit), 0);
 
+    /// <summary>Creates a validator with successful configuration status and no options; base input checks accept all text.</summary>
     public TValidator()
     {
         Status  = VsOk;
         Options = 0;
     }
 
+    /// <summary>Creates a validator whose persisted configuration will be supplied by Read.</summary>
     protected TValidator(StreamableInit _) { }
 
     /// Called when validation fails. Default: no-op.
@@ -63,12 +78,14 @@ public class TValidator : TStreamable
     /// Optional formatting of the input string. Default: no-op.
     public virtual void Format(ref string s) { }
 
+    /// <inheritdoc />
     public override void Write(Opstream os)
     {
         os.WriteShort(Status);
         os.WriteShort(Options);
     }
 
+    /// <inheritdoc />
     public override object Read(Ipstream isStream)
     {
         Status  = isStream.ReadShort();
@@ -76,6 +93,7 @@ public class TValidator : TStreamable
         return this;
     }
 
+    /// <summary>Creates an instance for stream restoration; its stored state must be read before use.</summary>
     public static TStreamable Build() =>
         new TValidator(StreamableInit.streamableInit);
 

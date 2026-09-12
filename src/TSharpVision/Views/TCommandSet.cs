@@ -1,4 +1,4 @@
-﻿namespace TSharpVision;
+namespace TSharpVision;
 
 /// <summary>
 /// A set of command codes, used to track which commands are currently enabled.
@@ -40,8 +40,10 @@ public class TCommandSet
     public bool Has(int cmd)
         => InRange(cmd) && (cmds[cmd >> 6] & (1UL << (cmd & (BitsPerWord - 1)))) != 0;
 
+    /// <summary>Adds a command code to the set; out-of-range codes are ignored.</summary>
     public void Add(int cmd) { EnableCmd(cmd); }
 
+    /// <summary>Removes a command code from the set; out-of-range codes are ignored.</summary>
     public void Remove(int cmd) { DisableCmd(cmd); }
 
     /// <summary>Adds <paramref name="cmd"/> to the set. Out-of-range codes are ignored.</summary>
@@ -84,6 +86,7 @@ public class TCommandSet
         Array.Copy(other.cmds, cmds, WordCount);
     }
 
+    /// <summary>Returns true when the set contains no command codes.</summary>
     public bool IsEmpty()
     {
         foreach (ulong word in cmds)
@@ -116,6 +119,7 @@ public class TCommandSet
         return true;
     }
 
+    /// <summary>Returns a new set containing commands present in both non-null operands.</summary>
     public static TCommandSet operator &(TCommandSet a, TCommandSet b)
     {
         TCommandSet result = new TCommandSet(a);
@@ -124,6 +128,7 @@ public class TCommandSet
         return result;
     }
 
+    /// <summary>Returns a new set containing commands present in either non-null operand.</summary>
     public static TCommandSet operator |(TCommandSet a, TCommandSet b)
     {
         TCommandSet result = new TCommandSet(a);
@@ -132,6 +137,7 @@ public class TCommandSet
         return result;
     }
 
+    /// <inheritdoc />
     public override bool Equals(object obj)
     {
         if (obj is TCommandSet other)
@@ -144,6 +150,7 @@ public class TCommandSet
         return false;
     }
 
+    /// <inheritdoc />
     public override int GetHashCode()
     {
         int hash = 17;
@@ -152,6 +159,7 @@ public class TCommandSet
         return hash;
     }
 
+    /// <summary>Tests equality of command membership, treating two null references as equal.</summary>
     public static bool operator ==(TCommandSet a, TCommandSet b)
     {
         if (ReferenceEquals(a, b)) return true;
@@ -159,6 +167,7 @@ public class TCommandSet
         return a.Equals(b);
     }
 
+    /// <summary>Tests whether command membership differs, including when exactly one operand is null.</summary>
     public static bool operator !=(TCommandSet a, TCommandSet b)
     {
         return !(a == b);

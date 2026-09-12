@@ -1,18 +1,25 @@
 using TSharpVision.Constants;
 namespace TSharpVision;
 
+/// <summary>Base for grouped labeled options with keyboard and mouse selection, used by checkboxes and radio buttons.</summary>
 public class TCluster : TView
 {
+    /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public new static readonly string Name = "TCluster";
 
-    // ofBeVerbose toggles the cmClusterMovedTo/cmClusterPress broadcasts.
+    /// <summary>Enables broadcasts when focus moves between options or an option is activated.</summary>
     public const ushort ofBeVerbose = 0x800;
+    /// <summary>Additional view options copied into newly constructed clusters.</summary>
     public static ushort ExtraOptions = ofBeVerbose;
 
+    /// <summary>Option value; derived controls interpret it as a bit mask or selected-option index.</summary>
     public uint value;
+    /// <summary>Zero-based index of the option with the cluster's keyboard focus.</summary>
     public int sel;
+    /// <summary>Option labels in display order, including any tilde mnemonic markers.</summary>
     public List<string> Strings;
 
+    /// <summary>Creates a selectable cluster at owner-relative cell bounds and copies labels from the linked list.</summary>
     public TCluster(TRect bounds, TSItem aStrings)
         : base(bounds)
     {
@@ -26,15 +33,19 @@ public class TCluster : TView
         ShowCursor();
     }
 
+    /// <summary>Finalizer hook; performs no resource cleanup.</summary>
     ~TCluster() { }
 
+    /// <summary>Creates an instance for restoration from a stream without running normal initialization.</summary>
     protected TCluster(StreamableInit init) : base(init)
     {
         Strings = new List<string>();
     }
 
+    /// <summary>Returns the label at a valid zero-based option index, substituting an empty string for a null label.</summary>
     public string GetItemText(int item) => Strings[item] ?? string.Empty;
 
+    /// <inheritdoc />
     public override ushort DataSize() => sizeof(ushort);
 
     private static int CStrLen(string s)
@@ -45,6 +56,7 @@ public class TCluster : TView
         return n;
     }
 
+    /// <summary>Draws option labels and icons, applying the marker to options selected by Mark.</summary>
     public void DrawBox(string icon, char marker)
     {
         Span<TScreenChar> row = stackalloc TScreenChar[size.x > 0 ? size.x : 1];
@@ -76,11 +88,13 @@ public class TCluster : TView
         SetCursor(Column(sel) + 2, Row(sel));
     }
 
+    /// <inheritdoc />
     public override void GetData(ref object rec)
     {
         rec = (ushort)value;
     }
 
+    /// <inheritdoc />
     public override ushort GetHelpCtx()
     {
         if (helpCtx == Views.hcNoContext) return Views.hcNoContext;
@@ -89,6 +103,7 @@ public class TCluster : TView
 
     private static readonly TPalette _palette = new TPalette(
         "\x10\x11\x12\x12\x1F", 5);
+    /// <inheritdoc />
     public override TPalette GetPalette() => _palette;
 
     private static char ExtractHotKey(string s)
@@ -107,6 +122,7 @@ public class TCluster : TView
 
     private static ushort CtrlToArrow(ushort code) => code;
 
+    /// <inheritdoc />
     public override void HandleEvent(ref TEvent @event)
     {
         base.HandleEvent(ref @event);
@@ -212,6 +228,7 @@ public class TCluster : TView
         }
     }
 
+    /// <inheritdoc />
     public override void SetData(object rec)
     {
         if (rec is ushort u) value = u;
@@ -220,6 +237,7 @@ public class TCluster : TView
         DrawView();
     }
 
+    /// <inheritdoc />
     public override void SetState(ushort aState, bool enable)
     {
         base.SetState(aState, enable);
@@ -227,20 +245,24 @@ public class TCluster : TView
             DrawView();
     }
 
+    /// <summary>Reports whether an option should display its selected marker; the base cluster marks none.</summary>
     public virtual bool Mark(int item) => false;
 
+    /// <summary>Notifies the owner of option focus movement when verbose broadcasts are enabled.</summary>
     public virtual void MovedTo(int item)
     {
         if (owner != null && (options & ofBeVerbose) != 0)
             owner.Message(Events.evBroadcast, Views.cmClusterMovedTo, this);
     }
 
+    /// <summary>Notifies the owner of option activation when verbose broadcasts are enabled.</summary>
     public virtual void Press(int item)
     {
         if (owner != null && (options & ofBeVerbose) != 0)
             owner.Message(Events.evBroadcast, Views.cmClusterPress, this);
     }
 
+    /// <summary>Returns the local character-cell column where an option's icon begins.</summary>
     protected int Column(int item)
     {
         if (item < size.y) return 0;
@@ -260,6 +282,7 @@ public class TCluster : TView
         return col;
     }
 
+    /// <summary>Returns the option index at a local cell position, or minus one outside the options.</summary>
     protected int FindSel(TPoint p)
     {
         TRect r = GetExtent();
@@ -271,13 +294,16 @@ public class TCluster : TView
         return s;
     }
 
+    /// <summary>Returns the local character-cell row for an option index.</summary>
     protected int Row(int item) => size.y == 0 ? 0 : item % size.y;
 
     // ── Streaming ────────────────────────────────────────────────────────
     // Wire: TView base + WriteShort(value) + WriteInt(sel) + WritePointer(strings as TStringCollection).
+    /// <summary>Stream registry descriptor and factory for restoring this concrete type.</summary>
     public static readonly TStreamableClass StreamableClassTCluster =
         new TStreamableClass("TCluster", () => new TCluster(StreamableInit.streamableInit), 0);
 
+    /// <inheritdoc />
     public override void Write(Opstream os)
     {
         base.Write(os);
@@ -288,6 +314,7 @@ public class TCluster : TView
         os.WritePointer(sc);
     }
 
+    /// <inheritdoc />
     public override object Read(Ipstream isStream)
     {
         base.Read(isStream);
@@ -301,5 +328,6 @@ public class TCluster : TView
         return this;
     }
 
+    /// <summary>Creates an instance for stream restoration; its stored state must be read before use.</summary>
     public new static TStreamable Build() => new TCluster(StreamableInit.streamableInit);
 }

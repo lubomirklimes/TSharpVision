@@ -9,15 +9,18 @@ public sealed class TStreamableTypes
     // semantically equivalent for the registry/lookup operations.
     private readonly Dictionary<string, TStreamableClass> _byName = new();
 
+    /// <summary>Registers a descriptor by its case-sensitive name, replacing an existing descriptor with that name.</summary>
     public void RegisterType(TStreamableClass c)
     {
         _byName[c.name] = c;
     }
 
+    /// <summary>Returns the descriptor registered under the case-sensitive name, or null when absent.</summary>
     public TStreamableClass Lookup(string name)
     {
         return _byName.TryGetValue(name, out var c) ? c : null;
     }
 
+    /// <summary>Number of distinct type names currently registered.</summary>
     public int Count => _byName.Count;
 }

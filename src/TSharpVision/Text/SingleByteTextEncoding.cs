@@ -11,6 +11,7 @@ public sealed class SingleByteTextEncoding : ILegacyTextEncoding
     private readonly char[] _byteToChar;
     private readonly Dictionary<char, byte> _charToByte;
 
+    /// <summary>Copies a 256-character table under a nonblank name; repeated characters encode to their first byte index.</summary>
     public SingleByteTextEncoding(string name, IReadOnlyList<char> byteToChar)
     {
         if (string.IsNullOrWhiteSpace(name))
@@ -33,8 +34,10 @@ public sealed class SingleByteTextEncoding : ILegacyTextEncoding
         }
     }
 
+    /// <inheritdoc />
     public string Name { get; }
 
+    /// <inheritdoc />
     public string Decode(ReadOnlySpan<byte> bytes)
     {
         if (bytes.IsEmpty) return string.Empty;
@@ -45,6 +48,7 @@ public sealed class SingleByteTextEncoding : ILegacyTextEncoding
         return new string(chars);
     }
 
+    /// <inheritdoc />
     public byte[] Encode(string text)
     {
         if (string.IsNullOrEmpty(text)) return Array.Empty<byte>();
@@ -59,9 +63,11 @@ public sealed class SingleByteTextEncoding : ILegacyTextEncoding
         return bytes;
     }
 
+    /// <inheritdoc />
     public char DecodeByte(byte value)
         => _byteToChar[value];
 
+    /// <inheritdoc />
     public bool TryEncodeChar(char ch, out byte value)
         => _charToByte.TryGetValue(ch, out value);
 }

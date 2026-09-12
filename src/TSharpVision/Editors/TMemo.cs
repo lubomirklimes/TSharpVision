@@ -11,11 +11,15 @@ namespace TSharpVision;
 // Upstream's `[65536]` is a trailing flexible array in practice - the dialog
 // allocates `bufSize + sizeof(ushort)` bytes; we model that with a managed
 // char[] of `data` length and a separate `length` field.
+/// <summary>Contiguous text record exchanged with a memo control.</summary>
 public sealed class TMemoData : IInfo
 {
+    /// <summary>Number of meaningful UTF-16 code units in the record buffer.</summary>
     public uint length;
+    /// <summary>Contiguous UTF-16 storage; capacity must accommodate the transferred text.</summary>
     public char[] buffer;
 
+    /// <summary>Creates an empty memo record with the requested code-unit capacity.</summary>
     public TMemoData(uint capacity)
     {
         length = 0;
@@ -23,19 +27,23 @@ public sealed class TMemoData : IInfo
     }
 }
 
+/// <summary>Multiline dialog editor that exchanges contiguous text through TMemoData records.</summary>
 public class TMemo : TEditor
 {
     private const string CpMemo = "\x1A\x1B";
     private static readonly TPalette Palette = new TPalette(CpMemo, CpMemo.Length);
 
+    /// <summary>Creates an empty memo at owner-relative cell bounds with code-unit capacity and associated scroll/status controls.</summary>
     public TMemo(TRect bounds, TScrollBar aHScrollBar, TScrollBar aVScrollBar,
                  TIndicator aIndicator, uint aBufSize)
         : base(bounds, aHScrollBar, aVScrollBar, aIndicator, aBufSize)
     {
     }
 
+    /// <inheritdoc />
     public override ushort DataSize() => (ushort)(bufSize + sizeof(ushort));
 
+    /// <summary>Copies logical text into a caller-provided record with sufficient capacity, sets its length, and clears unused trailing storage.</summary>
     public virtual void GetData(TMemoData data)
     {
         data.length = bufLen;
@@ -50,6 +58,7 @@ public class TMemo : TEditor
                         data.buffer.Length - (int)bufLen);
     }
 
+    /// <summary>Replaces memo text from the record and resets editing state; record length must fit the allocated memo capacity.</summary>
     public virtual void SetData(TMemoData data)
     {
         if (data.length > 0)
@@ -59,8 +68,10 @@ public class TMemo : TEditor
         SetBufLen(data.length);
     }
 
+    /// <inheritdoc />
     public override TPalette GetPalette() => Palette;
 
+    /// <inheritdoc />
     public override void HandleEvent(ref TEvent ev)
     {
         if (ev.What != Events.evKeyDown
@@ -71,8 +82,10 @@ public class TMemo : TEditor
     }
 
     // Wire: TEditor base + buffer content as a UTF-16 stream string.
+    /// <summary>Creates an instance for restoration from a stream without running normal initialization.</summary>
     protected TMemo(StreamableInit init) : base(init) { }
 
+    /// <inheritdoc />
     public override void Write(Opstream os)
     {
         base.Write(os);
@@ -90,6 +103,7 @@ public class TMemo : TEditor
         return sb.ToString();
     }
 
+    /// <inheritdoc />
     public override object Read(Ipstream isStream)
     {
         base.Read(isStream);
@@ -104,7 +118,9 @@ public class TMemo : TEditor
         return this;
     }
 
+    /// <summary>Creates an instance for stream restoration; its stored state must be read before use.</summary>
     public new static TStreamable Build() => new TMemo(StreamableInit.streamableInit);
+    /// <summary>Stream registry descriptor and factory for restoring this concrete type.</summary>
     public static readonly TStreamableClass StreamableClassTMemo =
         new TStreamableClass("TMemo", () => new TMemo(StreamableInit.streamableInit), 0);
 }

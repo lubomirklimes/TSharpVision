@@ -1,20 +1,29 @@
-﻿using TSharpVision.Constants;
+using TSharpVision.Constants;
 using System;
 namespace TSharpVision;
 
+/// <summary>A selectable viewport whose content offset and dimensions are coordinated with optional scrollbars.</summary>
 public class TScroller : TView
 {
+    /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public new static readonly string Name = "TScroller";
 
     private static readonly TPalette _palette = new TPalette("\x06\x07", 2);
 
+    /// <summary>Optional horizontal scrollbar associated with the viewport.</summary>
     public TScrollBar hScrollBar;
+    /// <summary>Optional vertical scrollbar associated with the viewport.</summary>
     public TScrollBar vScrollBar;
+    /// <summary>Current content offset in character cells.</summary>
     public TPoint delta;
+    /// <summary>Total scrollable content width and height in character cells.</summary>
     public TPoint limit;
+    /// <summary>Nesting count used to defer redraws while related scroll settings change.</summary>
     protected byte drawLock;
+    /// <summary>Whether a redraw is pending until the drawing lock is released.</summary>
     protected bool drawFlag;
 
+    /// <summary>Creates a selectable viewport with zero content size and optional horizontal and vertical scrollbars.</summary>
     public TScroller(TRect bounds, TScrollBar aHScrollBar, TScrollBar aVScrollBar)
         : base(bounds)
     {
@@ -29,6 +38,7 @@ public class TScroller : TView
         eventMask |= Events.evMouseWheel;
     }
 
+    /// <inheritdoc />
     public override void ShutDown()
     {
         hScrollBar = null;
@@ -36,6 +46,7 @@ public class TScroller : TView
         base.ShutDown();
     }
 
+    /// <inheritdoc />
     public override void ChangeBounds(TRect bounds)
     {
         SetBounds(bounds);
@@ -46,6 +57,7 @@ public class TScroller : TView
         DrawView();
     }
 
+    /// <summary>Performs a pending redraw when no drawing lock remains.</summary>
     public void CheckDraw()
     {
         if (drawLock == 0 && drawFlag)
@@ -55,8 +67,10 @@ public class TScroller : TView
         }
     }
 
+    /// <inheritdoc />
     public override TPalette GetPalette() => _palette;
 
+    /// <inheritdoc />
     public override void HandleEvent(ref TEvent @event)
     {
         base.HandleEvent(ref @event);
@@ -89,6 +103,7 @@ public class TScroller : TView
 
     private const int WheelStep = 3;
 
+    /// <summary>Synchronizes the content offset with scrollbar values and updates caret position and drawing.</summary>
     public virtual void ScrollDraw()
     {
         TPoint d;
@@ -106,6 +121,7 @@ public class TScroller : TView
         }
     }
 
+    /// <summary>Requests content offsets through the attached scrollbars; an axis without a scrollbar is unchanged.</summary>
     public void ScrollTo(int x, int y)
     {
         drawLock++;
@@ -115,6 +131,7 @@ public class TScroller : TView
         CheckDraw();
     }
 
+    /// <summary>Sets content dimensions in cells and updates scrollbar ranges and page sizes for the viewport.</summary>
     public void SetLimit(int x, int y)
     {
         limit.x = x;
@@ -139,6 +156,7 @@ public class TScroller : TView
         }
     }
 
+    /// <inheritdoc />
     public override void SetState(ushort aState, bool enable)
     {
         base.SetState(aState, enable);
@@ -152,11 +170,14 @@ public class TScroller : TView
     // Wire layout (after base): hScrollBar ptr, vScrollBar ptr, delta (TPoint),
     // limit (TPoint). drawLock and drawFlag are runtime-only, reset on load.
 
+    /// <summary>Stream registry descriptor and factory for restoring this concrete type.</summary>
     public static readonly TStreamableClass StreamableClassTScroller =
         new TStreamableClass("TScroller", () => new TScroller(StreamableInit.streamableInit), 0);
 
+    /// <summary>Creates an instance for restoration from a stream without running normal initialization.</summary>
     protected TScroller(StreamableInit init) : base(init) { }
 
+    /// <inheritdoc />
     public override void Write(Opstream os)
     {
         base.Write(os);
@@ -166,6 +187,7 @@ public class TScroller : TView
         os.WriteTPoint(limit);
     }
 
+    /// <inheritdoc />
     public override object Read(Ipstream isStream)
     {
         base.Read(isStream);
@@ -178,6 +200,8 @@ public class TScroller : TView
         return this;
     }
 
+    /// <summary>Creates an instance for stream restoration; its stored state must be read before use.</summary>
     public new static TStreamable Build() { return new TScroller(StreamableInit.streamableInit); }
+    /// <inheritdoc />
     public override string StreamableName() { return Name; }
 }

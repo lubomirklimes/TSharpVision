@@ -1,8 +1,10 @@
 using TSharpVision.Constants;
 namespace TSharpVision;
 
+/// <summary>A horizontal or vertical control that displays and changes an integer scroll position and broadcasts value changes.</summary>
 public class TScrollBar : TView
 {
+    /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public new static readonly string Name = "TScrollBar";
 
     // Component palette indices used by Draw() / DrawPos().
@@ -15,6 +17,7 @@ public class TScrollBar : TView
     // Source: tvision/classes/tvtext1.cc (vChars/hChars defaults)
     // Array layout: [0]=up/left endpoint, [1]=down/right endpoint,
     //               [2]=empty track,      [3]=thumb mark, [4]=full/bright fill.
+    /// <summary>Vertical glyphs in endpoint, endpoint, track, thumb, and bright-fill order.</summary>
     protected static readonly char[] vChars = new char[5]
     {
         TSharpVisionGlyphs.ScrollArrowUp,   // ▲  CP437 0x1E — top endpoint
@@ -23,6 +26,7 @@ public class TScrollBar : TView
         TSharpVisionGlyphs.ScrollBarThumb,  // ■  CP437 0xFE — thumb mark
         TSharpVisionGlyphs.ScrollBarBright, // ░  CP437 0xB0 — full/bright fill
     };
+    /// <summary>Horizontal glyphs in endpoint, endpoint, track, thumb, and bright-fill order.</summary>
     protected static readonly char[] hChars = new char[5]
     {
         TSharpVisionGlyphs.ScrollArrowLeft,  // ◄  CP437 0x11 — left endpoint
@@ -32,13 +36,20 @@ public class TScrollBar : TView
         TSharpVisionGlyphs.ScrollBarBright,  // ░  CP437 0xB0 — full/bright fill
     };
 
+    /// <summary>Current logical scroll position; use SetValue to clamp, redraw, and notify listeners.</summary>
     public int value;
+    /// <summary>Inclusive lower bound of the logical scroll range.</summary>
     public int minVal;
+    /// <summary>Inclusive upper bound of the logical scroll range.</summary>
     public int maxVal;
+    /// <summary>Logical distance moved by a page action.</summary>
     public int pgStep;
+    /// <summary>Logical distance moved by an endpoint-arrow action.</summary>
     public int arStep;
+    /// <summary>Five glyphs preserved in the scrollbar stream record; drawing uses the orientation-specific default table.</summary>
     public char[] chars = new char[5];
 
+    /// <summary>Creates a scrollbar with a zero range and unit steps; a one-cell width selects vertical orientation.</summary>
     public TScrollBar(TRect bounds) : base(bounds)
     {
         value = 0;
@@ -58,11 +69,13 @@ public class TScrollBar : TView
         }
     }
 
+    /// <inheritdoc />
     public override void Draw()
     {
         DrawPos(GetPos());
     }
 
+    /// <summary>Draws the thumb at the supplied cell offset along the scrollbar and updates the focused caret.</summary>
     public virtual void DrawPos(int pos)
     {
         Span<TScreenChar> row = stackalloc TScreenChar[GetSize()];
@@ -100,8 +113,10 @@ public class TScrollBar : TView
         SetCursor(thumb.x, thumb.y);
     }
 
+    /// <inheritdoc />
     public override TPalette GetPalette() => _palette;
 
+    /// <summary>Maps the logical value to the thumb's cell offset along the scrollbar; a zero range returns offset 1.</summary>
     public int GetPos()
     {
         int r = maxVal - minVal;
@@ -110,6 +125,7 @@ public class TScrollBar : TView
         return (int)((((long)(value - minVal) * (GetSize() - 3)) + (r >> 1)) / r) + 1;
     }
 
+    /// <summary>Returns the scrollbar length in cells, with a minimum of three cells.</summary>
     public int GetSize()
     {
         int s = (size.x == 1) ? size.y : size.x;
@@ -140,6 +156,7 @@ public class TScrollBar : TView
         return part;
     }
 
+    /// <inheritdoc />
     public override void HandleEvent(ref TEvent @event)
     {
         bool tracking;
@@ -235,17 +252,20 @@ public class TScrollBar : TView
         }
     }
 
+    /// <summary>Broadcasts cmScrollBarChanged to the owner with this scrollbar as payload.</summary>
     public virtual void ScrollDraw()
     {
         Message(owner, Events.evBroadcast, Views.cmScrollBarChanged, this);
     }
 
+    /// <summary>Returns the signed arrow or page increment for a scrollbar hit-test part.</summary>
     public virtual int ScrollStep(int part)
     {
         int step = ((part & 2) == 0) ? arStep : pgStep;
         return ((part & 1) == 0) ? -step : step;
     }
 
+    /// <summary>Sets range, value, and steps; clamps the value and upper bound, redraws range changes, and broadcasts value changes.</summary>
     public void SetParams(int aValue, int aMin, int aMax, int aPgStep, int aArStep)
     {
         aMax = Math.Max(aMax, aMin);
@@ -265,8 +285,11 @@ public class TScrollBar : TView
         arStep = aArStep;
     }
 
+    /// <summary>Sets inclusive range bounds, clamps the current value, and redraws or notifies as needed.</summary>
     public void SetRange(int aMin, int aMax) => SetParams(value, aMin, aMax, pgStep, arStep);
+    /// <summary>Sets logical page and arrow increments.</summary>
     public void SetStep(int aPgStep, int aArStep) => SetParams(value, minVal, maxVal, aPgStep, aArStep);
+    /// <summary>Clamps a new logical position to the range, redrawing and broadcasting when the value changes.</summary>
     public void SetValue(int aValue) => SetParams(aValue, minVal, maxVal, pgStep, arStep);
 
     private static ushort CtrlToArrow(ushort code) => code;
@@ -292,11 +315,14 @@ public class TScrollBar : TView
         _    => (char)b,
     };
 
+    /// <summary>Stream registry descriptor and factory for restoring this concrete type.</summary>
     public static readonly TStreamableClass StreamableClassTScrollBar =
         new TStreamableClass("TScrollBar", () => new TScrollBar(StreamableInit.streamableInit), 0);
 
+    /// <summary>Creates an instance for restoration from a stream without running normal initialization.</summary>
     protected TScrollBar(StreamableInit init) : base(init) { }
 
+    /// <inheritdoc />
     public override void Write(Opstream os)
     {
         base.Write(os);
@@ -308,6 +334,7 @@ public class TScrollBar : TView
         for (int i = 0; i < 5; i++) os.WriteByte(ToCP437(chars[i]));
     }
 
+    /// <inheritdoc />
     public override object Read(Ipstream isStream)
     {
         base.Read(isStream);
@@ -320,6 +347,8 @@ public class TScrollBar : TView
         return this;
     }
 
+    /// <summary>Creates an instance for stream restoration; its stored state must be read before use.</summary>
     public new static TStreamable Build() { return new TScrollBar(StreamableInit.streamableInit); }
+    /// <inheritdoc />
     public override string StreamableName() { return Name; }
 }

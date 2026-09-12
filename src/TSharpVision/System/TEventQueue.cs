@@ -1,14 +1,19 @@
-﻿using TSharpVision.Constants;
+using TSharpVision.Constants;
 
 namespace TSharpVision;
 
+/// <summary>Shared input queue with mouse-click classification and separately targeted posted-event delivery.</summary>
 public class TEventQueue : IDisposable
 {
     // dblclick 500 ms (C++ had doubleDelay = 8 ticks ≈ 8*55ms)
+    /// <summary>Maximum interval in milliseconds between matching button-down events for double-click recognition.</summary>
     public static int DoubleDelay = 500;
+    /// <summary>Compatibility preference for swapping mouse buttons; the current queue does not apply it.</summary>
     public static bool MouseReverse = false;
 
+    /// <summary>Initial held-button delay in milliseconds used by mouse auto-repeat classification.</summary>
     public static int RepeatDelay = 500;
+    /// <summary>Interval in milliseconds between held-button auto-repeat classifications.</summary>
     public static int AutoDelay = 0;
 
     private static readonly object _lock = new object();
@@ -32,11 +37,13 @@ public class TEventQueue : IDisposable
 
     private static int CurrentTick => Environment.TickCount & Int32.MaxValue;
 
+    /// <summary>Resumes shared input delivery and resets mouse-click tracking state.</summary>
     public TEventQueue()
     {
         Resume();
     }
 
+    /// <summary>Enables queued-event retrieval and resets mouse tracking and timers without clearing queued events.</summary>
     public static void Resume()
     {
         _mouseEvents = true;
@@ -47,11 +54,13 @@ public class TEventQueue : IDisposable
         _autoTime = CurrentTick;
     }
 
+    /// <summary>Suspends queued-event retrieval without removing pending events.</summary>
     public static void Suspend()
     {
         _mouseEvents = false;
     }
 
+    /// <summary>Thread-safely appends an event copy to the shared FIFO input queue.</summary>
     public static void Enqueue(TEvent ev)
     {
         lock (_lock)
@@ -195,6 +204,7 @@ public class TEventQueue : IDisposable
         GetNextEvent(ref ev);
     }
 
+    /// <summary>Removes the next queued event and updates mouse classification; sets evNothing when suspended or empty.</summary>
     public static void GetNextEvent(ref TEvent ev)
     {
         if (!_mouseEvents)
@@ -307,6 +317,7 @@ public class TEventQueue : IDisposable
     // No finalizer: there is no unmanaged resource to release, and the only thing
     // Dispose does is mutate shared static state, which a finalizer must not touch.
 
+    /// <summary>Deterministically suspends process-wide queue delivery through the disposal hook.</summary>
     public void Dispose()
     {
         Dispose(disposing: true);

@@ -12,6 +12,7 @@ public readonly struct TerminalTextPosition : IEquatable<TerminalTextPosition>
     /// <summary>Zero-based column within the line (may exceed the line length).</summary>
     public int Column { get; }
 
+    /// <summary>Stores a zero-based line index and column without clamping them to existing text.</summary>
     public TerminalTextPosition(int lineIndex, int column)
     {
         LineIndex = lineIndex;
@@ -26,16 +27,22 @@ public readonly struct TerminalTextPosition : IEquatable<TerminalTextPosition>
         => LineIndex < other.LineIndex ||
            (LineIndex == other.LineIndex && Column < other.Column);
 
+    /// <inheritdoc />
     public bool Equals(TerminalTextPosition other)
         => LineIndex == other.LineIndex && Column == other.Column;
 
+    /// <inheritdoc />
     public override bool Equals(object? obj)
         => obj is TerminalTextPosition p && Equals(p);
 
+    /// <inheritdoc />
     public override int GetHashCode() => HashCode.Combine(LineIndex, Column);
 
+    /// <summary>Returns true when line index and column both match.</summary>
     public static bool operator ==(TerminalTextPosition a, TerminalTextPosition b) => a.Equals(b);
+    /// <summary>Returns true when line index or column differs.</summary>
     public static bool operator !=(TerminalTextPosition a, TerminalTextPosition b) => !a.Equals(b);
 
+    /// <inheritdoc />
     public override string ToString() => $"({LineIndex},{Column})";
 }

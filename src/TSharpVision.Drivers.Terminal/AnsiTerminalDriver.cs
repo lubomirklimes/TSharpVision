@@ -23,6 +23,7 @@ using TSharpVision.Drivers;
 
 namespace TSharpVision.Drivers.Terminal;
 
+/// <summary>ANSI/VT terminal backend with POSIX raw-mode input; initialization remains inactive on Windows or without an attached terminal.</summary>
 [ScreenDriver(System = Platform.Linux,   Driver = nameof(AnsiTerminalDriver), Priority = 50)]
 [ScreenDriver(System = Platform.MacOS,   Driver = nameof(AnsiTerminalDriver), Priority = 50)]
 // Priority = 10 on Windows: below Win32ConsoleDriver (50) so the native driver wins
@@ -102,10 +103,14 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
     private readonly List<byte> _pendingBytes = new(64);
     private readonly System.Text.StringBuilder _writeBuilder = new(4096);
 
+    /// <inheritdoc />
     public bool SupportsMouse    => true;
+    /// <inheritdoc />
     public bool SupportsTrueColor => true;
+    /// <inheritdoc />
     public bool SupportsGraphics  => false;
 
+    /// <inheritdoc />
     public void Initialize()
     {
         if (OperatingSystem.IsWindows()) return;
@@ -173,6 +178,7 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
         }
     }
 
+    /// <inheritdoc />
     public void Suspend()
     {
         if (!_attached) return;
@@ -183,6 +189,7 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
             tcsetattr(STDIN_FILENO, TCSANOW, _savedTermios);
     }
 
+    /// <inheritdoc />
     public void Resume()
     {
         if (!_attached) return;
@@ -212,6 +219,7 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
         Console.Out.Flush();
     }
 
+    /// <inheritdoc />
     public void Shutdown()
     {
         if (!_attached) return;
@@ -229,12 +237,18 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
         _attached = false;
     }
 
+    /// <inheritdoc />
     public ushort GetCols() => _cols;
+    /// <inheritdoc />
     public ushort GetRows() => _rows;
+    /// <inheritdoc />
     public TDisplay.SM GetScreenMode() => TDisplay.SM.CO80;
+    /// <summary>Accepts a logical screen-mode request without changing this backend's display mode.</summary>
     public void SetScreenMode(TDisplay.SM mode) { /* TTY size is OS-driven */ }
+    /// <inheritdoc />
     public ScreenBuffer AllocateScreenBuffer() => new ScreenBuffer(_cols, _rows);
 
+    /// <inheritdoc />
     public void ClearScreen(ushort cols, ushort rows)
     {
         if (!_attached) return;
@@ -242,8 +256,10 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
         Console.Out.Flush();
     }
 
+    /// <inheritdoc />
     public ushort GetCursorType() => _cursorType;
 
+    /// <inheritdoc />
     public void SetCursorType(ushort cursorType)
     {
         _cursorType = cursorType;
@@ -252,6 +268,7 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
         Console.Out.Flush();
     }
 
+    /// <inheritdoc />
     public void SetCaretPosition(int x, int y)
     {
         _caretX = x;
@@ -262,6 +279,7 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
         Console.Out.Flush();
     }
 
+    /// <inheritdoc />
     public void WriteBuf(int x, int y, int w, int h, Span<TScreenChar> buf)
     {
         if (!_attached || w <= 0 || h <= 0) return;
@@ -291,11 +309,13 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
         Console.Out.Flush();
     }
 
+    /// <inheritdoc />
     public void MakeBeep()
     {
         if (_attached) Write("\a");
     }
 
+    /// <inheritdoc />
     public unsafe void PumpMessages()
     {
         if (!_attached) return;
@@ -367,6 +387,7 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
         }
     }
 
+    /// <inheritdoc />
     public bool ReadKeyEvent(out TEvent ev)
     {
         if (_pendingKeys.Count > 0) { ev = _pendingKeys.Dequeue(); return true; }
@@ -374,6 +395,7 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
         return false;
     }
 
+    /// <summary>Shuts down the backend and releases its display and input resources.</summary>
     public void Dispose() => Shutdown();
 
     // ---- helpers -------------------------------------------------------

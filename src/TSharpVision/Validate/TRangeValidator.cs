@@ -10,12 +10,17 @@ public class TRangeValidator : TFilterValidator
     private const string CtValidCharsPos = "+xX0123456789ABCDEFabcdef";
     private const string CtValidCharsNeg = "-xX0123456789ABCDEFabcdef";
 
+    /// <summary>Inclusive lower bound accepted by final numeric validation.</summary>
     public long Min;
+    /// <summary>Inclusive upper bound accepted by final numeric validation.</summary>
     public long Max;
 
+    /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public new static readonly string Name = "TRangeValidator";
+    /// <inheritdoc />
     public override string streamableName => "TRangeValidator";
 
+    /// <summary>Stream registry descriptor and factory for restoring this concrete type.</summary>
     public static readonly TStreamableClass StreamableClassTRangeValidator =
         new TStreamableClass("TRangeValidator",
             () => new TRangeValidator(StreamableInit.streamableInit), 0);
@@ -28,6 +33,7 @@ public class TRangeValidator : TFilterValidator
         Max = max;
     }
 
+    /// <summary>Creates a range validator for restoration; Read supplies the bounds and character filter.</summary>
     protected TRangeValidator(StreamableInit _) : base(_) { }
 
     private static string ChooseValidChars(long min)
@@ -37,6 +43,7 @@ public class TRangeValidator : TFilterValidator
         return CtValidCharsNeg;
     }
 
+    /// <inheritdoc />
     public override bool IsValid(string s)
     {
         if (!base.IsValid(s)) return false;
@@ -94,6 +101,7 @@ public class TRangeValidator : TFilterValidator
 
     // Upstream writes min/max as 4-byte longs (32-bit Borland). We use
     // Write32 (cast to uint with sign extension to preserve negatives).
+    /// <inheritdoc />
     public override void Write(Opstream os)
     {
         base.Write(os);
@@ -101,6 +109,7 @@ public class TRangeValidator : TFilterValidator
         os.Write32(unchecked((uint)(int)Max));
     }
 
+    /// <inheritdoc />
     public override object Read(Ipstream isStream)
     {
         base.Read(isStream);
@@ -109,6 +118,7 @@ public class TRangeValidator : TFilterValidator
         return this;
     }
 
+    /// <summary>Creates an instance for stream restoration; its stored state must be read before use.</summary>
     public new static TStreamable Build() =>
         new TRangeValidator(StreamableInit.streamableInit);
 }

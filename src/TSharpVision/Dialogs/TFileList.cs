@@ -6,15 +6,20 @@ namespace TSharpVision;
 // readDirectory branches collapse onto .NET's portable
 // System.IO.Directory enumeration; the per-platform attribute-extract
 // routine becomes BuildSearchRec.
+/// <summary>Sorted file and directory list with wildcard filtering and focus notifications for file-dialog controls.</summary>
 public class TFileList : TSortedListBox
 {
+    /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public new static readonly string Name = "TFileList";
+    /// <summary>Latest directory-enumeration error, or an empty string after a successful load.</summary>
     public string LastError { get; private set; } = string.Empty;
 
     // Used by GetKey so the shift-state hack (which biases lookup towards
     // FA_DIREC) survives without TGKey::getShiftState.
+    /// <summary>Makes incremental-search keys compare as directory entries rather than ordinary files.</summary>
     public bool ShiftSearchAsDir;
 
+    /// <summary>Creates a one-column file list at owner-relative cell bounds and connects its vertical scrollbar.</summary>
     public TFileList(TRect bounds, TScrollBar aScrollBar)
         : base(bounds, 2, aScrollBar)
     {
@@ -23,6 +28,7 @@ public class TFileList : TSortedListBox
         numCols = 1;
     }
 
+    /// <inheritdoc />
     public override void FocusItem(int item)
     {
         base.FocusItem(item);
@@ -34,6 +40,7 @@ public class TFileList : TSortedListBox
         }
     }
 
+    /// <inheritdoc />
     public override void SelectItem(int item)
     {
         if (sortedItems != null && item >= 0 && item < sortedItems.Count
@@ -44,10 +51,14 @@ public class TFileList : TSortedListBox
         }
     }
 
+    /// <inheritdoc />
     public override void GetData(ref object rec) { }
+    /// <inheritdoc />
     public override void SetData(object rec) { }
+    /// <inheritdoc />
     public override ushort DataSize() => 0;
 
+    /// <inheritdoc />
     public override object GetKey(string s)
     {
         var sR = new TSearchRec
@@ -59,6 +70,7 @@ public class TFileList : TSortedListBox
         return sR;
     }
 
+    /// <inheritdoc />
     protected override string GetItemText(object item)
     {
         if (item is TSearchRec f)
@@ -71,6 +83,7 @@ public class TFileList : TSortedListBox
         return string.Empty;
     }
 
+    /// <inheritdoc />
     public override void HandleEvent(ref TEvent @event)
     {
         base.HandleEvent(ref @event);
@@ -98,6 +111,7 @@ public class TFileList : TSortedListBox
         }
     }
 
+    /// <inheritdoc />
     public override void SetState(ushort aState, bool enable)
     {
         base.SetState(aState, enable);
@@ -109,11 +123,13 @@ public class TFileList : TSortedListBox
         }
     }
 
+    /// <summary>Loads entries using the concatenation of directory and wildcard; include a separator in the directory argument.</summary>
     public virtual void ReadDirectory(string dir, string wildCard)
         => ReadDirectory((dir ?? string.Empty) + (wildCard ?? string.Empty));
 
     // Walks the directory using System.IO.Directory: dirs first, then
     // files matching the wildcard. Root-parent handling retains upstream behavior.
+    /// <summary>Loads directories and wildcard-matching files, replacing the displayed collection and recording enumeration errors.</summary>
     public virtual void ReadDirectory(string path)
     {
         LastError = string.Empty;
@@ -223,6 +239,7 @@ public class TFileList : TSortedListBox
         }
     }
 
+    /// <summary>Tests a filename against the enabled special-file hiding rules.</summary>
     protected static bool ExcludeSpecial(string name)
     {
         // Classify names independently of the enabled filter, traversal owns directory rules.
@@ -355,10 +372,15 @@ public class TFileList : TSortedListBox
         group.HandleEvent(ref ev);
     }
 
+    /// <summary>Creates an instance for restoration from a stream without running normal initialization.</summary>
     protected TFileList(StreamableInit init) : base(init) { }
+    /// <inheritdoc />
     public override object Read(Ipstream isStream) { base.Read(isStream); return this; }
+    /// <inheritdoc />
     public override void Write(Opstream os) { base.Write(os); }
+    /// <summary>Creates an instance for stream restoration; its stored state must be read before use.</summary>
     public new static TStreamable Build() => new TFileList(StreamableInit.streamableInit);
+    /// <summary>Stream registry descriptor and factory for restoring this concrete type.</summary>
     public static readonly TStreamableClass StreamableClassTFileList =
         new TStreamableClass("TFileList", () => new TFileList(StreamableInit.streamableInit), 0);
 }

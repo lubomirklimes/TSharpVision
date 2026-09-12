@@ -1,15 +1,21 @@
 using TSharpVision.Constants;
 namespace TSharpVision;
 
+/// <summary>History button associated with an input line and a shared history ID.</summary>
 public class THistory : TView
 {
+    /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public new static readonly string Name = "THistory";
 
+    /// <summary>Associated input line whose text is recorded and restored; the button does not own it.</summary>
     public TInputLine Link;
+    /// <summary>Identifier selecting the shared input-history list.</summary>
     public ushort HistoryId;
 
+    /// <summary>Text drawn for the history dropdown button.</summary>
     protected static string Icon = " \x19 ";
 
+    /// <summary>Creates a history button at owner-relative cell bounds linked to an input and history ID.</summary>
     public THistory(TRect bounds, TInputLine aLink, ushort aHistoryId)
         : base(bounds)
     {
@@ -19,12 +25,14 @@ public class THistory : TView
         eventMask |= Events.evBroadcast;
     }
 
+    /// <inheritdoc />
     public override void ShutDown()
     {
         Link = null;
         base.ShutDown();
     }
 
+    /// <inheritdoc />
     public override void Draw()
     {
         Span<TScreenChar> row = stackalloc TScreenChar[size.x > 0 ? size.x : 1];
@@ -34,10 +42,12 @@ public class THistory : TView
     }
 
     private static readonly TPalette _palette = new TPalette("\x16\x17", 2);
+    /// <inheritdoc />
     public override TPalette GetPalette() => _palette;
 
     private static ushort CtrlToArrow(ushort code) => code;
 
+    /// <inheritdoc />
     public override void HandleEvent(ref TEvent @event)
     {
         base.HandleEvent(ref @event);
@@ -90,6 +100,7 @@ public class THistory : TView
         }
     }
 
+    /// <summary>Creates a history popup at the supplied cell bounds, inheriting the linked input's help context.</summary>
     public virtual THistoryWindow InitHistoryWindow(TRect bounds)
     {
         var w = new THistoryWindow(bounds, HistoryId);
@@ -99,11 +110,14 @@ public class THistory : TView
 
     // ── Streaming ────────────────────────────────────────────────────────
     // Wire: TView base + WritePointer(link) + WriteShort(historyId).
+    /// <summary>Stream registry descriptor and factory for restoring this concrete type.</summary>
     public static readonly TStreamableClass StreamableClassTHistory =
         new TStreamableClass("THistory", () => new THistory(StreamableInit.streamableInit), 0);
 
+    /// <summary>Creates an instance for restoration from a stream without running normal initialization.</summary>
     protected THistory(StreamableInit init) : base(init) { }
 
+    /// <inheritdoc />
     public override void Write(Opstream os)
     {
         base.Write(os);
@@ -111,6 +125,7 @@ public class THistory : TView
         os.WriteShort(HistoryId);
     }
 
+    /// <inheritdoc />
     public override object Read(Ipstream isStream)
     {
         base.Read(isStream);
@@ -119,5 +134,6 @@ public class THistory : TView
         return this;
     }
 
+    /// <summary>Creates an instance for stream restoration; its stored state must be read before use.</summary>
     public new static TStreamable Build() => new THistory(StreamableInit.streamableInit);
 }

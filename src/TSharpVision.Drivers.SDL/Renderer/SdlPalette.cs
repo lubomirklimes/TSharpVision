@@ -4,6 +4,7 @@
 // draws solid background rectangles + glyphs.
 namespace TSharpVision.Drivers.SDL;
 
+/// <summary>Maps packed text attributes to the SDL backend's 16-color RGB palette.</summary>
 public static class SdlPalette
 {
     /// <summary>16-color VGA palette as 0xAARRGGBB.</summary>

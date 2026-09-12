@@ -10,15 +10,19 @@ namespace TSharpVision;
 /// </summary>
 public sealed class NullClipboardService : IClipboardService
 {
+    /// <inheritdoc />
     public bool IsAvailable => false;
 
+    /// <inheritdoc />
     public string? GetText() => null;
 
+    /// <inheritdoc />
     public bool TryGetText(out string text)
     {
         text = string.Empty;
         return false;
     }
 
+    /// <inheritdoc />
     public bool SetText(string text) => false;
 }

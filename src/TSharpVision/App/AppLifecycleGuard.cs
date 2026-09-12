@@ -7,8 +7,8 @@ using TSharpVision.Constants;
 namespace TSharpVision;
 
 /// <summary>
-/// Wraps a <see cref="TApplication.Run"/> call with a try/finally that
-/// guarantees <see cref="TApplication.ShutDown"/> is always executed, even
+/// Wraps a <see cref="TProgram.Run"/> call with a try/finally that
+/// guarantees <see cref="TProgram.ShutDown"/> is always executed, even
 /// when an unhandled exception escapes the event loop, and handles Ctrl+C /
 /// Ctrl+Break gracefully by posting <c>cmQuit</c> instead of aborting the
 /// process.

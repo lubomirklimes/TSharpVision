@@ -6,9 +6,12 @@ namespace TSharpVision;
 /// </summary>
 public struct TScreenChar
 {
+    /// <summary>Foreground and background color attributes attached to the cell.</summary>
     public TColorAttr Attr;
+    /// <summary>UTF-16 character stored in the screen cell.</summary>
     public char Character;
 
+    /// <summary>Creates a screen cell containing the supplied character and color attributes.</summary>
     public TScreenChar(char character, TColorAttr attr)
     {
         Character = character;

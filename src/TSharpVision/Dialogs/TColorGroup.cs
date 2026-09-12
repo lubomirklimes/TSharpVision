@@ -1,14 +1,17 @@
 using TSharpVision.Constants;
 namespace TSharpVision;
 
-// TColorItem — one palette-entry descriptor in a linked list.
+/// <summary>A named palette-entry descriptor in a linked list.</summary>
 public class TColorItem : IInfo
 {
+    /// <summary>Label displayed for this palette entry.</summary>
     public string Name;
     /// <summary>1-based index into the owning TPalette.Data array.</summary>
     public byte Index;
+    /// <summary>Next palette-entry descriptor, or null at the end of the chain.</summary>
     public TColorItem Next;
 
+    /// <summary>Creates a labeled one-based palette-entry reference with an optional next descriptor.</summary>
     public TColorItem(string name, byte index, TColorItem next = null)
     {
         Name  = name;
@@ -16,7 +19,7 @@ public class TColorItem : IInfo
         Next  = next;
     }
 
-    // Appends i2 to the tail of the i1 chain and returns i1.
+    /// <summary>Appends the second chain to the tail of the first chain and returns the first head.</summary>
     public static TColorItem operator +(TColorItem i1, TColorItem i2)
     {
         TColorItem cur = i1;
@@ -26,13 +29,17 @@ public class TColorItem : IInfo
     }
 }
 
-// TColorGroup — one named group of TColorItems in a linked list.
+/// <summary>A named group of palette-entry descriptors linked to other color groups.</summary>
 public class TColorGroup : IInfo
 {
+    /// <summary>Label displayed for this group of palette entries.</summary>
     public string Name;
+    /// <summary>First palette-entry descriptor, or null for an empty group.</summary>
     public TColorItem Items;
+    /// <summary>Next color group, or null at the end of the chain.</summary>
     public TColorGroup Next;
 
+    /// <summary>Creates a named group referencing an optional item chain and following group.</summary>
     public TColorGroup(string name, TColorItem items = null, TColorGroup next = null)
     {
         Name  = name;
@@ -40,7 +47,7 @@ public class TColorGroup : IInfo
         Next  = next;
     }
 
-    // Appends item i to the items list of the last group in the g chain.
+    /// <summary>Appends an item to the last group in the chain and returns the group-chain head.</summary>
     public static TColorGroup operator +(TColorGroup g, TColorItem i)
     {
         TColorGroup grp = g;
@@ -56,7 +63,7 @@ public class TColorGroup : IInfo
         return g;
     }
 
-    // Chains g2 onto the tail of g1 and returns g1.
+    /// <summary>Appends the second group chain to the first and returns the first head.</summary>
     public static TColorGroup operator +(TColorGroup g1, TColorGroup g2)
     {
         TColorGroup cur = g1;
@@ -66,14 +73,15 @@ public class TColorGroup : IInfo
     }
 }
 
-// TColorGroupList — TListViewer showing the group names.
-// Broadcasts cmNewColorItem when focused group changes.
+/// <summary>Lists color groups and broadcasts the focused group's items when focus changes.</summary>
 public class TColorGroupList : TListViewer
 {
+    /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public new static readonly string Name = "TColorGroupList";
 
     private TColorGroup _groups;
 
+    /// <summary>Creates a single-column group list at owner-relative cell bounds, referencing the supplied groups and vertical scrollbar.</summary>
     public TColorGroupList(TRect bounds, TScrollBar aScrollBar, TColorGroup aGroups)
         : base(bounds, 1, null, aScrollBar)
     {
@@ -83,7 +91,8 @@ public class TColorGroupList : TListViewer
         SetRange(count);
     }
 
-    // FocusItem broadcasts cmNewColorItem with items pointer.
+    /// <inheritdoc />
+    /// <remarks>Broadcasts cmNewColorItem with the focused group's item list.</remarks>
     public override void FocusItem(int item)
     {
         base.FocusItem(item);
@@ -100,6 +109,7 @@ public class TColorGroupList : TListViewer
         owner?.HandleEvent(ref ev);
     }
 
+    /// <inheritdoc />
     public override string GetText(int item, int maxLen)
     {
         TColorGroup cur = _groups;
@@ -115,12 +125,15 @@ public class TColorGroupList : TListViewer
     // Wire: TListViewer base + short groupCount
     //       + for each group: WriteString(name) + short itemCount
     //         + for each item: WriteString(name) + byte index.
+    /// <summary>Stream registry descriptor and factory for restoring this concrete type.</summary>
     public static readonly TStreamableClass StreamableClassTColorGroupList =
         new TStreamableClass("TColorGroupList",
             () => new TColorGroupList(StreamableInit.streamableInit), 0);
 
+    /// <summary>Creates an instance for restoration from a stream without running normal initialization.</summary>
     protected TColorGroupList(StreamableInit init) : base(init) { }
 
+    /// <inheritdoc />
     public override void Write(Opstream os)
     {
         base.Write(os);   // TListViewer.Write
@@ -143,6 +156,7 @@ public class TColorGroupList : TListViewer
         }
     }
 
+    /// <inheritdoc />
     public override object Read(Ipstream isStream)
     {
         base.Read(isStream);   // TListViewer.Read
@@ -170,19 +184,20 @@ public class TColorGroupList : TListViewer
         return this;
     }
 
+    /// <summary>Creates an instance for stream restoration; its stored state must be read before use.</summary>
     public new static TStreamable Build() =>
         new TColorGroupList(StreamableInit.streamableInit);
 }
 
-// TColorItemList — TListViewer showing the items of the current group.
-// Broadcasts cmNewColorIndex when focused item changes.
-// Handles cmNewColorItem broadcast to switch to a new group's items.
+/// <summary>Lists the current group's palette entries, broadcasts the focused index, and switches groups on cmNewColorItem.</summary>
 public class TColorItemList : TListViewer
 {
+    /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public new static readonly string Name = "TColorItemList";
 
     private TColorItem _items;
 
+    /// <summary>Creates a palette-entry list at owner-relative cell bounds with the supplied item chain and optional scrollbars.</summary>
     public TColorItemList(TRect bounds, TScrollBar aVScrollBar,
                           TColorItem aItems, TScrollBar aHScrollBar = null)
         : base(bounds, 1, aHScrollBar, aVScrollBar)
@@ -194,7 +209,8 @@ public class TColorItemList : TListViewer
         SetRange(count);
     }
 
-    // FocusItem broadcasts cmNewColorIndex with palette entry index.
+    /// <inheritdoc />
+    /// <remarks>Broadcasts cmNewColorIndex with the focused entry's one-based palette index.</remarks>
     public override void FocusItem(int item)
     {
         base.FocusItem(item);
@@ -211,6 +227,7 @@ public class TColorItemList : TListViewer
         owner?.HandleEvent(ref ev);
     }
 
+    /// <inheritdoc />
     public override string GetText(int item, int maxLen)
     {
         TColorItem cur = _items;
@@ -222,7 +239,8 @@ public class TColorItemList : TListViewer
         return s;
     }
 
-    // evBroadcast/cmNewColorItem switches the item list.
+    /// <inheritdoc />
+    /// <remarks>Switches the displayed item list on cmNewColorItem broadcasts.</remarks>
     public override void HandleEvent(ref TEvent @event)
     {
         base.HandleEvent(ref @event);
@@ -241,12 +259,15 @@ public class TColorItemList : TListViewer
 
     // ── Streaming ────────────────────────────────────────────────────────
     // Items are re-populated via cmNewColorItem broadcast from TColorGroupList.FocusItem.
+    /// <summary>Stream registry descriptor and factory for restoring this concrete type.</summary>
     public static readonly TStreamableClass StreamableClassTColorItemList =
         new TStreamableClass("TColorItemList",
             () => new TColorItemList(StreamableInit.streamableInit), 0);
 
+    /// <summary>Creates an instance for restoration from a stream without running normal initialization.</summary>
     protected TColorItemList(StreamableInit init) : base(init) { }
 
+    /// <summary>Creates an instance for stream restoration; its stored state must be read before use.</summary>
     public new static TStreamable Build() =>
         new TColorItemList(StreamableInit.streamableInit);
 }

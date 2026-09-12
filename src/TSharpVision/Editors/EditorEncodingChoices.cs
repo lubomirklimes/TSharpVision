@@ -3,8 +3,10 @@ using TSharpVision.Text;
 
 namespace TSharpVision;
 
+/// <summary>A text-encoding choice with a localized UI label.</summary>
 public sealed class EditorEncodingChoice
 {
+    /// <summary>Associates an encoding with a localization key and fallback label.</summary>
     public EditorEncodingChoice(string key, string fallback, EditorTextEncoding encoding)
     {
         Key = key;
@@ -12,14 +14,20 @@ public sealed class EditorEncodingChoice
         Encoding = encoding;
     }
 
+    /// <summary>Localization key used to resolve the displayed label.</summary>
     public string Key { get; }
+    /// <summary>Label used when no translation is available.</summary>
     public string Fallback { get; }
+    /// <summary>Text-decoding policy selected by this choice.</summary>
     public EditorTextEncoding Encoding { get; }
+    /// <summary>Label resolved through the current localization provider on each access.</summary>
     public string Label => TSharpVisionIntl.Get(Key, Fallback);
 }
 
+/// <summary>Built-in text-encoding choices offered by editor dialogs.</summary>
 public static class EditorEncodingChoices
 {
+    /// <summary>Ordered encoding choices; index zero is automatic detection.</summary>
     public static IReadOnlyList<EditorEncodingChoice> BuiltIn { get; } =
         new[]
         {

@@ -2,27 +2,30 @@ using TSharpVision.Constants;
 
 namespace TSharpVision;
 
-// THelpViewer — a TScroller that renders one THelpTopic and tracks the
-// currently-selected cross-ref. Tab/Shift-Tab cycle through cross-refs,
-// Enter follows the active one, Esc closes the modal help window.
+/// <summary>Scrollable topic viewer; Tab cycles links, Enter follows the selected link, and Escape closes modal help.</summary>
 public class THelpViewer : TScroller
 {
+    /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public new static readonly string Name = "THelpViewer";
 
     private static readonly TPalette _palette =
         new TPalette("\x06\x07\x08", 3);
 
-    // Index context is always topic 1 in the compiled help file.
+    /// <summary>Help context identifier reserved for the compiled help index topic.</summary>
     public const int IndexContext = 1;
 
+    /// <summary>Referenced help store used to load topics; the viewer does not close its stream.</summary>
     public THelpFile hFile;
+    /// <summary>Currently displayed topic, including a fallback topic when the requested context is unavailable.</summary>
     public THelpTopic topic;
+    /// <summary>One-based selected link number; initialized to one even when the topic has no links.</summary>
     public int selected;
 
     // Back-navigation stack.
     private int _currentRef;
     private readonly System.Collections.Generic.Stack<int> _backStack = new();
 
+    /// <summary>Creates a viewer in owner-relative character-cell bounds, references the scrollbars and help store, and loads the initial context.</summary>
     public THelpViewer(TRect bounds, TScrollBar aHScrollBar,
         TScrollBar aVScrollBar, THelpFile aHelpFile, ushort context)
         : base(bounds, aHScrollBar, aVScrollBar)
@@ -37,6 +40,7 @@ public class THelpViewer : TScroller
         selected = 1;
     }
 
+    /// <inheritdoc />
     public override void ChangeBounds(TRect bounds)
     {
         base.ChangeBounds(bounds);
@@ -44,8 +48,10 @@ public class THelpViewer : TScroller
         SetLimit(limit.x, topic.NumLines());
     }
 
+    /// <inheritdoc />
     public override TPalette GetPalette() => _palette;
 
+    /// <inheritdoc />
     public override void Draw()
     {
         Span<TScreenChar> row = stackalloc TScreenChar[size.x > 0 ? size.x : 1];
@@ -113,6 +119,7 @@ public class THelpViewer : TScroller
         }
     }
 
+    /// <summary>Scrolls a zero-based topic reference into view and returns its text position, length, and destination context.</summary>
     public void MakeSelectVisible(int sel, ref TPoint keyPoint,
         out byte keyLength, out int keyRef)
     {
@@ -125,7 +132,7 @@ public class THelpViewer : TScroller
         if (d.x != delta.x || d.y != delta.y) ScrollTo(d.x, d.y);
     }
 
-    // Navigate to a new topic, pushing current onto the back stack.
+    /// <summary>Loads a context after saving the current context on the back-navigation stack.</summary>
     public void NavigateTo(int keyRef)
     {
         _backStack.Push(_currentRef);
@@ -133,7 +140,7 @@ public class THelpViewer : TScroller
         SwitchToTopic(keyRef);
     }
 
-    // Pop back stack and return to previous topic.
+    /// <summary>Returns to the most recent saved context; does nothing when navigation history is empty.</summary>
     public void GoBack()
     {
         if (_backStack.Count == 0) return;
@@ -142,9 +149,10 @@ public class THelpViewer : TScroller
         SwitchToTopic(prev);
     }
 
-    // Jump to the help index topic (always context 1).
+    /// <summary>Navigates to context 1, preserving the current context for back navigation.</summary>
     public void GoToIndex() => NavigateTo(IndexContext);
 
+    /// <summary>Loads and redraws a topic, resets scrolling and link selection, and leaves navigation history unchanged.</summary>
     public void SwitchToTopic(int keyRef)
     {
         topic = hFile.GetTopic(keyRef);
@@ -155,6 +163,7 @@ public class THelpViewer : TScroller
         DrawView();
     }
 
+    /// <inheritdoc />
     public override void HandleEvent(ref TEvent ev)
     {
         TPoint keyPoint = default;

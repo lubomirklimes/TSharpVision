@@ -1,11 +1,10 @@
 using TSharpVision.Constants;
 namespace TSharpVision;
 
-// TColorDialog — the full color-editing dialog.
-// Contains a group list, item list, foreground selector, background
-// selector, mono selector (hidden), preview display, and Try/OK/Cancel buttons.
+/// <summary>Dialog for editing a palette through grouped entries, color selectors, and a live preview.</summary>
 public class TColorDialog : TDialog
 {
+    /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public new static readonly string Name = "TColorDialog";
 
     /// <summary>The palette being edited (mutable — changes are in-place).</summary>
@@ -20,8 +19,7 @@ public class TColorDialog : TDialog
     private TLabel           _monoLabel;
     private TMonoSelector    _monoSel;
 
-    // Layout uses ib=0 (blink-enabled, 8 background colors).
-    // Dialog is 77×18, centered on screen.
+    /// <summary>Creates a centered 77-by-18 cell editor that modifies the supplied palette in place using the supplied group descriptions.</summary>
     public TColorDialog(TPalette aPalette, TColorGroup aGroups)
         : base(new TRect(0, 0, 77, 18), TSharpVisionIntl.Get("Color_Title", "Colors"))
     {
@@ -103,6 +101,7 @@ public class TColorDialog : TDialog
 
     // Intercepts cmNewColorIndex to update the display pointer,
     // and cmTryColors to broadcast a redraw notification.
+    /// <inheritdoc />
     public override void HandleEvent(ref TEvent @event)
     {
         base.HandleEvent(ref @event);
@@ -125,13 +124,16 @@ public class TColorDialog : TDialog
         }
     }
 
+    /// <inheritdoc />
     public override ushort DataSize() => (ushort)((Pal != null) ? Pal.Data[0] + 1 : 0);
 
+    /// <summary>Returns a copy of the complete palette record, or an empty array when no palette is attached.</summary>
     public virtual void GetData(out byte[] rec)
     {
         rec = (Pal != null) ? (byte[])Pal.Data.Clone() : System.Array.Empty<byte>();
     }
 
+    /// <summary>Copies a length-prefixed palette record into the attached palette and resets the selected group and preview.</summary>
     public virtual void SetData(byte[] rec)
     {
         if (Pal == null || rec == null || rec.Length < 1) return;
@@ -145,12 +147,15 @@ public class TColorDialog : TDialog
     // ── Streaming ────────────────────────────────────────────────────────────
     // Wire: TDialog base + WritePointer x8 (display, groups, forLabel, forSel,
     //       bakLabel, bakSel, monoLabel, monoSel). On read: pal = null.
+    /// <summary>Stream registry descriptor and factory for restoring this concrete type.</summary>
     public static readonly TStreamableClass StreamableClassTColorDialog =
         new TStreamableClass("TColorDialog",
             () => new TColorDialog(StreamableInit.streamableInit), 0);
 
+    /// <summary>Creates an instance for restoration from a stream without running normal initialization.</summary>
     protected TColorDialog(StreamableInit init) : base(init) { }
 
+    /// <inheritdoc />
     public override void Write(Opstream os)
     {
         base.Write(os);   // TDialog → TWindow → TGroup
@@ -164,6 +169,7 @@ public class TColorDialog : TDialog
         os.WritePointer(_monoSel);
     }
 
+    /// <inheritdoc />
     public override object Read(Ipstream isStream)
     {
         base.Read(isStream);   // TDialog → TWindow → TGroup
@@ -179,10 +185,13 @@ public class TColorDialog : TDialog
         return this;
     }
 
+    /// <summary>Creates an instance for stream restoration; its stored state must be read before use.</summary>
     public new static TStreamable Build() =>
         new TColorDialog(StreamableInit.streamableInit);
 
     // Test-only accessors for smoke-check pointer identity verification.
+    /// <summary>Returns the actual owned group-list control for identity inspection.</summary>
     public TColorGroupList GroupsForTest  => _groups;
+    /// <summary>Returns the actual owned preview control for identity inspection.</summary>
     public TColorDisplay   DisplayForTest => _display;
 }

@@ -1,39 +1,57 @@
-﻿using TSharpVision.Constants;
+using TSharpVision.Constants;
 
 namespace TSharpVision;
 
+/// <summary>Flags choosing file-dialog buttons, initial directory loading, and encoding controls.</summary>
 public static class FileDialogOptions
 {
+    /// <summary>Includes an OK acceptance button.</summary>
     public const ushort fdOKButton      = 0x0001;
+    /// <summary>Includes an Open action button.</summary>
     public const ushort fdOpenButton    = 0x0002;
+    /// <summary>Includes a Replace action button.</summary>
     public const ushort fdReplaceButton = 0x0004;
+    /// <summary>Includes a Clear action button.</summary>
     public const ushort fdClearButton   = 0x0008;
+    /// <summary>Includes a Help action button.</summary>
     public const ushort fdHelpButton    = 0x0010;
+    /// <summary>Includes a Select action button.</summary>
     public const ushort fdSelectButton  = 0x0020;
+    /// <summary>Labels the dismissal button Done instead of Cancel.</summary>
     public const ushort fdDoneButton    = 0x0040;
+    /// <summary>Includes an Add action button.</summary>
     public const ushort fdAddButton     = 0x0080;
+    /// <summary>Defers initial directory enumeration.</summary>
     public const ushort fdNoLoadDir     = 0x0100;
+    /// <summary>Includes a choice of editor text encodings.</summary>
     public const ushort fdEncodingSelector = 0x0200;
 }
 
-// Modal "Open File" dialog. Composed of a TFileInputLine (with history),
-// a TFileList scroll-box, a TFileInfoPane footer, and a stack of buttons
-// (Open / OK / Add / Select / Replace / Clear / Cancel|Done / Help)
-// driven by the fd* options bitmask.
+/// <summary>File chooser with wildcard filtering, input history, file metadata, and optional text-encoding selection.</summary>
 public class TFileDialog : TDialog, IFileDialogContext
 {
+    /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public new static readonly string Name = "TFileDialog";
 
+    /// <summary>Current filename wildcard used to filter directory entries.</summary>
     public string wildCard;
+    /// <summary>Owned filename input control.</summary>
     public TFileInputLine fileName;
+    /// <summary>Owned list of matching files and navigable directories.</summary>
     public TFileList      fileList;
+    /// <summary>Optional owned encoding-choice control; null when omitted by dialog options.</summary>
     public TRadioButtons  encodingSelector;
+    /// <summary>Current directory used to resolve relative input paths.</summary>
     public string         directory;
 
+    /// <summary>Most recent directory or filename error message; empty when none is recorded.</summary>
     public string LastError = string.Empty;
 
+    /// <summary>Current directory path, returning an empty string when the backing field is null.</summary>
     public string Directory => directory ?? string.Empty;
+    /// <summary>Current wildcard filter, returning an empty string when the backing field is null.</summary>
     public string WildCard  => wildCard  ?? string.Empty;
+    /// <summary>Encoding selected by the optional control, or the first built-in choice when absent or invalid.</summary>
     public EditorTextEncoding SelectedEncoding =>
         EncodingAt(encodingSelector == null ? 0 : (int)encodingSelector.value);
 
@@ -44,6 +62,7 @@ public class TFileDialog : TDialog, IFileDialogContext
         return EditorEncodingChoices.BuiltIn[index].Encoding;
     }
 
+    /// <summary>Creates a centered file chooser with an initial wildcard, title, input label, option flags, and history ID.</summary>
     public TFileDialog(string aWildCard,
                        string aTitle,
                        string inputName,
@@ -167,6 +186,7 @@ public class TFileDialog : TDialog, IFileDialogContext
         return head;
     }
 
+    /// <inheritdoc />
     public override void SizeLimits(ref TPoint min, ref TPoint max)
     {
         base.SizeLimits(ref min, ref max);
@@ -174,6 +194,7 @@ public class TFileDialog : TDialog, IFileDialogContext
         min.y = 21 - 1;
     }
 
+    /// <inheritdoc />
     public override void ShutDown()
     {
         fileName = null;
@@ -182,6 +203,7 @@ public class TFileDialog : TDialog, IFileDialogContext
         base.ShutDown();
     }
 
+    /// <summary>Resolves trimmed input against the dialog directory and expands it to a full path when possible.</summary>
     public virtual void GetFileName(out string s)
     {
         string buf = (fileName?.Data ?? string.Empty).Trim();
@@ -195,6 +217,7 @@ public class TFileDialog : TDialog, IFileDialogContext
         s = buf;
     }
 
+    /// <inheritdoc />
     public override void HandleEvent(ref TEvent @event)
     {
         base.HandleEvent(ref @event);
@@ -221,6 +244,7 @@ public class TFileDialog : TDialog, IFileDialogContext
         }
     }
 
+    /// <summary>Reloads matching file entries, records any enumeration error, and refreshes the current-directory field.</summary>
     public virtual void ReadDirectory()
     {
         fileList?.ReadDirectory(wildCard);
@@ -228,6 +252,7 @@ public class TFileDialog : TDialog, IFileDialogContext
         SetUpCurDir();
     }
 
+    /// <summary>Stores the process working directory with a trailing separator.</summary>
     public virtual void SetUpCurDir()
     {
         string cur = System.IO.Directory.GetCurrentDirectory();
@@ -238,6 +263,7 @@ public class TFileDialog : TDialog, IFileDialogContext
         directory = cur;
     }
 
+    /// <inheritdoc />
     public override void SetData(object rec)
     {
         if (rec is string s && s.Length > 0 && IsWild(s))
@@ -252,11 +278,13 @@ public class TFileDialog : TDialog, IFileDialogContext
         }
     }
 
+    /// <summary>Returns the resolved filename represented by the current input.</summary>
     public virtual void GetData(out string rec)
     {
         GetFileName(out rec);
     }
 
+    /// <summary>Tests whether a directory exists and records an error message when it does not.</summary>
     public virtual bool CheckDirectory(string str)
     {
         if (string.IsNullOrEmpty(str)) goto fail;
@@ -284,6 +312,7 @@ public class TFileDialog : TDialog, IFileDialogContext
         return false;
     }
 
+    /// <inheritdoc />
     public override bool Valid(ushort command)
     {
         if (!base.Valid(command)) return false;
@@ -328,6 +357,7 @@ public class TFileDialog : TDialog, IFileDialogContext
         return false;
     }
 
+    /// <summary>Returns whether the string contains an asterisk or question-mark wildcard.</summary>
     public static bool IsWild(string s)
         => !string.IsNullOrEmpty(s)
            && (s.IndexOf('*') >= 0 || s.IndexOf('?') >= 0);
@@ -372,9 +402,11 @@ public class TFileDialog : TDialog, IFileDialogContext
         catch { return false; }
     }
 
+    /// <summary>Creates an instance for restoration from a stream without running normal initialization.</summary>
     protected TFileDialog(StreamableInit init) : base(init) { }
 
     // Wire: TDialog base + wildCard(string) + fileName(ptr) + fileList(ptr).
+    /// <inheritdoc />
     public override void Write(Opstream os)
     {
         base.Write(os);
@@ -383,6 +415,7 @@ public class TFileDialog : TDialog, IFileDialogContext
         os.WritePointer(fileList);
     }
 
+    /// <inheritdoc />
     public override object Read(Ipstream isStream)
     {
         base.Read(isStream);
@@ -393,7 +426,9 @@ public class TFileDialog : TDialog, IFileDialogContext
         return this;
     }
 
+    /// <summary>Creates an instance for stream restoration; its stored state must be read before use.</summary>
     public new static TStreamable Build() => new TFileDialog(StreamableInit.streamableInit);
+    /// <summary>Stream registry descriptor and factory for restoring this concrete type.</summary>
     public static readonly TStreamableClass StreamableClassTFileDialog =
         new TStreamableClass("TFileDialog", () => new TFileDialog(StreamableInit.streamableInit), 0);
 }

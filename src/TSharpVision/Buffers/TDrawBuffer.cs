@@ -1,4 +1,4 @@
-﻿// A draw buffer is a one-row scratch area sized to the maximum view width.
+// A draw buffer is a one-row scratch area sized to the maximum view width.
 // Views fill it with moveChar/moveStr/moveCStr/moveBuf and then hand it to
 // TView::writeLine / writeBuf. The semantics here track upstream so existing
 // view drawing code (TStatusLine, TFrame, ...) works unchanged.
@@ -6,6 +6,7 @@ using System;
 
 namespace TSharpVision;
 
+/// <summary>A mutable span of drawing cells used to compose rows before writing them to a view.</summary>
 public ref struct TDrawBuffer
 {
     /// <summary>
@@ -17,9 +18,12 @@ public ref struct TDrawBuffer
 
     private readonly Span<TScreenChar> _data;
 
+    /// <summary>Mutable view of the backing cells, without copying.</summary>
     public Span<TScreenChar> Data => _data;
+    /// <summary>Number of cells available in the backing span.</summary>
     public int Length => _data.Length;
 
+    /// <summary>Allocates a row using the current screen width, or MaxViewWidth when no width is available.</summary>
     public TDrawBuffer()
     {
         int w = TScreen.ScreenWidth;
@@ -27,6 +31,7 @@ public ref struct TDrawBuffer
         _data = new TScreenChar[w];
     }
 
+    /// <summary>Wraps caller-owned cells without allocating or copying; edits affect the supplied span.</summary>
     public TDrawBuffer(Span<TScreenChar> backing)
     {
         _data = backing;

@@ -13,10 +13,13 @@ public sealed class InMemoryClipboardService : IClipboardService
 {
     private string? _text;
 
+    /// <inheritdoc />
     public bool IsAvailable => true;
 
+    /// <inheritdoc />
     public string? GetText() => _text;
 
+    /// <inheritdoc />
     public bool TryGetText(out string text)
     {
         if (_text == null)
@@ -28,6 +31,7 @@ public sealed class InMemoryClipboardService : IClipboardService
         return true;
     }
 
+    /// <inheritdoc />
     public bool SetText(string text)
     {
         _text = text ?? string.Empty;

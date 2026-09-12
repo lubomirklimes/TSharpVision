@@ -16,8 +16,10 @@ public sealed class SdlClipboardService : IClipboardService
 
     internal SdlClipboardService(ISdlClipboard sdl) => _sdl = sdl;
 
+    /// <inheritdoc />
     public bool IsAvailable => true;
 
+    /// <inheritdoc />
     public string? GetText()
     {
         try
@@ -37,6 +39,7 @@ public sealed class SdlClipboardService : IClipboardService
         }
     }
 
+    /// <inheritdoc />
     public bool TryGetText(out string text)
     {
         text = string.Empty;
@@ -46,6 +49,7 @@ public sealed class SdlClipboardService : IClipboardService
         return true;
     }
 
+    /// <inheritdoc />
     public bool SetText(string text)
     {
         try

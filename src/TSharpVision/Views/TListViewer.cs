@@ -1,22 +1,31 @@
-﻿using TSharpVision.Constants;
+using TSharpVision.Constants;
 namespace TSharpVision;
 
+/// <summary>Scrollable, column-based list view with focus tracking and owner broadcasts for focus and activation.</summary>
 public class TListViewer : TView
 {
+    /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public new static readonly string Name = "TListViewer";
 
     private static readonly TPalette _palette = new TPalette("\x1A\x1A\x1B\x1C\x1D", 5);
 
-    // Default column separator (cp437 0xB3 == U+2502 │).
+    /// <summary>Glyph drawn between adjacent list columns.</summary>
     public static char ColumnSeparator = '│';
 
+    /// <summary>Optional associated horizontal scrollbar controlling the text offset.</summary>
     public TScrollBar hScrollBar;
+    /// <summary>Optional associated scrollbar tracking the focused item and list navigation.</summary>
     public TScrollBar vScrollBar;
+    /// <summary>Number of displayed item columns; callers should use SetNumCols with a positive value.</summary>
     public int numCols;
+    /// <summary>Zero-based item index at the beginning of the visible page.</summary>
     public int topItem;
+    /// <summary>Zero-based focused item index; initialized to zero even for an empty list.</summary>
     public int focused;
+    /// <summary>Number of available list items, defining valid indices from zero through range minus one.</summary>
     public int range;
 
+    /// <summary>Creates an empty selectable list in owner-relative cell bounds with a positive column count and optional referenced scrollbars.</summary>
     public TListViewer(TRect bounds, ushort aNumCols, TScrollBar aHScrollBar, TScrollBar aVScrollBar)
         : base(bounds)
     {
@@ -31,6 +40,7 @@ public class TListViewer : TView
         SetNumCols(aNumCols);
     }
 
+    /// <summary>Sets the positive column count and updates scrollbar arrow and page steps for the layout.</summary>
     public void SetNumCols(int aNumCols)
     {
         int arStep, pgStep;
@@ -53,6 +63,7 @@ public class TListViewer : TView
             hScrollBar.SetStep(size.x / numCols, 1);
     }
 
+    /// <inheritdoc />
     public override void ChangeBounds(TRect bounds)
     {
         base.ChangeBounds(bounds);
@@ -60,6 +71,7 @@ public class TListViewer : TView
             hScrollBar.SetStep(size.x / numCols, 1);
     }
 
+    /// <inheritdoc />
     public override void Draw()
     {
         int i, j;
@@ -132,6 +144,7 @@ public class TListViewer : TView
         }
     }
 
+    /// <summary>Focuses the supplied zero-based item, brings it into view, updates its scrollbar, and broadcasts cmListItemFocused when owned.</summary>
     public virtual void FocusItem(int item)
     {
         focused = item;
@@ -154,6 +167,7 @@ public class TListViewer : TView
             Message(owner, Events.evBroadcast, Views.cmListItemFocused, this);
     }
 
+    /// <summary>Clamps an index to the nonempty list's range before focusing it; does nothing for an empty list.</summary>
     public virtual void FocusItemNum(int item)
     {
         if (item < 0) item = 0;
@@ -162,14 +176,18 @@ public class TListViewer : TView
             FocusItem(item);
     }
 
+    /// <inheritdoc />
     public override TPalette GetPalette() => _palette;
 
+    /// <summary>Supplies display text for a zero-based item with the requested maximum length; the base implementation returns empty text.</summary>
     public virtual string GetText(int item, int maxLen) => string.Empty;
 
+    /// <summary>Returns whether the zero-based item is selected; the base implementation compares it with the focused index.</summary>
     public virtual bool IsSelected(int item) => item == focused;
 
     private const int WheelStep = 3;
 
+    /// <inheritdoc />
     public override void HandleEvent(ref TEvent @event)
     {
         TPoint mouse;
@@ -296,11 +314,13 @@ public class TListViewer : TView
         }
     }
 
+    /// <summary>Broadcasts cmListItemSelected to the owner with this view as payload; the base implementation does not change focus.</summary>
     public virtual void SelectItem(int item)
     {
         Message(owner, Events.evBroadcast, Views.cmListItemSelected, this);
     }
 
+    /// <summary>Sets the item count and updates scrollbar limits; resets focus to zero only when it exceeds the supplied count.</summary>
     public void SetRange(int aRange)
     {
         range = aRange;
@@ -310,6 +330,7 @@ public class TListViewer : TView
             focused = 0;
     }
 
+    /// <inheritdoc />
     public override void SetState(ushort aState, bool enable)
     {
         base.SetState(aState, enable);
@@ -329,6 +350,7 @@ public class TListViewer : TView
         }
     }
 
+    /// <inheritdoc />
     public override void ShutDown()
     {
         hScrollBar = null;
@@ -339,11 +361,14 @@ public class TListViewer : TView
     // Wire layout (after base): hScrollBar ptr, vScrollBar ptr,
     // numCols, topItem, focused, range (all 4B WriteInt).
 
+    /// <summary>Stream registry descriptor and factory for restoring this concrete type.</summary>
     public static readonly TStreamableClass StreamableClassTListViewer =
         new TStreamableClass("TListViewer", () => new TListViewer(StreamableInit.streamableInit), 0);
 
+    /// <summary>Creates an instance for restoration from a stream without running normal initialization.</summary>
     protected TListViewer(StreamableInit init) : base(init) { }
 
+    /// <inheritdoc />
     public override void Write(Opstream os)
     {
         base.Write(os);
@@ -355,6 +380,7 @@ public class TListViewer : TView
         os.WriteInt((uint)range);
     }
 
+    /// <inheritdoc />
     public override object Read(Ipstream isStream)
     {
         base.Read(isStream);
@@ -367,6 +393,8 @@ public class TListViewer : TView
         return this;
     }
 
+    /// <summary>Creates an instance for stream restoration; its stored state must be read before use.</summary>
     public new static TStreamable Build() { return new TListViewer(StreamableInit.streamableInit); }
+    /// <inheritdoc />
     public override string StreamableName() { return Name; }
 }

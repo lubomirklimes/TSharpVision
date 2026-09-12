@@ -1,15 +1,22 @@
-﻿using TSharpVision.Constants;
+using TSharpVision.Constants;
 namespace TSharpVision;
 
+/// <summary>A selectable dialog control that emits a configured command when activated by keyboard or mouse.</summary>
 public class TButton : TView
 {
+    /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public new static readonly string Name = "TButton";
 
+    /// <summary>Displayed label; tilde-delimited characters identify the mnemonic.</summary>
     public string Title { get; protected set; }
+    /// <summary>Command identifier emitted when the button is pressed.</summary>
     public ushort Command { get; protected set; }
+    /// <summary>ButtonConstants flags controlling label alignment, default status, and command routing.</summary>
     public byte Flags { get; protected set; }
+    /// <summary>Whether this button currently serves as the default action, including temporary focus changes.</summary>
     public bool AmDefault { get; protected set; }
 
+    /// <summary>Creates a button at owner-relative cell bounds with a label, command, and presentation flags; disabled commands start disabled.</summary>
     public TButton(TRect bounds, string aTitle, ushort aCommand, ushort aFlags)
         : base(bounds)
     {
@@ -24,10 +31,12 @@ public class TButton : TView
             state |= Views.sfDisabled;
     }
 
+    /// <summary>Finalizer hook; performs no resource cleanup.</summary>
     ~TButton()
     {
     }
 
+    /// <inheritdoc />
     public override void Draw() => DrawState(false);
 
     private void DrawTitle(TDrawBuffer b, int s, int i, ushort cButton, bool down)
@@ -55,6 +64,7 @@ public class TButton : TView
     // shadows[2] — fill char for the bottom shadow row
     private static readonly char[] Shadows = { '\u2584', '\u2588', '\u2580' };
 
+    /// <summary>Draws the button in its pressed or released appearance using its current enabled and default states.</summary>
     public void DrawState(bool down)
     {
         ushort cButton, cShadow;
@@ -107,6 +117,7 @@ public class TButton : TView
 
     private static readonly TPalette _palette = new TPalette(
         "\x0A\x0B\x0C\x0D\x0E\x0E\x0E\x0F", 8);
+    /// <inheritdoc />
     public override TPalette GetPalette() => _palette;
 
     private static char ExtractHotKey(string s)
@@ -123,6 +134,7 @@ public class TButton : TView
         return Keys.kbNoKey;
     }
 
+    /// <inheritdoc />
     public override void HandleEvent(ref TEvent @event)
     {
         TPoint mouse;
@@ -211,6 +223,7 @@ public class TButton : TView
         }
     }
 
+    /// <summary>Changes temporary default-button status and broadcasts the change to sibling buttons.</summary>
     public void MakeDefault(bool enable)
     {
         if ((Flags & ButtonConstants.bfDefault) == 0)
@@ -224,6 +237,7 @@ public class TButton : TView
         }
     }
 
+    /// <inheritdoc />
     public override void SetState(ushort aState, bool enable)
     {
         base.SetState(aState, enable);
@@ -240,6 +254,7 @@ public class TButton : TView
             MakeDefault(enable);
     }
 
+    /// <summary>Requests history recording, then broadcasts or queues the configured command according to the button flags.</summary>
     public virtual void Press()
     {
         owner?.Message(Events.evBroadcast, Views.cmRecordHistory, null);
@@ -262,11 +277,14 @@ public class TButton : TView
         return r;
     }
 
+    /// <summary>Stream registry descriptor and factory for restoring this concrete type.</summary>
     public static readonly TStreamableClass StreamableClassTButton =
         new TStreamableClass("TButton", () => new TButton(StreamableInit.streamableInit), 0);
 
+    /// <summary>Creates an instance for restoration from a stream without running normal initialization.</summary>
     protected TButton(StreamableInit init) : base(init) { }
 
+    /// <inheritdoc />
     public override void Write(Opstream os)
     {
         base.Write(os);
@@ -276,6 +294,7 @@ public class TButton : TView
         os.WriteInt(AmDefault ? 1u : 0u);
     }
 
+    /// <inheritdoc />
     public override object Read(Ipstream isStream)
     {
         base.Read(isStream);
@@ -286,5 +305,6 @@ public class TButton : TView
         return this;
     }
 
+    /// <summary>Creates an instance for stream restoration; its stored state must be read before use.</summary>
     public new static TStreamable Build() => new TButton(StreamableInit.streamableInit);
 }

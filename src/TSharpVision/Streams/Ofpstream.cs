@@ -8,16 +8,19 @@ public class Ofpstream : Opstream
 {
     private readonly bool _ownsStream;
 
+    /// <summary>Creates or truncates a file for object output and owns its lifetime until Close.</summary>
     public Ofpstream(string path) : base(Fpbase.OpenWrite(path))
     {
         _ownsStream = true;
     }
 
+    /// <summary>Writes objects to a caller-owned stream without taking responsibility for closing it.</summary>
     public Ofpstream(Stream s) : base(s)
     {
         _ownsStream = false;
     }
 
+    /// <summary>Flushes output and closes the underlying stream only when this writer opened it from a path.</summary>
     public void Close()
     {
         if (bp != null)

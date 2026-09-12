@@ -29,6 +29,7 @@ public sealed class ProcessTerminalSession : ITerminalSession, IResizableTermina
     private int _exitedFired;   // 0 = not fired, 1 = fired; compare-exchange guards single fire
     private bool _disposed;
 
+    /// <summary>Stores an executable, argument string, and optional working directory for later StartAsync; construction does not launch the process.</summary>
     public ProcessTerminalSession(string fileName, string arguments = "", string workingDirectory = null)
     {
         _fileName = fileName;
@@ -36,9 +37,12 @@ public sealed class ProcessTerminalSession : ITerminalSession, IResizableTermina
         _workingDirectory = workingDirectory;
     }
 
+    /// <inheritdoc />
     public event EventHandler<TerminalOutputEventArgs> OutputReceived;
+    /// <inheritdoc />
     public event EventHandler Exited;
 
+    /// <inheritdoc />
     public bool IsRunning => _isRunning;
 
     /// <summary>
@@ -48,6 +52,7 @@ public sealed class ProcessTerminalSession : ITerminalSession, IResizableTermina
     /// </summary>
     public int? ExitCode { get; private set; }
 
+    /// <inheritdoc /><remarks>Starts a redirected child process and asynchronous output readers.</remarks>
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
         var psi = new ProcessStartInfo
@@ -114,12 +119,14 @@ public sealed class ProcessTerminalSession : ITerminalSession, IResizableTermina
         catch (IOException) { }
     }
 
+    /// <inheritdoc /><remarks>Writes to a live process's standard input without appending a newline; does nothing when no live process exists.</remarks>
     public async Task SendInputAsync(string input, CancellationToken cancellationToken = default)
     {
         if (_process != null && !_process.HasExited)
             await _process.StandardInput.WriteAsync(input).ConfigureAwait(false);
     }
 
+    /// <inheritdoc /><remarks>Requests termination of the child process when still running, then waits for exit.</remarks>
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         if (_process == null)
@@ -152,13 +159,14 @@ public sealed class ProcessTerminalSession : ITerminalSession, IResizableTermina
     /// <summary>
     /// Requests cancellation of the running process. Because this session uses
     /// redirected pipes rather than a PTY/ConPTY, a true SIGINT/Ctrl+C cannot
-    /// be delivered. <see cref="StopAsync"/> (which calls <see cref="Process.Kill"/>
+    /// be delivered. <see cref="StopAsync"/> (which calls <see cref="Process.Kill()"/>
     /// ) is used as the safest fallback. Safe to call when the process is not
     /// running or has already exited.
     /// </summary>
     public Task InterruptAsync(CancellationToken cancellationToken = default)
         => StopAsync(cancellationToken);
 
+    /// <inheritdoc /><remarks>Disposes the process handle; call StopAsync first when the child process must terminate.</remarks>
     public void Dispose()
     {
         if (_disposed) return;

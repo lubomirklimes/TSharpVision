@@ -50,7 +50,9 @@ public sealed class SDLRenderer : IDisposable, ISDLRenderer
     // Cell-sized CP437 B0-DF bitmaps, built once from the cell size using PhasedDither shading.
     private CellGlyphBitmapCache _generatedGlyphs = null!;
 
+    /// <inheritdoc />
     public int CellWidth  => _cellWidth;
+    /// <inheritdoc />
     public int CellHeight => _cellHeight;
 
     // Fallback symbol font (kept open alongside the primary font to provide
@@ -78,10 +80,13 @@ public sealed class SDLRenderer : IDisposable, ISDLRenderer
     // Construction
     // ─────────────────────────────────────────────────────────────────────────
 
+    /// <summary>Creates a text renderer over an existing SDL renderer handle using automatically selected font settings.</summary>
     public SDLRenderer(IntPtr renderer) : this(renderer, null, null) { }
 
+    /// <summary>Creates a text renderer over an SDL renderer handle; null selects an available default font.</summary>
     public SDLRenderer(IntPtr renderer, string? fontName) : this(renderer, fontName, null) { }
 
+    /// <summary>Creates a text renderer over an SDL renderer handle with optional font name and point size; null values use configured defaults.</summary>
     public SDLRenderer(IntPtr renderer, string? fontName, int? fontSize)
     {
         _renderer = renderer;
@@ -237,6 +242,7 @@ public sealed class SDLRenderer : IDisposable, ISDLRenderer
     // Cursor
     // ─────────────────────────────────────────────────────────────────────────
 
+    /// <inheritdoc />
     public void SetCursor(int x, int y, ushort cursorType)
     {
         _cursorX    = x;
@@ -530,6 +536,7 @@ public sealed class SDLRenderer : IDisposable, ISDLRenderer
     // Rendering
     // ─────────────────────────────────────────────────────────────────────────
 
+    /// <summary>Renders the screen buffer and caret to the SDL target; the current implementation redraws the full frame.</summary>
     public void Render(
         ScreenBuffer screenBuffer,
         uint regionX, uint regionY, uint regionWidth, uint regionHeight)
@@ -666,6 +673,7 @@ public sealed class SDLRenderer : IDisposable, ISDLRenderer
         _disposed = true;
     }
 
+    /// <inheritdoc />
     public void Dispose()
     {
         Dispose(disposing: true);

@@ -8,6 +8,7 @@ public sealed class TerminalClipboardService : IClipboardService
     private readonly ITerminalClipboardCommandRunner _runner;
     private readonly TerminalClipboardPlatform _platform;
 
+    /// <summary>Creates a clipboard bridge that detects the host platform and discovers available clipboard command pairs.</summary>
     public TerminalClipboardService()
         : this(TerminalClipboardCommandRunner.Instance, DetectPlatform()) { }
 
@@ -19,8 +20,10 @@ public sealed class TerminalClipboardService : IClipboardService
         _platform = platform;
     }
 
+    /// <inheritdoc />
     public bool IsAvailable => TryFindPair(out _);
 
+    /// <inheritdoc />
     public string GetText()
     {
         if (!TryFindPair(out var pair)) return null;
@@ -30,6 +33,7 @@ public sealed class TerminalClipboardService : IClipboardService
         return ClipboardEncoding.NormalizeFromCrLf(text);
     }
 
+    /// <inheritdoc />
     public bool TryGetText(out string text)
     {
         text = string.Empty;
@@ -39,6 +43,7 @@ public sealed class TerminalClipboardService : IClipboardService
         return true;
     }
 
+    /// <inheritdoc />
     public bool SetText(string text)
     {
         if (!TryFindPair(out var pair)) return false;

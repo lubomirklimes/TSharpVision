@@ -3,47 +3,83 @@ using TSharpVision.Constants;
 
 namespace TSharpVision;
 
+/// <summary>Editable UTF-16 text view with selection, undo, searching, clipboard operations, and optional scrollbars and status indicator.</summary>
 public class TEditor : TView
 {
+    /// <summary>Shared compatibility buffer for clipboard text; the clipboard editor handles normal copy and paste.</summary>
     public static char[] clipboardBuffer;
+    /// <summary>Shared editor storing the in-process clipboard selection.</summary>
     public static TEditor clipboard;
+    /// <summary>Shared search, replacement, and file-backup option bits.</summary>
     public static ushort editorFlags = (ushort)(Views.efBackupFiles | Views.efPromptOnReplace);
+    /// <summary>Shared null-terminated UTF-16 search pattern buffer.</summary>
     public static char[] findStr = new char[Views.maxFindStrLen];
+    /// <summary>Shared null-terminated UTF-16 replacement text buffer.</summary>
     public static char[] replaceStr = new char[Views.maxReplaceStrLen];
+    /// <summary>Distance between visual tab stops in columns; column calculations treat zero as one.</summary>
     public static uint tabSize = 8;
 
     // editorDialog callback — upstream `TEditorDialog`. Default returns
     // cmCancel, mirroring `defEditorDialog`
+    /// <summary>Callback for editor prompts; receives a dialog identifier and payload and returns a response command.</summary>
     public delegate ushort TEditorDialog(int dialog, object info);
+    /// <summary>Shared prompt callback; the default cancels every prompt.</summary>
     public static TEditorDialog editorDialog =
         (int _dlg, object _info) => Views.cmCancel;
 
+    /// <summary>Associated horizontal scrollbar; ownership remains with its containing group.</summary>
     public TScrollBar hScrollBar;
+    /// <summary>Associated vertical scrollbar; ownership remains with its containing group.</summary>
     public TScrollBar vScrollBar;
+    /// <summary>Associated caret-position and modification indicator, owned by its containing group.</summary>
     public TIndicator indicator;
+    /// <summary>Physical UTF-16 storage including the gap; use BufChar for logical document indexing.</summary>
     public char[] buffer;
+    /// <summary>Capacity of the physical buffer in UTF-16 code units.</summary>
     public uint bufSize;
+    /// <summary>Logical document length in UTF-16 code units, excluding the gap.</summary>
     public uint bufLen;
+    /// <summary>Number of unused code-unit slots between the physical text segments.</summary>
     public uint gapLen;
+    /// <summary>Inclusive logical UTF-16 offset of the selection.</summary>
     public uint selStart;
+    /// <summary>Exclusive logical UTF-16 offset of the selection.</summary>
     public uint selEnd;
+    /// <summary>Logical UTF-16 insertion offset and start of the buffer gap.</summary>
     public uint curPtr;
+    /// <summary>Zero-based visual caret column and line; tabs expand to configured column stops.</summary>
     public TPoint curPos;
+    /// <summary>Viewport origin in visual columns and document lines.</summary>
     public TPoint delta;
+    /// <summary>Scrollable content extent in columns and lines.</summary>
     public TPoint limit;
+    /// <summary>Document line associated with the cached drawing offset.</summary>
     public int drawLine;
+    /// <summary>Logical UTF-16 offset cached for line drawing.</summary>
     public uint drawPtr;
+    /// <summary>Number of deleted UTF-16 code units retained for undo.</summary>
     public uint delCount;
+    /// <summary>Number of inserted UTF-16 code units tracked by the undo record.</summary>
     public uint insCount;
+    /// <summary>Whether editor initialization and buffer setup succeeded.</summary>
     public bool isValid;
+    /// <summary>Whether edits should retain undo information.</summary>
     public bool canUndo = true;
+    /// <summary>Whether document edits have occurred since loading or a successful save.</summary>
     public bool modified;
+    /// <summary>Whether caret movement extends the current selection.</summary>
     public bool selecting;
+    /// <summary>Whether typed characters replace existing characters instead of inserting before them.</summary>
     public bool overwrite;
+    /// <summary>Whether inserting a new line copies the preceding line's leading whitespace.</summary>
     public bool autoIndent;
+    /// <summary>Pending uf-prefixed redraw and status-update requests.</summary>
     public byte updateFlags;
+    /// <summary>Nesting count deferring pending redraw and status updates.</summary>
     public int lockCount;
+    /// <summary>Keyboard-prefix state: zero for normal input, one for Ctrl+Q, and two for Ctrl+K.</summary>
     public int keyState;
+    /// <summary>Additional text describing the most recent editor or file error.</summary>
     public string errorInfo = string.Empty;
 
     private const string CpEditor = "\x06\x07";
@@ -54,6 +90,7 @@ public class TEditor : TView
     private const int KeyStateQuick = 1; // Ctrl-Q prefix active
     private const int KeyStateBlock = 2; // Ctrl-K prefix active
 
+    /// <summary>Creates an empty editor at owner-relative cell bounds with a code-unit buffer capacity and optional associated controls.</summary>
     public TEditor(TRect bounds, TScrollBar aHScrollBar, TScrollBar aVScrollBar,
                    TIndicator aIndicator, uint aBufSize)
         : base(bounds)
@@ -79,12 +116,14 @@ public class TEditor : TView
         SetBufLen(0);
     }
 
+    /// <inheritdoc />
     public override void ShutDown()
     {
         DoneBuffer();
         base.ShutDown();
     }
 
+    /// <inheritdoc />
     public override void ChangeBounds(TRect bounds)
     {
         SetBounds(bounds);
@@ -93,14 +132,17 @@ public class TEditor : TView
         Update(Views.ufView);
     }
 
+    /// <summary>Returns a UTF-16 code unit at a valid logical document offset, skipping the storage gap.</summary>
     public char BufChar(uint p)
     {
         if (p >= curPtr) p += gapLen;
         return buffer[p];
     }
 
+    /// <summary>Converts a logical document offset to a physical buffer index across the gap.</summary>
     public uint BufPtr(uint p) => p < curPtr ? p : p + gapLen;
 
+    /// <summary>Computes the tab-expanded column from a logical starting offset to a target offset.</summary>
     public int CharPos(uint p, uint target)
     {
         int column = 0;
@@ -109,6 +151,7 @@ public class TEditor : TView
         return column;
     }
 
+    /// <summary>Maps a visual column from a logical line origin to the last code-unit boundary not exceeding that column.</summary>
     public uint CharPtr(uint p, int target)
     {
         uint result = Math.Min(p, bufLen);
@@ -135,11 +178,13 @@ public class TEditor : TView
         }
     }
 
+    /// <summary>Returns the next CR or LF offset at or after the supplied position, or the document length.</summary>
     public uint LineEnd(uint p)
     {
         return FindLineBreak(Math.Min(p, bufLen), bufLen, false) ?? bufLen;
     }
 
+    /// <summary>Returns the position after the last CR or LF before the supplied offset, or zero.</summary>
     public uint LineStart(uint p)
     {
         uint? terminator = FindLineBreak(0, Math.Min(p, bufLen), true);
@@ -162,25 +207,30 @@ public class TEditor : TView
         return null;
     }
 
+    /// <summary>Advances one UTF-16 code unit without passing the document end.</summary>
     public uint NextChar(uint p)
     {
         return p < bufLen ? p + 1 : bufLen;
     }
 
+    /// <summary>Moves back one UTF-16 code unit after clamping to the document, stopping at zero.</summary>
     public uint PrevChar(uint p)
     {
         uint offset = Math.Min(p, bufLen);
         return offset > 0 ? offset - 1 : 0;
     }
 
+    /// <summary>Returns the position immediately after the next CR or LF, bounded by the document end.</summary>
     public uint NextLine(uint p) => NextChar(LineEnd(p));
 
+    /// <summary>Returns the start of the line containing the code unit before the supplied offset.</summary>
     public uint PrevLine(uint p) => LineStart(PrevChar(p));
 
     private static bool IsWordChar(char ch)
         => char.IsLetterOrDigit(ch)
         || ch == '_';
 
+    /// <summary>Finds the next word start from a valid character offset; letters, digits, and underscores form words.</summary>
     public uint NextWord(uint p)
     {
         if (IsWordChar(BufChar(p)))
@@ -193,6 +243,7 @@ public class TEditor : TView
         return p;
     }
 
+    /// <summary>Finds the preceding word start, treating letters, digits, and underscores as word characters.</summary>
     public uint PrevWord(uint p)
     {
         while (p > 0 && !IsWordChar(BufChar(PrevChar(p))))
@@ -202,6 +253,7 @@ public class TEditor : TView
         return p;
     }
 
+    /// <summary>Moves a signed number of lines while retaining the visual column where the destination line permits.</summary>
     public uint LineMove(uint p, int count)
     {
         uint i = p;
@@ -217,14 +269,17 @@ public class TEditor : TView
         return p;
     }
 
+    /// <summary>Tests whether the logical selection range is nonempty.</summary>
     public bool HasSelection() => selStart != selEnd;
 
+    /// <summary>Collapses the selection at the insertion offset and disables selection extension.</summary>
     public void HideSelect()
     {
         selecting = false;
         SetSelect(curPtr, curPtr, false);
     }
 
+    /// <summary>Tests whether the visual caret position lies inside the viewport.</summary>
     public bool CursorVisible()
         => curPos.x >= delta.x && curPos.x < delta.x + size.x
            && curPos.y >= delta.y && curPos.y < delta.y + size.y;
@@ -237,6 +292,7 @@ public class TEditor : TView
         return n;
     }
 
+    /// <summary>Sets a half-open logical UTF-16 selection and places the caret at its start when curStart is true, otherwise at its end.</summary>
     public void SetSelect(uint newStart, uint newEnd, bool curStart)
     {
         uint p = curStart ? newStart : newEnd;
@@ -273,6 +329,7 @@ public class TEditor : TView
         Update(flags);
     }
 
+    /// <summary>Moves the logical insertion offset, extending or expanding selection according to the sm-prefixed mode flags.</summary>
     public void SetCurPtr(uint p, byte selectMode)
     {
         uint anchor;
@@ -303,6 +360,7 @@ public class TEditor : TView
         }
     }
 
+    /// <summary>Clamps the viewport origin in columns and lines to the content extent and schedules a redraw.</summary>
     public void ScrollTo(int x, int y)
     {
         x = Math.Max(0, Math.Min(x, limit.x - size.x));
@@ -315,6 +373,7 @@ public class TEditor : TView
         }
     }
 
+    /// <summary>Scrolls to expose the caret, optionally centering its line vertically.</summary>
     public void TrackCursor(bool center)
     {
         if (center)
@@ -325,22 +384,27 @@ public class TEditor : TView
                 Math.Max(curPos.y - size.y + 1, Math.Min(delta.y, curPos.y)));
     }
 
+    /// <summary>Collapses any existing selection and enables extension from the current insertion point.</summary>
     public void StartSelect()
     {
         HideSelect();
         selecting = true;
     }
 
+    /// <summary>Toggles insertion versus overwrite mode and the corresponding caret shape.</summary>
     public void ToggleInsMode()
     {
         overwrite = !overwrite;
         SetState(Views.sfCursorIns, !GetState(Views.sfCursorIns));
     }
 
+    /// <summary>Allocates physical UTF-16 storage using the configured buffer capacity.</summary>
     public void InitBuffer() => buffer = new char[bufSize];
 
+    /// <summary>Releases the editor's reference to its text buffer.</summary>
     public void DoneBuffer() => buffer = null;
 
+    /// <summary>Replaces the selection with a source-array slice, optionally recording undo and selecting inserted text; returns false if capacity cannot be obtained.</summary>
     public bool InsertBuffer(char[] p, uint offset, uint length,
                              bool allowUndo, bool selectText)
     {
@@ -416,21 +480,25 @@ public class TEditor : TView
         return true;
     }
 
+    /// <summary>Replaces the selection with the source editor's selected text, using this editor's undo policy.</summary>
     public bool InsertFrom(TEditor editor)
         => InsertBuffer(editor.buffer,
                         editor.BufPtr(editor.selStart),
                         editor.selEnd - editor.selStart,
                         canUndo, IsClipboard());
 
+    /// <summary>Replaces the selection with the first length UTF-16 code units, optionally selecting the insertion; returns whether insertion succeeded.</summary>
     public bool InsertText(char[] text, uint length, bool selectText)
         => InsertBuffer(text ?? Array.Empty<char>(), 0, length, canUndo, selectText);
 
+    /// <summary>Replaces the selection with text, optionally selecting it; null or empty text deletes the selection.</summary>
     public bool InsertText(string text, bool selectText = false)
     {
         char[] chars = string.IsNullOrEmpty(text) ? Array.Empty<char>() : text.ToCharArray();
         return InsertText(chars, (uint)chars.Length, selectText);
     }
 
+    /// <summary>Replaces the selection with byte values mapped directly to equal-valued Unicode characters, optionally selecting the insertion.</summary>
     public bool InsertText(byte[] text, uint length, bool selectText)
     {
         if (text == null || length == 0)
@@ -442,8 +510,10 @@ public class TEditor : TView
         return InsertText(chars, length, selectText);
     }
 
+    /// <summary>Tests whether this instance is the shared in-process clipboard editor.</summary>
     public bool IsClipboard() => ReferenceEquals(clipboard, this);
 
+    /// <summary>Deletes the logical range around the caret, or the current selection when delSelect is true and a selection exists.</summary>
     public void DeleteRange(uint startPtr, uint endPtr, bool delSelect)
     {
         if (HasSelection() && delSelect)
@@ -457,8 +527,10 @@ public class TEditor : TView
         }
     }
 
+    /// <summary>Removes the selected text using the editor's undo policy.</summary>
     public void DeleteSelect() => InsertText(Array.Empty<char>(), 0, false);
 
+    /// <summary>Inserts LF at the selection and optionally copies leading spaces and tabs from the current line.</summary>
     public void NewLine()
     {
         uint p = LineStart(curPtr);
@@ -476,9 +548,7 @@ public class TEditor : TView
         }
     }
 
-    // In addition to the in-process clipboard, mirror the copied
-    // selection to ClipboardService.Current as a best-effort write. OS
-    // clipboard failures are silent and never block the internal copy.
+    /// <summary>Copies selection to the in-process clipboard and attempts to mirror it to the host clipboard; host failure does not invalidate the internal copy.</summary>
     public bool ClipCopy()
     {
         bool res = false;
@@ -500,13 +570,13 @@ public class TEditor : TView
         return res;
     }
 
+    /// <summary>Deletes the selection only after a successful in-process clipboard copy.</summary>
     public void ClipCut()
     {
         if (ClipCopy()) DeleteSelect();
     }
 
-    // Paste policy P1 — try OS clipboard first, then fall back
-    // to the in-process clipboard editor.
+    /// <summary>Pastes nonempty host clipboard text when available, otherwise falling back to the in-process clipboard selection.</summary>
     public void ClipPaste()
     {
         var svc = ClipboardService.Current;
@@ -544,6 +614,7 @@ public class TEditor : TView
         return sb.ToString();
     }
 
+    /// <summary>Reverses the insertion and deletion stored in the current undo record.</summary>
     public void Undo()
     {
         if (delCount != 0 || insCount != 0)
@@ -604,6 +675,7 @@ public class TEditor : TView
     private static char ToUpperChar(char ch)
         => char.ToUpperInvariant(ch);
 
+    /// <summary>Searches forward from the caret using a null-terminated pattern and case/whole-word flags; selects and exposes a match and returns true.</summary>
     public bool Search(char[] needle, ushort opts)
     {
         uint pos = curPtr;
@@ -637,6 +709,7 @@ public class TEditor : TView
         return false;
     }
 
+    /// <summary>Searches forward after mapping pattern bytes directly to equal-valued Unicode characters.</summary>
     public bool Search(byte[] needle, ushort opts)
     {
         if (needle == null) return Search(Array.Empty<char>(), opts);
@@ -645,6 +718,7 @@ public class TEditor : TView
         return Search(chars, opts);
     }
 
+    /// <summary>Runs search or replacement using shared patterns and flags, invoking configured prompts as needed.</summary>
     public void DoSearchReplace()
     {
         ushort i;
@@ -677,6 +751,7 @@ public class TEditor : TView
                  && (editorFlags & Views.efReplaceAll) != 0);
     }
 
+    /// <summary>Prompts for search criteria and starts searching when the prompt is accepted.</summary>
     public void Find()
     {
         var rec = new TFindDialogRec(findStr, editorFlags);
@@ -688,6 +763,7 @@ public class TEditor : TView
         }
     }
 
+    /// <summary>Prompts for search and replacement criteria and starts replacement when accepted.</summary>
     public void Replace()
     {
         var rec = new TReplaceDialogRec(findStr, replaceStr, editorFlags);
@@ -709,9 +785,10 @@ public class TEditor : TView
     }
 
 
-    // newSize <= bufSize. TFileEditor overrides for realloc.
+    /// <summary>Checks whether the requested capacity fits the current buffer; derived editors may reallocate and return success.</summary>
     public virtual bool SetBufSize(uint newSize) => newSize <= bufSize;
 
+    /// <summary>Sets logical length within the allocated capacity and resets caret, selection, viewport, undo, and modification state.</summary>
     public void SetBufLen(uint length)
     {
         bufLen   = length;
@@ -733,10 +810,13 @@ public class TEditor : TView
         Update(Views.ufView);
     }
 
+    /// <inheritdoc />
     public override bool Valid(ushort _) => isValid;
     
+    /// <summary>Defers editor redraw and status updates until matching unlocks release the nesting count.</summary>
     public void Lock() => lockCount++;
 
+    /// <summary>Releases one update lock and performs pending updates when the count reaches zero.</summary>
     public void Unlock()
     {
         if (lockCount > 0)
@@ -746,12 +826,14 @@ public class TEditor : TView
         }
     }
 
+    /// <summary>Adds uf-prefixed update requests and processes them immediately when unlocked.</summary>
     public void Update(byte aFlags)
     {
         updateFlags |= aFlags;
         if (lockCount == 0) DoUpdate();
     }
 
+    /// <summary>Applies pending drawing, caret, scrollbar, indicator, and command-state updates.</summary>
     public void DoUpdate()
     {
         if (updateFlags != 0)
@@ -771,6 +853,7 @@ public class TEditor : TView
         }
     }
 
+    /// <inheritdoc />
     public override void SetState(ushort aState, bool enable)
     {
         base.SetState(aState, enable);
@@ -788,6 +871,7 @@ public class TEditor : TView
         }
     }
 
+    /// <summary>Updates enabled editor commands from active, selection, clipboard, and undo state.</summary>
     public virtual void UpdateCommands()
     {
         SetCmdState(Views.cmUndo, delCount != 0 || insCount != 0);
@@ -804,6 +888,7 @@ public class TEditor : TView
         SetCmdState(Views.cmSearchAgain,  true);
     }
 
+    /// <summary>Enables a command only when requested and this editor is active; otherwise disables it globally.</summary>
     public void SetCmdState(ushort command, bool enable)
     {
         // Single-command equivalents of EnableCommands/DisableCommands over a one-element
@@ -815,6 +900,7 @@ public class TEditor : TView
             DisableCommand(command);
     }
 
+    /// <inheritdoc />
     public override void Draw()
     {
         if (drawLine != delta.y)
@@ -825,6 +911,7 @@ public class TEditor : TView
         DrawLines(0, size.y, drawPtr);
     }
 
+    /// <summary>Draws count lines beginning at a logical text offset into local viewport row y, applying horizontal scrolling.</summary>
     public void DrawLines(int y, int count, uint linePtr)
     {
         ushort color = GetColor(0x0201);
@@ -885,6 +972,7 @@ public class TEditor : TView
         }
     }
 
+    /// <summary>Maps a screen-cell mouse position, clamped to the viewport, to a logical UTF-16 document offset.</summary>
     public uint GetMousePtr(TPoint m)
     {
         TPoint mouse = MakeLocal(m);
@@ -894,6 +982,7 @@ public class TEditor : TView
             mouse.x + delta.x);
     }
 
+    /// <summary>Copies a matching scrollbar notification's value into a viewport offset and schedules redraw when it changes.</summary>
     public void CheckScrollBar(ref TEvent ev, TScrollBar p, ref int d)
     {
         if (ev.message.infoPtr == p && p.value != d)
@@ -907,6 +996,7 @@ public class TEditor : TView
     // keyState == 0  → normal key lookup (firstKeys)
     // keyState == KeyStateQuick (1) → Ctrl-Q prefix (quickKeys)
     // keyState == KeyStateBlock (2) → Ctrl-K prefix (blockKeys)
+    /// <summary>Translates editor keyboard bindings and Ctrl+Q/Ctrl+K prefixes into command events.</summary>
     public void ConvertEvent(ref TEvent ev)
     {
         if (ev.What != Events.evKeyDown) return;
@@ -1032,6 +1122,7 @@ public class TEditor : TView
         _ => 0
     };
 
+    /// <inheritdoc />
     public override void HandleEvent(ref TEvent ev)
     {
         base.HandleEvent(ref ev);
@@ -1180,12 +1271,15 @@ public class TEditor : TView
         ClearEvent(ref ev);
     }
 
+    /// <inheritdoc />
     public override TPalette GetPalette() => Palette;
 
     // Wire: TView base + hScrollBar(ptr) + vScrollBar(ptr) + indicator(ptr)
     //       + bufSize(uint32) + canUndo(short).
+    /// <summary>Creates an instance for restoration from a stream without running normal initialization.</summary>
     protected TEditor(StreamableInit init) : base(init) { }
 
+    /// <inheritdoc />
     public override void Write(Opstream os)
     {
         base.Write(os);
@@ -1196,6 +1290,7 @@ public class TEditor : TView
         os.WriteShort((ushort)(canUndo ? 1 : 0));
     }
 
+    /// <inheritdoc />
     public override object Read(Ipstream isStream)
     {
         base.Read(isStream);
@@ -1223,18 +1318,25 @@ public class TEditor : TView
         return this;
     }
 
+    /// <summary>Creates an instance for stream restoration; its stored state must be read before use.</summary>
     public new static TStreamable Build() => new TEditor(StreamableInit.streamableInit);
+    /// <summary>Stream registry descriptor and factory for restoring this concrete type.</summary>
     public static readonly TStreamableClass StreamableClassTEditor =
         new TStreamableClass("TEditor", () => new TEditor(StreamableInit.streamableInit), 0);
 }
 
 // Carrier for cmInsertText evCommand payload. The upstream `infoPtr` was a
 // raw `void *` to a C string; our IInfo marker requires a typed wrapper.
+/// <summary>Text payload for a cmInsertText command event.</summary>
 public sealed class TextInfo : IInfo
 {
+    /// <summary>UTF-16 code units carried by the insertion command.</summary>
     public char[] Text;
+    /// <summary>References the supplied text array; null becomes an empty array.</summary>
     public TextInfo(char[] text) { Text = text ?? Array.Empty<char>(); }
+    /// <summary>Copies the supplied string into a text payload; null becomes empty text.</summary>
     public TextInfo(string text) { Text = (text ?? string.Empty).ToCharArray(); }
+    /// <summary>Creates text by mapping each byte directly to the same-valued Unicode character.</summary>
     public TextInfo(byte[] bytes)
     {
         if (bytes == null) { Text = Array.Empty<char>(); return; }
@@ -1243,15 +1345,20 @@ public sealed class TextInfo : IInfo
     }
 }
 
+/// <summary>Mutable search-dialog data carrying a pattern and search flags.</summary>
 public sealed class TFindDialogRec : IInfo
 {
+    /// <summary>Null-terminated UTF-16 pattern edited by the search dialog.</summary>
     public char[] Find;
+    /// <summary>ef-prefixed search option bits.</summary>
     public ushort Options;
+    /// <summary>Copies a search pattern and stores its option flags.</summary>
     public TFindDialogRec(char[] f, ushort opts)
     {
         Find = (char[])f.Clone();
         Options = opts;
     }
+    /// <summary>Maps byte pattern values directly to Unicode characters and stores the search flags.</summary>
     public TFindDialogRec(byte[] f, ushort opts)
         : this(BytesToChars(f), opts) { }
 
@@ -1264,17 +1371,23 @@ public sealed class TFindDialogRec : IInfo
     }
 }
 
+/// <summary>Mutable replacement-dialog data carrying search text, replacement text, and flags.</summary>
 public sealed class TReplaceDialogRec : IInfo
 {
+    /// <summary>Null-terminated UTF-16 pattern to find.</summary>
     public char[] Find;
+    /// <summary>Null-terminated UTF-16 replacement text.</summary>
     public char[] Replace;
+    /// <summary>ef-prefixed search and replacement option bits.</summary>
     public ushort Options;
+    /// <summary>Copies search and replacement patterns and stores the option flags.</summary>
     public TReplaceDialogRec(char[] f, char[] r, ushort opts)
     {
         Find = (char[])f.Clone();
         Replace = (char[])r.Clone();
         Options = opts;
     }
+    /// <summary>Maps pattern bytes directly to Unicode characters and stores the replacement flags.</summary>
     public TReplaceDialogRec(byte[] f, byte[] r, ushort opts)
         : this(BytesToChars(f), BytesToChars(r), opts) { }
 

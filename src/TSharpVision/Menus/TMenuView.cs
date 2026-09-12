@@ -1,17 +1,24 @@
-﻿using TSharpVision.Constants;
+using TSharpVision.Constants;
 namespace TSharpVision;
 
+/// <summary>Base view for linked-menu navigation, accelerator dispatch, and modal selection.</summary>
 public class TMenuView : TView
 {
+    /// <summary>Palette mapping for normal, disabled, mnemonic, and selected menu text.</summary>
     public const string cpMenuView = "\x02\x03\x04\x05\x06\x07";
 
     static TPalette palette = new TPalette(cpMenuView, (ushort)(cpMenuView.Length - 1));
 
+    /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public new static readonly string Name = "TMenuView";
+    /// <summary>Parent menu view used for navigation, or null at the top level.</summary>
     public TMenuView ParentMenu { get; protected set; }
+    /// <summary>Referenced menu model, or null when the view has no menu.</summary>
     public TMenu Menu { get; protected set; }
+    /// <summary>Currently highlighted entry, or null when no entry is selected.</summary>
     public TMenuItem Current { get; protected set; }
 
+    /// <summary>Creates an unselected menu view in owner-relative character-cell bounds with a referenced menu and optional navigation parent.</summary>
     public TMenuView(TRect bounds, TMenu aMenu, TMenuView aParent)
         : base(bounds)
     {
@@ -20,6 +27,7 @@ public class TMenuView : TView
         Current = null;
     }
 
+    /// <summary>Creates an unbound menu view in owner-relative character-cell bounds.</summary>
     public TMenuView(TRect bounds) : base(bounds)
     {
         ParentMenu = null;
@@ -27,11 +35,13 @@ public class TMenuView : TView
         Current = null;
     }
 
+    /// <inheritdoc />
     public override void SetBounds(TRect bounds)
     {
         base.SetBounds(bounds);
     }
 
+    /// <inheritdoc />
     public override ushort Execute()
     {
         if (InputTrace.Enabled)
@@ -187,7 +197,7 @@ public class TMenuView : TView
         return result;
     }
 
-    // Case-insensitive match against the '~'-marked hotkey letter of every enabled named item.
+    /// <summary>Finds an enabled named entry by case-insensitive tilde-marked mnemonic, or returns null.</summary>
     public virtual TMenuItem FindItem(char ch)
     {
         if (ch == '\0') return null;
@@ -200,7 +210,7 @@ public class TMenuView : TView
         return null;
     }
 
-    // Recursively walks the menu tree looking for an enabled item whose accelerator equals keyCode.
+    /// <summary>Recursively searches the item chain and submenus for an enabled command with the accelerator, returning null if absent.</summary>
     public static TMenuItem FindHotKey(TMenuItem p, ushort keyCode)
     {
         while (p != null)
@@ -226,13 +236,14 @@ public class TMenuView : TView
         return null;
     }
 
+    /// <summary>Searches this menu tree for an enabled command accelerator, returning null if absent.</summary>
     public virtual TMenuItem HotKey(ushort keyCode)
     {
         if (Menu == null) return null;
         return FindHotKey(Menu.Items, keyCode);
     }
 
-    // keyToHotKey: route an accelerator key onto the command stream as evCommand.
+    /// <summary>Finds a non-printable accelerator; queues its command and clears the event if the command is enabled. Returns whether an entry matched.</summary>
     public bool KeyToHotKey(ref TEvent ev)
     {
         // Printable characters are not menu accelerators; skip to prevent an
@@ -256,6 +267,7 @@ public class TMenuView : TView
     // keyToItem: when any menu item matches the Alt+letter hotkey, put the event
     // back and enter the pulldown modal loop via DoASelect (matches upstream
     // keyToItem which calls putEvent + do_a_select for both command and submenu items).
+    /// <summary>Starts modal menu selection when an Alt mnemonic matches an enabled entry; returns whether a match was found.</summary>
     public bool KeyToItem(ref TEvent ev)
     {
         char ch = GetAltChar(ev.keyDown.keyCode, ev.keyDown.charScan.charCode,
@@ -277,6 +289,7 @@ public class TMenuView : TView
     // The plain-char fallback belongs exclusively in the Execute() modal
     // loop, which already handles it independently:
     //   char ch = isAlt ? altCh : (char)e.keyDown.charScan.charCode;
+    /// <summary>Returns the letter or digit encoded by an Alt key code, or a null character; character and shift-state arguments are currently unused.</summary>
     public static char GetAltChar(ushort keyCode, byte charCode, ushort shiftState)
     {
         if (keyCode >= Keys.kbAltA && keyCode <= Keys.kbAltZ)
@@ -288,8 +301,10 @@ public class TMenuView : TView
         return '\0';
     }
 
+    /// <summary>Returns an entry's local character-cell rectangle; the base implementation returns an empty rectangle.</summary>
     public virtual TRect GetItemRect(TMenuItem item) => new TRect(0, 0, 0, 0);
 
+    /// <summary>Highlights the entry under the event's screen-coordinate mouse position, or clears the selection when none contains it.</summary>
     protected void TrackMouse(TEvent e)
     {
         TPoint mouse = MakeLocal(e.mouse.where);
@@ -298,12 +313,14 @@ public class TMenuView : TView
             if (GetItemRect(p).Contains(mouse)) { Current = p; return; }
     }
 
+    /// <summary>Advances to the next entry, wrapping to the first without filtering separators or disabled entries.</summary>
     protected void NextItem()
     {
         if (Menu == null) return;
         if ((Current = Current?.Next) == null) Current = Menu.Items;
     }
 
+    /// <summary>Moves to the previous entry, wrapping to the last without filtering separators or disabled entries.</summary>
     protected void PrevItem()
     {
         if (Menu == null) return;
@@ -312,6 +329,7 @@ public class TMenuView : TView
         do { NextItem(); } while (Current?.Next != p);
     }
 
+    /// <summary>Moves forward when true or backward when false, skipping entries with empty labels.</summary>
     protected void TrackKey(bool findNext)
     {
         if (Current == null) Current = Menu?.Items;
@@ -321,6 +339,7 @@ public class TMenuView : TView
         } while (Current != null && string.IsNullOrEmpty(Current.Name));
     }
 
+    /// <summary>Tests whether the screen-coordinate mouse position lies on the selected entry of a one-row parent menu.</summary>
     protected bool MouseInOwner(TEvent e)
     {
         if (ParentMenu == null || ParentMenu.size.y != 1) return false;
@@ -329,6 +348,7 @@ public class TMenuView : TView
         return cur != null && ParentMenu.GetItemRect(cur).Contains(mouse);
     }
 
+    /// <summary>Tests whether the event's screen-coordinate mouse position lies inside any ancestor menu view.</summary>
     protected bool MouseInMenus(TEvent e)
     {
         TMenuView p = ParentMenu;
@@ -336,6 +356,7 @@ public class TMenuView : TView
         return p != null;
     }
 
+    /// <summary>Returns the root of this view's parent-menu chain, including this view when it has no parent.</summary>
     protected TMenuView TopMenu()
     {
         TMenuView p = this;
@@ -343,6 +364,7 @@ public class TMenuView : TView
         return p;
     }
 
+    /// <summary>Runs this menu modally through its owner and routes the resulting command; clears the event if no owner exists.</summary>
     protected void DoASelect(ref TEvent ev)
     {
         if (owner == null) { ClearEvent(ref ev); return; }
@@ -361,6 +383,7 @@ public class TMenuView : TView
         ClearEvent(ref ev);
     }
 
+    /// <inheritdoc />
     public override ushort GetHelpCtx()
     {
         var c = this;
@@ -372,8 +395,10 @@ public class TMenuView : TView
         return c != null ? c.Current.HelpCtx : Views.hcNoContext;
     }
 
+    /// <inheritdoc />
     public override TPalette GetPalette() => palette;
 
+    /// <inheritdoc />
     public override void HandleEvent(ref TEvent @event)
     {
         base.HandleEvent(ref @event);
@@ -413,6 +438,7 @@ public class TMenuView : TView
         }
     }
 
+    /// <summary>Refreshes command entries' disabled flags recursively from current command availability; returns whether any flag changed.</summary>
     public static bool UpdateMenu(TMenu menu)
     {
         if (menu == null) return false;
@@ -437,14 +463,17 @@ public class TMenuView : TView
         return res;
     }
 
+    /// <summary>Creates a popup for the referenced submenu, using owner-relative cell bounds and the supplied navigation parent.</summary>
     public virtual TMenuView NewSubView(TRect bounds, TMenu aMenu, TMenuView aParentMenu)
     {
         return new TMenuBox(bounds, aMenu, aParentMenu);
     }
 
+    /// <inheritdoc />
     public override void Draw() { }
 
 
+    /// <summary>Creates an instance for restoration from a stream without running normal initialization.</summary>
     protected TMenuView(StreamableInit init) : base(init) { }
 
     // Writes the menu item linked list recursively (upstream writeMenu).
@@ -475,6 +504,7 @@ public class TMenuView : TView
         os.WriteByte(0x00);
     }
 
+    /// <inheritdoc />
     public override void Write(Opstream os)
     {
         base.Write(os);
@@ -514,6 +544,7 @@ public class TMenuView : TView
         return menu;
     }
 
+    /// <inheritdoc />
     public override object Read(Ipstream isStream)
     {
         base.Read(isStream);
@@ -523,10 +554,13 @@ public class TMenuView : TView
         return this;
     }
 
+    /// <summary>Creates an instance for stream restoration; its stored state must be read before use.</summary>
     public new static TStreamable Build() => new TMenuView(StreamableInit.streamableInit);
 
+    /// <summary>Stream registry descriptor and factory for restoring this concrete type.</summary>
     public static readonly TStreamableClass StreamableClassTMenuView =
         new TStreamableClass("TMenuView", () => new TMenuView(StreamableInit.streamableInit), 0);
 
+    /// <inheritdoc />
     public override string ToString() { return Name; }
 }

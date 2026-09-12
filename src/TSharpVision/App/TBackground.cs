@@ -1,4 +1,4 @@
-﻿using TSharpVision.Constants;
+using TSharpVision.Constants;
 namespace TSharpVision;
 
 /// <summary>
@@ -6,16 +6,20 @@ namespace TSharpVision;
 /// </summary>
 public class TBackground : TView
 {
+    /// <summary>Character repeated across the background view's cell area.</summary>
     public char pattern;
 
+    /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public new static readonly string Name = "TBackground";
 
+    /// <summary>Creates a repeating-character background in owner-relative cell bounds that grows with its owner.</summary>
     public TBackground(TRect bounds, char aPattern) : base(bounds)
     {
         pattern = aPattern;
         growMode = (byte)(Views.gfGrowHiX | Views.gfGrowHiY);
     }
 
+    /// <inheritdoc />
     public override void Draw()
     {
         Span<TScreenChar> row = stackalloc TScreenChar[size.x > 0 ? size.x : 1];
@@ -27,8 +31,10 @@ public class TBackground : TView
     }
 
     private static readonly TPalette _palette = new TPalette("\x01", 1);
+    /// <inheritdoc />
     public override TPalette GetPalette() => _palette;
 
+    /// <summary>Replaces the fill character and immediately draws the background.</summary>
     public void ChangePattern(char newP) { pattern = newP; Draw(); }
 
     // Wire layout (after TView base): one raw CP437 byte for 'pattern'.
@@ -51,17 +57,21 @@ public class TBackground : TView
         _    => (char)b,
     };
 
+    /// <summary>Stream registry descriptor and factory for restoring this concrete type.</summary>
     public static readonly TStreamableClass StreamableClassTBackground =
         new TStreamableClass("TBackground", () => new TBackground(StreamableInit.streamableInit), 0);
 
+    /// <summary>Creates an instance for restoration from a stream without running normal initialization.</summary>
     protected TBackground(StreamableInit init) : base(init) { }
 
+    /// <inheritdoc />
     public override void Write(Opstream os)
     {
         base.Write(os);
         os.WriteByte(PatternToCP437(pattern));
     }
 
+    /// <inheritdoc />
     public override object Read(Ipstream isStream)
     {
         base.Read(isStream);
@@ -69,6 +79,8 @@ public class TBackground : TView
         return this;
     }
 
+    /// <summary>Creates an instance for stream restoration; its stored state must be read before use.</summary>
     public new static TStreamable Build() { return new TBackground(StreamableInit.streamableInit); }
+    /// <inheritdoc />
     public override string StreamableName() { return Name; }
 }

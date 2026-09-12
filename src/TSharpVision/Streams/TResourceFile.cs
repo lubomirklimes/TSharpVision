@@ -14,6 +14,7 @@ namespace TSharpVision;
 /// </list>
 public sealed class TResourceFile
 {
+    /// <summary>Header signature identifying a keyed resource container.</summary>
     public const uint rStreamMagic = 0x52504246u;
 
     private readonly Fpstream _stream;
@@ -22,6 +23,7 @@ public sealed class TResourceFile
     private long _indexPos;
     private readonly TResourceCollection _index;
 
+    /// <summary>Finds a resource container from the stream's current position or initializes an empty index there; the caller manages the stream lifetime.</summary>
     public TResourceFile(Fpstream aStream)
     {
         _stream = aStream;
@@ -86,18 +88,16 @@ public sealed class TResourceFile
         }
     }
 
+    /// <summary>Returns the resource count converted to a signed 16-bit value.</summary>
     public short Count() => (short)_index.Count;
 
-    // Returns the resource item at the given 0-based index.
-    // Used by inspection tools (svres) to enumerate resources without deserialising them.
+    /// <summary>Returns resource metadata at a zero-based index in key order without deserializing its payload.</summary>
     public TResourceItem ItemAt(int index) => _index.At(index);
 
-    // Returns the base stream position of the resource data area.
-    // Used by inspection tools to compute absolute file positions.
+    /// <summary>Absolute file byte position of the resource container header, added to each resource's relative position.</summary>
     public long BasePos => _basePos;
 
-    // Persist the index and rewrite the 12-byte header. No-op when nothing has been
-    // modified since the last flush, mirroring upstream.
+    /// <summary>Persists a modified index and header and flushes output; does nothing when no changes are pending.</summary>
     public void Flush()
     {
         if (!_modified) return;
@@ -114,7 +114,7 @@ public sealed class TResourceFile
         _modified = false;
     }
 
-    // Seek to the item's stored pos and ReadPointer the streamable.
+    /// <summary>Deserializes the resource with the ordinal key, or returns null if the key is absent.</summary>
     public object Get(string key)
     {
         if (!_index.Search(key, out int i)) return null;
@@ -123,8 +123,7 @@ public sealed class TResourceFile
         return _stream.In.ReadPointer();
     }
 
-    // Returns the raw payload bytes for the given key without deserialising.
-    // Used by inspection tools (svres dump) to show raw content.
+    /// <summary>Returns a new array containing the serialized payload for an ordinal key, or null if absent.</summary>
     public byte[] GetRawBytes(string key)
     {
         if (!_index.Search(key, out int i)) return null;
@@ -135,8 +134,10 @@ public sealed class TResourceFile
         return buf;
     }
 
+    /// <summary>Returns the key at a nonnegative zero-based position in ordinal key order.</summary>
     public string KeyAt(short i) => _index.At(i).key;
 
+    /// <summary>Serializes an object under a key, replacing its index entry if present; call Flush to persist the updated index.</summary>
     public void Put(TStreamable item, string key)
     {
         TResourceItem p;
@@ -157,6 +158,7 @@ public sealed class TResourceFile
         _modified = true;
     }
 
+    /// <summary>Removes a key from the index if present; Flush persists removal and Pack reclaims unused payload bytes.</summary>
     public void Remove(string key)
     {
         if (_index.Search(key, out int i))
@@ -178,6 +180,7 @@ public sealed class TResourceFile
     //
     // This is safe because all blobs are buffered before any write occurs, so
     // overlapping source / destination regions cannot corrupt data.
+    /// <summary>Compacts live payloads in place, rewrites the index and header, and truncates the backing file to the new container end.</summary>
     public void Pack()
     {
         // Flush any pending modifications so that _indexPos is current and all

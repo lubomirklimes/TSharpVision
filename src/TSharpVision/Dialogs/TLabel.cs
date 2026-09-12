@@ -1,13 +1,18 @@
-﻿using TSharpVision.Constants;
+using TSharpVision.Constants;
 namespace TSharpVision;
 
+/// <summary>Static label whose mnemonic and mouse action select an associated control.</summary>
 public class TLabel : TStaticText
 {
+    /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public new static readonly string Name = "TLabel";
 
+    /// <summary>Associated control to select; ownership remains with its containing group.</summary>
     public TView Link;
+    /// <summary>Whether the label uses its highlighted appearance for the linked control's state.</summary>
     public bool Light;
 
+    /// <summary>Creates a label at owner-relative cell bounds and links its mnemonic to the supplied control.</summary>
     public TLabel(TRect bounds, string aText, TView aLink)
         : base(bounds, aText)
     {
@@ -17,6 +22,7 @@ public class TLabel : TStaticText
         eventMask |= Events.evBroadcast;
     }
 
+    /// <inheritdoc />
     public override void Draw()
     {
         ushort color;
@@ -33,6 +39,7 @@ public class TLabel : TStaticText
 
     private static readonly TPalette _palette = new TPalette(
         "\x07\x08\x09\x09\x0D\x0D", 6);
+    /// <inheritdoc />
     public override TPalette GetPalette() => _palette;
 
     private static char ExtractHotKey(string s)
@@ -54,6 +61,7 @@ public class TLabel : TStaticText
         && (Link.options & Views.ofSelectable) != 0
         && (Link.state & Views.sfDisabled) == 0;
 
+    /// <inheritdoc />
     public override void HandleEvent(ref TEvent @event)
     {
         base.HandleEvent(ref @event);
@@ -84,6 +92,7 @@ public class TLabel : TStaticText
         }
     }
 
+    /// <inheritdoc />
     public override void SetState(ushort aState, bool enable)
     {
         base.SetState(aState, enable);
@@ -94,6 +103,7 @@ public class TLabel : TStaticText
         }
     }
 
+    /// <inheritdoc />
     public override void ShutDown()
     {
         Link = null;
@@ -102,17 +112,21 @@ public class TLabel : TStaticText
 
     // ── Streaming ────────────────────────────────────────────────────────
     // Wire: TStaticText base + WritePointer(link).
+    /// <summary>Stream registry descriptor and factory for restoring this concrete type.</summary>
     public static readonly TStreamableClass StreamableClassTLabel =
         new TStreamableClass("TLabel", () => new TLabel(StreamableInit.streamableInit), 0);
 
+    /// <summary>Creates an instance for restoration from a stream without running normal initialization.</summary>
     protected TLabel(StreamableInit init) : base(init) { }
 
+    /// <inheritdoc />
     public override void Write(Opstream os)
     {
         base.Write(os);
         os.WritePointer(Link);
     }
 
+    /// <inheritdoc />
     public override object Read(Ipstream isStream)
     {
         base.Read(isStream);
@@ -121,5 +135,6 @@ public class TLabel : TStaticText
         return this;
     }
 
+    /// <summary>Creates an instance for stream restoration; its stored state must be read before use.</summary>
     public new static TStreamable Build() => new TLabel(StreamableInit.streamableInit);
 }

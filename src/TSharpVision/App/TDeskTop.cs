@@ -1,4 +1,4 @@
-﻿using TSharpVision.Constants;
+using TSharpVision.Constants;
 namespace TSharpVision;
 
 /// <summary>
@@ -6,19 +6,26 @@ namespace TSharpVision;
 /// </summary>
 public class TDeskTop : TGroup
 {
+    /// <summary>Background child inserted beneath desktop windows, or null when no background was created.</summary>
     public TBackground background;
 
     // CP437 0xB0 = light shade '░'. See TSharpVisionGlyphs.BackgroundFillLight.
+    /// <summary>Fill character used by the default background factory for newly created desktops.</summary>
     public static char defaultBkgrnd  = TSharpVisionGlyphs.BackgroundFillLight;
+    /// <summary>Compatibility storage for the original default background glyph; the current desktop factory uses defaultBkgrnd.</summary>
     public static char odefaultBkgrnd = TSharpVisionGlyphs.BackgroundFillLight;
 
+    /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public new static readonly string Name = "TDeskTop";
 
-    // Tile partition priority.
+    /// <summary>Desktop layout option bits, including dsktTileVertical for tile orientation.</summary>
     protected uint flagsOptions;
+    /// <summary>Returns the current desktop layout option bits.</summary>
     public uint GetOptions() => flagsOptions;
+    /// <summary>Replaces desktop layout option bits without immediately rearranging windows.</summary>
     public void  SetOptions(uint aFlags) { flagsOptions = aFlags; }
 
+    /// <summary>Creates a desktop group in owner-relative cell bounds and inserts the background returned by its factory, if any.</summary>
     public TDeskTop(TRect bounds) : base(bounds)
     {
         growMode = (byte)(Views.gfGrowHiX | Views.gfGrowHiY);
@@ -31,22 +38,25 @@ public class TDeskTop : TGroup
             Insert(background);
     }
 
+    /// <inheritdoc />
     public override void ShutDown()
     {
         background = null;
         base.ShutDown();
     }
 
+    /// <summary>Creates a background using the default fill character and desktop-local cell bounds.</summary>
     public static TBackground InitBackgroundDefault(TRect r)
         => new TBackground(r, defaultBkgrnd);
 
-    // Virtual factory hook.
+    /// <summary>Creates the desktop background in local cell bounds; override to customize it or return null to omit it.</summary>
     public virtual TBackground InitBackground(TRect r) => InitBackgroundDefault(r);
 
     private static bool Tileable(TView p)
         => (p.options & Views.ofTileable) != 0
         && (p.state   & Views.sfVisible)  != 0;
 
+    /// <summary>Cascades visible tileable child views within the desktop-local cell rectangle; calls TileError when the layout cannot fit.</summary>
     public void Cascade(TRect r)
     {
         int cascadeNum = 0;
@@ -83,6 +93,7 @@ public class TDeskTop : TGroup
         }
     }
 
+    /// <inheritdoc />
     public override void HandleEvent(ref TEvent @event)
     {
         base.HandleEvent(ref @event);
@@ -163,6 +174,7 @@ public class TDeskTop : TGroup
         return nRect;
     }
 
+    /// <summary>Tiles visible tileable child views within the desktop-local cell rectangle using the configured orientation; calls TileError when the layout cannot fit.</summary>
     public void Tile(TRect r)
     {
         int numTileable = 0;
@@ -201,27 +213,34 @@ public class TDeskTop : TGroup
         }
     }
 
+    /// <summary>Notification hook for a failed tile or cascade layout; the base implementation does nothing.</summary>
     public virtual void TileError() { }
 
+    /// <summary>Returns whether the desktop is unlocked and therefore permits cursor display.</summary>
     public virtual bool CanShowCursor() => lockFlag == 0;
 
     // Status-line cursor stash on empty desktop deferred until TScreen.setCursorPos exists.
+    /// <inheritdoc />
     public override ushort ExecView(TView p) => base.ExecView(p);
 
+    /// <summary>Creates an instance for restoration from a stream without running normal initialization.</summary>
     protected TDeskTop(StreamableInit init) : base(init) { }
 
     // TDeskTop has only build();
     // no own write/read. Streams as TGroup. After reading, restore the
     // `background` convenience pointer by searching the child list.
 
+    /// <summary>Stream registry descriptor and factory for restoring this concrete type.</summary>
     public static readonly TStreamableClass StreamableClassTDeskTop =
         new TStreamableClass("TDeskTop", () => new TDeskTop(StreamableInit.streamableInit), 0);
 
+    /// <inheritdoc />
     public override void Write(Opstream os)
     {
         base.Write(os);   // TGroup.Write
     }
 
+    /// <inheritdoc />
     public override object Read(Ipstream isStream)
     {
         base.Read(isStream);   // TGroup.Read: restores child list
@@ -231,6 +250,8 @@ public class TDeskTop : TGroup
         return this;
     }
 
+    /// <summary>Creates an instance for stream restoration; its stored state must be read before use.</summary>
     public new static TStreamable Build() { return new TDeskTop(StreamableInit.streamableInit); }
+    /// <inheritdoc />
     public override string StreamableName() => Name;
 }

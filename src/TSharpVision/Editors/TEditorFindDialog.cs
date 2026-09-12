@@ -10,8 +10,10 @@ namespace TSharpVision;
 // against the C# view hierarchy. Dialog data is transferred by manually
 // reading/writing the TInputLine and TCheckBoxes controls rather than
 // through the upstream raw-struct setData/getData protocol.
+/// <summary>Builds search dialogs and transfers fixed-buffer search text to and from controls.</summary>
 public static class TEditorFindDialog
 {
+    /// <summary>Decodes ASCII bytes up to the first zero byte; null returns empty text.</summary>
     public static string BytesToString(byte[] b)
     {
         if (b == null || b.Length == 0) return string.Empty;
@@ -20,6 +22,7 @@ public static class TEditorFindDialog
         return Encoding.ASCII.GetString(b, 0, n);
     }
 
+    /// <summary>Returns UTF-16 text up to the first null code unit; null returns empty text.</summary>
     public static string BytesToString(char[] b)
     {
         if (b == null || b.Length == 0) return string.Empty;
@@ -28,6 +31,7 @@ public static class TEditorFindDialog
         return new string(b, 0, n);
     }
 
+    /// <summary>Clears the destination and copies ASCII text, truncating to leave a zero terminator.</summary>
     public static void StringToBytes(string s, byte[] dest)
     {
         Array.Clear(dest, 0, dest.Length);
@@ -37,6 +41,7 @@ public static class TEditorFindDialog
         Array.Copy(src, 0, dest, 0, n);
     }
 
+    /// <summary>Clears the destination and copies UTF-16 text, truncating to leave a null terminator.</summary>
     public static void StringToBytes(string s, char[] dest)
     {
         Array.Clear(dest, 0, dest.Length);

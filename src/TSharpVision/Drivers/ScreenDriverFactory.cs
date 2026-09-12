@@ -4,6 +4,7 @@ using System.Reflection;
 
 namespace TSharpVision.Drivers;
 
+/// <summary>Discovers and selects screen-driver implementations using platform, configuration, and registration priority.</summary>
 public class ScreenDriverFactory
 {
     private static readonly Type[] DriverTypes;
@@ -168,6 +169,7 @@ public class ScreenDriverFactory
             .FirstOrDefault()?.Type;
     }
 
+    /// <summary>Constructs the selected driver for the current platform without initializing it; throws InvalidOperationException if none is available.</summary>
     public static IDriver CreateScreenDriver()
     {
         Platform platform = GetCurrentPlatform();

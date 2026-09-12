@@ -1,4 +1,4 @@
-﻿// TEvent and friends. Upstream models KeyDownEvent / MouseEventType /
+// TEvent and friends. Upstream models KeyDownEvent / MouseEventType /
 // MessageEvent as a C union sharing the storage that follows the leading
 // `what` ushort. We cannot replicate the union perfectly because the
 // payload may contain managed references, but we lay the fields out as
@@ -25,8 +25,11 @@ public interface IInfo
 /// </summary>
 public struct MouseEventType
 {
+    /// <summary>Mouse-button bit mask; wheel events use the wheel-direction button bits instead of held-button state.</summary>
     public byte buttons;       // uchar buttons
+    /// <summary>Whether this event is recognized as a double-click.</summary>
     public bool doubleClick;   // Boolean doubleClick
+    /// <summary>Mouse position in screen character-cell coordinates.</summary>
     public TPoint where;       // TPoint where
 }
 
@@ -38,15 +41,20 @@ public struct MouseEventType
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 public struct CharScanType
 {
+    /// <summary>Legacy single-byte character value associated with the key.</summary>
     public byte charCode;
+    /// <summary>Legacy scan-code byte, stored in the high byte of the packed representation.</summary>
     public byte scanCode;
 
+    /// <summary>Stores separate legacy character and scan-code bytes.</summary>
     public CharScanType(byte ch, byte sc) { charCode = ch; scanCode = sc; }
+    /// <summary>Unpacks the character from the low byte and the scan code from the high byte.</summary>
     public CharScanType(ushort packed)
     {
         charCode = (byte)(packed & 0xFF);
         scanCode = (byte)((packed >> 8) & 0xFF);
     }
+    /// <summary>Packs the character into the low byte and the scan code into the high byte.</summary>
     public ushort ToUShort() => (ushort)(charCode | (scanCode << 8));
 }
 
@@ -55,10 +63,15 @@ public struct CharScanType
 /// </summary>
 public struct KeyDownEvent
 {
+    /// <summary>Legacy character and scan-code representation accompanying this key event.</summary>
     public CharScanType charScan;
+    /// <summary>Translated key identifier used for command and navigation-key matching.</summary>
     public ushort keyCode;
+    /// <summary>Modifier-state bits accompanying the key event.</summary>
     public ushort shiftState;
+    /// <summary>Untranslated scan-code byte supplied by the input driver when available.</summary>
     public byte raw_scanCode;
+    /// <summary>Unicode text supplied by the input driver; null or empty allows consumers to fall back to the legacy character byte.</summary>
     public string text;
 }
 
@@ -70,12 +83,19 @@ public struct KeyDownEvent
 /// </summary>
 public struct MessageEvent
 {
+    /// <summary>Command identifier interpreted by the receiving view for command and broadcast events.</summary>
     public ushort command;
+    /// <summary>Optional object payload referenced by the message; its meaning is defined by the command.</summary>
     public IInfo? infoPtr;
+    /// <summary>Signed 64-bit message payload; meaningful only for commands that use this field.</summary>
     public long infoLong;
+    /// <summary>Unsigned 16-bit message payload; meaningful only for commands that use this field.</summary>
     public ushort infoWord;
+    /// <summary>Signed 16-bit message payload; meaningful only for commands that use this field.</summary>
     public short infoInt;
+    /// <summary>Byte message payload; meaningful only for commands that use this field.</summary>
     public byte infoByte;
+    /// <summary>UTF-16 character message payload; meaningful only for commands that use this field.</summary>
     public char infoChar;
 }
 
@@ -88,9 +108,13 @@ public struct MessageEvent
 /// </summary>
 public struct TEvent
 {
+    /// <summary>Event-kind value determining which payload is meaningful; evNothing marks an absent or consumed event.</summary>
     public ushort What;
+    /// <summary>Mouse payload used by mouse events, including screen-cell position and button state.</summary>
     public MouseEventType mouse;
+    /// <summary>Keyboard payload used when the event kind is evKeyDown.</summary>
     public KeyDownEvent keyDown;
+    /// <summary>Command and optional data used by command and broadcast events.</summary>
     public MessageEvent message;
 
     /// <summary>

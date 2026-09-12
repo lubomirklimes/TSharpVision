@@ -10,8 +10,11 @@ namespace TSharpVision;
 /// </summary>
 public class TTerminal : TView
 {
+    /// <summary>Default maximum number of committed output lines retained in scrollback.</summary>
     public const int DefaultMaxLines = 500;
+    /// <summary>Default maximum number of commands retained for input-history navigation.</summary>
     public const int DefaultMaxCommandHistory = 100;
+    /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public new static readonly string Name = "TTerminal";
 
     private const ushort TerminalColor = Colors.fgWhite | Colors.bgBlack;
@@ -126,6 +129,7 @@ public class TTerminal : TView
 
     // ── Construction ─────────────────────────────────────────────────────────
 
+    /// <summary>Creates a selectable terminal at owner-relative cell bounds with default output and command-history limits.</summary>
     public TTerminal(TRect bounds)
         : base(bounds)
     {
@@ -135,6 +139,7 @@ public class TTerminal : TView
                    | Events.evMouseDown | Events.evBroadcast;
     }
 
+    /// <summary>Creates a terminal with the requested scrollback line limit, clamped to at least one.</summary>
     public TTerminal(TRect bounds, int maxLines)
         : this(bounds)
     {
@@ -143,6 +148,7 @@ public class TTerminal : TView
 
     // ── Output API ────────────────────────────────────────────────────────────
 
+    /// <summary>Read-only live view of committed output lines; excludes the uncommitted current line.</summary>
     public IReadOnlyList<string> Lines => _lines.AsReadOnly();
 
     /// <summary>The uncommitted partial line currently being built.</summary>
@@ -177,6 +183,7 @@ public class TTerminal : TView
     /// </summary>
     public void ApplyColorMap(byte[] map16) => _parser.ApplyColorMap(map16);
 
+    /// <summary>Maximum retained committed lines, clamped to at least one; setting it trims history and updates the scrollbar.</summary>
     public int MaxLines
     {
         get => _maxLines;
@@ -305,9 +312,12 @@ public class TTerminal : TView
 
     // ── Scroll API ────────────────────────────────────────────────────────────
 
+    /// <summary>Number of output lines scrolled back from the bottom; zero follows the newest output.</summary>
     public int ScrollOffset => _scrollOffset;
+    /// <summary>Whether the viewport is positioned at the newest output.</summary>
     public bool IsAtBottom => _scrollOffset == 0;
 
+    /// <summary>Scrolls one line toward older output, updates the scrollbar, and redraws.</summary>
     public void ScrollLineUp()
     {
         _scrollOffset = Math.Min(_scrollOffset + 1, MaxScrollOffset(OutputHeight()));
@@ -315,6 +325,7 @@ public class TTerminal : TView
         DrawView();
     }
 
+    /// <summary>Scrolls one line toward newer output, updates the scrollbar, and redraws.</summary>
     public void ScrollLineDown()
     {
         _scrollOffset = Math.Max(_scrollOffset - 1, 0);
@@ -322,6 +333,7 @@ public class TTerminal : TView
         DrawView();
     }
 
+    /// <summary>Scrolls toward older output by the output viewport height and redraws.</summary>
     public void ScrollPageUp()
     {
         int page = OutputHeight();
@@ -330,6 +342,7 @@ public class TTerminal : TView
         DrawView();
     }
 
+    /// <summary>Scrolls toward newer output by the output viewport height and redraws.</summary>
     public void ScrollPageDown()
     {
         int page = OutputHeight();
@@ -338,6 +351,7 @@ public class TTerminal : TView
         DrawView();
     }
 
+    /// <summary>Shows the oldest retained output and synchronizes the scrollbar.</summary>
     public void ScrollToTop()
     {
         _scrollOffset = MaxScrollOffset(OutputHeight());
@@ -345,6 +359,7 @@ public class TTerminal : TView
         DrawView();
     }
 
+    /// <summary>Returns to the newest output and synchronizes the scrollbar.</summary>
     public void ScrollToBottom()
     {
         _scrollOffset = 0;
@@ -542,6 +557,7 @@ public class TTerminal : TView
 
     // ── Rendering ─────────────────────────────────────────────────────────────
 
+    /// <inheritdoc />
     public override void Draw()
     {
         int h = size.y;
@@ -644,10 +660,12 @@ public class TTerminal : TView
     }
 
     private static readonly TPalette _palette = new TPalette("\x0F", 1);
+    /// <inheritdoc />
     public override TPalette GetPalette() => _palette;
 
     // ── Event handling ────────────────────────────────────────────────────────
 
+    /// <inheritdoc />
     public override void HandleEvent(ref TEvent ev)
     {
         base.HandleEvent(ref ev);
@@ -1476,8 +1494,8 @@ public class TTerminal : TView
     ///
     /// Threading note: <see cref="ITerminalSession.OutputReceived"/> from
     /// <see cref="ProcessTerminalSession"/> fires on background threads.
-    /// <see cref="Write"/> is safe to call from any thread for buffer mutations,
-    /// but <see cref="DrawView"/> requires the TSharpVision UI thread when the
+    /// <see cref="TTerminal.Write(string)"/> is safe to call from any thread for buffer mutations,
+    /// but <see cref="TView.DrawView"/> requires the TSharpVision UI thread when the
     /// view is in a live group.
     /// </summary>
     public void AttachSession(ITerminalSession session)
@@ -1509,11 +1527,14 @@ public class TTerminal : TView
 
     // ── Streaming ─────────────────────────────────────────────────────────────
 
+    /// <summary>Stream registry descriptor and factory for restoring this concrete type.</summary>
     public static readonly TStreamableClass StreamableClassTTerminal =
         new TStreamableClass("TTerminal", () => new TTerminal(StreamableInit.streamableInit), 0);
 
+    /// <summary>Creates an instance for restoration from a stream without running normal initialization.</summary>
     protected TTerminal(StreamableInit init) : base(init) { }
 
+    /// <inheritdoc />
     public override void Write(Opstream os)
     {
         base.Write(os);
@@ -1524,6 +1545,7 @@ public class TTerminal : TView
         os.WriteString(_lineBuilder.ToString());
     }
 
+    /// <inheritdoc />
     public override object Read(Ipstream isStream)
     {
         base.Read(isStream);
@@ -1539,5 +1561,6 @@ public class TTerminal : TView
         return this;
     }
 
+    /// <summary>Creates an instance for stream restoration; its stored state must be read before use.</summary>
     public new static TStreamable Build() => new TTerminal(StreamableInit.streamableInit);
 }

@@ -2,12 +2,13 @@ using TSharpVision.Constants;
 
 namespace TSharpVision;
 
-// THelpWindow — modal window wrapping a THelpViewer with a horizontal
-// and vertical standard scrollbar. Centered, fixed at 50x18.
+/// <summary>Centered help window containing a topic viewer and horizontal and vertical scrollbars.</summary>
 public class THelpWindow : TWindow
 {
+    /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public new static readonly string Name = "THelpWindow";
 
+    /// <summary>Help window title resolved through the current localization provider.</summary>
     public static string helpWinTitle
         => TSharpVisionIntl.Get("Help_WindowTitle", "Help");
 
@@ -30,6 +31,7 @@ public class THelpWindow : TWindow
     private static readonly TPalette _palette =
         new TPalette("\x11\x11\x11\x2F\x11\x2F\x15\x32", 8);
 
+    /// <summary>Creates a centered 50-by-18-cell help window displaying the supplied context; the caller retains responsibility for the help stream.</summary>
     public THelpWindow(THelpFile hFile, ushort context)
         : base(new TRect(0, 0, 50, 18), helpWinTitle, Views.wnNoNumber)
     {
@@ -58,5 +60,6 @@ public class THelpWindow : TWindow
             hFile, context));
     }
 
+    /// <inheritdoc />
     public override TPalette GetPalette() => _palette;
 }

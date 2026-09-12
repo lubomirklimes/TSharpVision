@@ -1,4 +1,4 @@
-﻿// Modal "Change Directory" dialog. Composed of a TInputLine + history,
+// Modal "Change Directory" dialog. Composed of a TInputLine + history,
 // a TDirListBox, and OK/Chdir/Revert buttons.
 //
 // Deferred:
@@ -11,24 +11,36 @@ using TSharpVision.Constants;
 
 namespace TSharpVision;
 
+/// <summary>Flags controlling initialization and buttons in a change-directory dialog.</summary>
 public static class ChDirDialogOptions
 {
+    /// <summary>Loads the current directory and omits the optional Help button.</summary>
     public const ushort cdNormal     = 0x0000;
+    /// <summary>Defers loading the current directory during dialog construction.</summary>
     public const ushort cdNoLoadDir  = 0x0001;
+    /// <summary>Includes a Help command button.</summary>
     public const ushort cdHelpButton = 0x0002;
 }
 
+/// <summary>Dialog for browsing directories and changing the process working directory.</summary>
 public class TChDirDialog : TDialog
 {
+    /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public new static readonly string Name = "TChDirDialog";
 
+    /// <summary>Owned input control displaying the directory path.</summary>
     public TInputLine  dirInput;
+    /// <summary>Owned directory-tree list used to choose a path.</summary>
     public TDirListBox dirList;
+    /// <summary>Owned button that accepts the current directory choice.</summary>
     public TButton     okButton;
+    /// <summary>Owned button that changes to the selected directory while browsing.</summary>
     public TButton     chDirButton;
 
+    /// <summary>Most recent directory-operation error message, or an empty string when no error is recorded.</summary>
     public string LastError = string.Empty;
 
+    /// <summary>Creates a centered directory dialog with the requested option flags and input-history ID.</summary>
     public TChDirDialog(ushort opts, ushort histId)
         : base(new TRect(16, 2, 64, 21), TSharpVisionIntl.Get("ChDir_Title", "Change Directory"))
     {
@@ -75,8 +87,10 @@ public class TChDirDialog : TDialog
         SelectNext(false);
     }
 
+    /// <inheritdoc />
     public override ushort DataSize() => 0;
 
+    /// <inheritdoc />
     public override void ShutDown()
     {
         dirList     = null;
@@ -86,9 +100,12 @@ public class TChDirDialog : TDialog
         base.ShutDown();
     }
 
+    /// <summary>Compatibility data-transfer hook; this overload leaves the supplied record unchanged.</summary>
     public virtual void GetData(object _) { }
+    /// <inheritdoc />
     public override void SetData(object _) { }
 
+    /// <inheritdoc />
     public override void HandleEvent(ref TEvent @event)
     {
         base.HandleEvent(ref @event);
@@ -138,6 +155,7 @@ public class TChDirDialog : TDialog
         ClearEvent(ref @event);
     }
 
+    /// <summary>Refreshes the directory tree and input text from the process working directory.</summary>
     public virtual void SetUpDialog()
     {
         if (dirList == null) return;
@@ -155,6 +173,7 @@ public class TChDirDialog : TDialog
         }
     }
 
+    /// <inheritdoc />
     public override bool Valid(ushort command)
     {
         if (command != Views.cmOK) return true;
@@ -195,8 +214,10 @@ public class TChDirDialog : TDialog
         return p;
     }
 
+    /// <summary>Creates an instance for restoration from a stream without running normal initialization.</summary>
     protected TChDirDialog(StreamableInit init) : base(init) { }
 
+    /// <inheritdoc />
     public override void Write(Opstream os)
     {
         base.Write(os);
@@ -206,6 +227,7 @@ public class TChDirDialog : TDialog
         os.WritePointer(chDirButton);
     }
 
+    /// <inheritdoc />
     public override object Read(Ipstream isStream)
     {
         base.Read(isStream);
@@ -217,7 +239,9 @@ public class TChDirDialog : TDialog
         return this;
     }
 
+    /// <summary>Creates an instance for stream restoration; its stored state must be read before use.</summary>
     public new static TStreamable Build() => new TChDirDialog(StreamableInit.streamableInit);
+    /// <summary>Stream registry descriptor and factory for restoring this concrete type.</summary>
     public static readonly TStreamableClass StreamableClassTChDirDialog =
         new TStreamableClass("TChDirDialog", () => new TChDirDialog(StreamableInit.streamableInit), 0);
 }

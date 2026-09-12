@@ -9,6 +9,7 @@ namespace TSharpVision;
 /// </summary>
 public static class LocalizedResourceResolver
 {
+    /// <summary>Enumerates distinct paths in requested-language, fallback-language, then unsuffixed order; language suffixes are normalized to at most two lowercase characters.</summary>
     public static IEnumerable<string> GetCandidatePaths(
         string basePath,
         string extension,
@@ -30,6 +31,7 @@ public static class LocalizedResourceResolver
         }
     }
 
+    /// <summary>Returns the first existing localized candidate path, or null when none exists.</summary>
     public static string Resolve(
         string basePath,
         string extension,

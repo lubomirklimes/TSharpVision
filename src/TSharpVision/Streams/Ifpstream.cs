@@ -12,16 +12,19 @@ public class Ifpstream : Ipstream
     // when constructed from an already-opened fd).
     private readonly bool _ownsStream;
 
+    /// <summary>Opens an existing file for object input and owns its lifetime until Close.</summary>
     public Ifpstream(string path) : base(Fpbase.OpenRead(path))
     {
         _ownsStream = true;
     }
 
+    /// <summary>Reads objects from a caller-owned stream without taking responsibility for closing it.</summary>
     public Ifpstream(Stream s) : base(s)
     {
         _ownsStream = false;
     }
 
+    /// <summary>Closes the underlying stream only when this reader opened it from a path.</summary>
     public void Close()
     {
         if (_ownsStream && bp != null)

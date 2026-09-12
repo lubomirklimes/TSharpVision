@@ -11,17 +11,20 @@ namespace TSharpVision;
 public static class Fpbase
 {
     // Maps OpenMode flags to a stdio fopen mode string. We translate to .NET FileMode/FileAccess.
+    /// <summary>Opens an existing file for reading with shared readers; the caller must dispose the returned stream.</summary>
     public static FileStream OpenRead(string path)
     {
         return new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
     }
 
+    /// <summary>Creates or truncates a file for writing with shared readers; the caller must dispose the returned stream.</summary>
     public static FileStream OpenWrite(string path)
     {
         // Upstream truncates by default (no CLY_IOSApp); FileMode.Create matches.
         return new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.Read);
     }
 
+    /// <summary>Opens or creates a file without truncating it, allowing shared readers and writers; the caller must dispose the returned stream.</summary>
     public static FileStream OpenReadWrite(string path)
     {
         // Use OpenOrCreate so callers can either resume or seed a new file.

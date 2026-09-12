@@ -3,7 +3,7 @@ using TSharpVision.Constants;
 
 namespace TSharpVision;
 
-// TEditorDialogHelper — installs the standard TEditor.editorDialog callback.
+/// <summary>Installs and supports the standard prompts used by editor operations.</summary>
 public static class TEditorDialogHelper
 {
     /// <summary>

@@ -1,11 +1,10 @@
 using TSharpVision.Constants;
 namespace TSharpVision;
 
-// TColorDisplay — preview pane showing a text sample in the selected color.
-// Holds a reference into a TPalette data array; foreground/background change
-// broadcasts update that entry in-place (matching the C++ pointer semantics).
+/// <summary>Preview of sample text whose color changes update a referenced palette entry in place.</summary>
 public class TColorDisplay : TView
 {
+    /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public new static readonly string Name = "TColorDisplay";
 
     // Reference into TPalette.Data (the byte[] array) + offset (1-based index).
@@ -14,6 +13,7 @@ public class TColorDisplay : TView
     private int    _offset;
     private string _text;
 
+    /// <summary>Creates a color preview at owner-relative cell bounds; null sample text uses the default sample.</summary>
     public TColorDisplay(TRect bounds, string aText) : base(bounds)
     {
         _text   = aText ?? "Text ";
@@ -22,6 +22,7 @@ public class TColorDisplay : TView
         eventMask |= Events.evBroadcast;
     }
 
+    /// <inheritdoc />
     public override void Draw()
     {
         byte c = (_data != null) ? _data[_offset] : (byte)0;
@@ -35,6 +36,7 @@ public class TColorDisplay : TView
         WriteLine(0, 0, size.x, size.y, b);
     }
 
+    /// <inheritdoc />
     public override void HandleEvent(ref TEvent @event)
     {
         base.HandleEvent(ref @event);
@@ -59,6 +61,7 @@ public class TColorDisplay : TView
 
     //   stores pointer, broadcasts cmColorSet with current value, redraws.
     // In C# we store the array reference + offset instead of a raw pointer.
+    /// <summary>References an entry in the supplied palette array, broadcasts its current color, and redraws the preview.</summary>
     public void SetColor(byte[] data, int offset)
     {
         _data   = data;
@@ -80,17 +83,21 @@ public class TColorDisplay : TView
 
     // ── Streaming ────────────────────────────────────────────────────────
     // Wire: TView base + WriteString(text).
+    /// <summary>Stream registry descriptor and factory for restoring this concrete type.</summary>
     public static readonly TStreamableClass StreamableClassTColorDisplay =
         new TStreamableClass("TColorDisplay", () => new TColorDisplay(StreamableInit.streamableInit), 0);
 
+    /// <summary>Creates an instance for restoration from a stream without running normal initialization.</summary>
     protected TColorDisplay(StreamableInit init) : base(init) { }
 
+    /// <inheritdoc />
     public override void Write(Opstream os)
     {
         base.Write(os);
         os.WriteString(_text);
     }
 
+    /// <inheritdoc />
     public override object Read(Ipstream isStream)
     {
         base.Read(isStream);
@@ -100,5 +107,6 @@ public class TColorDisplay : TView
         return this;
     }
 
+    /// <summary>Creates an instance for stream restoration; its stored state must be read before use.</summary>
     public new static TStreamable Build() => new TColorDisplay(StreamableInit.streamableInit);
 }

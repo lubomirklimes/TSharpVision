@@ -5,17 +5,21 @@ namespace TSharpVision;
 // search (incremental vs. directory-skip with Shift held) is preserved
 // modulo Keys.cs not yet defining a kbShiftCode bit; we treat
 // shiftKeys as 0 since TEvent.keyDown.shiftState is not surfaced yet.
+/// <summary>List box supporting incremental text search over a sorted collection of objects.</summary>
 public class TSortedListBox : TListBox
 {
+    /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public new static readonly string Name = "TSortedListBox";
 
+    /// <summary>Keyboard modifier state retained by the incremental-search handler.</summary>
     public byte shiftState;
+    /// <summary>Last matched character position in the search prefix; 0xFFFF means no active prefix.</summary>
     public ushort searchPos = 0xFFFF; // USHRT_MAX
 
-    // Backing collection used by GetText. Distinct from the TStringCollection
-    // stored on the base TListBox so non-string items are supported.
+    /// <summary>Referenced sorted object collection used instead of the base string collection when present.</summary>
     protected TSortedCollection sortedItems;
 
+    /// <summary>Creates an empty searchable list at owner-relative cell bounds with the requested columns and vertical scrollbar.</summary>
     public TSortedListBox(TRect bounds, ushort aNumCols, TScrollBar aScrollBar)
         : base(bounds, aNumCols, aScrollBar)
     {
@@ -23,6 +27,7 @@ public class TSortedListBox : TListBox
         SetCursor(1, 0);
     }
 
+    /// <summary>References new sorted data, resets focus and incremental search, and redraws the list.</summary>
     public virtual void NewList(TSortedCollection aList)
     {
         sortedItems = aList;
@@ -32,11 +37,11 @@ public class TSortedListBox : TListBox
         DrawView();
     }
 
-    // Subclass hook: extract a string for display from a sorted-collection
-    // entry. TFileList / TDirListBox override this with their own format.
+    /// <summary>Converts an item to its displayed search text; null becomes an empty string.</summary>
     protected virtual string GetItemText(object item)
         => item?.ToString() ?? string.Empty;
 
+    /// <inheritdoc />
     public override string GetText(int item, int maxChars)
     {
         if (sortedItems != null && item >= 0 && item < sortedItems.Count)
@@ -48,12 +53,14 @@ public class TSortedListBox : TListBox
         return base.GetText(item, maxChars);
     }
 
+    /// <summary>Converts search text into the collection's key type; the base implementation returns the string unchanged.</summary>
     public virtual object GetKey(string s) => s;
 
     // Handles ASCII type-ahead search. Backspace unwinds searchPos,
     // '.' jumps to the next dot in the current name,
     // and any other printable character extends the prefix and re-binds
     // the focus to the first matching entry.
+    /// <inheritdoc />
     public override void HandleEvent(ref TEvent @event)
     {
         int oldValue = focused;
@@ -169,5 +176,6 @@ public class TSortedListBox : TListBox
             ClearEvent(ref @event);
     }
 
+    /// <summary>Creates an instance for restoration from a stream without running normal initialization.</summary>
     protected TSortedListBox(StreamableInit init) : base(init) { }
 }

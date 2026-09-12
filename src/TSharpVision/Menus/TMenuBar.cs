@@ -1,22 +1,27 @@
-﻿using TSharpVision.Constants;
+using TSharpVision.Constants;
 namespace TSharpVision;
 
+/// <summary>Horizontal top-level menu view that opens submenus and routes accelerators.</summary>
 public class TMenuBar : TMenuView
 {
+    /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public new static readonly string Name = "TMenuBar";
 
+    /// <summary>Creates a menu bar in owner-relative character-cell bounds, referencing the supplied menu.</summary>
     public TMenuBar(TRect bounds, TMenu aMenu) : base(bounds, aMenu, null)
     {
         growMode = Views.gfGrowHiX;
         options |= Views.ofPreProcess;
     }
 
+    /// <summary>Creates a menu bar in owner-relative character-cell bounds from a linked submenu chain.</summary>
     public TMenuBar(TRect bounds, TSubMenu aMenu) : base(bounds, new TMenu(aMenu), null)
     {
         growMode = Views.gfGrowHiX;
         options |= Views.ofPreProcess;
     }
 
+    /// <summary>Finalizes the menu bar without additional resource cleanup.</summary>
     ~TMenuBar()
     {
     }
@@ -30,6 +35,7 @@ public class TMenuBar : TMenuView
         return n;
     }
 
+    /// <inheritdoc />
     public override void Draw()
     {
         Span<TScreenChar> row = stackalloc TScreenChar[size.x > 0 ? size.x : 1];
@@ -81,6 +87,7 @@ public class TMenuBar : TMenuView
         WriteBuf(0, 0, size.x, 1, b);
     }
 
+    /// <inheritdoc />
     public override TRect GetItemRect(TMenuItem item)
     {
         if (Menu == null || item == null) return new TRect(0, 0, 0, 0);
@@ -99,13 +106,16 @@ public class TMenuBar : TMenuView
         return new TRect(0, 0, 0, 0);
     }
 
+    /// <summary>Creates an instance for restoration from a stream without running normal initialization.</summary>
     protected TMenuBar(StreamableInit init) : base(init) { }
 
     // TMenuBar adds no fields beyond TMenuView — Write/Read are inherited.
     // Build() must return a TMenuBar instance so the registry creates the
     // correct concrete type.
+    /// <summary>Creates an instance for stream restoration; its stored state must be read before use.</summary>
     public static new TStreamable Build() => new TMenuBar(StreamableInit.streamableInit);
 
+    /// <summary>Stream registry descriptor and factory for restoring this concrete type.</summary>
     public static readonly TStreamableClass StreamableClassTMenuBar =
         new TStreamableClass("TMenuBar", () => new TMenuBar(StreamableInit.streamableInit), 0);
 }

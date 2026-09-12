@@ -70,14 +70,17 @@ public sealed class Win32ClipboardService : IClipboardService
 
     // ---- IClipboardService -------------------------------------------
 
+    /// <inheritdoc />
     public bool IsAvailable => OperatingSystem.IsWindows();
 
+    /// <inheritdoc />
     public string? GetText()
     {
         if (!IsAvailable) return null;
         return TryGetTextCore();
     }
 
+    /// <inheritdoc />
     public bool TryGetText(out string text)
     {
         text = string.Empty;
@@ -88,6 +91,7 @@ public sealed class Win32ClipboardService : IClipboardService
         return true;
     }
 
+    /// <inheritdoc />
     public bool SetText(string text)
     {
         if (!IsAvailable) return false;

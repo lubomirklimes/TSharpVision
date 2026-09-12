@@ -9,57 +9,99 @@ using TSharpVision.Constants;
 
 namespace TSharpVision.Drivers.SDL;
 
+/// <summary>Converts SDL key codes and modifier masks to framework keyboard events without requiring an SDL window.</summary>
 public static class SdlKeyTranslator
 {
     // SDL3 modifier flags (subset).
+    /// <summary>SDL modifier mask for left Shift being pressed.</summary>
     public const ushort SDL_KMOD_LSHIFT = 0x0001;
+    /// <summary>SDL modifier mask for right Shift being pressed.</summary>
     public const ushort SDL_KMOD_RSHIFT = 0x0002;
+    /// <summary>SDL modifier mask for left Control being pressed.</summary>
     public const ushort SDL_KMOD_LCTRL  = 0x0040;
+    /// <summary>SDL modifier mask for right Control being pressed.</summary>
     public const ushort SDL_KMOD_RCTRL  = 0x0080;
+    /// <summary>SDL modifier mask for left Alt being pressed.</summary>
     public const ushort SDL_KMOD_LALT   = 0x0100;
+    /// <summary>SDL modifier mask for right Alt being pressed.</summary>
     public const ushort SDL_KMOD_RALT   = 0x0200;
 
+    /// <summary>SDL modifier mask for either Shift key being pressed.</summary>
     public const ushort SDL_KMOD_SHIFT = SDL_KMOD_LSHIFT | SDL_KMOD_RSHIFT;
+    /// <summary>SDL modifier mask for either Control key being pressed.</summary>
     public const ushort SDL_KMOD_CTRL  = SDL_KMOD_LCTRL  | SDL_KMOD_RCTRL;
+    /// <summary>SDL modifier mask for either Alt key being pressed.</summary>
     public const ushort SDL_KMOD_ALT   = SDL_KMOD_LALT   | SDL_KMOD_RALT;
 
     // SDL3 SDLK_* constants (only the keys we map). The high bit 0x40000000
     // is the SDL "scancode mask" that distinguishes named keys from ASCII.
+    /// <summary>SDL key code for BACKSPACE; pass as the keycode argument to translation.</summary>
     public const uint SDLK_BACKSPACE = 0x08;
+    /// <summary>SDL key code for TAB; pass as the keycode argument to translation.</summary>
     public const uint SDLK_TAB       = 0x09;
+    /// <summary>SDL key code for RETURN; pass as the keycode argument to translation.</summary>
     public const uint SDLK_RETURN    = 0x0D;
+    /// <summary>SDL key code for ESCAPE; pass as the keycode argument to translation.</summary>
     public const uint SDLK_ESCAPE    = 0x1B;
+    /// <summary>SDL key code for DELETE; pass as the keycode argument to translation.</summary>
     public const uint SDLK_DELETE    = 0x7F;
 
+    /// <summary>SDL key code for F1; pass as the keycode argument to translation.</summary>
     public const uint SDLK_F1   = 0x4000003A;
+    /// <summary>SDL key code for F2; pass as the keycode argument to translation.</summary>
     public const uint SDLK_F2   = 0x4000003B;
+    /// <summary>SDL key code for F3; pass as the keycode argument to translation.</summary>
     public const uint SDLK_F3   = 0x4000003C;
+    /// <summary>SDL key code for F4; pass as the keycode argument to translation.</summary>
     public const uint SDLK_F4   = 0x4000003D;
+    /// <summary>SDL key code for F5; pass as the keycode argument to translation.</summary>
     public const uint SDLK_F5   = 0x4000003E;
+    /// <summary>SDL key code for F6; pass as the keycode argument to translation.</summary>
     public const uint SDLK_F6   = 0x4000003F;
+    /// <summary>SDL key code for F7; pass as the keycode argument to translation.</summary>
     public const uint SDLK_F7   = 0x40000040;
+    /// <summary>SDL key code for F8; pass as the keycode argument to translation.</summary>
     public const uint SDLK_F8   = 0x40000041;
+    /// <summary>SDL key code for F9; pass as the keycode argument to translation.</summary>
     public const uint SDLK_F9   = 0x40000042;
+    /// <summary>SDL key code for F10; pass as the keycode argument to translation.</summary>
     public const uint SDLK_F10  = 0x40000043;
+    /// <summary>SDL key code for F11; pass as the keycode argument to translation.</summary>
     public const uint SDLK_F11  = 0x40000044;
+    /// <summary>SDL key code for F12; pass as the keycode argument to translation.</summary>
     public const uint SDLK_F12  = 0x40000045;
 
+    /// <summary>SDL key code for INSERT; pass as the keycode argument to translation.</summary>
     public const uint SDLK_INSERT   = 0x40000049;
+    /// <summary>SDL key code for HOME; pass as the keycode argument to translation.</summary>
     public const uint SDLK_HOME     = 0x4000004A;
+    /// <summary>SDL key code for Page Up; pass as the keycode argument to translation.</summary>
     public const uint SDLK_PAGEUP   = 0x4000004B;
+    /// <summary>SDL key code for END; pass as the keycode argument to translation.</summary>
     public const uint SDLK_END      = 0x4000004D;
+    /// <summary>SDL key code for Page Down; pass as the keycode argument to translation.</summary>
     public const uint SDLK_PAGEDOWN = 0x4000004E;
+    /// <summary>SDL key code for RIGHT; pass as the keycode argument to translation.</summary>
     public const uint SDLK_RIGHT    = 0x4000004F;
+    /// <summary>SDL key code for LEFT; pass as the keycode argument to translation.</summary>
     public const uint SDLK_LEFT     = 0x40000050;
+    /// <summary>SDL key code for DOWN; pass as the keycode argument to translation.</summary>
     public const uint SDLK_DOWN     = 0x40000051;
+    /// <summary>SDL key code for UP; pass as the keycode argument to translation.</summary>
     public const uint SDLK_UP       = 0x40000052;
 
     // SDL3 modifier-only keycodes — caller will see these on bare Shift/etc.
+    /// <summary>SDL key code for left Control; pass as the keycode argument to translation.</summary>
     public const uint SDLK_LCTRL  = 0x400000E0;
+    /// <summary>SDL key code for left Shift; pass as the keycode argument to translation.</summary>
     public const uint SDLK_LSHIFT = 0x400000E1;
+    /// <summary>SDL key code for left Alt; pass as the keycode argument to translation.</summary>
     public const uint SDLK_LALT   = 0x400000E2;
+    /// <summary>SDL key code for right Control; pass as the keycode argument to translation.</summary>
     public const uint SDLK_RCTRL  = 0x400000E4;
+    /// <summary>SDL key code for right Shift; pass as the keycode argument to translation.</summary>
     public const uint SDLK_RSHIFT = 0x400000E5;
+    /// <summary>SDL key code for right Alt; pass as the keycode argument to translation.</summary>
     public const uint SDLK_RALT   = 0x400000E6;
 
     /// <summary>
@@ -71,6 +113,7 @@ public static class SdlKeyTranslator
     /// Optional ASCII character associated with this keystroke
     /// (e.g., from SDL_TEXTINPUT). Pass '\0' if not available.
     /// </param>
+    /// <param name="ev">Translated event when successful; otherwise the default event.</param>
     /// <returns>true if mapped to a useful event, false to ignore.</returns>
     public static bool TryTranslate(uint keycode, ushort modState, char textChar, out TEvent ev)
     {
@@ -179,6 +222,7 @@ public static class SdlKeyTranslator
         return false;
     }
 
+    /// <summary>Maps SDL Shift, Control, and Alt modifier bits to framework keyboard-state masks.</summary>
     public static ushort ToShiftState(ushort modState)
     {
         ushort s = 0;

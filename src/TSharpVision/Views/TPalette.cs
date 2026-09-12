@@ -4,6 +4,7 @@
 // to translate a logical color number into a physical TColorAttr.
 namespace TSharpVision;
 
+/// <summary>Maps logical view colors through a byte buffer whose first entry stores the mapping count.</summary>
 public class TPalette
 {
     /// <summary>
@@ -30,16 +31,19 @@ public class TPalette
             Data[i + 1] = (byte)data![i];
     }
 
+    /// <summary>Copies a raw palette buffer, including its leading size byte.</summary>
     public TPalette(byte[] rawWithLeadingSize)
     {
         Data = (byte[])rawWithLeadingSize.Clone();
     }
 
+    /// <summary>Copies another palette's complete buffer so subsequent mutations are independent.</summary>
     public TPalette(TPalette other)
     {
         Data = (byte[])other.Data.Clone();
     }
 
+    /// <summary>Returns an independent copy of the palette buffer.</summary>
     public TPalette Clone() => new TPalette(this);
 
     /// <summary>

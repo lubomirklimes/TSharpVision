@@ -9,10 +9,12 @@ namespace TSharpVision;
 /// </summary>
 public sealed class TResourceStringProvider : ITSharpVisionStringLookupProvider
 {
+    /// <summary>Default resource identifier for the localized string table in a resource container.</summary>
     public const string DefaultResourceKey = "sharpvision.intl";
 
     private readonly Dictionary<string, string> _strings;
 
+    /// <summary>Copies a resource's strings into an ordinal lookup table; null creates an empty provider.</summary>
     public TResourceStringProvider(TStringResource resource)
     {
         _strings = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -22,6 +24,7 @@ public sealed class TResourceStringProvider : ITSharpVisionStringLookupProvider
             _strings[pair.Key] = pair.Value;
     }
 
+    /// <summary>Loads and copies a string table, closing the opened stream; a missing or non-string resource yields an empty provider, while I/O errors propagate.</summary>
     public static TResourceStringProvider Load(string path, string resourceKey = DefaultResourceKey)
     {
         StreamableRegistration.RegisterAll();
@@ -41,6 +44,7 @@ public sealed class TResourceStringProvider : ITSharpVisionStringLookupProvider
         }
     }
 
+    /// <summary>Attempts to load a resource string provider; returns null for missing files, unrecognized containers, or load failures.</summary>
     public static TResourceStringProvider TryLoad(string path, string resourceKey = DefaultResourceKey)
     {
         if (string.IsNullOrEmpty(path) || !File.Exists(path))
@@ -74,9 +78,11 @@ public sealed class TResourceStringProvider : ITSharpVisionStringLookupProvider
         return false;
     }
 
+    /// <inheritdoc />
     public string Get(string key, string fallback)
         => TryGet(key, out var value) ? value : fallback;
 
+    /// <inheritdoc />
     public bool TryGet(string key, out string value)
         => _strings.TryGetValue(key, out value);
 }
@@ -88,6 +94,7 @@ public sealed class TSharpVisionStringProviderChain : ITSharpVisionStringLookupP
 {
     private readonly List<ITSharpVisionStringProvider> _providers = new();
 
+    /// <summary>References providers in lookup order, ignoring null entries; a null array creates an empty chain.</summary>
     public TSharpVisionStringProviderChain(params ITSharpVisionStringProvider[] providers)
     {
         if (providers == null) return;
@@ -96,9 +103,11 @@ public sealed class TSharpVisionStringProviderChain : ITSharpVisionStringLookupP
                 _providers.Add(provider);
     }
 
+    /// <inheritdoc />
     public string Get(string key, string fallback)
         => TryGet(key, out string value) ? value : fallback;
 
+    /// <inheritdoc />
     public bool TryGet(string key, out string value)
     {
         foreach (var provider in _providers)

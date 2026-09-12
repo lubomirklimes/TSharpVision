@@ -15,6 +15,7 @@ using TSharpVision.Drivers;
 
 namespace TSharpVision.Drivers.Console;
 
+/// <summary>Windows console backend for cell output and native keyboard, mouse, and resize events; remains inactive for redirected input or output.</summary>
 [ScreenDriver(System = Platform.Windows, Driver = nameof(Win32ConsoleDriver), Priority = 50)]
 public sealed class Win32ConsoleDriver : IDriver, IDisposable
 {
@@ -173,8 +174,11 @@ public sealed class Win32ConsoleDriver : IDriver, IDisposable
     private CHAR_INFO[] _writeLine = Array.Empty<CHAR_INFO>();
     private readonly INPUT_RECORD[] _inputRecords = new INPUT_RECORD[32];
 
+    /// <inheritdoc />
     public bool SupportsMouse    => true;
+    /// <inheritdoc />
     public bool SupportsTrueColor => false;
+    /// <inheritdoc />
     public bool SupportsGraphics  => false;
 
     /// <summary>
@@ -193,6 +197,7 @@ public sealed class Win32ConsoleDriver : IDriver, IDisposable
     public bool TryTranslateKey(bool keyDown, ushort vk, char ch, uint ctrl, out TEvent ev)
         => Win32KeyTranslator.TryTranslate(keyDown, vk, ch, ctrl, out ev);
 
+    /// <inheritdoc />
     public void Initialize()
     {
         if (!OperatingSystem.IsWindows()) return;
@@ -243,6 +248,7 @@ public sealed class Win32ConsoleDriver : IDriver, IDisposable
         }
     }
 
+    /// <inheritdoc />
     public void Suspend()
     {
         if (!_attached) return;
@@ -250,6 +256,7 @@ public sealed class Win32ConsoleDriver : IDriver, IDisposable
         SetConsoleMode(_hOut, _savedOutMode);
     }
 
+    /// <inheritdoc />
     public void Resume()
     {
         if (!_attached) return;
@@ -257,6 +264,7 @@ public sealed class Win32ConsoleDriver : IDriver, IDisposable
         Initialize();
     }
 
+    /// <inheritdoc />
     public void Shutdown()
     {
         if (!_attached) return;
@@ -281,13 +289,19 @@ public sealed class Win32ConsoleDriver : IDriver, IDisposable
         ClipboardService.Reset();
     }
 
+    /// <inheritdoc />
     public ushort GetCols() => _cols;
+    /// <inheritdoc />
     public ushort GetRows() => _rows;
+    /// <inheritdoc />
     public TDisplay.SM GetScreenMode() => TDisplay.SM.CO80;
+    /// <summary>Accepts a logical screen-mode request without changing this backend's display mode.</summary>
     public void SetScreenMode(TDisplay.SM mode) { /* console size is OS-driven */ }
 
+    /// <inheritdoc />
     public ScreenBuffer AllocateScreenBuffer() => new ScreenBuffer(_cols, _rows);
 
+    /// <inheritdoc />
     public void ClearScreen(ushort cols, ushort rows)
     {
         if (!_attached) return;
@@ -302,8 +316,10 @@ public sealed class Win32ConsoleDriver : IDriver, IDisposable
                 (!charOk || !attrOk ? $" err={Marshal.GetLastWin32Error()}" : ""));
     }
 
+    /// <inheritdoc />
     public ushort GetCursorType() => _cursorType;
 
+    /// <inheritdoc />
     public void SetCursorType(ushort cursorType)
     {
         _cursorType = cursorType;
@@ -317,12 +333,14 @@ public sealed class Win32ConsoleDriver : IDriver, IDisposable
         SetConsoleCursorInfo(_hOut, ref ci);
     }
 
+    /// <inheritdoc />
     public void SetCaretPosition(int x, int y)
     {
         if (!_attached) return;
         SetConsoleCursorPosition(_hOut, new COORD { X = (short)x, Y = (short)y });
     }
 
+    /// <inheritdoc />
     public void WriteBuf(int x, int y, int w, int h, Span<TScreenChar> buf)
     {
         if (!_attached || w <= 0 || h <= 0) return;
@@ -363,11 +381,13 @@ public sealed class Win32ConsoleDriver : IDriver, IDisposable
         return _writeLine;
     }
 
+    /// <inheritdoc />
     public void MakeBeep()
     {
         if (OperatingSystem.IsWindows()) MessageBeep(0xFFFFFFFF);
     }
 
+    /// <inheritdoc />
     public void PumpMessages()
     {
         if (!_attached) return;
@@ -505,6 +525,7 @@ public sealed class Win32ConsoleDriver : IDriver, IDisposable
     private static TEvent TranslateMouse(MOUSE_EVENT_RECORD m)
         => TranslateMouse(m.dwButtonState, m.dwEventFlags, m.dwMousePosition.X, m.dwMousePosition.Y);
 
+    /// <inheritdoc />
     public bool ReadKeyEvent(out TEvent ev)
     {
         if (_pendingKeys.Count > 0)
@@ -518,6 +539,7 @@ public sealed class Win32ConsoleDriver : IDriver, IDisposable
         return false;
     }
 
+    /// <summary>Shuts down the backend and releases its display and input resources.</summary>
     public void Dispose() => Shutdown();
 }
 

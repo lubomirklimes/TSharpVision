@@ -7,14 +7,23 @@ namespace TSharpVision.Drivers.Console;
 /// </summary>
 public static class Win32KeyTranslator
 {
+    /// <summary>Win32 control-state bit indicating that left Control is held.</summary>
     public const uint LEFT_CTRL_PRESSED = 0x0008;
+    /// <summary>Win32 control-state bit indicating that right Control is held.</summary>
     public const uint RIGHT_CTRL_PRESSED = 0x0004;
+    /// <summary>Win32 control-state bit indicating that left Alt is held.</summary>
     public const uint LEFT_ALT_PRESSED = 0x0002;
+    /// <summary>Win32 control-state bit indicating that right Alt is held.</summary>
     public const uint RIGHT_ALT_PRESSED = 0x0001;
+    /// <summary>Win32 control-state bit indicating that Shift is held.</summary>
     public const uint SHIFT_PRESSED = 0x0010;
+    /// <summary>Win32 control-state bit indicating that Num Lock is active.</summary>
     public const uint NUMLOCK_ON = 0x0020;
+    /// <summary>Win32 control-state bit indicating that Scroll Lock is active.</summary>
     public const uint SCROLLLOCK_ON = 0x0040;
+    /// <summary>Win32 control-state bit indicating that Caps Lock is active.</summary>
     public const uint CAPSLOCK_ON = 0x0080;
+    /// <summary>Win32 control-state bit indicating that the key is an enhanced keyboard key.</summary>
     public const uint ENHANCED_KEY = 0x0100;
 
     private static readonly ushort[] ControlLetters =
@@ -67,6 +76,7 @@ public static class Win32KeyTranslator
         (SCROLLLOCK_ON, Keys.kbScrollState)
     ];
 
+    /// <summary>Translates a Win32 key record; returns false for releases, modifier-only keys, and unmapped input.</summary>
     public static bool TryTranslate(bool keyDown, ushort vk, char ch, uint ctrlState, out TEvent ev)
     {
         ev = default;

@@ -1,9 +1,10 @@
-﻿using TSharpVision.Constants;
+using TSharpVision.Constants;
 namespace TSharpVision;
 
-// TMenuBox – popup/dropdown menu box created by TMenuView.NewSubView.
+/// <summary>Framed popup or drop-down menu displaying one item per row.</summary>
 public class TMenuBox : TMenuView
 {
+    /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public new static readonly string Name = "TMenuBox";
 
     // CP437 box-drawing characters for the menu popup frame.
@@ -13,6 +14,7 @@ public class TMenuBox : TMenuView
     //   n=10 item row:   ' ','│',' ','│',' '
     //   n=15 separator:  ' ','├','─','┤',' '
     // frameLine(b, n): moveBuf(0, chars[n..n+1], 2) + moveChar(2, chars[n+2], size.x-4) + moveBuf(size.x-2, chars[n+3..n+4], 2)
+    /// <summary>Frame glyphs in five-character groups for top, bottom, item, and separator rows.</summary>
     public static readonly char[] frameCharsArr = new char[]
     {
         ' ','┌','─','┐',' ',   // n=0  top border
@@ -62,6 +64,7 @@ public class TMenuBox : TMenuView
         return n;
     }
 
+    /// <summary>Creates a shadowed popup sized for the referenced menu within the supplied owner-relative cell bounds.</summary>
     public TMenuBox(TRect bounds, TMenu aMenu)
         : base(ComputeRect(bounds, aMenu), aMenu, null)
     {
@@ -69,6 +72,7 @@ public class TMenuBox : TMenuView
         options |= Views.ofPreProcess;
     }
 
+    /// <summary>Creates a shadowed popup sized for the referenced menu and linked to its parent for navigation.</summary>
     public TMenuBox(TRect bounds, TMenu aMenu, TMenuView aParentMenu)
         : base(ComputeRect(bounds, aMenu), aMenu, aParentMenu)
     {
@@ -87,6 +91,7 @@ public class TMenuBox : TMenuView
         b.moveBuf(size.x - 2, new System.ReadOnlySpan<char>(frameCharsArr, n + 3, 2), cNormal, 2);
     }
 
+    /// <inheritdoc />
     public override void Draw()
     {
         Span<TScreenChar> row = stackalloc TScreenChar[size.x > 0 ? size.x : 1];
@@ -139,6 +144,7 @@ public class TMenuBox : TMenuView
         WriteBuf(0, y, size.x, 1, b);
     }
 
+    /// <inheritdoc />
     public override TRect GetItemRect(TMenuItem item)
     {
         int y = 1;
@@ -150,7 +156,9 @@ public class TMenuBox : TMenuView
         return new TRect(0, 0, 0, 0);
     }
 
+    /// <summary>Creates an instance for restoration from a stream without running normal initialization.</summary>
     protected TMenuBox(StreamableInit init) : base(init) { }
 
+    /// <summary>Creates an instance for stream restoration; its stored state must be read before use.</summary>
     public static new TStreamable Build() => new TMenuBox(StreamableInit.streamableInit);
 }

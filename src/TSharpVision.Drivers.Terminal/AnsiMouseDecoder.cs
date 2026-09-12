@@ -13,6 +13,7 @@ using TSharpVision.Constants;
 
 namespace TSharpVision.Drivers.Terminal;
 
+/// <summary>Decodes xterm SGR mouse sequences into framework mouse events.</summary>
 public static class AnsiMouseDecoder
 {
     /// <summary>

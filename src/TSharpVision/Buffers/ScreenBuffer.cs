@@ -1,13 +1,18 @@
-﻿namespace TSharpVision;
+namespace TSharpVision;
 
 /// <summary>A row-major array of managed screen cells. Dimensions are cell counts.</summary>
 public class ScreenBuffer
 {
     private readonly TScreenChar[] _buffer;
+    /// <summary>Number of character cells in each row.</summary>
     public uint Width { get; }
+    /// <summary>Number of rows in the buffer.</summary>
     public uint Height { get; }
+    /// <summary>Mutable memory over all cells in row-major order, without a copy.</summary>
     public Memory<TScreenChar> BufferMemory => _buffer;
+    /// <summary>Mutable span over all cells in row-major order, without a copy.</summary>
     public Span<TScreenChar> Data => _buffer;
+    /// <summary>Total number of cells, equal to width times height.</summary>
     public int Size => _buffer.Length;
 
     /// <summary>Creates a linear single-row buffer; zero cells gives a 0x0 buffer.</summary>
@@ -20,6 +25,7 @@ public class ScreenBuffer
         Clear();
     }
 
+    /// <summary>Allocates a rectangular cell buffer and fills it with white-on-black spaces.</summary>
     public ScreenBuffer(uint width, uint height)
     {
         Width = width;
@@ -41,8 +47,11 @@ public class ScreenBuffer
         return checked((int)((ulong)y * Width + x));
     }
 
+    /// <summary>Replaces the cell at a zero-based column and row; both coordinates must be within the buffer.</summary>
     public void SetChar(uint x, uint y, TScreenChar c) => _buffer[Index(x, y)] = c;
+    /// <summary>Returns the cell at a zero-based column and row; both coordinates must be within the buffer.</summary>
     public TScreenChar GetChar(uint x, uint y) => _buffer[Index(x, y)];
 
+    /// <summary>Fills every cell with a white-on-black space.</summary>
     public void Clear() => Array.Fill(_buffer, new TScreenChar(' ', ConsoleColor.White, ConsoleColor.Black));
 }

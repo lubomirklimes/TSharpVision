@@ -51,6 +51,7 @@ namespace TSharpVision.Drivers;
 // If owner.buffer==null and lockFlag==0, L40 re-enters L10(owner) to bubble
 // the write up through buffer-less intermediate groups to the root buffer.
 // ============================================================================
+/// <summary>Stack-bound row writer that clips view cells through the owner hierarchy and applies occlusion and shadow handling.</summary>
 public ref struct TVWrite
 {
     // Persistent "register" state across the L0→L10→L20→L30/L40→L50 chain.
@@ -65,8 +66,7 @@ public ref struct TVWrite
     private ReadOnlySpan<ushort> ShortBuffer;
     private ReadOnlySpan<TScreenChar> CellBuffer;
 
-    // L0 — entry point; x, y, count are in VIEW-LOCAL coordinates.
-    // Called once per source row from WriteView (via WriteBuf/WriteLine).
+    /// <summary>Writes count source cells at view-local character-cell coordinates, clipping through the destination's owner hierarchy.</summary>
     public void L0(TView dest, int x, int y, int count, ReadOnlySpan<TScreenChar> buffer)
     {
         bufIsShort = false;

@@ -7,9 +7,12 @@ namespace TSharpVision;
 /// </summary>
 public readonly struct TerminalCell
 {
+    /// <summary>UTF-16 character stored in this terminal cell.</summary>
     public char Character { get; }
+    /// <summary>Packed color attribute whose low byte contains foreground and background VGA color nibbles.</summary>
     public ushort Attr { get; }
 
+    /// <summary>Creates an immutable cell from a UTF-16 character and packed color attribute.</summary>
     public TerminalCell(char character, ushort attr)
     {
         Character = character;

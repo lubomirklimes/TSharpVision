@@ -14,9 +14,12 @@ namespace TSharpVision;
 //   writeCrossRefs:
 //     int   numRefs
 //     for each: int ref; int offset; byte length
+/// <summary>Serializable help text with linked paragraphs, cross-references, and width-dependent line wrapping.</summary>
 public class THelpTopic : TStreamable
 {
+    /// <summary>Type name used to identify a serialized help topic.</summary>
     public const string TypeName = "THelpTopic";
+    /// <inheritdoc />
     public override string streamableName => TypeName;
     internal const int FormatV1Latin1 = 1;
     internal const int FormatV2Utf16 = 2;
@@ -26,10 +29,14 @@ public class THelpTopic : TStreamable
     /// a custom handler, the help compiler can substitute a symbolic name
     /// for the numeric topic id at write time.
     public delegate void TCrossRefHandler(Opstream s, int value);
+    /// <summary>Optional global writer hook for cross-reference target identifiers; NotAssigned leaves normal numeric serialization in effect.</summary>
     public static TCrossRefHandler crossRefHandler = NotAssigned;
 
+    /// <summary>First paragraph owned by this topic, or null for an empty topic.</summary>
     public TParagraph paragraphs;
+    /// <summary>Number of active cross-reference slots in the topic.</summary>
     public int numRefs;
+    /// <summary>Cross-reference array indexed from zero; null when no array has been allocated.</summary>
     public TCrossRef[] crossRefs;
 
     private int _width;
@@ -41,9 +48,11 @@ public class THelpTopic : TStreamable
     // injects via fixed 256-byte stack buffers; we mirror the limit.
     private const int LineBufLen = 256;
 
+    /// <summary>Stream registry descriptor and factory for restoring this concrete type.</summary>
     public static readonly TStreamableClass StreamableClass =
         new TStreamableClass(TypeName, () => new THelpTopic(), 0);
 
+    /// <summary>Creates an empty topic with no paragraphs, references, or wrapping width.</summary>
     public THelpTopic()
     {
         paragraphs = null;
@@ -55,6 +64,7 @@ public class THelpTopic : TStreamable
         _lastParagraph = null;
     }
 
+    /// <summary>Appends the supplied reference object and increases the reference count.</summary>
     public void AddCrossRef(TCrossRef r)
     {
         var p = new TCrossRef[numRefs + 1];
@@ -65,6 +75,7 @@ public class THelpTopic : TStreamable
         numRefs++;
     }
 
+    /// <summary>Appends the supplied paragraph to the topic and clears its next link.</summary>
     public void AddParagraph(TParagraph p)
     {
         if (paragraphs == null)
@@ -80,6 +91,7 @@ public class THelpTopic : TStreamable
         p.next = null;
     }
 
+    /// <summary>Resolves a zero-based reference index into its wrapped text position, link length, and destination context. Line positions are one-based for nonzero text offsets.</summary>
     public void GetCrossRef(int i, ref TPoint loc, out byte length, out int @ref)
     {
         int paraOffset = 0, curOffset = 0, oldOffset = 0;
@@ -106,6 +118,7 @@ public class THelpTopic : TStreamable
         @ref = c.@ref;
     }
 
+    /// <summary>Copies a one-based wrapped line into the supplied NUL-terminated byte buffer, replacing characters above U+00FF with question marks; returns that buffer.</summary>
     public byte[] GetLine(int line, byte[] buffer)
     {
         var charBuffer = new char[buffer.Length];
@@ -118,6 +131,7 @@ public class THelpTopic : TStreamable
         return buffer;
     }
 
+    /// <summary>Copies a one-based wrapped line into the supplied NUL-terminated UTF-16 buffer; truncates to capacity and returns the buffer, empty if the line is absent.</summary>
     public char[] GetLine(int line, char[] buffer)
     {
         int offset;
@@ -159,8 +173,10 @@ public class THelpTopic : TStreamable
         return buffer;
     }
 
+    /// <summary>Returns the number of cross-reference slots available for navigation.</summary>
     public int GetNumCrossRefs() => numRefs;
 
+    /// <summary>Counts displayed lines using each paragraph's wrapping flag and the current width.</summary>
     public int NumLines()
     {
         int lines = 0;
@@ -179,11 +195,13 @@ public class THelpTopic : TStreamable
         return lines;
     }
 
+    /// <summary>Replaces a reference at a nonnegative zero-based index; indices at or above the count are ignored.</summary>
     public void SetCrossRef(int i, TCrossRef r)
     {
         if (i < numRefs) crossRefs[i] = r;
     }
 
+    /// <summary>Resizes the reference array to a nonnegative count, preserving the common prefix and leaving new slots null.</summary>
     public void SetNumCrossRefs(int i)
     {
         if (numRefs == i) return;
@@ -197,6 +215,7 @@ public class THelpTopic : TStreamable
         numRefs = i;
     }
 
+    /// <summary>Sets the wrapping width in UTF-16 code units; nonpositive values disable width-based wrapping.</summary>
     public void SetWidth(int aWidth) => _width = aWidth;
 
     // Returns the number of chars consumed; writes the line into lineBuf
@@ -289,12 +308,14 @@ public class THelpTopic : TStreamable
         return b.Length;
     }
 
+    /// <inheritdoc />
     public override void Write(Opstream os)
     {
         WriteParagraphs(os);
         WriteCrossRefs(os);
     }
 
+    /// <inheritdoc />
     public override object Read(Ipstream s)
     {
         ReadParagraphs(s);
@@ -431,5 +452,6 @@ public class THelpTopic : TStreamable
         }
     }
 
+    /// <summary>No-op sentinel indicating that cross-reference targets use the default numeric writer.</summary>
     public static void NotAssigned(Opstream _, int __) { }
 }

@@ -1,17 +1,28 @@
-﻿namespace TSharpVision;
+namespace TSharpVision;
 
+/// <summary>Shared character-cell screen state and buffer layered over the active display driver.</summary>
 public class TScreen : TDisplay
 {
+    /// <summary>Screen mode captured before application screen use, for restoration during suspension.</summary>
     public static SM StartupMode { get; set; }
+    /// <summary>Cursor-shape value captured at startup or resume for later restoration.</summary>
     public static ushort StartupCursor { get; set; }
+    /// <summary>Cached mode used by the application screen.</summary>
     public static SM ScreenMode { get; set; }
+    /// <summary>Cached display width in character cells.</summary>
     public static ushort ScreenWidth { get; set; }
+    /// <summary>Cached display height in character cells.</summary>
     public static ushort ScreenHeight { get; set; }
+    /// <summary>Whether the cached screen height exceeds 25 text rows.</summary>
     public static bool HiResScreen { get; set; }
+    /// <summary>Legacy display-snow compatibility flag; not used by the current screen implementation.</summary>
     public static bool CheckSnow { get; set; }
+    /// <summary>Shared screen-cell buffer allocated by the active driver.</summary>
     public static /*byte[]*/ ScreenBuffer ScreenBuffer { get; set; }
+    /// <summary>Cursor-shape value captured when refreshing CRT data, before hiding the cursor.</summary>
     public static ushort CursorLines { get; set; }
 
+    /// <summary>Initializes or reuses the shared driver, captures startup display state, and allocates its screen buffer.</summary>
     public TScreen() 
         : base() 
     {        
@@ -24,17 +35,20 @@ public class TScreen : TDisplay
     // No finalizer: TScreen owns no unmanaged resource, and Suspend() drives the shared
     // driver, which a finalizer must not do — see Dispose below.
 
+    /// <summary>Unsupported legacy mode-change path; currently throws NotImplementedException while normalizing the mode.</summary>
     public static void SetVideoMode(ushort mode)
     {
         SetCrtMode(FixCrtMode(mode));
         SetCrtData();
     }
 
+    /// <summary>Clears the driver display using the cached character-cell dimensions.</summary>
     public static void ClearScreen()
     {
         TDisplay.ClearScreen(ScreenWidth, ScreenHeight);
     }
 
+    /// <summary>Refreshes cached mode, dimensions, and cursor shape from the driver, then requests cursor type zero.</summary>
     public static void SetCrtData()
     {
         ScreenMode = GetCrtMode();
@@ -46,11 +60,13 @@ public class TScreen : TDisplay
         SetCursorType(0);
     }
 
+    /// <summary>Unsupported legacy mode normalization; always throws NotImplementedException.</summary>
     public static SM FixCrtMode(ushort mode)
     {
         throw new NotImplementedException("TScreen.FixCrtMode(ushort) není implementováno.");
     }
 
+    /// <summary>Clears the screen and restores startup cursor state; restoring a different mode reaches the unsupported mode-setting path.</summary>
     public static void Suspend()
     {
         if (TDisplay.driver == null) return;
@@ -60,6 +76,7 @@ public class TScreen : TDisplay
         SetCursorType(StartupCursor);
     }
 
+    /// <summary>Captures current startup state and refreshes screen data; switching to a different application mode reaches the unsupported mode-setting path.</summary>
     public static void Resume()
     {
         StartupMode = GetCrtMode();
@@ -88,6 +105,7 @@ public class TScreen : TDisplay
         base.Dispose(disposing);
     }
 
+    /// <summary>Writes len cells from the supplied span as one row at the specified screen character-cell coordinates.</summary>
     public static void ScreenWrite(int x, int y, Span<TScreenChar> span, int len)
     {
         driver.WriteBuf(x, y, len, 1, span);

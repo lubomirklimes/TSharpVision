@@ -9,29 +9,38 @@ namespace TSharpVision;
 // Wire format (helpbase.cc:451):
 //   ushort size
 //   for each: long position
+/// <summary>Persistent mapping from nonnegative help context identifiers to file byte positions.</summary>
 public class THelpIndex : TStreamable
 {
+    /// <summary>Type name used to identify the serialized help index.</summary>
     public const string TypeName = "THelpIndex";
+    /// <inheritdoc />
     public override string streamableName => TypeName;
 
+    /// <summary>Number of allocated context slots, including unused entries.</summary>
     public ushort size;
+    /// <summary>Position array indexed by help context; unused slots contain -1, and an empty index may be null.</summary>
     public long[] index;
 
+    /// <summary>Stream registry descriptor and factory for restoring this concrete type.</summary>
     public static readonly TStreamableClass StreamableClass =
         new TStreamableClass(TypeName, () => new THelpIndex(), 0);
 
+    /// <summary>Creates an empty index with no allocated context slots.</summary>
     public THelpIndex()
     {
         size = 0;
         index = null;
     }
 
+    /// <summary>Returns the file byte position for a nonnegative context identifier, or -1 when its slot is absent or unused.</summary>
     public long Position(int i)
     {
         if (i < size) return index[i];
         return -1;
     }
 
+    /// <summary>Stores a file byte position for a nonnegative context identifier, expanding the index as needed.</summary>
     public void Add(int i, long val)
     {
         const int delta = 10;
@@ -48,6 +57,7 @@ public class THelpIndex : TStreamable
         index[i] = val;
     }
 
+    /// <inheritdoc />
     public override void Write(Opstream os)
     {
         os.WriteShort(size);
@@ -55,6 +65,7 @@ public class THelpIndex : TStreamable
             os.WriteLong((uint)index[i]);
     }
 
+    /// <inheritdoc />
     public override object Read(Ipstream s)
     {
         size = s.ReadShort();

@@ -4,11 +4,16 @@ namespace TSharpVision;
 /// Linked-list node: <see cref="next"/> chains paragraphs inside a topic.
 public sealed class TParagraph
 {
+    /// <summary>Next paragraph in the topic, or null at the end of the chain.</summary>
     public TParagraph next;
+    /// <summary>Whether the paragraph wraps at the topic's configured width.</summary>
     public bool wrap;
+    /// <summary>Number of meaningful UTF-16 code units in the character array, limited to 65535.</summary>
     public ushort size;
+    /// <summary>UTF-16 text storage; the first size entries form the paragraph text.</summary>
     public char[] chars;
 
+    /// <summary>Paragraph text; assigning null creates empty storage and assigning more than 65535 code units throws an overflow exception.</summary>
     public string Text
     {
         get => chars == null ? string.Empty : new string(chars, 0, size);
@@ -19,9 +24,7 @@ public sealed class TParagraph
         }
     }
 
-    // Compatibility shim for old Latin1-oriented tests and callers. Help v2
-    // stores chars internally; this property maps legacy byte payloads to the
-    // same code-unit values.
+    /// <summary>Legacy byte projection of paragraph text; characters above U+00FF become question marks on read, and assigned bytes map directly to code units.</summary>
     public byte[] text
     {
         get

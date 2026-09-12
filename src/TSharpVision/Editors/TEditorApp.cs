@@ -5,14 +5,13 @@ using TSharpVision.Constants;
 
 namespace TSharpVision;
 
-// TEditorApp — reusable Turbo Vision-style application class for editor
-// workflows.  Inherits TApplication and provides an editor-oriented menu
-// bar, status line, and event handler.
+/// <summary>Application shell with editor menus, status bindings, and file-window commands.</summary>
 public class TEditorApp : TApplication
 {
     // Running editor-window counter (offset so windows do not stack exactly).
     private int _nextWinNum = 1;
 
+    /// <summary>Creates the editor application and disables document commands until an editor becomes active.</summary>
     public TEditorApp() : base()
     {
         // Disable editor-specific commands at startup; they are re-enabled
@@ -33,6 +32,7 @@ public class TEditorApp : TApplication
     }
 
 
+    /// <inheritdoc />
     public override TMenuBar InitMenuBar(TRect r)
     {
         r.b.y = r.a.y + 1;
@@ -74,6 +74,7 @@ public class TEditorApp : TApplication
         );
     }
 
+    /// <inheritdoc />
     public override TStatusLine InitStatusLine(TRect r)
     {
         r.a.y = r.b.y - 1;
@@ -92,6 +93,7 @@ public class TEditorApp : TApplication
     }
 
 
+    /// <inheritdoc />
     public override void HandleEvent(ref TEvent ev)
     {
         base.HandleEvent(ref ev);
@@ -123,9 +125,11 @@ public class TEditorApp : TApplication
     }
 
 
+    /// <summary>Creates and inserts an editor window using default file-decoding options; null filename creates an unnamed document.</summary>
     public virtual TEditWindow OpenEditor(string fileName, bool visible)
         => OpenEditor(fileName, visible, null);
 
+    /// <summary>Creates, validates, and inserts an editor window with the requested visibility and decoding policy; returns null without a desktop or when validation fails.</summary>
     public virtual TEditWindow OpenEditor(
         string fileName,
         bool visible,
@@ -169,8 +173,10 @@ public class TEditorApp : TApplication
         return validated;
     }
 
+    /// <summary>Opens a visible editor for a new unnamed document.</summary>
     public virtual void FileNew() => OpenEditor(null, true);
 
+    /// <summary>Runs the file chooser and opens the accepted path using its selected encoding.</summary>
     public virtual void FileOpen()
     {
         if (DeskTop == null) return;
@@ -201,7 +207,9 @@ public class TEditorApp : TApplication
         }
     }
 
+    /// <summary>Tiles eligible windows within the desktop, if present.</summary>
     public virtual void Tile() => DeskTop?.Tile(DeskTop.GetExtent());
 
+    /// <summary>Cascades eligible windows within the desktop, if present.</summary>
     public virtual void Cascade() => DeskTop?.Cascade(DeskTop.GetExtent());
 }

@@ -14,28 +14,39 @@ public class Opstream : Pstream
         new(ReferenceEqualityComparer.Instance);
     private uint _curId;
 
+    /// <summary>Creates an output wrapper without an attached underlying stream.</summary>
     public Opstream() { }
+    /// <summary>Wraps the supplied stream for object and primitive serialization.</summary>
     public Opstream(Stream sb) : base(sb) { }
 
+    /// <summary>Writes one byte at the current stream position.</summary>
     public void WriteByte(byte ch) { bp.WriteByte(ch); }
 
+    /// <summary>Writes the first sz bytes of the supplied array.</summary>
     public void WriteBytes(byte[] data, int sz) { bp.Write(data, 0, sz); }
+    /// <summary>Writes sz bytes starting at the supplied array offset.</summary>
     public void WriteBytes(byte[] data, int offset, int sz) { bp.Write(data, offset, sz); }
 
     // Upstream's Short=2 / Int=4 / Long depend on host int sizes; on the
     // target Borland 16-bit they were 2/4/4 bytes respectively. We pick
     // those sizes so .tvr files stay format-compatible with classic Turbo
     // Vision output. The endian swap below keeps everything little-endian.
+    /// <summary>Writes an unsigned 16-bit value in little-endian byte order.</summary>
     public void WriteShort(ushort val) { Write16(val); }
+    /// <summary>Writes an unsigned 32-bit value in little-endian byte order.</summary>
     public void WriteInt(uint val) { Write32(val); }
+    /// <summary>Writes an unsigned 32-bit value in little-endian byte order.</summary>
     public void WriteLong(uint val) { Write32(val); }
+    /// <summary>Writes an unsigned 16-bit value in little-endian byte order.</summary>
     public void WriteWord(ushort val) { WriteShort(val); }
 
+    /// <summary>Writes an unsigned 16-bit value in little-endian byte order.</summary>
     public void Write16(ushort v)
     {
         bp.WriteByte((byte)v);
         bp.WriteByte((byte)(v >> 8));
     }
+    /// <summary>Writes an unsigned 32-bit value in little-endian byte order.</summary>
     public void Write32(uint v)
     {
         bp.WriteByte((byte)v);
@@ -43,6 +54,7 @@ public class Opstream : Pstream
         bp.WriteByte((byte)(v >> 16));
         bp.WriteByte((byte)(v >> 24));
     }
+    /// <summary>Writes an unsigned 64-bit value in little-endian byte order.</summary>
     public void Write64(ulong v)
     {
         Write32((uint)v);
@@ -51,6 +63,7 @@ public class Opstream : Pstream
 
     // Encoding: strings are stored as UTF-16 code units in little-endian order.
     // Length is the number of UTF-16 chars, not the number of bytes.
+    /// <summary>Writes a nullable, length-prefixed UTF-16 string in little-endian order; length counts code units.</summary>
     public void WriteString(string str)
     {
         if (str == null)
@@ -74,8 +87,10 @@ public class Opstream : Pstream
     // Upstream's seekp() drops the written-objects table; we mirror that so a
     // seek midway through a stream cannot accidentally produce a ptIndexed
     // reference to an object that is no longer at the cursor's vantage point.
+    /// <summary>Returns the underlying stream position in bytes.</summary>
     public long Tellp() => bp.Position;
 
+    /// <summary>Seeks to an absolute byte position and clears recorded object identities.</summary>
     public Opstream Seekp(long pos)
     {
         _objs.Clear();
@@ -84,6 +99,7 @@ public class Opstream : Pstream
         return this;
     }
 
+    /// <summary>Seeks by a byte offset from the specified origin and clears recorded object identities.</summary>
     public Opstream Seekp(long off, System.IO.SeekOrigin origin)
     {
         _objs.Clear();
@@ -92,12 +108,14 @@ public class Opstream : Pstream
         return this;
     }
 
+    /// <summary>Flushes the underlying stream and returns this wrapper.</summary>
     public Opstream Flush()
     {
         bp.Flush();
         return this;
     }
 
+    /// <summary>Writes a type prefix, registered object data, and closing marker; returns this wrapper.</summary>
     public Opstream WriteObject(TStreamable t)
     {
         WritePrefix(t);
@@ -106,6 +124,7 @@ public class Opstream : Pstream
         return this;
     }
 
+    /// <summary>Writes null, a reference to an already written object, or a new serialized object while preserving identity.</summary>
     public Opstream WritePointer(TStreamable t)
     {
         if (t == null)
@@ -129,12 +148,14 @@ public class Opstream : Pstream
         return this;
     }
 
+    /// <summary>Writes the opening marker and streamable type name.</summary>
     protected void WritePrefix(TStreamable t)
     {
         WriteByte((byte)'[');
         WriteString(t.streamableName);
     }
 
+    /// <summary>Registers the object's identity and writes its state, or records an error for an unregistered type.</summary>
     protected void WriteData(TStreamable t)
     {
         if (types.Lookup(t.streamableName) == null)
@@ -148,11 +169,14 @@ public class Opstream : Pstream
         }
     }
 
+    /// <summary>Writes the closing object marker.</summary>
     protected void WriteSuffix(TStreamable _) { WriteByte((byte)']'); }
 
+    /// <summary>Returns the recorded one-based object identifier, or uint.MaxValue when not recorded.</summary>
     protected uint Find(object adr) =>
         _objs.TryGetValue(adr, out uint v) ? v : uint.MaxValue;
     
+    /// <summary>Assigns the next one-based stream identifier to an object.</summary>
     protected void RegisterObject(object adr)
     {
         // curId starts at 0 and increments before use,
@@ -161,7 +185,9 @@ public class Opstream : Pstream
     }
 
     // TPoint = 8 bytes (WriteInt x; WriteInt y) — 32-bit RHIDE convention.
+    /// <summary>Writes x and y as two little-endian 32-bit integers, totaling eight bytes.</summary>
     public void WriteTPoint(TPoint p) { WriteInt((uint)p.x); WriteInt((uint)p.y); }
     // TRect = 16 bytes (two TPoints: a, b).
+    /// <summary>Writes both corners as four little-endian 32-bit coordinates, totaling sixteen bytes.</summary>
     public void WriteTRect(TRect r) { WriteTPoint(r.a); WriteTPoint(r.b); }
 }

@@ -1,9 +1,8 @@
-﻿namespace TSharpVision.Drivers.SDL.Rendering.Fonts;
+namespace TSharpVision.Drivers.SDL.Rendering.Fonts;
 
 /// <summary>
 /// Shared font-path lookup used by both SDL back-ends (<c>SDLRenderer</c>, <c>SDLGpuRenderer</c>)
 /// and by the headless glyph-diagnostic tool.
-
 /// </summary>
 internal static class SdlFontLocator
 {

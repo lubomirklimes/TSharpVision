@@ -1,11 +1,13 @@
 using TSharpVision.Constants;
 namespace TSharpVision;
 
+/// <summary>Window border view that renders title controls and handles move, resize, close, and zoom interactions.</summary>
 public class TFrame : TView
 {
+    /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public new static readonly string Name = "TFrame";
 
-    // Encodes the bitmask seeds used by frameLine() for {top, mid, bot} of {inactive,active} frames.
+    /// <summary>Border-mask seeds for top, middle, and bottom rows of inactive and active frames.</summary>
     public static readonly byte[] InitFrame =
         { 0x06, 0x0A, 0x0C, 0x05, 0x00, 0x05, 0x03, 0x0A, 0x09,
           0x16, 0x1A, 0x1C, 0x15, 0x00, 0x15, 0x13, 0x1A, 0x19, 0x00 };
@@ -19,6 +21,7 @@ public class TFrame : TView
     // 10='─'(RIGHT+LEFT) 11='┴'(U+R+L) 12='┐'(DOWN+LEFT) 13='┤'(U+D+L)
     // 14='┬'(R+D+L) 15='┼'(all)
     // Double-line: add 16 → same pattern with ║═╔╚╝╗ etc.
+    /// <summary>Box-drawing glyphs indexed by directional connection bits, with bit 4 selecting double lines.</summary>
     public static readonly char[] FrameChars =
         {
             ' ', ' ', ' ', '└', ' ', '│', '┌', '├',
@@ -28,24 +31,31 @@ public class TFrame : TView
             ' '
         };
 
-    // Hot-key markers wrap inner glyph.
+    /// <summary>Close-button label with tilde-delimited highlighting markers.</summary>
     public static string CloseIcon  = "[~■~]";
+    /// <summary>Zoom-button label used when the window is not zoomed.</summary>
     public static string ZoomIcon   = "[~↑~]";
+    /// <summary>Zoom-button label used to restore a zoomed window.</summary>
     public static string UnZoomIcon = "[~↕~]";
+    /// <summary>Glyph sequence marking the frame's resize corner.</summary>
     public static string DragIcon   = "──┘";
+    /// <summary>Temporary glyph shown when DrawIcon requests the non-normal button appearance.</summary>
     public static string AnimIcon   = "[~+~]";
 
+    /// <summary>Compatibility animation preference; the current frame implementation does not consult it.</summary>
     public static bool DoAnimation = true;
 
     private const int ciClose = 0;
     private const int ciZoom  = 1;
 
+    /// <summary>Creates a frame in owner-relative character-cell bounds that grows with its window and receives broadcasts and mouse-up events.</summary>
     public TFrame(TRect bounds) : base(bounds)
     {
         growMode = (byte)(Views.gfGrowHiX | Views.gfGrowHiY);
         eventMask |= Events.evBroadcast | Events.evMouseUp;
     }
 
+    /// <inheritdoc />
     public override void Draw()
     {
         ushort cFrame, cTitle;
@@ -138,8 +148,10 @@ public class TFrame : TView
 
     // Static palette for cpFrame.
     private static readonly TPalette _palette = new TPalette("\x01\x01\x02\x02\x03", 5);
+    /// <inheritdoc />
     public override TPalette GetPalette() => _palette;
 
+    /// <summary>Drags or resizes the owning window within its parent's cell extent and clears the triggering event; does nothing without both owners.</summary>
     public void DragWindow(ref TEvent ev, byte mode)
     {
         if (owner == null || owner.owner == null) return;
@@ -150,6 +162,7 @@ public class TFrame : TView
         ClearEvent(ref ev);
     }
 
+    /// <summary>Draws a frame button: nonzero bNormal selects the normal glyph, zero the animation glyph; ciType zero selects close, otherwise zoom.</summary>
     public void DrawIcon(int bNormal, int ciType)
     {
         int x = ciType == ciClose ? 2 : size.x - 5;
@@ -174,6 +187,7 @@ public class TFrame : TView
         WriteLine(x, 0, 3, 1, cells);
     }
 
+    /// <inheritdoc />
     public override void HandleEvent(ref TEvent @event)
     {
         base.HandleEvent(ref @event);
@@ -205,6 +219,7 @@ public class TFrame : TView
                 ? Views.dmDragGrow : (byte)0;
         if (pressed && mode != 0) DragWindow(ref @event, mode);
     }
+    /// <inheritdoc />
     public override void SetState(ushort aState, bool enable)
     {
         base.SetState(aState, enable);
@@ -235,15 +250,21 @@ public class TFrame : TView
     // Only build() is defined upstream;
     // Write/Read delegate entirely to the TView base.
 
+    /// <summary>Stream registry descriptor and factory for restoring this concrete type.</summary>
     public static readonly TStreamableClass StreamableClassTFrame =
         new TStreamableClass("TFrame", () => new TFrame(StreamableInit.streamableInit), 0);
 
+    /// <summary>Creates an instance for restoration from a stream without running normal initialization.</summary>
     protected TFrame(StreamableInit init) : base(init) { }
 
+    /// <inheritdoc />
     public override void Write(Opstream os) { base.Write(os); }
 
+    /// <inheritdoc />
     public override object Read(Ipstream isStream) { base.Read(isStream); return this; }
 
+    /// <summary>Creates an instance for stream restoration; its stored state must be read before use.</summary>
     public new static TStreamable Build() { return new TFrame(StreamableInit.streamableInit); }
+    /// <inheritdoc />
     public override string StreamableName() { return Name; }
 }

@@ -1,4 +1,4 @@
-﻿using TSharpVision.Config;
+using TSharpVision.Config;
 
 namespace TSharpVision.Drivers.SDL.Config;
 
@@ -9,6 +9,7 @@ namespace TSharpVision.Drivers.SDL.Config;
 /// </summary>
 public sealed class SdlDriverConfiguration : IConfigurationSection
 {
+    /// <summary>Configuration section name used to bind SDL options.</summary>
     public string SectionName => "sdl";
 
     /// <summary>Present mode: "vsync" | "immediate" | "mailbox". Default: immediate.</summary>
@@ -26,6 +27,7 @@ public sealed class SdlDriverConfiguration : IConfigurationSection
     /// <summary>Diagnostics output: "1" | "verbose". Null/empty = off.</summary>
     public string? Diagnostics { get; private set; }
 
+    /// <summary>Loads SDL option values from the supplied section; missing keys reset their corresponding values to null.</summary>
     public void Bind(IReadOnlyDictionary<string, string> rawValues)
     {
         PresentMode   = rawValues.GetValueOrDefault("presentMode");

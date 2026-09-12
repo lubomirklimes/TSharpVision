@@ -1,17 +1,27 @@
-﻿using TSharpVision.Constants;
+using TSharpVision.Constants;
 namespace TSharpVision;
 
+/// <summary>Linked menu entry representing a command, submenu, or separator.</summary>
 public class TMenuItem
 {
+    /// <summary>Next entry in the same menu, or null at the end of the chain.</summary>
     public TMenuItem Next { get; set; }
+    /// <summary>Display label with optional tilde-marked mnemonic; null or empty denotes a separator.</summary>
     public string Name { get; set; }
+    /// <summary>Command identifier dispatched on activation; zero identifies a submenu or separator.</summary>
     public ushort Command { get; set; }
+    /// <summary>Whether this entry is unavailable for command activation and mnemonic lookup.</summary>
     public bool Disabled { get; set; }
+    /// <summary>Accelerator key code; kbNoKey means no accelerator binding.</summary>
     public ushort KeyCode { get; set; }
+    /// <summary>Help context identifier associated with this entry.</summary>
     public ushort HelpCtx { get; set; }
+    /// <summary>Optional right-aligned text beside a command label, typically its shortcut description.</summary>
     public string Param { get; set; }
+    /// <summary>Referenced child menu for an entry whose command is zero.</summary>
     public TMenu SubMenu { get; set; }
 
+    /// <summary>Creates an enabled command entry with a label, accelerator, help context, optional right-hand text, and next node.</summary>
     public TMenuItem(string aName, ushort aCommand, ushort aKeyCode, ushort aHelpCtx = Views.hcNoContext, string p = null, TMenuItem aNext = null)
     {
         Name = aName;
@@ -24,6 +34,7 @@ public class TMenuItem
         SubMenu = new TMenu();
     }
 
+    /// <summary>Creates an enabled submenu entry referencing the supplied child menu and optional next node.</summary>
     public TMenuItem(string aName, ushort aKeyCode, TMenu aSubMenu, ushort aHelpCtx = Views.hcNoContext, TMenuItem aNext = null)
     {
         Name = aName;
@@ -36,11 +47,13 @@ public class TMenuItem
         Param = null;
     }
 
+    /// <summary>Replaces the immediate next-node link with the supplied entry; null terminates the chain.</summary>
     public void Append(TMenuItem aNext)
     {
         Next = aNext;
     }
 
+    /// <summary>Creates a separator entry with no label or command.</summary>
     public static TMenuItem NewLine()
     {
         return new TMenuItem(null, 0, 0, Views.hcNoContext, null, null);
@@ -61,6 +74,7 @@ public class TMenuItem
     /// <summary>True when this entry is a submenu reference (no command).</summary>
     public bool IsSubMenu => Command == 0 && SubMenu != null && SubMenu.Items != null;
 
+    /// <summary>Appends an item chain inside the last consecutive submenu node and returns the original submenu head; both operands must be non-null.</summary>
     public static TSubMenu operator +(TSubMenu s, TMenuItem i)
     {
         if (s == null)

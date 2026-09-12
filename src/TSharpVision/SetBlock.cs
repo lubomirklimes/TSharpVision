@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -18,4 +18,7 @@ namespace TSharpVision;
 //    }
 //}
 
+/// <summary>State-change request pairing a view-state mask with whether its bits should be enabled.</summary>
+/// <param name="st">View-state bits to update.</param>
+/// <param name="en">True to enable the bits; false to clear them.</param>
 public readonly record struct SetBlock(ushort st, bool en);

@@ -112,6 +112,7 @@ public static class TSharpVisionGlyphs
 
     /// <summary>System menu</summary>
     public const char SystemMenu = '≡';
+    /// <summary>Fallback glyph for a system-menu indicator when choosing display symbols.</summary>
     public const char SystemMenuFallback = '≡'; // ≡
     /*Varianta	Znak	Unicode	Poznámka
     ☰	U+2630 TRIGRAM FOR HEAVEN	Nejčitelnější, často se používá jako menu ikona.

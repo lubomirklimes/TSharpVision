@@ -7,6 +7,7 @@ using System.Text;
 
 namespace TSharpVision.Drivers.SDL.Gpu;
 
+/// <summary>Windowed character-cell backend using SDL GPU rendering.</summary>
 [ScreenDriver(System = Platform.Windows, Driver = nameof(SDLGpuDriver), Priority = 200)]
 [ScreenDriver(System = Platform.Linux,   Driver = nameof(SDLGpuDriver), Priority = 200)]
 [ScreenDriver(System = Platform.MacOS,   Driver = nameof(SDLGpuDriver), Priority = 200)]
@@ -42,12 +43,17 @@ public class SDLGpuDriver : IDisposable, IDriver
     private ushort _lastModState;
     private readonly SdlMotionCoalescer _coalescer = new();
 
+    /// <inheritdoc />
     public bool SupportsMouse     => true;
+    /// <inheritdoc />
     public bool SupportsTrueColor => false;
+    /// <inheritdoc />
     public bool SupportsGraphics  => true;
 
+    /// <summary>Optional rendering callback invoked while pumping messages; initialization installs a callback that renders the screen buffer.</summary>
     public Action<IRenderer>? MessageLoop { get; set; }
 
+    /// <inheritdoc />
     public void Initialize() => Initialize(() =>
     {
         if (!SDL3.SDL.Init(SDL3.SDL.InitFlags.Video))
@@ -118,6 +124,7 @@ public class SDLGpuDriver : IDisposable, IDriver
         }
     }
 
+    /// <inheritdoc />
     public ScreenBuffer AllocateScreenBuffer()
     {
         _screenBuffer = new ScreenBuffer(TScreen.ScreenWidth, TScreen.ScreenHeight);
@@ -126,12 +133,17 @@ public class SDLGpuDriver : IDisposable, IDriver
         return _screenBuffer;
     }
 
+    /// <inheritdoc />
     public ushort GetCols()       => _cols;
+    /// <inheritdoc />
     public ushort GetRows()       => _rows;
+    /// <inheritdoc />
     public ushort GetCursorType() => _cursorType;
 
+    /// <inheritdoc />
     public TDisplay.SM GetScreenMode() => TDisplay.SM.CO80;
 
+    /// <inheritdoc />
     public void PumpMessages()
     {
         if (!_attached) return;
@@ -359,6 +371,7 @@ public class SDLGpuDriver : IDisposable, IDriver
         return ev;
     }
 
+    /// <inheritdoc />
     public void SetCursorType(ushort cursorType)
     {
         ExpandDirtyRegion(_caretX, _caretY, 1, 1); // cursor cell changes appearance
@@ -367,6 +380,7 @@ public class SDLGpuDriver : IDisposable, IDriver
         _dirty = true;
     }
 
+    /// <inheritdoc />
     public void SetCaretPosition(int x, int y)
     {
         ExpandDirtyRegion(_caretX, _caretY, 1, 1); // erase cursor at old position
@@ -377,9 +391,12 @@ public class SDLGpuDriver : IDisposable, IDriver
         _dirty = true;
     }
 
+    /// <inheritdoc />
     public void Suspend() { }
+    /// <inheritdoc />
     public void Resume()  { if (!_attached) Initialize(); }
 
+    /// <inheritdoc />
     public void Shutdown()
     {
         if (!_attached) return;
@@ -392,8 +409,10 @@ public class SDLGpuDriver : IDisposable, IDriver
         ClipboardService.Reset();
     }
 
+    /// <summary>Accepts a logical screen-mode request without changing this backend's display mode.</summary>
     public void SetScreenMode(TDisplay.SM mode) { }
 
+    /// <inheritdoc />
     public void ClearScreen(ushort cols, ushort rows)
     {
         if (!_attached || _screenBuffer == null) return;
@@ -405,6 +424,7 @@ public class SDLGpuDriver : IDisposable, IDriver
         _dirty = true;
     }
 
+    /// <inheritdoc />
     public void WriteBuf(int x, int y, int w, int h, Span<TScreenChar> buf)
     {
         if (!_attached || _screenBuffer == null) return;
@@ -415,11 +435,13 @@ public class SDLGpuDriver : IDisposable, IDriver
         _dirty = true;
     }
 
+    /// <inheritdoc />
     public void MakeBeep()
     {
         try { Console.Write('\a'); } catch { }
     }
 
+    /// <inheritdoc />
     public bool ReadKeyEvent(out TEvent ev)
     {
         if (_pendingKeys.Count > 0) { ev = _pendingKeys.Dequeue(); return true; }
@@ -427,6 +449,7 @@ public class SDLGpuDriver : IDisposable, IDriver
         return false;
     }
 
+    /// <summary>Shuts down the backend during resource disposal.</summary>
     protected virtual void Dispose(bool disposing)
     {
         if (!_disposedValue)
@@ -436,6 +459,7 @@ public class SDLGpuDriver : IDisposable, IDriver
         }
     }
 
+    /// <summary>Shuts down the backend and releases its display and input resources.</summary>
     public void Dispose()
     {
         Dispose(disposing: true);

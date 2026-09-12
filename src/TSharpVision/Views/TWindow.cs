@@ -1,21 +1,31 @@
 using TSharpVision.Constants;
 namespace TSharpVision;
 
+/// <summary>A framed group with a title, optional selection number, and configurable move, resize, close, and zoom actions.</summary>
 public class TWindow : TGroup
 {
+    /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public new static readonly string Name = "TWindow";
 
+    /// <summary>Default minimum window width and height in character cells: 16 by 6.</summary>
     public static readonly TPoint MinWinSize = new TPoint(16, 6);
 
+    /// <summary>wf-prefixed flags enabling window movement, resizing, closure, and zoom.</summary>
     public byte flags;
+    /// <summary>Saved owner-relative cell bounds restored when leaving the zoomed size.</summary>
     public TRect zoomRect;
+    /// <summary>Alt+number selection identifier; zero leaves the window unnumbered.</summary>
     public ushort number;
+    /// <summary>wp-prefixed selector for the window's blue, cyan, or gray palette mapping.</summary>
     public short palette;
+    /// <summary>Frame child owned by this window, or null after shutdown.</summary>
     public TFrame frame;
+    /// <summary>Text displayed in the window frame.</summary>
     public string title;
     private bool _closeInProgress;
     private bool _closeCompleted;
 
+    /// <summary>Creates a framed window at owner-relative cell bounds with a title and selection number; move, grow, close, and zoom are initially enabled.</summary>
     public TWindow(TRect bounds, string aTitle, ushort aNumber) : base(bounds)
     {
         flags = (byte)(Views.wfMove | Views.wfGrow | Views.wfClose | Views.wfZoom);
@@ -33,8 +43,10 @@ public class TWindow : TGroup
         if (frame != null) Insert(frame);
     }
 
+    /// <summary>Finalizer hook; window detachment and child shutdown require deterministic lifecycle calls.</summary>
     ~TWindow() { }
 
+    /// <summary>Validates the close command, queues a closing notification, and detaches the window without shutting down its children; repeated completed closes are ignored.</summary>
     public virtual void Close()
     {
         // Managed queue-before-detach contract.
@@ -55,6 +67,8 @@ public class TWindow : TGroup
         finally { _closeInProgress = false; }
     }
 
+    /// <inheritdoc />
+    /// <remarks>Shuts down owned children and clears the frame reference before detaching the window.</remarks>
     public override void ShutDown()
     {
         frame = null;
@@ -69,6 +83,7 @@ public class TWindow : TGroup
     private static readonly TPalette _blue = new TPalette("\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F", 8);
     private static readonly TPalette _cyan = new TPalette("\x10\x11\x12\x13\x14\x15\x16\x17", 8);
     private static readonly TPalette _gray = new TPalette("\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F", 8);
+    /// <inheritdoc />
     public override TPalette GetPalette()
     {
         return palette switch
@@ -79,8 +94,10 @@ public class TWindow : TGroup
         };
     }
 
+    /// <summary>Returns the current title; the base implementation does not truncate it to maxSize.</summary>
     public virtual string GetTitle(short maxSize) => title;
 
+    /// <inheritdoc />
     public override void HandleEvent(ref TEvent @event)
     {
         base.HandleEvent(ref @event);
@@ -156,8 +173,11 @@ public class TWindow : TGroup
         }
     }
 
+    /// <summary>Creates a frame occupying the supplied window-local cell bounds.</summary>
     public static TFrame InitFrame(TRect r) => new TFrame(r);
 
+    /// <inheritdoc />
+    /// <remarks>Selection also updates the active frame and enables or disables standard window commands.</remarks>
     public override void SetState(ushort aState, bool enable)
     {
         base.SetState(aState, enable);
@@ -175,6 +195,7 @@ public class TWindow : TGroup
         }
     }
 
+    /// <summary>Creates and inserts a scrollbar along the window frame, optionally enabling keyboard post-processing.</summary>
     public TScrollBar StandardScrollBar(ushort aOptions)
     {
         TRect r = GetExtent();
@@ -189,12 +210,14 @@ public class TWindow : TGroup
         return s;
     }
 
+    /// <inheritdoc />
     public override void SizeLimits(ref TPoint min, ref TPoint max)
     {
         base.SizeLimits(ref min, ref max);
         min = MinWinSize;
     }
 
+    /// <summary>Toggles between the maximum permitted size and saved owner-relative bounds.</summary>
     public virtual void Zoom()
     {
         TPoint minSize = default, maxSize = default;
@@ -223,11 +246,14 @@ public class TWindow : TGroup
     // On Read: TGroup.Read restores children first (registering TFrame),
     // then ReadPointer for frame returns the same TFrame reference.
 
+    /// <summary>Stream registry descriptor and factory for restoring this concrete type.</summary>
     public static readonly TStreamableClass StreamableClassTWindow =
         new TStreamableClass("TWindow", () => new TWindow(StreamableInit.streamableInit), 0);
 
+    /// <summary>Creates an instance for restoration from a stream without running normal initialization.</summary>
     protected TWindow(StreamableInit init) : base(init) { }
 
+    /// <inheritdoc />
     public override void Write(Opstream os)
     {
         base.Write(os);          // TGroup.Write: TView fields + children + currentIndex
@@ -239,6 +265,7 @@ public class TWindow : TGroup
         os.WriteString(title);
     }
 
+    /// <inheritdoc />
     public override object Read(Ipstream isStream)
     {
         base.Read(isStream);     // TGroup.Read: restores children (including TFrame)
@@ -252,6 +279,8 @@ public class TWindow : TGroup
         return this;
     }
 
+    /// <summary>Creates an instance for stream restoration; its stored state must be read before use.</summary>
     public new static TStreamable Build() { return new TWindow(StreamableInit.streamableInit); }
+    /// <inheritdoc />
     public override string StreamableName() { return Name; }
 }

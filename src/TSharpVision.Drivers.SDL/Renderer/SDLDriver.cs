@@ -1,4 +1,4 @@
-﻿using TSharpVision.Constants;
+using TSharpVision.Constants;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -7,6 +7,7 @@ namespace TSharpVision.Drivers.SDL;
 // NOTE: priority intentionally lower than the platform-native console
 // drivers so headless CI keeps using NullDriver / Win32 console / ANSI.
 // Set TSHARPVISION_DRIVER=SDLDriver to force the SDL window.
+/// <summary>Windowed character-cell backend using the SDL renderer and font rasterization.</summary>
 [ScreenDriver(System = Platform.Windows, Driver = nameof(SDLDriver), Priority = 300)]
 [ScreenDriver(System = Platform.Linux,   Driver = nameof(SDLDriver), Priority = 300)]
 [ScreenDriver(System = Platform.MacOS,   Driver = nameof(SDLDriver), Priority = 300)]
@@ -79,12 +80,17 @@ public class SDLDriver : IDisposable, IDriver
     private ushort _lastModState;
 
     // SupportsTrueColor is false: the SDL driver uses the 16-color VGA palette.
+    /// <inheritdoc />
     public bool SupportsMouse    => true;
+    /// <inheritdoc />
     public bool SupportsTrueColor => false;
+    /// <inheritdoc />
     public bool SupportsGraphics  => true;
 
+    /// <summary>Optional rendering callback invoked while pumping messages; initialization installs a callback that renders the screen buffer.</summary>
     public Action<IRenderer>? MessageLoop { get; set; }
 
+    /// <inheritdoc />
     public void Initialize() => Initialize(() =>
     {
         if (!SDL3.SDL.Init(SDL3.SDL.InitFlags.Video))
@@ -162,6 +168,7 @@ public class SDLDriver : IDisposable, IDriver
         }
     }
 
+    /// <inheritdoc />
     public ScreenBuffer AllocateScreenBuffer()
     {
         screenBuffer = new ScreenBuffer(TScreen.ScreenWidth, TScreen.ScreenHeight);
@@ -172,12 +179,17 @@ public class SDLDriver : IDisposable, IDriver
         return screenBuffer;
     }
 
+    /// <inheritdoc />
     public ushort GetCols()  => _cols;
+    /// <inheritdoc />
     public ushort GetRows()  => _rows;
+    /// <inheritdoc />
     public ushort GetCursorType() => _cursorType;
 
+    /// <inheritdoc />
     public TDisplay.SM GetScreenMode() => TDisplay.SM.CO80;
 
+    /// <inheritdoc />
     public void PumpMessages()
     {
         if (!_attached) return;
@@ -466,6 +478,7 @@ public class SDLDriver : IDisposable, IDriver
         return (cols, rows);
     }
 
+    /// <inheritdoc />
     public void SetCursorType(ushort cursorType)
     {
         _cursorType = cursorType;
@@ -473,8 +486,11 @@ public class SDLDriver : IDisposable, IDriver
         MarkDirty(SdlDirtyReason.CursorChange);
     }
 
+    /// <inheritdoc />
     public void Suspend() { /* SDL has no cooked-mode equivalent */ }
+    /// <inheritdoc />
     public void Resume()  { if (!_attached) Initialize(); }
+    /// <inheritdoc />
     public void Shutdown()
     {
         if (!_attached) return;
@@ -490,8 +506,10 @@ public class SDLDriver : IDisposable, IDriver
         ClipboardService.Reset();
     }
 
+    /// <summary>Accepts a logical screen-mode request without changing this backend's display mode.</summary>
     public void SetScreenMode(TDisplay.SM mode) { /* fixed cell grid */ }
 
+    /// <inheritdoc />
     public void ClearScreen(ushort cols, ushort rows)
     {
         if (!_attached || screenBuffer == null) return;
@@ -501,6 +519,7 @@ public class SDLDriver : IDisposable, IDriver
                 screenBuffer.SetChar(x, y, blank);
     }
 
+    /// <inheritdoc />
     public void SetCaretPosition(int x, int y)
     {
         _caretX = x;
@@ -509,6 +528,7 @@ public class SDLDriver : IDisposable, IDriver
         MarkDirty(SdlDirtyReason.CursorChange);
     }
 
+    /// <inheritdoc />
     public void MakeBeep()
     {
         // SDL3 has no portable beep; fall back to the BEL byte if a console
@@ -516,6 +536,7 @@ public class SDLDriver : IDisposable, IDriver
         try { Console.Write('\a'); } catch { }
     }
 
+    /// <inheritdoc />
     public bool ReadKeyEvent(out TEvent ev)
     {
         if (_pendingKeys.Count > 0) { ev = _pendingKeys.Dequeue(); return true; }
@@ -523,6 +544,7 @@ public class SDLDriver : IDisposable, IDriver
         return false;
     }
 
+    /// <inheritdoc />
     public void WriteBuf(int x, int y, int w, int h, Span<TScreenChar> buf)
     {
         if (!_attached || screenBuffer == null) return;
@@ -550,6 +572,7 @@ public class SDLDriver : IDisposable, IDriver
     /// <summary>Current dirty reason bitmask — for unit tests.</summary>
     internal SdlDirtyReason PendingReasons => _pendingReasons;
 
+    /// <summary>Shuts down the backend during resource disposal.</summary>
     protected virtual void Dispose(bool disposing)
     {
         if (!disposedValue)
@@ -559,6 +582,7 @@ public class SDLDriver : IDisposable, IDriver
         }
     }
 
+    /// <summary>Shuts down the backend and releases its display and input resources.</summary>
     public void Dispose()
     {
         Dispose(disposing: true);

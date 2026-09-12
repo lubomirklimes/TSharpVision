@@ -5,7 +5,10 @@ namespace TSharpVision;
 /// <see cref="TResourceFile"/>.
 public sealed class TResourceItem
 {
+    /// <summary>Payload byte offset relative to the resource container's BasePos.</summary>
     public long pos;
+    /// <summary>Serialized payload length in bytes.</summary>
     public long size;
+    /// <summary>Ordinal, case-sensitive identifier used to look up this resource.</summary>
     public string key;
 }

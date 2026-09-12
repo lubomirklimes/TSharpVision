@@ -24,27 +24,38 @@ namespace TSharpVision;
 /// Result codes returned by the internal picture engine.
 public enum TPicResult
 {
+    /// <summary>Input satisfies a complete picture match.</summary>
     prComplete,
+    /// <summary>Input has not completed the picture match.</summary>
     prIncomplete,
+    /// <summary>Input contains no text to match.</summary>
     prEmpty,
+    /// <summary>Input cannot satisfy the picture mask.</summary>
     prError,
+    /// <summary>The picture mask has invalid syntax.</summary>
     prSyntax,
+    /// <summary>Compatibility result for an ambiguous picture match; the current engine does not emit it.</summary>
     prAmbiguous,
+    /// <summary>Compatibility result for incomplete input without automatic filling; the current engine does not emit it.</summary>
     prIncompNoFill,
 }
 
 /// Validates input against a Paradox-style picture mask.
 public class TPXPictureValidator : TValidator
 {
+    /// <summary>Paradox-style picture mask defining accepted characters, literals, and optional groups.</summary>
     protected string Pic;
 
     // Instance state used during a single picture() call — reset at entry.
     private int _index;   // current position in Pic
     private int _jndex;   // current position in input
 
+    /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public new static readonly string Name = "TPXPictureValidator";
+    /// <inheritdoc />
     public override string streamableName => "TPXPictureValidator";
 
+    /// <summary>Stream registry descriptor and factory for restoring this concrete type.</summary>
     public static readonly TStreamableClass StreamableClassTPXPictureValidator =
         new TStreamableClass("TPXPictureValidator",
             () => new TPXPictureValidator(StreamableInit.streamableInit), 0);
@@ -60,14 +71,17 @@ public class TPXPictureValidator : TValidator
         SyntaxCheck();
     }
 
+    /// <summary>Creates a picture validator for restoration; Read supplies the mask and options.</summary>
     protected TPXPictureValidator(StreamableInit _) : base(_) { }
 
+    /// <inheritdoc />
     public override bool IsValidInput(string s, bool suppressFill)
     {
         bool doFill = !suppressFill && (Options & VoFill) != 0;
         return Picture(ref s, doFill) != TPicResult.prError;
     }
 
+    /// <inheritdoc />
     public override bool IsValid(string s)
     {
         string copy = s ?? string.Empty;
@@ -429,12 +443,14 @@ public class TPXPictureValidator : TValidator
         if (!ok || depth != 0) Status = VsSyntax;
     }
 
+    /// <inheritdoc />
     public override void Write(Opstream os)
     {
         base.Write(os);
         os.WriteString(Pic);
     }
 
+    /// <inheritdoc />
     public override object Read(Ipstream isStream)
     {
         base.Read(isStream);
@@ -443,6 +459,7 @@ public class TPXPictureValidator : TValidator
         return this;
     }
 
+    /// <summary>Creates an instance for stream restoration; its stored state must be read before use.</summary>
     public new static TStreamable Build() =>
         new TPXPictureValidator(StreamableInit.streamableInit);
 }

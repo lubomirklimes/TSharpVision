@@ -3,6 +3,7 @@ namespace TSharpVision;
 /// <summary>Data carried by the <see cref="ITerminalSession.OutputReceived"/> event.</summary>
 public sealed class TerminalOutputEventArgs : EventArgs
 {
+    /// <summary>Captures an output text fragment and whether it came from the error channel.</summary>
     public TerminalOutputEventArgs(string text, bool isError = false)
     {
         Text = text;

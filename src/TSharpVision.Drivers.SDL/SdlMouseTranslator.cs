@@ -6,18 +6,26 @@ using TSharpVision.Constants;
 
 namespace TSharpVision.Drivers.SDL;
 
+/// <summary>Mouse action reported to the SDL-to-framework event translator.</summary>
 public enum SdlMouseEventKind
 {
+    /// <summary>A mouse button was pressed.</summary>
     Down,
+    /// <summary>A mouse button was released.</summary>
     Up,
+    /// <summary>The mouse position changed.</summary>
     Move,
 }
 
+/// <summary>Converts SDL mouse actions and pixel positions to framework events and character-cell coordinates.</summary>
 public static class SdlMouseTranslator
 {
     // SDL3 SDL_BUTTON_* values.
+    /// <summary>SDL button identifier for the left mouse button; this is an identifier, not a held-button mask.</summary>
     public const byte SDL_BUTTON_LEFT   = 1;
+    /// <summary>SDL button identifier for the middle mouse button; this is an identifier, not a held-button mask.</summary>
     public const byte SDL_BUTTON_MIDDLE = 2;
+    /// <summary>SDL button identifier for the right mouse button; this is an identifier, not a held-button mask.</summary>
     public const byte SDL_BUTTON_RIGHT  = 3;
 
     /// <summary>

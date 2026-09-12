@@ -11,9 +11,12 @@ public sealed class InMemoryTerminalSession : ITerminalSession, IResizableTermin
     private readonly List<TerminalSize> _receivedSizes = new List<TerminalSize>();
     private int _interruptCount;
 
+    /// <inheritdoc />
     public event EventHandler<TerminalOutputEventArgs> OutputReceived;
+    /// <inheritdoc />
     public event EventHandler Exited;
 
+    /// <inheritdoc />
     public bool IsRunning => _isRunning;
 
     /// <summary>All inputs recorded via <see cref="SendInputAsync"/>.</summary>
@@ -25,18 +28,21 @@ public sealed class InMemoryTerminalSession : ITerminalSession, IResizableTermin
     /// <summary>Number of times <see cref="InterruptAsync"/> has been called.</summary>
     public int InterruptCount => _interruptCount;
 
+    /// <inheritdoc /><remarks>Marks the session running synchronously; cancellation is not observed.</remarks>
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
         _isRunning = true;
         return Task.CompletedTask;
     }
 
+    /// <inheritdoc /><remarks>Records input synchronously, including while stopped; cancellation is not observed.</remarks>
     public Task SendInputAsync(string input, CancellationToken cancellationToken = default)
     {
         _sentInputs.Add(input);
         return Task.CompletedTask;
     }
 
+    /// <inheritdoc /><remarks>Marks a running session stopped and raises Exited synchronously; cancellation is not observed.</remarks>
     public Task StopAsync(CancellationToken cancellationToken = default)
     {
         if (_isRunning)
@@ -57,8 +63,10 @@ public sealed class InMemoryTerminalSession : ITerminalSession, IResizableTermin
             OutputReceived?.Invoke(this, new TerminalOutputEventArgs(text));
     }
 
+    /// <inheritdoc /><remarks>No resources are released and running state is unchanged; call StopAsync to end the session.</remarks>
     public void Dispose() { }
 
+    /// <inheritdoc /><remarks>Records the supplied size synchronously; cancellation is not observed.</remarks>
     public Task ResizeAsync(TerminalSize size, CancellationToken cancellationToken = default)
     {
         _receivedSizes.Add(size);

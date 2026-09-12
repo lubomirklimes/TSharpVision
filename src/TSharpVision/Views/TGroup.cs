@@ -2,22 +2,32 @@ using TSharpVision.Constants;
 
 namespace TSharpVision;
 
+/// <summary>A view that owns a circular list of child views and coordinates their drawing, focus, event routing, and modal execution.</summary>
 public class TGroup : TView
 {
+    /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public new static readonly string Name = "TGroup";
 
+    /// <summary>Currently selected child, or null when no child is selected.</summary>
     public TView current;
+    /// <summary>Last child in the circular sibling list; its Next link identifies the first child.</summary>
     public TView last;
 
+    /// <summary>Command result requested for the current modal loop; zero keeps the loop running.</summary>
     public ushort endState;
 
+    /// <summary>Optional cell buffer used to retain this group's rendered content.</summary>
     public ScreenBuffer buffer;
+    /// <summary>Nested drawing-lock count; the final unlock redraws the group.</summary>
     public byte lockFlag;
     private bool _bufferFreed;
 
+    /// <summary>Current drawing clip rectangle in group-local character cells.</summary>
     public TRect clip;
+    /// <summary>Current pre-process, focused, or post-process phase of event dispatch.</summary>
     public phaseType phase;
 
+    /// <summary>Creates an empty group with the specified owner-relative cell bounds.</summary>
     public TGroup(TRect bounds) 
         : base(bounds) 
     {
@@ -33,8 +43,11 @@ public class TGroup : TView
         eventMask = 0xFFFF;
     }
 
+    /// <summary>Finalizes the group without invoking view shutdown or disposing child views.</summary>
     ~TGroup() { }
 
+    /// <inheritdoc />
+    /// <remarks>Shuts down and removes owned children before detaching this group.</remarks>
     public override void ShutDown()
     {
         // Avoid problems if a hidden or unselectable TView was forced to be
@@ -57,6 +70,7 @@ public class TGroup : TView
         base.ShutDown();
     }
 
+    /// <summary>Runs a child modally and returns its terminating command, restoring the prior owner, selection, and command set afterward.</summary>
     public virtual ushort ExecView(TView p)
     {
         if (p == null) return Views.cmCancel;
@@ -89,6 +103,7 @@ public class TGroup : TView
         SetCommands(saveCommands);
         return retval;
     }
+    /// <inheritdoc />
     public override void EndModal(ushort command)
     {
         if ((state & Views.sfModal) != 0)
@@ -97,6 +112,7 @@ public class TGroup : TView
             base.EndModal(command);
     }
 
+    /// <summary>Forwards an unhandled-event notification to the owner.</summary>
     public virtual void EventError(TEvent ev)
     {
         owner?.EventError(ev);
@@ -124,6 +140,7 @@ public class TGroup : TView
         return endState;
     }
 
+    /// <summary>Links a view before the target child without performing the higher-level visibility and selection updates of InsertBefore.</summary>
     public void InsertView(TView p, TView target) 
     {
         p.owner = this;
@@ -146,6 +163,7 @@ public class TGroup : TView
         }
     }
     
+    /// <summary>Detaches a child and updates drawing and selection without shutting down or disposing the child.</summary>
     public void Remove(TView p)
     {
         if (!ReferenceEquals(p.owner, this)) return;
@@ -165,6 +183,7 @@ public class TGroup : TView
             SetCurrent(previousCurrent, selectMode.normalSelect);
     }
 
+    /// <summary>Unlinks a child from the circular list without performing the visibility and selection updates of Remove.</summary>
     public void RemoveView(TView p)
     {
         // Membership first, then splice one ring edge. Lifecycle belongs to Remove.
@@ -174,6 +193,7 @@ public class TGroup : TView
         if (predecessor != null) predecessor.Next = member.Next;
         if (ReferenceEquals(last, member)) last = predecessor;
     }
+    /// <summary>Selects the first visible child that permits selection.</summary>
     public void ResetCurrent() 
     {
         SetCurrent(FirstMatch(Views.sfVisible, Views.ofSelectable), selectMode.normalSelect);
@@ -185,6 +205,7 @@ public class TGroup : TView
             p.SetState(Views.sfFocused, enable);
     }
 
+    /// <summary>Changes the selected child and updates focus according to the selection-transition mode.</summary>
     public void SetCurrent(TView p, selectMode mode)
     {
         if (current != p)
@@ -204,6 +225,7 @@ public class TGroup : TView
         }
     }
 
+    /// <summary>Selects the next eligible sibling; true follows Next links and false follows predecessor links.</summary>
     public void SelectNext(bool forwards)
     {
         if (current == null) return;
@@ -218,6 +240,7 @@ public class TGroup : TView
         p.Select();
     }
 
+    /// <summary>Returns the first child satisfying the predicate, or null when none matches.</summary>
     public TView FirstThat(Func<TView, object?, bool> func, object? args)
     {
         TView temp = last;
@@ -231,6 +254,7 @@ public class TGroup : TView
     }
 
     // Generic overload for strongly-typed args.
+    /// <summary>Returns the first child satisfying a predicate with a typed argument, or null when none matches.</summary>
     public TView FirstThat<T>(Func<TView, T, bool> func, T args)
     {
         TView temp = last;
@@ -242,6 +266,7 @@ public class TGroup : TView
         } while (temp != last);
         return null;
     }
+    /// <summary>Invokes an action for each child, passing the supplied typed argument.</summary>
     public void ForEach<T>(Action<TView, /*object*/ T> func, /*object */ T args) 
     {
         TView term = last;
@@ -259,10 +284,12 @@ public class TGroup : TView
         } while (temp != term);
     }
 
+    /// <summary>Inserts a detached view at the front, applying centering options and updating visibility and selection.</summary>
     public void Insert(TView p)
     {
         InsertBefore(p, First());
     }
+    /// <summary>Inserts a detached view before a child, or at the end when target is null, applying centering and selection rules.</summary>
     public void InsertBefore(TView p, TView target) 
     {
         if (p != null && p.owner == null && (target == null || target.owner == this))
@@ -278,12 +305,14 @@ public class TGroup : TView
                 p.Show();
         }
     }
+    /// <summary>Returns the child reached by advancing index links from last; index zero returns last.</summary>
     public TView At(short index)
     {
         TView temp = last;
         while (index-- > 0) temp = temp.Next;
         return temp;
     }
+    /// <summary>Returns the first child containing all requested state and option bits, or null.</summary>
     public TView FirstMatch(ushort aState, ushort aOptions) 
     {
         if (last == null)
@@ -304,6 +333,7 @@ public class TGroup : TView
         throw new NotImplementedException("TGroup.FirstMatch not implemented."); 
     }
 
+    /// <summary>Returns the child's one-based position from the first child, or zero when absent.</summary>
     public short IndexOf(TView p)
     {
         if (last == null) return 0;
@@ -317,7 +347,9 @@ public class TGroup : TView
         return temp != p ? (short)0 : index;
     }
 
+    /// <summary>Tests whether this group is the view's owner.</summary>
     public bool Matches(TView p) => p.owner == this;
+    /// <summary>Returns the first child in the circular list, or null for an empty group.</summary>
     public TView First()
     {
         if (last == null)
@@ -337,6 +369,7 @@ public class TGroup : TView
         p.SetState(b.st, b.en);
     }
 
+    /// <inheritdoc />
     public override void SetState(ushort aState, bool enable) 
     {
         SetBlock setBlock = new SetBlock(aState, enable);
@@ -364,6 +397,7 @@ public class TGroup : TView
         }
     }
 
+    /// <inheritdoc />
     public override void HandleEvent(ref TEvent @event)
     {
         // for focused events; positional events fan out via firstThat-with-mouse;
@@ -437,6 +471,7 @@ public class TGroup : TView
         } while (temp != term);
     }
     
+    /// <summary>Draws siblings from the supplied starting view up to, but excluding, the stopping view.</summary>
     public void DrawSubViews(TView p, TView bottom) 
     { 
         while (p != bottom)
@@ -446,6 +481,7 @@ public class TGroup : TView
         }
     }
 
+    /// <inheritdoc />
     public override void ChangeBounds(TRect bounds)
     {
         TPoint d = new TPoint(
@@ -473,6 +509,7 @@ public class TGroup : TView
         }
     }
 
+    /// <inheritdoc />
     public override ushort DataSize()
     {
         ushort total = 0;
@@ -483,8 +520,11 @@ public class TGroup : TView
     // (setData walks last->prev chain calling each subview's setData with successive offsets).
     // For now the managed port keeps the reference-typed `object` payload as the upstream `void*` analogue;
     // callers stash a wrapper themselves.
+    /// <inheritdoc />
     public override void GetData(ref object rec) { /* no-op default */ }
+    /// <inheritdoc />
     public override void SetData(object rec) { /* no-op default */ }
+    /// <inheritdoc />
     public override void Draw() 
     { 
         if (buffer == null)
@@ -510,26 +550,31 @@ public class TGroup : TView
         }
     }
 
+    /// <summary>Requests drawing of all child views.</summary>
     public void Redraw() 
     {
         DrawSubViews(First(), null);
     }
+    /// <summary>Defers buffered display updates by increasing the lock count when buffering or a lock is active.</summary>
     public void Lock() 
     {
         if (buffer != null || lockFlag != 0)
             lockFlag++;
     }
+    /// <summary>Releases one drawing lock and redraws when the count reaches zero.</summary>
     public void Unlock() 
     {
         if (lockFlag != 0 && --lockFlag == 0)
             DrawView();
     }
+    /// <inheritdoc />
     public override void ResetCursor() 
     {
         if (current != null)
             current.ResetCursor();
     }
 
+    /// <inheritdoc />
     public override ushort GetHelpCtx()
     {
         ushort h = Views.hcNoContext;
@@ -540,11 +585,13 @@ public class TGroup : TView
         return h;
     }
 
+    /// <inheritdoc />
     public override bool Valid(ushort command)
     {
         return FirstThat((v, c) => !v.Valid((ushort)c!), command) == null;
     }
 
+    /// <summary>Marks the retained buffer available for replacement or reuse on the next allocation.</summary>
     public void FreeBuffer()
     {
         if ((options & Views.ofBuffered) != 0 && buffer != null)
@@ -552,6 +599,7 @@ public class TGroup : TView
             _bufferFreed = true;
         }
     }
+    /// <summary>Obtains or reuses a cell buffer when this group is exposed and has the buffered option.</summary>
     public void GetBuffer()
     {
         if ((state & Views.sfExposed) != 0)
@@ -571,10 +619,13 @@ public class TGroup : TView
             }
     }
 
+    /// <summary>Creates an empty shell whose state will be restored from a stream.</summary>
     protected TGroup(object streamableInit) : base(StreamableInit.streamableInit) { }
+    /// <summary>Stream registry descriptor and factory for restoring this concrete type.</summary>
     public static readonly TStreamableClass StreamableClassTGroup =
         new TStreamableClass("TGroup", () => new TGroup(StreamableInit.streamableInit), 0);
 
+    /// <inheritdoc />
     public override void Write(Opstream os)
     {
         // Write base TView fields first.
@@ -605,6 +656,7 @@ public class TGroup : TView
         os.WriteShort((ushort)currentIndex);
     }
 
+    /// <inheritdoc />
     public override object Read(Ipstream isStream)
     {
         // Restore base TView fields.
@@ -629,6 +681,8 @@ public class TGroup : TView
         return this;
     }
 
+    /// <summary>Creates an instance for stream restoration; its stored state must be read before use.</summary>
     public new static TStreamable Build() { return new TGroup(StreamableInit.streamableInit); }
+    /// <inheritdoc />
     public override string StreamableName() { return Name; }
 }

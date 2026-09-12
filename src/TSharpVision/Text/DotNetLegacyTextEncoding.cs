@@ -11,6 +11,7 @@ public sealed class DotNetLegacyTextEncoding : ILegacyTextEncoding
 {
     private readonly Encoding _encoding;
 
+    /// <summary>Creates a named .NET code-page adapter with exception fallbacks; the nonblank name identifies the encoding and codePage selects its mapping.</summary>
     public DotNetLegacyTextEncoding(string name, int codePage)
     {
         if (string.IsNullOrWhiteSpace(name))
@@ -25,14 +26,18 @@ public sealed class DotNetLegacyTextEncoding : ILegacyTextEncoding
             DecoderFallback.ExceptionFallback);
     }
 
+    /// <inheritdoc />
     public string Name { get; }
 
+    /// <inheritdoc />
     public string Decode(ReadOnlySpan<byte> bytes)
         => _encoding.GetString(bytes);
 
+    /// <inheritdoc />
     public byte[] Encode(string text)
         => _encoding.GetBytes(text ?? string.Empty);
 
+    /// <inheritdoc />
     public char DecodeByte(byte value)
     {
         Span<byte> bytes = stackalloc byte[] { value };
@@ -44,6 +49,7 @@ public sealed class DotNetLegacyTextEncoding : ILegacyTextEncoding
         return chars[0];
     }
 
+    /// <inheritdoc />
     public bool TryEncodeChar(char ch, out byte value)
     {
         Span<char> chars = stackalloc char[] { ch };

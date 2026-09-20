@@ -6,7 +6,7 @@ using System.Text;
 namespace TSharpVision.Terminal.Posix;
 
 /// <summary>
-/// POSIX pseudo-terminal session backed by <c>forkpty(3)</c>.
+/// POSIX pseudo-terminal session backed by <c>openpty(3)</c> and <c>posix_spawnp(3)</c>.
 /// Starts a child process attached to a PTY slave, streams output as
 /// <see cref="ITerminalSession.OutputReceived"/> events, and forwards input
 /// through the PTY master.
@@ -108,31 +108,151 @@ public sealed class PosixPtyTerminalSession : ITerminalSession, IResizableTermin
 
     private void StartCore()
     {
+        // Prepare unmanaged arguments for posix_spawnp.
+        string?[] arguments = BuildArgv();
+        IntPtr file = IntPtr.Zero;
+        IntPtr directory = IntPtr.Zero;
+        IntPtr argv = IntPtr.Zero;
+        var argumentPointers = new IntPtr[arguments.Length];
+        try
+        {
+            file = Marshal.StringToCoTaskMemUTF8(_options.FileName);
+            if (!string.IsNullOrEmpty(_options.WorkingDirectory))
+                directory = Marshal.StringToCoTaskMemUTF8(_options.WorkingDirectory);
+            argv = Marshal.AllocHGlobal(arguments.Length * IntPtr.Size);
+            for (int i = 0; i < arguments.Length; i++)
+            {
+                argumentPointers[i] = arguments[i] is { } argument
+                    ? Marshal.StringToCoTaskMemUTF8(argument)
+                    : IntPtr.Zero;
+                Marshal.WriteIntPtr(argv, i * IntPtr.Size, argumentPointers[i]);
+            }
+
+            StartNativeProcess(file, directory, argv);
+        }
+        finally
+        {
+            foreach (IntPtr pointer in argumentPointers)
+                Marshal.FreeCoTaskMem(pointer);
+            Marshal.FreeHGlobal(argv);
+            Marshal.FreeCoTaskMem(directory);
+            Marshal.FreeCoTaskMem(file);
+        }
+    }
+
+    private void StartNativeProcess(IntPtr file, IntPtr directory, IntPtr argv)
+    {
         var winsize = new NativeMethods.WinSize
         {
             ws_row = (ushort)_options.InitialSize.Rows,
             ws_col = (ushort)_options.InitialSize.Columns
         };
 
-        int childPid = NativeMethods.ForkPty(out int masterFd, IntPtr.Zero, IntPtr.Zero, ref winsize);
-
-        if (childPid < 0)
-            throw new InvalidOperationException(
-                $"forkpty failed (errno={Marshal.GetLastWin32Error()}).");
-
-        if (childPid == 0)
+        IntPtr slaveName = Marshal.AllocHGlobal(256);
+        IntPtr actions = Marshal.AllocHGlobal(1024);
+        IntPtr attributes = Marshal.AllocHGlobal(1024);
+        IntPtr environment = IntPtr.Zero;
+        IntPtr[] environmentPointers = Array.Empty<IntPtr>();
+        int masterFd = -1;
+        int slaveFd = -1;
+        bool actionsInitialized = false;
+        bool attributesInitialized = false;
+        try
         {
-            // ── Child process ─────────────────────────────────────────────────
-            // Call exec immediately. Keep managed allocations to an absolute
-            // minimum so the .NET runtime state left by fork cannot interfere.
-            RunChildExec();
-            // exec replaces the process image; this line is reached only if exec
-            // fails. Use _exit to avoid running any managed finalizers.
-            NativeMethods.ExitImmediately(127);
-            return;
-        }
+            if (NativeMethods.OpenPty(out masterFd, out slaveFd, slaveName,
+                    IntPtr.Zero, ref winsize) != 0)
+                throw new InvalidOperationException(
+                    $"openpty failed (errno={Marshal.GetLastWin32Error()}).");
 
-        // ── Parent process ────────────────────────────────────────────────────
+            // POSIX_SPAWN_SETSID starts a new session. Opening
+            // the slave inside that session makes it the controlling terminal.
+            CheckSpawn(NativeMethods.SpawnActionsInit(actions), "file actions init");
+            actionsInitialized = true;
+            CheckSpawn(NativeMethods.SpawnAttrInit(attributes), "attributes init");
+            attributesInitialized = true;
+            short setsidFlag = OperatingSystem.IsLinux() ? (short)0x80 : (short)0x400;
+            CheckSpawn(NativeMethods.SpawnAttrSetFlags(attributes, setsidFlag), "setsid flag");
+            if (directory != IntPtr.Zero)
+                CheckSpawn(NativeMethods.SpawnActionsAddChdir(actions, directory), "chdir action");
+            CheckSpawn(NativeMethods.SpawnActionsAddOpen(actions, 0, slaveName, 2, 0), "open slave action");
+            CheckSpawn(NativeMethods.SpawnActionsAddDup2(actions, 0, 1), "stdout action");
+            CheckSpawn(NativeMethods.SpawnActionsAddDup2(actions, 0, 2), "stderr action");
+            CheckSpawn(NativeMethods.SpawnActionsAddClose(actions, masterFd), "close master action");
+            CheckSpawn(NativeMethods.SpawnActionsAddClose(actions, slaveFd), "close slave action");
+
+            var variables = Environment.GetEnvironmentVariables();
+            environmentPointers = new IntPtr[variables.Count];
+            environment = Marshal.AllocHGlobal((variables.Count + 1) * IntPtr.Size);
+            int index = 0;
+            foreach (System.Collections.DictionaryEntry variable in variables)
+            {
+                environmentPointers[index] = Marshal.StringToCoTaskMemUTF8(
+                    $"{variable.Key}={variable.Value}");
+                Marshal.WriteIntPtr(environment, index * IntPtr.Size, environmentPointers[index]);
+                index++;
+            }
+            Marshal.WriteIntPtr(environment, index * IntPtr.Size, IntPtr.Zero);
+
+            int error = NativeMethods.Spawn(out int childPid, file, actions,
+                attributes, argv, environment);
+            if (error == 2) // ENOENT: forkpty/execvp used to report exit 127 asynchronously.
+                error = SpawnMissingExecutable(actions, attributes, environment, out childPid);
+            CheckSpawn(error, "posix_spawnp");
+
+            NativeMethods.Close(slaveFd);
+            slaveFd = -1;
+            int ownedMasterFd = masterFd;
+            masterFd = -1;
+            StartParent(childPid, ownedMasterFd);
+        }
+        finally
+        {
+            if (masterFd >= 0) NativeMethods.Close(masterFd);
+            if (slaveFd >= 0) NativeMethods.Close(slaveFd);
+            if (attributesInitialized) NativeMethods.SpawnAttrDestroy(attributes);
+            if (actionsInitialized) NativeMethods.SpawnActionsDestroy(actions);
+            foreach (IntPtr pointer in environmentPointers)
+                Marshal.FreeCoTaskMem(pointer);
+            Marshal.FreeHGlobal(environment);
+            Marshal.FreeHGlobal(attributes);
+            Marshal.FreeHGlobal(actions);
+            Marshal.FreeHGlobal(slaveName);
+        }
+    }
+
+    private static void CheckSpawn(int error, string operation)
+    {
+        if (error != 0)
+            throw new InvalidOperationException($"{operation} failed (errno={error}).");
+    }
+
+    private static int SpawnMissingExecutable(IntPtr actions, IntPtr attributes,
+        IntPtr environment, out int childPid)
+    {
+        IntPtr shell = Marshal.StringToCoTaskMemUTF8("/bin/sh");
+        IntPtr option = Marshal.StringToCoTaskMemUTF8("-c");
+        IntPtr command = Marshal.StringToCoTaskMemUTF8("exit 127");
+        IntPtr argv = Marshal.AllocHGlobal(4 * IntPtr.Size);
+        try
+        {
+            Marshal.WriteIntPtr(argv, 0, shell);
+            Marshal.WriteIntPtr(argv, IntPtr.Size, option);
+            Marshal.WriteIntPtr(argv, 2 * IntPtr.Size, command);
+            Marshal.WriteIntPtr(argv, 3 * IntPtr.Size, IntPtr.Zero);
+            return NativeMethods.Spawn(out childPid, shell, actions,
+                attributes, argv, environment);
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(argv);
+            Marshal.FreeCoTaskMem(command);
+            Marshal.FreeCoTaskMem(option);
+            Marshal.FreeCoTaskMem(shell);
+        }
+    }
+
+    private void StartParent(int childPid, int masterFd)
+    {
         bool success = false;
         try
         {
@@ -157,23 +277,7 @@ public sealed class PosixPtyTerminalSession : ITerminalSession, IResizableTermin
         }
     }
 
-    // Runs in the child process after forkpty. Only P/Invoke and minimal
-    // managed code are used here to avoid interacting with the .NET runtime
-    // state that was inherited from the parent.
-    private void RunChildExec()
-    {
-        // Become the process group leader so that the parent can signal the
-        // entire group (kill(-pid, sig)) to reach any processes we spawn.
-        NativeMethods.Setpgid(0, 0);
-
-        if (!string.IsNullOrEmpty(_options.WorkingDirectory))
-            NativeMethods.Chdir(_options.WorkingDirectory);
-
-        string?[] argv = BuildArgv();
-        NativeMethods.Execvp(_options.FileName, argv);
-    }
-
-    // Builds a null-terminated argv array suitable for execvp.
+    // Builds a null-terminated argv array suitable for posix_spawnp.
     // argv[0] is the basename of the executable. The remaining elements are
     // derived from Arguments using a simple shell-like tokenizer that honours
     // double-quoted and single-quoted arguments. A null entry terminates.
@@ -451,6 +555,7 @@ public sealed class PosixPtyTerminalSession : ITerminalSession, IResizableTermin
 
     private void FireExited()
     {
+        if (Interlocked.CompareExchange(ref _disposed, 0, 0) != 0) return;
         if (Interlocked.CompareExchange(ref _exitedFired, 1, 0) == 0)
             Exited?.Invoke(this, EventArgs.Empty);
     }

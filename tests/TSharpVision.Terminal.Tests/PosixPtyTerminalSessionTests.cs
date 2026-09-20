@@ -76,6 +76,24 @@ public sealed class PosixPtyTerminalSessionTests
         Assert.NotEmpty(output.ToString());
     }
 
+    [Fact]
+    public async Task StartAsync_ChildHasControllingTerminal()
+    {
+        if (!IsPosixPtySupported) return;
+
+        var output = new StringBuilder();
+        var exited = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var session = CreateSession("sh", "-c \"test -r /dev/tty && echo controlling_pty_ok\"");
+        session.OutputReceived += (_, e) => output.Append(e.Text);
+        session.Exited += (_, _) => exited.TrySetResult(true);
+
+        await session.StartAsync();
+        await exited.Task.WaitAsync(TimeSpan.FromSeconds(15));
+
+        Assert.Contains("controlling_pty_ok", output.ToString());
+        Assert.Equal(0, session.ExitCode);
+    }
+
     // ── C. Exited event and IsRunning ─────────────────────────────────────────
 
     [Fact]
@@ -339,7 +357,7 @@ public sealed class PosixPtyTerminalSessionTests
         Assert.Null(ex);
     }
 
-    // ── K. Invalid executable: forkpty succeeds, child exits quickly ──────────
+    // ── K. Invalid executable: child exits quickly ────────────────────────────
 
     [Fact]
     public async Task StartAsync_InvalidExecutable_ExitsQuicklyIsNotRunning()
@@ -350,14 +368,15 @@ public sealed class PosixPtyTerminalSessionTests
         using var session = CreateSession("this_exe_does_not_exist_xyzzy123", "");
         session.Exited += (_, _) => exited.TrySetResult(true);
 
-        // StartAsync itself should not throw (forkpty succeeds; execvp fails in
-        // the child which then calls _exit(127)).
+        // StartAsync preserves the asynchronous exit-127 behavior when the
+        // executable cannot be found.
         var startEx = await Record.ExceptionAsync(() => session.StartAsync());
         Assert.Null(startEx);
 
         // The child exits almost immediately with code 127.
         await exited.Task.WaitAsync(TimeSpan.FromSeconds(10));
         Assert.False(session.IsRunning);
+        Assert.Equal(127, session.ExitCode);
     }
 
     [Fact]

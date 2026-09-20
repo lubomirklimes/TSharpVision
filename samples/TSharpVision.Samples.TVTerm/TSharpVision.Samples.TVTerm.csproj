@@ -8,6 +8,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\extensions\TSharpVision.Terminal\TSharpVision.Terminal.csproj" />
     <ProjectReference Include="..\..\src\TSharpVision.Drivers.Console\TSharpVision.Drivers.Console.csproj" />
+    <ProjectReference Include="..\..\src\TSharpVision.Drivers.Terminal\TSharpVision.Drivers.Terminal.csproj" />
     <ProjectReference Include="..\..\src\TSharpVision.Drivers.SDL\TSharpVision.Drivers.SDL.csproj" />
     <ProjectReference Include="..\..\src\TSharpVision\TSharpVision.csproj" />
     <ProjectReference Include="..\..\tools\TSharpVision.HelpCompiler\TSharpVision.HelpCompiler.csproj" ReferenceOutputAssembly="false" />

@@ -101,7 +101,6 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
     private bool _installedClipboardService;
     private readonly Queue<TEvent> _pendingKeys = new();
     private readonly TerminalInputDecoder _input = new();
-    private readonly System.Text.StringBuilder _writeBuilder = new(4096);
 
     /// <inheritdoc />
     public bool SupportsMouse    => true;
@@ -303,8 +302,16 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
     public void WriteBuf(int x, int y, int w, int h, Span<TScreenChar> buf)
     {
         if (!_attached || w <= 0 || h <= 0) return;
-        var sb = _writeBuilder;
-        sb.Clear();
+        Write(FormatBuffer(x, y, w, h, buf, _caretX, _caretY));
+        Console.Out.Flush();
+    }
+
+    // Each redraw owns its scratch buffer. Session output can cause a redraw on
+    // a reader task while the UI thread is drawing a move or resize.
+    internal static string FormatBuffer(int x, int y, int w, int h, Span<TScreenChar> buf,
+        int caretX, int caretY)
+    {
+        var sb = new System.Text.StringBuilder();
         sb.EnsureCapacity(Math.Min(Math.Max(w * h + 32, 256), 64 * 1024));
         TColorAttr lastAttr = default;
         bool first = true;
@@ -324,9 +331,8 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
             }
         }
         sb.Append("\x1b[0m");
-        AppendCaretPosition(sb);
-        Write(sb.ToString());
-        Console.Out.Flush();
+        AppendCaretPosition(sb, caretX, caretY);
+        return sb.ToString();
     }
 
     /// <inheritdoc />
@@ -427,9 +433,6 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
             // terminal transport must not break the application input loop.
         }
     }
-
-    private void AppendCaretPosition(System.Text.StringBuilder sb)
-        => AppendCaretPosition(sb, _caretX, _caretY);
 
     private static void AppendCaretPosition(System.Text.StringBuilder sb, int x, int y)
     {

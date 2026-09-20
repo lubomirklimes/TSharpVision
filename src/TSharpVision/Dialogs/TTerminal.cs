@@ -25,6 +25,11 @@ public class TTerminal : TView
 
     // ── Output buffer ─────────────────────────────────────────────────────────
 
+    // Guards the output buffer (_lines, _cellLines, _lineBuilder, _currentCells and the
+    // derived scroll/cursor state). Write() may be called from background threads while
+    // the UI thread is drawing, so every mutation and every snapshot must be serialized.
+    private readonly object _bufferLock = new();
+
     private readonly List<string> _lines = new(DefaultMaxLines);
     private readonly StringBuilder _lineBuilder = new StringBuilder(128);
     private readonly List<string> _visibleLinesCache = new();
@@ -149,7 +154,8 @@ public class TTerminal : TView
         set
         {
             _maxLines = value > 0 ? value : 1;
-            TrimHistory();
+            lock (_bufferLock)
+                TrimHistory();
             SyncScrollBar();
         }
     }
@@ -158,29 +164,36 @@ public class TTerminal : TView
     public void Write(string text)
     {
         if (string.IsNullOrEmpty(text)) return;
-        AppendText(text);
+        lock (_bufferLock)
+            AppendText(text);
         DrawView();
     }
 
     /// <summary>Appends text and terminates the line.</summary>
     public void WriteLine(string line)
     {
-        if (!string.IsNullOrEmpty(line))
-            AppendText(line);
-        AppendText("\n");
+        lock (_bufferLock)
+        {
+            if (!string.IsNullOrEmpty(line))
+                AppendText(line);
+            AppendText("\n");
+        }
         DrawView();
     }
 
     /// <summary>Removes all output lines and resets scroll to the bottom.</summary>
     public void Clear()
     {
-        _lines.Clear();
-        _cellLines.Clear();
-        _lineBuilder.Clear();
-        _currentCells.Clear();
-        _cursorColumn = 0;
-        _scrollOffset = 0;
-        _hasSelection = false;
+        lock (_bufferLock)
+        {
+            _lines.Clear();
+            _cellLines.Clear();
+            _lineBuilder.Clear();
+            _currentCells.Clear();
+            _cursorColumn = 0;
+            _scrollOffset = 0;
+            _hasSelection = false;
+        }
         SyncScrollBar();
         DrawView();
     }
@@ -463,24 +476,27 @@ public class TTerminal : TView
     public IReadOnlyList<string> GetVisibleLines(int height)
     {
         if (height <= 0) return Array.Empty<string>();
-        bool hasCurrentLine = _lineBuilder.Length > 0;
-        int totalLines = _lines.Count + (hasCurrentLine ? 1 : 0);
-        int maxOffset = Math.Max(0, totalLines - height);
-        int effectiveOffset = Math.Min(_scrollOffset, maxOffset);
-        int firstVisible = maxOffset - effectiveOffset;
-
-        _visibleLinesCache.Clear();
-        for (int i = 0; i < height; i++)
+        lock (_bufferLock)
         {
-            int idx = firstVisible + i;
-            if (idx < _lines.Count)
-                _visibleLinesCache.Add(_lines[idx]);
-            else if (hasCurrentLine && idx == _lines.Count)
-                _visibleLinesCache.Add(_lineBuilder.ToString());
-            else
-                _visibleLinesCache.Add(string.Empty);
+            bool hasCurrentLine = _lineBuilder.Length > 0;
+            int totalLines = _lines.Count + (hasCurrentLine ? 1 : 0);
+            int maxOffset = Math.Max(0, totalLines - height);
+            int effectiveOffset = Math.Min(_scrollOffset, maxOffset);
+            int firstVisible = maxOffset - effectiveOffset;
+
+            _visibleLinesCache.Clear();
+            for (int i = 0; i < height; i++)
+            {
+                int idx = firstVisible + i;
+                if (idx < _lines.Count)
+                    _visibleLinesCache.Add(_lines[idx]);
+                else if (hasCurrentLine && idx == _lines.Count)
+                    _visibleLinesCache.Add(_lineBuilder.ToString());
+                else
+                    _visibleLinesCache.Add(string.Empty);
+            }
+            return _visibleLinesCache;
         }
-        return _visibleLinesCache;
     }
 
     /// <summary>
@@ -492,26 +508,29 @@ public class TTerminal : TView
     public TerminalCell[]?[]? GetVisibleCellLines(int height)
     {
         if (!_ansiEnabled || height <= 0) return null;
-        bool hasCurrentLine = _currentCells.Count > 0 || _lineBuilder.Length > 0;
-        int totalLines = _lines.Count + (hasCurrentLine ? 1 : 0);
-        int maxOffset = Math.Max(0, totalLines - height);
-        int effectiveOffset = Math.Min(_scrollOffset, maxOffset);
-        int firstVisible = maxOffset - effectiveOffset;
-
-        if (_visibleCellsCache == null || _visibleCellsCache.Length < height)
-            _visibleCellsCache = new TerminalCell[]?[height];
-
-        for (int i = 0; i < height; i++)
+        lock (_bufferLock)
         {
-            int idx = firstVisible + i;
-            if (idx < _cellLines.Count)
-                _visibleCellsCache[i] = _cellLines[idx];
-            else if (hasCurrentLine && idx == _lines.Count)
-                _visibleCellsCache[i] = _currentCells.ToArray();
-            else
-                _visibleCellsCache[i] = null;
+            bool hasCurrentLine = _currentCells.Count > 0 || _lineBuilder.Length > 0;
+            int totalLines = _lines.Count + (hasCurrentLine ? 1 : 0);
+            int maxOffset = Math.Max(0, totalLines - height);
+            int effectiveOffset = Math.Min(_scrollOffset, maxOffset);
+            int firstVisible = maxOffset - effectiveOffset;
+
+            if (_visibleCellsCache == null || _visibleCellsCache.Length < height)
+                _visibleCellsCache = new TerminalCell[]?[height];
+
+            for (int i = 0; i < height; i++)
+            {
+                int idx = firstVisible + i;
+                if (idx < _cellLines.Count)
+                    _visibleCellsCache[i] = _cellLines[idx];
+                else if (hasCurrentLine && idx == _lines.Count)
+                    _visibleCellsCache[i] = _currentCells.ToArray();
+                else
+                    _visibleCellsCache[i] = null;
+            }
+            return _visibleCellsCache;
         }
-        return _visibleCellsCache;
     }
 
     // ── Rendering ─────────────────────────────────────────────────────────────
@@ -551,7 +570,7 @@ public class TTerminal : TView
                 ? visibleCells[row]
                 : null;
 
-            string lineText = row < visible.Count ? visible[row] : string.Empty;
+            string lineText = row < visible.Count ? visible[row] ?? string.Empty : string.Empty;
 
             if (cells != null && cells.Length > 0)
             {

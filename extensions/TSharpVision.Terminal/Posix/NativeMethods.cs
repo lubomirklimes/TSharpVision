@@ -11,70 +11,63 @@ namespace TSharpVision.Terminal.Posix;
 [SupportedOSPlatform("macos")]
 internal static class NativeMethods
 {
-    // ── forkpty ───────────────────────────────────────────────────────────────
-    // Linux exports forkpty from libc; macOS exports it from libutil.
-    // Each declaration is only called on its respective platform, so the
-    // other library is never loaded.
+    // posix_spawnp performs all child setup in libc;
+    // no managed code executes between fork and exec.
+    [DllImport("libc", SetLastError = true, EntryPoint = "openpty")]
+    private static extern int OpenPtyLinux(out int masterFd, out int slaveFd,
+        IntPtr name, IntPtr termios, ref WinSize winsize);
 
-    [DllImport("libc", SetLastError = true, EntryPoint = "forkpty")]
-    private static extern int ForkPtyLinux(
-        out int masterFd,
-        IntPtr name,
-        IntPtr termios,
-        ref WinSize winsize);
+    [DllImport("libutil", SetLastError = true, EntryPoint = "openpty")]
+    private static extern int OpenPtyMacOs(out int masterFd, out int slaveFd,
+        IntPtr name, IntPtr termios, ref WinSize winsize);
 
-    [DllImport("libutil", SetLastError = true, EntryPoint = "forkpty")]
-    private static extern int ForkPtyMacOs(
-        out int masterFd,
-        IntPtr name,
-        IntPtr termios,
-        ref WinSize winsize);
-
-    /// <summary>
-    /// Creates a PTY pair and forks the calling process.
-    /// Returns the child PID in the parent, 0 in the child, or -1 on error.
-    /// <paramref name="masterFd"/> receives the PTY master file descriptor
-    /// in the parent process.
-    /// </summary>
-    internal static int ForkPty(out int masterFd, IntPtr name, IntPtr termios, ref WinSize winsize)
+    internal static int OpenPty(out int masterFd, out int slaveFd,
+        IntPtr name, IntPtr termios, ref WinSize winsize)
         => OperatingSystem.IsLinux()
-            ? ForkPtyLinux(out masterFd, name, termios, ref winsize)
-            : ForkPtyMacOs(out masterFd, name, termios, ref winsize);
+            ? OpenPtyLinux(out masterFd, out slaveFd, name, termios, ref winsize)
+            : OpenPtyMacOs(out masterFd, out slaveFd, name, termios, ref winsize);
+
+    [DllImport("libc", EntryPoint = "posix_spawn_file_actions_init")]
+    internal static extern int SpawnActionsInit(IntPtr actions);
+
+    [DllImport("libc", EntryPoint = "posix_spawn_file_actions_destroy")]
+    internal static extern int SpawnActionsDestroy(IntPtr actions);
+
+    [DllImport("libc", EntryPoint = "posix_spawn_file_actions_addopen")]
+    internal static extern int SpawnActionsAddOpen(IntPtr actions, int fd,
+        IntPtr path, int flags, uint mode);
+
+    [DllImport("libc", EntryPoint = "posix_spawn_file_actions_adddup2")]
+    internal static extern int SpawnActionsAddDup2(IntPtr actions, int fd, int newFd);
+
+    [DllImport("libc", EntryPoint = "posix_spawn_file_actions_addclose")]
+    internal static extern int SpawnActionsAddClose(IntPtr actions, int fd);
+
+    [DllImport("libc", EntryPoint = "posix_spawn_file_actions_addchdir_np")]
+    internal static extern int SpawnActionsAddChdir(IntPtr actions, IntPtr path);
+
+    [DllImport("libc", EntryPoint = "posix_spawnattr_init")]
+    internal static extern int SpawnAttrInit(IntPtr attributes);
+
+    [DllImport("libc", EntryPoint = "posix_spawnattr_destroy")]
+    internal static extern int SpawnAttrDestroy(IntPtr attributes);
+
+    [DllImport("libc", EntryPoint = "posix_spawnattr_setflags")]
+    internal static extern int SpawnAttrSetFlags(IntPtr attributes, short flags);
+
+    [DllImport("libc", EntryPoint = "posix_spawnp")]
+    internal static extern int Spawn(out int pid, IntPtr file, IntPtr actions,
+        IntPtr attributes, IntPtr argv, IntPtr environment);
 
     // ── Terminal window size ──────────────────────────────────────────────────
 
     [DllImport("libc", SetLastError = true, EntryPoint = "ioctl")]
-    internal static extern int Ioctl(int fd, uint request, ref WinSize winsize);
-
-    // ── Process execution ─────────────────────────────────────────────────────
-
-    /// <summary>Searches PATH for <paramref name="file"/> and executes it.</summary>
-    [DllImport("libc", SetLastError = true, EntryPoint = "execvp")]
-    internal static extern int Execvp(string file, string?[] argv);
-
-    /// <summary>Changes the current working directory.</summary>
-    [DllImport("libc", SetLastError = true, EntryPoint = "chdir")]
-    internal static extern int Chdir(string path);
-
-    /// <summary>
-    /// Terminates the calling process immediately without running any cleanup
-    /// handlers. Safe to call in a forked child before exec.
-    /// </summary>
-    [DllImport("libc", SetLastError = false, EntryPoint = "_exit")]
-    internal static extern void ExitImmediately(int status);
+    internal static extern int Ioctl(int fd, nuint request, ref WinSize winsize);
 
     // ── Process management ────────────────────────────────────────────────────
 
     [DllImport("libc", SetLastError = true, EntryPoint = "kill")]
     internal static extern int Kill(int pid, int sig);
-
-    /// <summary>
-    /// Sets the process group ID of <paramref name="pid"/> to <paramref name="pgid"/>.
-    /// Pass <c>0</c> for both parameters to make the calling process its own process
-    /// group leader, which is required for group-wide signal delivery.
-    /// </summary>
-    [DllImport("libc", SetLastError = true, EntryPoint = "setpgid")]
-    internal static extern int Setpgid(int pid, int pgid);
 
     /// <summary>
     /// Waits for child <paramref name="pid"/> to change state.
@@ -97,9 +90,9 @@ internal static class NativeMethods
     // ── Constants ─────────────────────────────────────────────────────────────
 
     /// <summary>ioctl request to set the terminal window size.</summary>
-    internal static readonly uint TIOCSWINSZ = GetTiocsWinSz();
+    internal static readonly nuint TIOCSWINSZ = GetTiocsWinSz();
 
-    private static uint GetTiocsWinSz()
+    private static nuint GetTiocsWinSz()
     {
         if (OperatingSystem.IsLinux()) return 0x5414u;
         if (OperatingSystem.IsMacOS()) return 0x80087467u;

@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+    <HelpCompilerDll>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/../../tools/TSharpVision.HelpCompiler/bin/$(Configuration)/$(TargetFramework)/svhc.dll'))</HelpCompilerDll>
   </PropertyGroup>
 
   <ItemGroup>
@@ -19,15 +20,15 @@
     <None Update="Assets\Help\DEMOHELP.HLP">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <TVTermHelp Include="Assets\Help\tvterm.txt"
-                OutputName="Assets\Help\TVTERM.HLP"
-                SymbolName="Help\TVTermHelpCtx.cs" />
+    <TVTermHelp Include="Assets/Help/tvterm.txt"
+                OutputName="Assets/Help/TVTERM.HLP"
+                SymbolName="Help/TVTermHelpCtx.cs" />
   </ItemGroup>
 
   <Target Name="CompileTVTermHelp" BeforeTargets="Build">
-    <MakeDir Directories="$(OutDir)Assets\Help" />
+    <MakeDir Directories="$(OutDir)Assets/Help" />
     <MakeDir Directories="$(IntermediateOutputPath)Help" />
-    <Exec Command="dotnet &quot;$(MSBuildProjectDirectory)\..\..\tools\TSharpVision.HelpCompiler\bin\$(Configuration)\$(TargetFramework)\svhc.dll&quot; --format v2 &quot;%(TVTermHelp.FullPath)&quot; &quot;$(OutDir)%(TVTermHelp.OutputName)&quot; &quot;$(IntermediateOutputPath)%(TVTermHelp.SymbolName)&quot;" />
+    <Exec Command="dotnet &quot;$(HelpCompilerDll)&quot; --format v2 &quot;%(TVTermHelp.FullPath)&quot; &quot;$(OutDir)%(TVTermHelp.OutputName)&quot; &quot;$(IntermediateOutputPath)%(TVTermHelp.SymbolName)&quot;" />
   </Target>
 
 </Project>

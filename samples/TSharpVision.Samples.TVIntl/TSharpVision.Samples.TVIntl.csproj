@@ -2,6 +2,8 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+    <ResourceCompilerDll>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/../../tools/TSharpVision.ResourceCompiler/bin/$(Configuration)/$(TargetFramework)/svrc.dll'))</ResourceCompilerDll>
+    <HelpCompilerDll>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/../../tools/TSharpVision.HelpCompiler/bin/$(Configuration)/$(TargetFramework)/svhc.dll'))</HelpCompilerDll>
   </PropertyGroup>
 
   <ItemGroup>
@@ -13,23 +15,23 @@
   </ItemGroup>
 
   <ItemGroup>
-    <IntlResource Include="Resources\app_en.trc" OutputName="app_en.tvr" />
-    <IntlResource Include="Resources\app_cs.trc" OutputName="app_cs.tvr" />
-    <IntlHelp Include="Help\tvintl_en.txt" OutputName="Help\tvintl_en.hlp" SymbolName="Help\tvintl_en.cs" />
-    <IntlHelp Include="Help\tvintl_cs.txt" OutputName="Help\tvintl_cs.hlp" SymbolName="Help\tvintl_cs.cs" />
+    <IntlResource Include="Resources/app_en.trc" OutputName="app_en.tvr" />
+    <IntlResource Include="Resources/app_cs.trc" OutputName="app_cs.tvr" />
+    <IntlHelp Include="Help/tvintl_en.txt" OutputName="Help/tvintl_en.hlp" SymbolName="Help/tvintl_en.cs" />
+    <IntlHelp Include="Help/tvintl_cs.txt" OutputName="Help/tvintl_cs.hlp" SymbolName="Help/tvintl_cs.cs" />
   </ItemGroup>
 
   <Target Name="CompileIntlStringResources" BeforeTargets="Build">
     <MakeDir Directories="$(OutDir)" />
     <Exec
-      Command="dotnet &quot;$(MSBuildProjectDirectory)\..\..\tools\TSharpVision.ResourceCompiler\bin\$(Configuration)\$(TargetFramework)\svrc.dll&quot; compile &quot;%(IntlResource.FullPath)&quot; &quot;$(OutDir)%(IntlResource.OutputName)&quot;" />
+      Command="dotnet &quot;$(ResourceCompilerDll)&quot; compile &quot;%(IntlResource.FullPath)&quot; &quot;$(OutDir)%(IntlResource.OutputName)&quot;" />
   </Target>
 
   <Target Name="CompileIntlHelp" BeforeTargets="Build">
     <MakeDir Directories="$(OutDir)Help" />
     <MakeDir Directories="$(IntermediateOutputPath)Help" />
     <Exec
-      Command="dotnet &quot;$(MSBuildProjectDirectory)\..\..\tools\TSharpVision.HelpCompiler\bin\$(Configuration)\$(TargetFramework)\svhc.dll&quot; --format v2 &quot;%(IntlHelp.FullPath)&quot; &quot;$(OutDir)%(IntlHelp.OutputName)&quot; &quot;$(IntermediateOutputPath)%(IntlHelp.SymbolName)&quot;" />
+      Command="dotnet &quot;$(HelpCompilerDll)&quot; --format v2 &quot;%(IntlHelp.FullPath)&quot; &quot;$(OutDir)%(IntlHelp.OutputName)&quot; &quot;$(IntermediateOutputPath)%(IntlHelp.SymbolName)&quot;" />
   </Target>
 
 </Project>

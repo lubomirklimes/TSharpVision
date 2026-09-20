@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <IsPackable>false</IsPackable>
@@ -32,8 +32,4 @@
           Link="Help\tvdemo.hlp" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
-  <ItemGroup>
-    <None Include="../../tools/provenance/data/CP437.TXT" Link="Provenance/CP437.TXT" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="../../tools/provenance/data/kamenicky.json" Link="Provenance/kamenicky.json" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
 </Project>

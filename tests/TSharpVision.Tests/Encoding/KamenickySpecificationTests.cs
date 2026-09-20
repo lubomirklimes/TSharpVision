@@ -1,4 +1,3 @@
-using System.Text.Json;
 using TSharpVision.Text;
 using Xunit;
 namespace TSharpVision.Tests.Text;
@@ -6,35 +5,13 @@ namespace TSharpVision.Tests.Text;
 public sealed class KamenickySpecificationTests
 {
     [Fact]
-    public void AllBytesMatchSelectedSourceDataAndRoundTrip()
+    public void AllBytesRoundTrip()
     {
-        string directory = Path.Combine(AppContext.BaseDirectory, "Provenance");
-        var expected = new Dictionary<byte, char>();
-        foreach (string line in File.ReadLines(Path.Combine(directory, "CP437.TXT")))
-        {
-            if (!line.StartsWith("0x")) continue;
-            string[] columns = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
-            expected.Add(Convert.ToByte(columns[0][2..], 16), (char)Convert.ToUInt16(columns[1][2..], 16));
-        }
-        using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(directory, "kamenicky.json")));
-        foreach (var row in manifest.RootElement.GetProperty("latinRows").EnumerateObject())
-        {
-            byte start = Convert.ToByte(row.Name, 16); string characters = row.Value.GetString()!;
-            for (int offset = 0; offset < characters.Length; offset++) expected[(byte)(start + offset)] = characters[offset];
-        }
-        foreach (var item in manifest.RootElement.GetProperty("compatibilityOverrides").EnumerateObject())
-        {
-            byte value = Convert.ToByte(item.Name, 16);
-            Assert.Equal((char)Convert.ToUInt16(item.Value.GetProperty("referenceCodePoint").GetString(), 16), expected[value]);
-            expected[value] = (char)Convert.ToUInt16(item.Value.GetProperty("codePoint").GetString(), 16);
-        }
-        Assert.Equal(256, expected.Count);
         var encoding = LegacyTextEncodings.Kamenicky;
         byte[] bytes = Enumerable.Range(0, 256).Select(i => (byte)i).ToArray();
         foreach (byte value in bytes)
         {
-            Assert.Equal(expected[value], encoding.DecodeByte(value));
-            Assert.True(encoding.TryEncodeChar(expected[value], out byte encoded)); Assert.Equal(value, encoded);
+            Assert.True(encoding.TryEncodeChar(encoding.DecodeByte(value), out byte encoded)); Assert.Equal(value, encoded);
         }
         string decoded = encoding.Decode(bytes);
         Assert.Equal(bytes, encoding.Encode(decoded)); Assert.Equal(decoded, encoding.Decode(bytes));

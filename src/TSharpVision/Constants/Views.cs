@@ -81,6 +81,16 @@ public static class Views
     /// <summary>Notify activation of a list item.</summary>
     public const ushort cmListItemSelected = 56;
 
+    // TOutlineViewer messages and traversal flags (outline.h).
+    /// <summary>Notify that an outline item was activated.</summary>
+    public const ushort cmOutlineItemSelected = 301;
+    /// <summary>Indicates that an outline node is a leaf or is currently expanded.</summary>
+    public const ushort ovExpanded = 0x01;
+    /// <summary>Indicates that an expanded outline node has visible children.</summary>
+    public const ushort ovChildren = 0x02;
+    /// <summary>Indicates that an outline node is the last child of its parent.</summary>
+    public const ushort ovLast = 0x04;
+
     // SET extensions (always enabled in this port; matches upstream's
     // EXT-block constants from views.h committed unconditionally)
     /// <summary>Notify that a window is closing.</summary>
@@ -132,13 +142,21 @@ public static class Views
     public const ushort cmDirSelection = 1008;
     // Editor command codes.
     /// <summary>Save the editor's current file.</summary>
-    public const ushort cmSave         = 80;
+    public const ushort cmSave         = 32;
     /// <summary>Choose a filename and save the editor's content.</summary>
-    public const ushort cmSaveAs       = 81;
+    public const ushort cmSaveAs       = 33;
+    /// <summary>Save all open editor documents (historical command identifier; no built-in handler is implied).</summary>
+    public const ushort cmSaveAll      = 34;
+    /// <summary>Change the current directory (historical command identifier; no built-in handler is implied).</summary>
+    public const ushort cmChDir        = 35;
+    /// <summary>Open a DOS shell (historical command identifier; symbolic compatibility only).</summary>
+    public const ushort cmDosShell     = 36;
+    /// <summary>Close all open editor documents (historical command identifier; no built-in handler is implied).</summary>
+    public const ushort cmCloseAll     = 37;
     /// <summary>Open a file in an editor window.</summary>
-    public const ushort cmOpen         = 100;
+    public const ushort cmOpen         = 31;
     /// <summary>Create a new editor document.</summary>
-    public const ushort cmNew          = 101;
+    public const ushort cmNew          = 30;
     /// <summary>Open the editor search dialog.</summary>
     public const ushort cmFind         = 82;
     /// <summary>Open the editor replacement dialog.</summary>
@@ -230,7 +248,7 @@ public static class Views
     public const int maxFindStrLen    = 80;
     /// <summary>Maximum replacement-text length in characters used by editor dialogs.</summary>
     public const int maxReplaceStrLen = 80;
-    /// <summary>Sentinel returned when an editor search finds no match.</summary>
+    /// <summary>Managed unsigned sentinel returned when an editor search has no match; deliberately widened from the original 16-bit value.</summary>
     public const uint sfSearchFailed  = uint.MaxValue;
 
     // Editor dialog IDs (edXxx).
@@ -320,6 +338,8 @@ public static class Views
     public const ushort ofCenterY     = 0x200;
     /// <summary>Center the view on both axes when inserted into an owner.</summary>
     public const ushort ofCentered    = 0x300;
+    /// <summary>Validate the selected view before focus is released.</summary>
+    public const ushort ofValidate    = 0x400;
 
     // TView GrowMode masks
     /// <summary>Adjust the left edge when the owner width changes.</summary>
@@ -334,6 +354,8 @@ public static class Views
     public const byte gfGrowAll = 0x0F;
     /// <summary>Scale grow-enabled coordinates proportionally to the owner size.</summary>
     public const byte gfGrowRel = 0x10;
+    /// <summary>Do not clamp the view's maximum size to its owner's current size.</summary>
+    public const byte gfFixed = 0x20;
 
     // TView DragMode masks
     /// <summary>Allow interactive translation of the view.</summary>
@@ -440,8 +462,10 @@ public static class Views
     public const ushort cmNewColorItem           = 74;
     /// <summary>Broadcast the newly focused one-based palette-entry index.</summary>
     public const ushort cmNewColorIndex          = 75;
-    /// <summary>Request preview of the edited palette.</summary>
-    public const ushort cmTryColors              = 76;
+    /// <summary>Remember the focused item index for the currently selected color group.</summary>
+    public const ushort cmSaveColorIndex         = 76;
     /// <summary>Broadcast that the edited colors should be redrawn.</summary>
     public const ushort cmUpdateColorsChanged    = 77;
+    /// <summary>TSharpVision extension command for previewing edited colors; kept outside the Borland color-command range.</summary>
+    public const ushort cmTryColors              = 78;
 }

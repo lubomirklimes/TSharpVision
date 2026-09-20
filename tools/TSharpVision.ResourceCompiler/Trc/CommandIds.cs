@@ -46,7 +46,7 @@ public static class CommandIds
     /// </summary>
     public static bool TryResolve(
         string identifier,
-        IReadOnlyDictionary<string, int> userConsts,
+        IReadOnlyDictionary<string, int>? userConsts,
         out ushort code)
     {
         // User-defined consts take precedence over built-ins.
@@ -167,7 +167,7 @@ public static class CommandIds
     /// Returns <c>true</c> if <paramref name="name"/> is a recognized Borland
     /// Turbo Vision palette name for dialogs.
     /// </summary>
-    public static bool IsKnownPaletteName(string name) =>
+    public static bool IsKnownPaletteName(string? name) =>
         name != null && _knownPaletteNames.Contains(name);
 
     /// <summary>Returns all recognized palette names (for testing).</summary>

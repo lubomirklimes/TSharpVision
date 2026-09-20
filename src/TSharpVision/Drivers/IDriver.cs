@@ -71,4 +71,8 @@ public interface IDriver
     /// False for text-mode drivers (console, terminal).
     /// </summary>
     bool SupportsGraphics { get; }
+
+    /// <summary>Gets the optional keyboard information this backend reports reliably.</summary>
+    /// <remarks>Defaults to <see cref="TSharpVision.Drivers.KeyboardCapabilities.None"/> so existing third-party drivers remain compatible.</remarks>
+    KeyboardCapabilities KeyboardCapabilities => KeyboardCapabilities.None;
 }

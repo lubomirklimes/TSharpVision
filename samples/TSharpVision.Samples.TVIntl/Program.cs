@@ -7,6 +7,7 @@
 // - MissingKey diagnostics
 // - editor open with explicit file encoding
 using System.Text;
+using System.Diagnostics.CodeAnalysis;
 using TSharpVision;
 using TSharpVision.Config;
 using TSharpVision.Constants;
@@ -183,7 +184,7 @@ internal sealed class TVIntlApp : TApplication
     {
         _language = language;
         string basePath = Path.Combine(AppContext.BaseDirectory, "app.tvr");
-        string resourcePath = LocalizedResourceResolver.Resolve(basePath, ".tvr", language);
+        string? resourcePath = LocalizedResourceResolver.Resolve(basePath, ".tvr", language);
         var resourceProvider = TResourceStringProvider.TryLoad(resourcePath);
         TSharpVisionIntl.Current = resourceProvider == null
             ? new DefaultEnglishStringProvider()
@@ -263,6 +264,8 @@ internal sealed class TVIntlApp : TApplication
 
     private void ShowFileDialogDemo()
     {
+        TDeskTop? desktop = DeskTop;
+        if (desktop == null) return;
         var dlg = new TFileDialog(
             "*.*",
             Loc("TVIntl_Dlg_File_Title", "Select a file"),
@@ -271,7 +274,7 @@ internal sealed class TVIntlApp : TApplication
             0);
 
         if (ValidView(dlg) == null) return;
-        if (DeskTop.ExecView(dlg) == Views.cmOK)
+        if (desktop.ExecView(dlg) == Views.cmOK)
         {
             dlg.GetData(out string path);
             ShowInfo(
@@ -282,6 +285,8 @@ internal sealed class TVIntlApp : TApplication
 
     private void OpenTextWithEncodingSelector()
     {
+        TDeskTop? desktop = DeskTop;
+        if (desktop == null) return;
         var dlg = new TFileDialog(
             "*.*",
             Loc("TVIntl_Dlg_OpenEncoding_Title", "Open text with encoding"),
@@ -290,7 +295,7 @@ internal sealed class TVIntlApp : TApplication
             0);
 
         if (ValidView(dlg) == null) return;
-        if (DeskTop.ExecView(dlg) == Views.cmOK)
+        if (desktop.ExecView(dlg) == Views.cmOK)
         {
             dlg.GetData(out string path);
             OpenText(dlg.SelectedEncoding, path);
@@ -302,7 +307,9 @@ internal sealed class TVIntlApp : TApplication
         path ??= AskForTextPath();
         if (string.IsNullOrWhiteSpace(path)) return;
 
-        var bounds = DeskTop.GetExtent();
+        TDeskTop? desktop = DeskTop;
+        if (desktop == null) return;
+        var bounds = desktop.GetExtent();
         bounds.Grow(-2, -1);
         bounds.a.x += _windowNumber % 4;
         bounds.a.y += _windowNumber % 3;
@@ -329,12 +336,14 @@ internal sealed class TVIntlApp : TApplication
         if (valid != null)
         {
             valid.helpCtx = TVIntlHelpCtx.OpenFileWindow;
-            DeskTop.Insert(valid);
+            desktop.Insert(valid);
         }
     }
 
     private string? AskForTextPath()
     {
+        TDeskTop? desktop = DeskTop;
+        if (desktop == null) return null;
         var dlg = new TFileDialog(
             "*.*",
             Loc("File_Title_Open", "Open File"),
@@ -343,7 +352,7 @@ internal sealed class TVIntlApp : TApplication
             0);
 
         if (ValidView(dlg) == null) return null;
-        if (DeskTop.ExecView(dlg) != Views.cmOK) return null;
+        if (desktop.ExecView(dlg) != Views.cmOK) return null;
         dlg.GetData(out string path);
         return path;
     }
@@ -460,8 +469,8 @@ internal sealed class TVIntlApp : TApplication
         aboutBox.options |= Views.ofCentered;
 
         var valid = ValidView(aboutBox);
-        if (valid != null)
-            DeskTop.ExecView(valid);
+        if (valid != null && DeskTop is TDeskTop desktop)
+            desktop.ExecView(valid);
     }
 
     private void ShowInfo(string title, string text)
@@ -470,8 +479,8 @@ internal sealed class TVIntlApp : TApplication
         dlg.Insert(new TStaticText(new TRect(2, 2, 54, 8), text));
         dlg.Insert(new TButton(new TRect(23, 9, 33, 11), Loc("Btn_OK", "~O~K"), Views.cmOK, ButtonConstants.bfDefault));
         var valid = ValidView(dlg);
-        if (valid != null)
-            DeskTop.ExecView(valid);
+        if (valid != null && DeskTop is TDeskTop desktop)
+            desktop.ExecView(valid);
     }
 
     private void ShowError(string text)
@@ -491,10 +500,10 @@ internal sealed class TVIntlApp : TApplication
 
 internal sealed class PseudoStringProvider : ITSharpVisionStringLookupProvider
 {
-    public string Get(string key, string fallback)
-        => TryGet(key, out string value) ? value : fallback;
+    public string? Get(string key, string? fallback)
+        => TryGet(key, out string? value) ? value : fallback;
 
-    public bool TryGet(string key, out string value)
+    public bool TryGet(string key, [NotNullWhen(true)] out string? value)
     {
         value = "[[" + key + ": " + key.Replace('_', ' ') + "]]";
         return true;

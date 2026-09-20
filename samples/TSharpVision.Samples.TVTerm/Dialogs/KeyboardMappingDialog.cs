@@ -39,7 +39,7 @@ public static class KeyboardMappingDialog
     public static void ShowDialog(TGroup parent, TVTermConfig cfg)
     {
         // Read current Ctrl+C preference from config.
-        cfg.KeyBindings.TryGetValue(KeyCtrlC, out string ctrlCVal);
+        cfg.KeyBindings.TryGetValue(KeyCtrlC, out string? ctrlCVal);
         bool interruptFirst = ctrlCVal == ValInterrupt;
 
         // ── Dialog: 68 × 22 ─────────────────────────────────────────────────

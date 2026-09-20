@@ -1,0 +1,53 @@
+#nullable enable
+static TSharpVision.Terminal.PtyAvailability.IsAnyPtySupported.get -> bool
+static TSharpVision.Terminal.PtyAvailability.IsConPtySupported.get -> bool
+static TSharpVision.Terminal.PtyAvailability.IsPosixPtySupported.get -> bool
+TSharpVision.Terminal.IExitCodeTerminalSession
+TSharpVision.Terminal.IExitCodeTerminalSession.ExitCode.get -> int?
+TSharpVision.Terminal.Posix.PosixPtyTerminalSession
+TSharpVision.Terminal.Posix.PosixPtyTerminalSession.Dispose() -> void
+TSharpVision.Terminal.Posix.PosixPtyTerminalSession.ExitCode.get -> int?
+TSharpVision.Terminal.Posix.PosixPtyTerminalSession.Exited -> System.EventHandler?
+TSharpVision.Terminal.Posix.PosixPtyTerminalSession.InterruptAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.Terminal.Posix.PosixPtyTerminalSession.IsRunning.get -> bool
+TSharpVision.Terminal.Posix.PosixPtyTerminalSession.OutputReceived -> System.EventHandler<TSharpVision.TerminalOutputEventArgs!>?
+TSharpVision.Terminal.Posix.PosixPtyTerminalSession.PosixPtyTerminalSession(string! fileName, string? arguments = "", TSharpVision.TerminalSize? initialSize = null) -> void
+TSharpVision.Terminal.Posix.PosixPtyTerminalSession.PosixPtyTerminalSession(TSharpVision.Terminal.Posix.PosixPtyTerminalSessionOptions! options) -> void
+TSharpVision.Terminal.Posix.PosixPtyTerminalSession.ResizeAsync(TSharpVision.TerminalSize size, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.Terminal.Posix.PosixPtyTerminalSession.SendInputAsync(string! input, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.Terminal.Posix.PosixPtyTerminalSession.StartAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.Terminal.Posix.PosixPtyTerminalSession.StopAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.Terminal.Posix.PosixPtyTerminalSessionOptions
+TSharpVision.Terminal.Posix.PosixPtyTerminalSessionOptions.Arguments.get -> string?
+TSharpVision.Terminal.Posix.PosixPtyTerminalSessionOptions.Arguments.init -> void
+TSharpVision.Terminal.Posix.PosixPtyTerminalSessionOptions.FileName.get -> string!
+TSharpVision.Terminal.Posix.PosixPtyTerminalSessionOptions.FileName.init -> void
+TSharpVision.Terminal.Posix.PosixPtyTerminalSessionOptions.InitialSize.get -> TSharpVision.TerminalSize
+TSharpVision.Terminal.Posix.PosixPtyTerminalSessionOptions.InitialSize.init -> void
+TSharpVision.Terminal.Posix.PosixPtyTerminalSessionOptions.PosixPtyTerminalSessionOptions() -> void
+TSharpVision.Terminal.Posix.PosixPtyTerminalSessionOptions.WorkingDirectory.get -> string?
+TSharpVision.Terminal.Posix.PosixPtyTerminalSessionOptions.WorkingDirectory.init -> void
+TSharpVision.Terminal.PtyAvailability
+TSharpVision.Terminal.Windows.ConPtyTerminalSession
+TSharpVision.Terminal.Windows.ConPtyTerminalSession.ConPtyTerminalSession(string! fileName, string? arguments = "", TSharpVision.TerminalSize? initialSize = null) -> void
+TSharpVision.Terminal.Windows.ConPtyTerminalSession.ConPtyTerminalSession(TSharpVision.Terminal.Windows.ConPtyTerminalSessionOptions! options) -> void
+TSharpVision.Terminal.Windows.ConPtyTerminalSession.Dispose() -> void
+TSharpVision.Terminal.Windows.ConPtyTerminalSession.ExitCode.get -> int?
+TSharpVision.Terminal.Windows.ConPtyTerminalSession.Exited -> System.EventHandler?
+TSharpVision.Terminal.Windows.ConPtyTerminalSession.InterruptAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.Terminal.Windows.ConPtyTerminalSession.IsRunning.get -> bool
+TSharpVision.Terminal.Windows.ConPtyTerminalSession.OutputReceived -> System.EventHandler<TSharpVision.TerminalOutputEventArgs!>?
+TSharpVision.Terminal.Windows.ConPtyTerminalSession.ResizeAsync(TSharpVision.TerminalSize size, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.Terminal.Windows.ConPtyTerminalSession.SendInputAsync(string! input, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.Terminal.Windows.ConPtyTerminalSession.StartAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.Terminal.Windows.ConPtyTerminalSession.StopAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.Terminal.Windows.ConPtyTerminalSessionOptions
+TSharpVision.Terminal.Windows.ConPtyTerminalSessionOptions.Arguments.get -> string?
+TSharpVision.Terminal.Windows.ConPtyTerminalSessionOptions.Arguments.init -> void
+TSharpVision.Terminal.Windows.ConPtyTerminalSessionOptions.ConPtyTerminalSessionOptions() -> void
+TSharpVision.Terminal.Windows.ConPtyTerminalSessionOptions.FileName.get -> string!
+TSharpVision.Terminal.Windows.ConPtyTerminalSessionOptions.FileName.init -> void
+TSharpVision.Terminal.Windows.ConPtyTerminalSessionOptions.InitialSize.get -> TSharpVision.TerminalSize
+TSharpVision.Terminal.Windows.ConPtyTerminalSessionOptions.InitialSize.init -> void
+TSharpVision.Terminal.Windows.ConPtyTerminalSessionOptions.WorkingDirectory.get -> string?
+TSharpVision.Terminal.Windows.ConPtyTerminalSessionOptions.WorkingDirectory.init -> void

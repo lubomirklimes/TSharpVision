@@ -1,0 +1,22 @@
+#nullable enable
+override TSharpVision.HexView.THexView.ChangeBounds(TSharpVision.TRect bounds) -> void
+override TSharpVision.HexView.THexView.Draw() -> void
+override TSharpVision.HexView.THexView.GetPalette() -> TSharpVision.TPalette!
+override TSharpVision.HexView.THexView.HandleEvent(ref TSharpVision.TEvent ev) -> void
+override TSharpVision.HexView.THexView.SetState(ushort aState, bool enable) -> void
+override TSharpVision.HexView.THexView.ShutDown() -> void
+TSharpVision.HexView.IHexDataSource
+TSharpVision.HexView.IHexDataSource.Length.get -> long?
+TSharpVision.HexView.IHexDataSource.ReadAsync(long offset, System.Memory<byte> destination, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<int>
+TSharpVision.HexView.THexView
+TSharpVision.HexView.THexView.BytesPerRow.get -> int
+TSharpVision.HexView.THexView.DataLength.get -> long
+TSharpVision.HexView.THexView.DataSource.get -> TSharpVision.HexView.IHexDataSource?
+TSharpVision.HexView.THexView.IsLengthKnown.get -> bool
+TSharpVision.HexView.THexView.LastError.get -> string?
+TSharpVision.HexView.THexView.ScrollToOffset(long offset) -> void
+TSharpVision.HexView.THexView.SetDataSource(TSharpVision.HexView.IHexDataSource? dataSource, long initialOffset = 0) -> void
+TSharpVision.HexView.THexView.THexView(TSharpVision.TRect bounds, TSharpVision.TScrollBar? verticalScrollBar) -> void
+TSharpVision.HexView.THexView.TopOffset.get -> long
+virtual TSharpVision.HexView.THexView.OnViewChanged() -> void
+virtual TSharpVision.HexView.THexView.StartRead(System.Func<System.Threading.Tasks.Task!>! read) -> System.Threading.Tasks.Task!

@@ -77,13 +77,13 @@ public sealed class StreamableRegistrationTests : IDisposable
         ip.ReadObject(dlgBack);
 
         int childCount = 0;
-        TButton btnBack = null;
+        TButton? btnBack = null;
         dlgBack.ForEachView(v => { childCount++; if (v is TButton b) btnBack = b; });
 
         Assert.Equal("23s Dialog", dlgBack.title);
         Assert.Equal(2, childCount); // TFrame + TButton
-        Assert.NotNull(btnBack);
-        Assert.Equal("~O~K", btnBack.Title);
+        var actualButton = Assert.IsType<TButton>(btnBack);
+        Assert.Equal("~O~K", actualButton.Title);
 
         dlg.ShutDown();
         dlgBack.ShutDown();
@@ -115,11 +115,11 @@ public sealed class StreamableRegistrationTests : IDisposable
         var ip = new Ipstream(ms);
         ip.ReadObject(dlgBack);
 
-        TInputLine inpBack = null;
+        TInputLine? inpBack = null;
         dlgBack.ForEachView(v => { if (v is TInputLine il) inpBack = il; });
 
-        Assert.NotNull(inpBack);
-        var fvBack = Assert.IsType<TFilterValidator>(inpBack.Validator);
+        var actualInput = Assert.IsType<TInputLine>(inpBack);
+        var fvBack = Assert.IsType<TFilterValidator>(actualInput.Validator);
         Assert.True(fvBack.IsValid("1234"));
         Assert.False(fvBack.IsValid("abc"));
 

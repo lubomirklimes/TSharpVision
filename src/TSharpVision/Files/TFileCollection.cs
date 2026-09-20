@@ -65,8 +65,8 @@ public class TFileCollection : TSortedCollection
         return Cmp(n1, n2);
     }
 
-    /// <summary>Inserts a non-null record at its sorted position, retaining the supplied object; null is ignored.</summary>
-    public virtual void Insert(TSearchRec item)
+    /// <summary>Inserts a record at its sorted position, retaining the supplied object; null is ignored.</summary>
+    public virtual void Insert(TSearchRec? item)
     {
         if (item == null) return;
         Search(item, out int idx);

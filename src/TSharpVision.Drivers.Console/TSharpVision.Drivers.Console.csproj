@@ -11,4 +11,8 @@
     <ProjectReference Include="..\TSharpVision\TSharpVision.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="TSharpVision.Drivers.Console.Tests" />
+  </ItemGroup>
+
 </Project>

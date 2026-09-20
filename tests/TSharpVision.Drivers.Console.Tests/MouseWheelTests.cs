@@ -22,16 +22,26 @@ public sealed class MouseWheelTests : IDisposable
     // ── 1. Constants ──────────────────────────────────────────────────────
 
     [Fact] public void evMouseWheel_Value()  => Assert.Equal(0x0020, Events.evMouseWheel);
-    [Fact] public void mbButton4_Value()     => Assert.Equal(0x04,   Events.mbButton4);
-    [Fact] public void mbButton5_Value()     => Assert.Equal(0x08,   Events.mbButton5);
-    [Fact] public void evMouse_IncludesWheel()
-        => Assert.True((Events.evMouse & Events.evMouseWheel) != 0);
-    [Fact] public void mbButton4_NotButton5()
-        => Assert.NotEqual(Events.mbButton4, Events.mbButton5);
-    [Fact] public void WheelButtons_DontOverlapRealButtons()
+    [Fact] public void WheelFlags_HaveExactValues()
     {
-        Assert.Equal(0, Events.mbButton4 & (Events.mbLeftButton | Events.mbRightButton));
-        Assert.Equal(0, Events.mbButton5 & (Events.mbLeftButton | Events.mbRightButton));
+        Assert.Equal(0x04u, Events.meWheelUp);
+        Assert.Equal(0x08u, Events.meWheelDown);
+        Assert.Equal(0x10u, Events.meWheelLeft);
+        Assert.Equal(0x20u, Events.meWheelRight);
+    }
+    [Fact] public void PhysicalExtensionButtons_HaveExactValues()
+    {
+        Assert.Equal(0x04, Events.mbMiddleButton);
+        Assert.Equal(0x08, Events.mbButton4);
+        Assert.Equal(0x10, Events.mbButton5);
+    }
+    [Fact] public void evMouse_RequiresExplicitWheelOptIn()
+        => Assert.Equal(0, Events.evMouse & Events.evMouseWheel);
+    [Fact] public void PhysicalButtonBits_DoNotCollide()
+    {
+        ushort[] buttons = [Events.mbLeftButton, Events.mbRightButton, Events.mbMiddleButton,
+            Events.mbButton4, Events.mbButton5];
+        Assert.Equal(buttons.Length, buttons.Distinct().Count());
     }
     [Fact] public void evMouseWheel_DistinctFromOtherCodes()
     {
@@ -48,12 +58,13 @@ public sealed class MouseWheelTests : IDisposable
     // ── 2. Win32 driver: TranslateMouse maps wheel delta ─────────────────
 
     [Fact]
-    public void Win32_PosWheelDelta_ProducesEvMouseWheel_Button4()
+    public void Win32_PosWheelDelta_ProducesWheelUpFlag()
     {
         var ev = Win32ConsoleDriver.TranslateMouse(
             (uint)((short)120 << 16), 0x0004, 10, 5);
         Assert.Equal(Events.evMouseWheel, ev.What);
-        Assert.True((ev.mouse.buttons & Events.mbButton4) != 0);
+        Assert.True((ev.mouse.eventFlags & Events.meWheelUp) != 0);
+        Assert.Equal(0, ev.mouse.buttons);
         Assert.NotEqual(Events.evMouseDown, ev.What);
         Assert.Equal(10, ev.mouse.where.x);
         Assert.Equal(5, ev.mouse.where.y);
@@ -61,13 +72,44 @@ public sealed class MouseWheelTests : IDisposable
     }
 
     [Fact]
-    public void Win32_NegWheelDelta_ProducesEvMouseWheel_Button5()
+    public void Win32_NegWheelDelta_ProducesWheelDownFlag()
     {
         var ev = Win32ConsoleDriver.TranslateMouse(
             unchecked((uint)((short)(-120) << 16)), 0x0004, 3, 7);
         Assert.Equal(Events.evMouseWheel, ev.What);
-        Assert.True((ev.mouse.buttons & Events.mbButton5) != 0);
-        Assert.Equal(0, ev.mouse.buttons & Events.mbButton4);
+        Assert.True((ev.mouse.eventFlags & Events.meWheelDown) != 0);
+        Assert.Equal(0u, ev.mouse.eventFlags & Events.meWheelUp);
+        Assert.Equal(0, ev.mouse.buttons);
+    }
+
+    [Theory]
+    [InlineData(120, 0x20u)]
+    [InlineData(-120, 0x10u)]
+    public void Win32_HorizontalWheel_UsesDirectionFlags(int delta, uint expected)
+    {
+        uint state = unchecked((uint)((short)delta << 16));
+        var ev = Win32ConsoleDriver.TranslateMouse(state, 0x0008, 3, 4);
+        Assert.Equal(Events.evMouseWheel, ev.What);
+        Assert.Equal(expected, ev.mouse.eventFlags);
+        Assert.Equal(0, ev.mouse.buttons);
+    }
+
+    [Fact]
+    public void Win32_WheelPreservesHeldPhysicalButtonsAndModifiers()
+    {
+        uint state = (120u << 16) | 0x0001u | 0x0004u;
+        var ev = Win32ConsoleDriver.TranslateMouse(state, 0x0004, 2, 3, 0x0008);
+        Assert.Equal(Events.meWheelUp, ev.mouse.eventFlags);
+        Assert.Equal((byte)(Events.mbLeftButton | Events.mbMiddleButton), ev.mouse.buttons);
+        Assert.Equal(Keys.kbCtrlShift, ev.mouse.controlKeyState);
+    }
+
+    [Fact]
+    public void Win32_ShiftHorizontalWheel_PreservesModifier()
+    {
+        var ev = Win32ConsoleDriver.TranslateMouse(120u << 16, 0x0008, 2, 3, 0x0010);
+        Assert.Equal(Events.meWheelRight, ev.mouse.eventFlags);
+        Assert.Equal(Keys.kbShift, ev.mouse.controlKeyState);
     }
 
     [Fact]
@@ -84,14 +126,14 @@ public sealed class MouseWheelTests : IDisposable
     {
         TEvent wheelEv = default;
         wheelEv.What          = Events.evMouseWheel;
-        wheelEv.mouse.buttons = (byte)Events.mbButton4;
+        wheelEv.mouse.eventFlags = Events.meWheelUp;
         wheelEv.mouse.where   = new TPoint(5, 5);
         TEventQueue.Enqueue(wheelEv);
 
         TEvent got = default;
         TEventQueue.GetNextEvent(ref got);
         Assert.Equal(Events.evMouseWheel, got.What);
-        Assert.True((got.mouse.buttons & Events.mbButton4) != 0);
+        Assert.True((got.mouse.eventFlags & Events.meWheelUp) != 0);
         Assert.False(got.mouse.doubleClick);
     }
 
@@ -100,7 +142,7 @@ public sealed class MouseWheelTests : IDisposable
     {
         TEvent wheelEv = default;
         wheelEv.What          = Events.evMouseWheel;
-        wheelEv.mouse.buttons = (byte)Events.mbButton4;
+        wheelEv.mouse.eventFlags = Events.meWheelUp;
         wheelEv.mouse.where   = new TPoint(5, 5);
         TEventQueue.Enqueue(wheelEv);
         TEvent w = default; TEventQueue.GetNextEvent(ref w);
@@ -126,11 +168,24 @@ public sealed class MouseWheelTests : IDisposable
         scroller.SetLimit(40, 50);
         TEvent ev = default;
         ev.What = Events.evMouseWheel;
-        ev.mouse.buttons = (byte)Events.mbButton5;
+        ev.mouse.eventFlags = Events.meWheelDown;
         ev.mouse.where   = new TPoint(10, 5);
         scroller.HandleEvent(ref ev);
         Assert.Equal(3, scroller.delta.y);
         Assert.Equal(Events.evNothing, ev.What);
+    }
+
+    [Fact]
+    public void Scroller_HorizontalWheelDoesNotInventVerticalBehavior()
+    {
+        var scroller = new TScroller(new TRect(0, 0, 40, 10), null, null);
+        scroller.SetLimit(80, 50);
+        TEvent ev = default;
+        ev.What = Events.evMouseWheel;
+        ev.mouse.eventFlags = Events.meWheelRight;
+        scroller.HandleEvent(ref ev);
+        Assert.Equal(new TPoint(0, 0), scroller.delta);
+        Assert.Equal(Events.evMouseWheel, ev.What);
     }
 
     [Fact]
@@ -139,12 +194,12 @@ public sealed class MouseWheelTests : IDisposable
         var scroller = new TScroller(new TRect(0, 0, 40, 10), null, null);
         scroller.SetLimit(40, 50);
         TEvent down = default; down.What = Events.evMouseWheel;
-        down.mouse.buttons = (byte)Events.mbButton5; down.mouse.where = new TPoint(10, 5);
+        down.mouse.eventFlags = Events.meWheelDown; down.mouse.where = new TPoint(10, 5);
         scroller.HandleEvent(ref down);
         Assert.Equal(3, scroller.delta.y);
 
         TEvent up = default; up.What = Events.evMouseWheel;
-        up.mouse.buttons = (byte)Events.mbButton4; up.mouse.where = new TPoint(10, 5);
+        up.mouse.eventFlags = Events.meWheelUp; up.mouse.where = new TPoint(10, 5);
         scroller.HandleEvent(ref up);
         Assert.Equal(0, scroller.delta.y);
     }
@@ -155,7 +210,7 @@ public sealed class MouseWheelTests : IDisposable
         var scroller = new TScroller(new TRect(0, 0, 40, 10), null, null);
         scroller.SetLimit(40, 50);
         TEvent up = default; up.What = Events.evMouseWheel;
-        up.mouse.buttons = (byte)Events.mbButton4; up.mouse.where = new TPoint(10, 5);
+        up.mouse.eventFlags = Events.meWheelUp; up.mouse.where = new TPoint(10, 5);
         scroller.HandleEvent(ref up);
         Assert.Equal(0, scroller.delta.y);
     }
@@ -167,13 +222,13 @@ public sealed class MouseWheelTests : IDisposable
         scroller.SetLimit(40, 50);   // max delta.y = 40
         scroller.delta.y = 38;
         TEvent down = default; down.What = Events.evMouseWheel;
-        down.mouse.buttons = (byte)Events.mbButton5; down.mouse.where = new TPoint(10, 5);
+        down.mouse.eventFlags = Events.meWheelDown; down.mouse.where = new TPoint(10, 5);
         scroller.HandleEvent(ref down);
         Assert.Equal(40, scroller.delta.y);
 
         // Further down must not exceed max
         TEvent down2 = default; down2.What = Events.evMouseWheel;
-        down2.mouse.buttons = (byte)Events.mbButton5; down2.mouse.where = new TPoint(10, 5);
+        down2.mouse.eventFlags = Events.meWheelDown; down2.mouse.where = new TPoint(10, 5);
         scroller.HandleEvent(ref down2);
         Assert.Equal(40, scroller.delta.y);
     }
@@ -187,7 +242,7 @@ public sealed class MouseWheelTests : IDisposable
         lv.range = 20;
         lv.SetState(Views.sfSelected, true);
         TEvent ev = default; ev.What = Events.evMouseWheel;
-        ev.mouse.buttons = (byte)Events.mbButton5; ev.mouse.where = new TPoint(10, 5);
+        ev.mouse.eventFlags = Events.meWheelDown; ev.mouse.where = new TPoint(10, 5);
         lv.HandleEvent(ref ev);
         Assert.Equal(3, lv.focused);
         Assert.Equal(Events.evNothing, ev.What);
@@ -200,11 +255,11 @@ public sealed class MouseWheelTests : IDisposable
         lv.range = 20;
         lv.SetState(Views.sfSelected, true);
         TEvent down = default; down.What = Events.evMouseWheel;
-        down.mouse.buttons = (byte)Events.mbButton5; down.mouse.where = new TPoint(10, 5);
+        down.mouse.eventFlags = Events.meWheelDown; down.mouse.where = new TPoint(10, 5);
         lv.HandleEvent(ref down);
 
         TEvent up = default; up.What = Events.evMouseWheel;
-        up.mouse.buttons = (byte)Events.mbButton4; up.mouse.where = new TPoint(10, 5);
+        up.mouse.eventFlags = Events.meWheelUp; up.mouse.where = new TPoint(10, 5);
         lv.HandleEvent(ref up);
         Assert.Equal(0, lv.focused);
     }
@@ -216,7 +271,7 @@ public sealed class MouseWheelTests : IDisposable
         lv.range = 20;
         lv.SetState(Views.sfSelected, true);
         TEvent up = default; up.What = Events.evMouseWheel;
-        up.mouse.buttons = (byte)Events.mbButton4; up.mouse.where = new TPoint(10, 5);
+        up.mouse.eventFlags = Events.meWheelUp; up.mouse.where = new TPoint(10, 5);
         lv.HandleEvent(ref up);
         Assert.Equal(0, lv.focused);
     }
@@ -229,7 +284,7 @@ public sealed class MouseWheelTests : IDisposable
         lv.SetState(Views.sfSelected, true);
         lv.focused = 18;
         TEvent down = default; down.What = Events.evMouseWheel;
-        down.mouse.buttons = (byte)Events.mbButton5; down.mouse.where = new TPoint(10, 5);
+        down.mouse.eventFlags = Events.meWheelDown; down.mouse.where = new TPoint(10, 5);
         lv.HandleEvent(ref down);   // 18 + 3 = 21, clamped to 19
         Assert.Equal(19, lv.focused);
     }
@@ -242,7 +297,8 @@ public sealed class MouseWheelTests : IDisposable
         byte[] bytes = System.Text.Encoding.ASCII.GetBytes(text);
         ed.bufLen = (uint)bytes.Length;
         ed.gapLen = ed.bufSize - ed.bufLen;
-        Array.Copy(bytes, 0, ed.buffer, (int)ed.gapLen, bytes.Length);
+        char[] buffer = Assert.IsType<char[]>(ed.buffer);
+        Array.Copy(bytes, 0, buffer, (int)ed.gapLen, bytes.Length);
         ed.curPtr = 0; ed.curPos = default; ed.delta = default;
         ed.drawLine = 0; ed.drawPtr = 0;
         ed.limit.x = Views.maxLineLength;
@@ -260,7 +316,7 @@ public sealed class MouseWheelTests : IDisposable
         var ed = MakeEditor(sb.ToString());
         Assert.Equal(0, ed.delta.y);
         TEvent ev = default; ev.What = Events.evMouseWheel;
-        ev.mouse.buttons = (byte)Events.mbButton5; ev.mouse.where = new TPoint(5, 5);
+        ev.mouse.eventFlags = Events.meWheelDown; ev.mouse.where = new TPoint(5, 5);
         ed.HandleEvent(ref ev);
         Assert.True(ed.delta.y > 0);
         Assert.False(ed.modified);
@@ -274,11 +330,11 @@ public sealed class MouseWheelTests : IDisposable
         for (int i = 0; i < 25; i++) sb.AppendLine($"Line {i + 1}");
         var ed = MakeEditor(sb.ToString());
         TEvent down = default; down.What = Events.evMouseWheel;
-        down.mouse.buttons = (byte)Events.mbButton5; down.mouse.where = new TPoint(5, 5);
+        down.mouse.eventFlags = Events.meWheelDown; down.mouse.where = new TPoint(5, 5);
         ed.HandleEvent(ref down);
         int savedDelta = ed.delta.y;
         TEvent up = default; up.What = Events.evMouseWheel;
-        up.mouse.buttons = (byte)Events.mbButton4; up.mouse.where = new TPoint(5, 5);
+        up.mouse.eventFlags = Events.meWheelUp; up.mouse.where = new TPoint(5, 5);
         ed.HandleEvent(ref up);
         Assert.True(ed.delta.y < savedDelta);
     }
@@ -292,7 +348,7 @@ public sealed class MouseWheelTests : IDisposable
         for (int i = 0; i < 12; i++)
         {
             var up = new TEvent(); up.What = Events.evMouseWheel;
-            up.mouse.buttons = (byte)Events.mbButton4; up.mouse.where = new TPoint(5, 5);
+            up.mouse.eventFlags = Events.meWheelUp; up.mouse.where = new TPoint(5, 5);
             ed.HandleEvent(ref up);
         }
         Assert.Equal(0, ed.delta.y);
@@ -307,7 +363,7 @@ public sealed class MouseWheelTests : IDisposable
         for (int i = 0; i < 12; i++)
         {
             var down = new TEvent(); down.What = Events.evMouseWheel;
-            down.mouse.buttons = (byte)Events.mbButton5; down.mouse.where = new TPoint(5, 5);
+            down.mouse.eventFlags = Events.meWheelDown; down.mouse.where = new TPoint(5, 5);
             ed.HandleEvent(ref down);
         }
         Assert.Equal(Math.Max(0, ed.limit.y - ed.size.y), ed.delta.y);
@@ -342,13 +398,13 @@ public sealed class MouseWheelTests : IDisposable
         Assert.Equal(0, viewer.delta.y);
 
         TEvent down = default; down.What = Events.evMouseWheel;
-        down.mouse.buttons = (byte)Events.mbButton5; down.mouse.where = new TPoint(10, 5);
+        down.mouse.eventFlags = Events.meWheelDown; down.mouse.where = new TPoint(10, 5);
         viewer.HandleEvent(ref down);
         Assert.True(viewer.delta.y > 0);
         Assert.Equal(Events.evNothing, down.What);
 
         TEvent up = default; up.What = Events.evMouseWheel;
-        up.mouse.buttons = (byte)Events.mbButton4; up.mouse.where = new TPoint(10, 5);
+        up.mouse.eventFlags = Events.meWheelUp; up.mouse.where = new TPoint(10, 5);
         viewer.HandleEvent(ref up);
         Assert.Equal(0, viewer.delta.y);
 

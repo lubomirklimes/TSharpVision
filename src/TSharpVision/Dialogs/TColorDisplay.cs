@@ -9,7 +9,7 @@ public class TColorDisplay : TView
 
     // Reference into TPalette.Data (the byte[] array) + offset (1-based index).
     // Mirrors upstream's  uchar* color  pointer into pal->data.
-    private byte[] _data;
+    private byte[]? _data;
     private int    _offset;
     private string _text;
 
@@ -40,18 +40,18 @@ public class TColorDisplay : TView
     public override void HandleEvent(ref TEvent @event)
     {
         base.HandleEvent(ref @event);
-        if (@event.What == Events.evBroadcast && _data != null)
+        if (@event.What == Events.evBroadcast && _data is byte[] data)
         {
             switch (@event.message.command)
             {
                 case Views.cmColorBackgroundChanged:
-                    _data[_offset] = (byte)((_data[_offset] & 0x0F)
+                    data[_offset] = (byte)((data[_offset] & 0x0F)
                                           | (byte)((@event.message.infoLong << 4) & 0xF0));
                     DrawView();
                     break;
 
                 case Views.cmColorForegroundChanged:
-                    _data[_offset] = (byte)((_data[_offset] & 0xF0)
+                    data[_offset] = (byte)((data[_offset] & 0xF0)
                                           | (byte)(@event.message.infoLong & 0x0F));
                     DrawView();
                     break;
@@ -73,12 +73,12 @@ public class TColorDisplay : TView
     // Broadcast cmColorSet so TColorSelector and TMonoSelector sync up.
     private void BroadcastColorSet()
     {
-        if (owner == null || _data == null) return;
+        if (owner is not TGroup ownerGroup || _data is not byte[] data) return;
         TEvent ev = default;
         ev.What = Events.evBroadcast;
         ev.message.command  = Views.cmColorSet;
-        ev.message.infoLong = _data[_offset];
-        owner.HandleEvent(ref ev);
+        ev.message.infoLong = data[_offset];
+        ownerGroup.HandleEvent(ref ev);
     }
 
     // ── Streaming ────────────────────────────────────────────────────────
@@ -88,7 +88,7 @@ public class TColorDisplay : TView
         new TStreamableClass("TColorDisplay", () => new TColorDisplay(StreamableInit.streamableInit), 0);
 
     /// <summary>Creates an instance for restoration from a stream without running normal initialization.</summary>
-    protected TColorDisplay(StreamableInit init) : base(init) { }
+    protected TColorDisplay(StreamableInit init) : base(init) { _text = "Text "; }
 
     /// <inheritdoc />
     public override void Write(Opstream os)
@@ -101,7 +101,7 @@ public class TColorDisplay : TView
     public override object Read(Ipstream isStream)
     {
         base.Read(isStream);
-        _text  = isStream.ReadString();
+        _text  = isStream.ReadString() ?? "Text ";
         _data  = null;
         _offset = 0;
         return this;

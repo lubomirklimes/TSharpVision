@@ -11,21 +11,19 @@
     <IsPackable Condition="'$(MSBuildProjectName)' == 'TSharpVision' Or
                            '$(MSBuildProjectName)' == 'TSharpVision.Drivers.Console' Or
                            '$(MSBuildProjectName)' == 'TSharpVision.Drivers.Terminal' Or
-                           '$(MSBuildProjectName)' == 'TSharpVision.Drivers.SDL'">true</IsPackable>
-    <!-- CS8632: suppressed while nullable migration (waves A–C) is in progress.
-         Affected files already use ? annotations intentionally; the warning fires
-         because the enclosing project still has Nullable=disable. Remove this
-         NoWarn entry project-by-project as each wave completes. -->
-    <NoWarn>$(NoWarn);CS8632</NoWarn>
+                           '$(MSBuildProjectName)' == 'TSharpVision.Drivers.SDL' Or
+                           '$(MSBuildProjectName)' == 'TSharpVision.CodeEditor' Or
+                           '$(MSBuildProjectName)' == 'TSharpVision.HexView' Or
+                           '$(MSBuildProjectName)' == 'TSharpVision.TableView' Or
+                           '$(MSBuildProjectName)' == 'TSharpVision.Terminal'">true</IsPackable>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(IsPackable)' == 'true'">
-    <Version Condition="'$(Version)' == ''">0.1.0-dev.1</Version>
+    <Version Condition="'$(Version)' == ''">0.1.0-preview.1</Version>
     <Authors>Lubomir Klimes</Authors>
     <RepositoryUrl>https://github.com/lubomirklimes/TSharpVision</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageProjectUrl>https://github.com/lubomirklimes/TSharpVision</PackageProjectUrl>
-    <!-- License/provenance approval remains a separate publication prerequisite. -->
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -37,11 +35,19 @@
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true' Or '$(GITHUB_ACTIONS)' == 'true' Or '$(TF_BUILD)' == 'true'">true</ContinuousIntegrationBuild>
     <EnablePackageValidation>true</EnablePackageValidation>
+    <!-- API baseline drift must fail the ordinary build, while unrelated warning policy stays unchanged. -->
+    <WarningsAsErrors>$(WarningsAsErrors);RS0016;RS0017;RS0022;RS0024</WarningsAsErrors>
     <!-- The SDK defaults Company to Authors; do not emit an inferred company. -->
     <GenerateAssemblyCompanyAttribute>false</GenerateAssemblyCompanyAttribute>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(IsPackable)' == 'true'">
+    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers"
+                      PrivateAssets="all"
+                      IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+    <AdditionalFiles Include="PublicAPI.Shipped.txt" />
+    <AdditionalFiles Include="PublicAPI.Unshipped.txt" />
     <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="/" />
+    <None Include="$(MSBuildThisFileDirectory)LICENSE" Pack="true" PackagePath="/" />
   </ItemGroup>
 </Project>

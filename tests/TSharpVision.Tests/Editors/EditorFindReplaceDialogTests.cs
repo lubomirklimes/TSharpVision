@@ -96,7 +96,7 @@ public sealed class EditorFindReplaceDialogTests
     [Fact]
     public void BytesToString_Null_ReturnsEmpty()
     {
-        Assert.Equal(string.Empty, TEditorFindDialog.BytesToString((char[])null));
+        Assert.Equal(string.Empty, TEditorFindDialog.BytesToString((char[]?)null));
     }
 
     [Fact]
@@ -113,7 +113,8 @@ public sealed class EditorFindReplaceDialogTests
     [Fact]
     public void FindDialog_ReadBack_WritesFindTextAndFlags()
     {
-        var rec = new TFindDialogRec(new byte[80], 0);
+        const ushort unrelatedHighBit = 0x8000;
+        var rec = new TFindDialogRec(new byte[80], unrelatedHighBit);
         var il  = new TInputLine(new TRect(0, 0, 30, 1), 80);
         il.Data = "search term";
         var cb  = new TCheckBoxes(new TRect(0, 0, 30, 2),
@@ -125,6 +126,7 @@ public sealed class EditorFindReplaceDialogTests
         Assert.Equal("search term", TEditorFindDialog.BytesToString(rec.Find));
         Assert.NotEqual(0, rec.Options & Views.efCaseSensitive);
         Assert.NotEqual(0, rec.Options & Views.efWholeWordsOnly);
+        Assert.NotEqual(0, rec.Options & unrelatedHighBit);
     }
 
     // ── §4 — TEditorReplaceDialog.ReadBack ────────────────────────────────────
@@ -132,7 +134,8 @@ public sealed class EditorFindReplaceDialogTests
     [Fact]
     public void ReplaceDialog_ReadBack_WritesBothStringsAndFlags()
     {
-        var rec    = new TReplaceDialogRec(new byte[80], new byte[80], 0);
+        const ushort unrelatedHighBit = 0x8000;
+        var rec    = new TReplaceDialogRec(new byte[80], new byte[80], unrelatedHighBit);
         var findIl = new TInputLine(new TRect(0, 0, 30, 1), 80);
         var replIl = new TInputLine(new TRect(0, 0, 30, 1), 80);
         findIl.Data = "alpha";
@@ -148,6 +151,7 @@ public sealed class EditorFindReplaceDialogTests
         Assert.NotEqual(0, rec.Options & Views.efReplaceAll);
         Assert.NotEqual(0, rec.Options & Views.efPromptOnReplace);
         Assert.Equal(0, rec.Options & Views.efCaseSensitive); // absent flag cleared
+        Assert.NotEqual(0, rec.Options & unrelatedHighBit);
     }
 
     // ── §5 — Replace() cancel path ────────────────────────────────────────────

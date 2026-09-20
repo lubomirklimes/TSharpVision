@@ -29,7 +29,7 @@ public class Ifpstream : Ipstream
     {
         if (_ownsStream && bp != null)
         {
-            bp.Close();
+            Buffer.Close();
         }
     }
 }

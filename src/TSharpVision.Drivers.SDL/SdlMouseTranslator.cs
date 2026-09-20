@@ -7,7 +7,7 @@ using TSharpVision.Constants;
 namespace TSharpVision.Drivers.SDL;
 
 /// <summary>Mouse action reported to the SDL-to-framework event translator.</summary>
-public enum SdlMouseEventKind
+internal enum SdlMouseEventKind
 {
     /// <summary>A mouse button was pressed.</summary>
     Down,
@@ -18,7 +18,7 @@ public enum SdlMouseEventKind
 }
 
 /// <summary>Converts SDL mouse actions and pixel positions to framework events and character-cell coordinates.</summary>
-public static class SdlMouseTranslator
+internal static class SdlMouseTranslator
 {
     // SDL3 SDL_BUTTON_* values.
     /// <summary>SDL button identifier for the left mouse button; this is an identifier, not a held-button mask.</summary>
@@ -27,6 +27,10 @@ public static class SdlMouseTranslator
     public const byte SDL_BUTTON_MIDDLE = 2;
     /// <summary>SDL button identifier for the right mouse button; this is an identifier, not a held-button mask.</summary>
     public const byte SDL_BUTTON_RIGHT  = 3;
+    /// <summary>SDL button identifier for the first side mouse button.</summary>
+    public const byte SDL_BUTTON_X1 = 4;
+    /// <summary>SDL button identifier for the second side mouse button.</summary>
+    public const byte SDL_BUTTON_X2 = 5;
 
     /// <summary>
     /// Convert an SDL pixel position into character cell coordinates.
@@ -53,17 +57,23 @@ public static class SdlMouseTranslator
     /// Bitmask of currently held buttons for Move events (0x01 left, 0x02 right, 0x04 middle).
     /// Ignored for Down/Up where the single pressed/released button is used.
     /// </param>
+    /// <param name="controlKeyState">Translated Turbo Vision modifier state captured with the SDL event.</param>
     public static TEvent MakeEvent(
         SdlMouseEventKind kind,
         byte sdlButton,
         int cellX,
         int cellY,
         int clicks = 1,
-        byte heldButtons = 0)
+        byte heldButtons = 0,
+        uint controlKeyState = 0)
     {
         TEvent ev = default;
         ev.mouse.where = new TPoint(cellX, cellY);
-        ev.mouse.doubleClick = clicks >= 2 && kind == SdlMouseEventKind.Down;
+        ev.mouse.controlKeyState = controlKeyState;
+        if (clicks >= 2 && kind == SdlMouseEventKind.Down)
+            ev.mouse.eventFlags |= Events.meDoubleClick;
+        if (kind == SdlMouseEventKind.Move)
+            ev.mouse.eventFlags |= Events.meMouseMoved;
 
         // Map button: tvision bitmask uses 0x01 left, 0x02 right, 0x04 middle
         // (matches Win32 driver). Up events report empty mask.
@@ -72,12 +82,7 @@ public static class SdlMouseTranslator
         switch (kind)
         {
             case SdlMouseEventKind.Down:
-                switch (sdlButton)
-                {
-                    case SDL_BUTTON_LEFT:   buttons = (byte)Events.mbLeftButton;  break;
-                    case SDL_BUTTON_RIGHT:  buttons = (byte)Events.mbRightButton; break;
-                    case SDL_BUTTON_MIDDLE: buttons = 0x04;                       break;
-                }
+                buttons = TranslateButton(sdlButton);
                 break;
             case SdlMouseEventKind.Up:
                 buttons = 0; // tvision Up event carries empty mask
@@ -97,26 +102,87 @@ public static class SdlMouseTranslator
         return ev;
     }
 
+    internal static byte TranslateButton(byte sdlButton) => sdlButton switch
+    {
+        SDL_BUTTON_LEFT => (byte)Events.mbLeftButton,
+        SDL_BUTTON_RIGHT => (byte)Events.mbRightButton,
+        SDL_BUTTON_MIDDLE => (byte)Events.mbMiddleButton,
+        SDL_BUTTON_X1 => (byte)Events.mbButton4,
+        SDL_BUTTON_X2 => (byte)Events.mbButton5,
+        _ => 0,
+    };
+
     /// <summary>
-    /// Build a tvision wheel event from an SDL_EVENT_MOUSE_WHEEL payload.
+    /// Build a vertical tvision wheel event. This source-compatible convenience
+    /// overload represents one unflipped vertical axis and no held buttons.
     /// Direction convention:
-    ///   deltaY > 0 = wheel up (away from user) → <see cref="Events.mbButton4"/>
-    ///   deltaY &lt; 0 = wheel down (toward user) → <see cref="Events.mbButton5"/>
+    ///   deltaY > 0 = wheel up (away from user) → <see cref="Events.meWheelUp"/>
+    ///   deltaY &lt; 0 = wheel down (toward user) → <see cref="Events.meWheelDown"/>
     ///   deltaY == 0 = horizontal only — ignored (returns false).
     /// </summary>
     /// <param name="deltaY">SDL wheel.Y delta (positive = up, negative = down).</param>
     /// <param name="cellX">Column of the pointer in character cells.</param>
     /// <param name="cellY">Row of the pointer in character cells.</param>
     /// <param name="ev">Resulting tvision TEvent.</param>
-    public static bool MakeWheelEvent(float deltaY, int cellX, int cellY, out TEvent ev)
+    /// <param name="controlKeyState">Translated Turbo Vision modifier state captured with the SDL event.</param>
+    public static bool MakeWheelEvent(
+        float deltaY, int cellX, int cellY, out TEvent ev, uint controlKeyState = 0)
     {
-        ev = default;
-        if (deltaY == 0f) return false;
+        TEvent[] events = MakeWheelEvents(
+            0, deltaY, flipped: false, cellX, cellY, heldButtons: 0, controlKeyState);
+        if (events.Length == 0)
+        {
+            ev = default;
+            return false;
+        }
+        ev = events[0];
+        return true;
+    }
 
+    /// <summary>
+    /// Translates an SDL3 wheel payload. Flipped axes are normalized, vertical
+    /// output precedes horizontal output, and each result carries one direction.
+    /// </summary>
+    public static TEvent[] MakeWheelEvents(
+        float deltaX,
+        float deltaY,
+        bool flipped,
+        int cellX,
+        int cellY,
+        byte heldButtons = 0,
+        uint controlKeyState = 0)
+    {
+        if (flipped)
+        {
+            deltaX = -deltaX;
+            deltaY = -deltaY;
+        }
+
+        int count = (deltaY != 0 ? 1 : 0) + (deltaX != 0 ? 1 : 0);
+        if (count == 0) return [];
+
+        var events = new TEvent[count];
+        int index = 0;
+        if (deltaY != 0)
+            events[index++] = MakeWheel(
+                deltaY > 0 ? Events.meWheelUp : Events.meWheelDown,
+                cellX, cellY, heldButtons, controlKeyState);
+        if (deltaX != 0)
+            events[index] = MakeWheel(
+                deltaX > 0 ? Events.meWheelRight : Events.meWheelLeft,
+                cellX, cellY, heldButtons, controlKeyState);
+        return events;
+    }
+
+    private static TEvent MakeWheel(
+        uint direction, int cellX, int cellY, byte heldButtons, uint controlKeyState)
+    {
+        TEvent ev = default;
         ev.What = Events.evMouseWheel;
         ev.mouse.where = new TPoint(cellX, cellY);
-        ev.mouse.buttons = deltaY > 0f ? (byte)Events.mbButton4 : (byte)Events.mbButton5;
-        ev.mouse.doubleClick = false;
-        return true;
+        ev.mouse.buttons = heldButtons;
+        ev.mouse.eventFlags = direction;
+        ev.mouse.controlKeyState = controlKeyState;
+        return ev;
     }
 }

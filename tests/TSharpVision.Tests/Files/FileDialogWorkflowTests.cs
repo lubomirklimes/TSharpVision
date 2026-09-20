@@ -240,7 +240,7 @@ public sealed class FileDialogWorkflowTests
         try
         {
             TEditorDialogHelper.OverwriteConfirm = (_, _) => Views.cmYes;
-            TEditor.editorDialog = (int dialog, object info) =>
+            TEditor.editorDialog = (int dialog, object? info) =>
             {
                 if (dialog == Views.edSaveAs && info is TFileEditor fe)
                 {
@@ -283,7 +283,7 @@ public sealed class FileDialogWorkflowTests
         try
         {
             TEditorDialogHelper.OverwriteConfirm = (_, _) => Views.cmNo;
-            TEditor.editorDialog = (int dialog, object info) =>
+            TEditor.editorDialog = (int dialog, object? info) =>
             {
                 if (dialog == Views.edSaveAs && info is TFileEditor fe)
                 {

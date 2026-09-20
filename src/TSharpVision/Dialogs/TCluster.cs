@@ -18,6 +18,8 @@ public class TCluster : TView
     public int sel;
     /// <summary>Option labels in display order, including any tilde mnemonic markers.</summary>
     public List<string> Strings;
+    /// <summary>Per-option enabled bits; bits zero through 31 correspond to option indices.</summary>
+    protected uint enableMask;
 
     /// <summary>Creates a selectable cluster at owner-relative cell bounds and copies labels from the linked list.</summary>
     public TCluster(TRect bounds, TSItem aStrings)
@@ -27,7 +29,8 @@ public class TCluster : TView
                           | Views.ofPreProcess | Views.ofPostProcess
                           | ExtraOptions);
         Strings = new List<string>();
-        for (TSItem p = aStrings; p != null; p = p.Next)
+        enableMask = uint.MaxValue;
+        for (TSItem? p = aStrings; p != null; p = p.Next)
             Strings.Add(p.Value);
         SetCursor(2, 0);
         ShowCursor();
@@ -40,6 +43,7 @@ public class TCluster : TView
     protected TCluster(StreamableInit init) : base(init)
     {
         Strings = new List<string>();
+        enableMask = uint.MaxValue;
     }
 
     /// <summary>Returns the label at a valid zero-based option index, substituting an empty string for a null label.</summary>
@@ -57,15 +61,21 @@ public class TCluster : TView
     }
 
     /// <summary>Draws option labels and icons, applying the marker to options selected by Mark.</summary>
-    public void DrawBox(string icon, char marker)
+    public void DrawBox(string icon, char marker) => DrawMultiBox(icon, string.Concat(' ', marker));
+
+    /// <summary>Draws option labels and icons using a marker character selected separately for each option.</summary>
+    public void DrawMultiBox(string icon, string markers)
     {
+        ArgumentNullException.ThrowIfNull(icon);
+        ArgumentNullException.ThrowIfNull(markers);
         Span<TScreenChar> row = stackalloc TScreenChar[size.x > 0 ? size.x : 1];
         var b = new TDrawBuffer(row);
-        ushort cNorm = (state & Views.sfDisabled) != 0
-            ? GetColor(0x0505) : GetColor(0x0301);
+        ushort cNorm = GetColor(0x0301);
         ushort cSel = GetColor(0x0402);
+        ushort cDis = GetColor(0x0505);
         for (int i = 0; i <= size.y; i++)
         {
+            b.moveChar(0, ' ', cNorm, size.x);
             for (int j = 0; j <= (Strings.Count - 1) / size.y + 1; j++)
             {
                 int cur = j * size.y + i;
@@ -74,12 +84,13 @@ public class TCluster : TView
                     && col + CStrLen(GetItemText(cur)) + 5 < TDrawBuffer.MaxViewWidth
                     && col < size.x)
                 {
-                    ushort color = (cur == sel && (state & Views.sfSelected) != 0)
-                        ? cSel : cNorm;
+                    ushort color = (state & Views.sfDisabled) != 0 || !ButtonState(cur)
+                        ? cDis
+                        : (cur == sel && (state & Views.sfSelected) != 0) ? cSel : cNorm;
                     b.moveChar(col, ' ', color, size.x - col);
                     b.moveCStr(col, icon, color);
-                    if (Mark(cur))
-                        b.putChar(col + 2, marker);
+                    byte marker = MultiMark(cur);
+                    b.putChar(col + 2, marker < markers.Length ? markers[marker] : ' ');
                     b.moveCStr(col + 5, GetItemText(cur), color);
                 }
             }
@@ -116,8 +127,7 @@ public class TCluster : TView
 
     private static ushort GetAltCode(char c)
     {
-        if (c >= 'A' && c <= 'Z') return (ushort)(Keys.kbAltA + (c - 'A'));
-        return Keys.kbNoKey;
+        return KeyboardCompatibility.AltCode(c);
     }
 
     private static ushort CtrlToArrow(ushort code) => code;
@@ -126,21 +136,23 @@ public class TCluster : TView
     public override void HandleEvent(ref TEvent @event)
     {
         base.HandleEvent(ref @event);
+        if ((options & Views.ofSelectable) == 0)
+            return;
         if (@event.What == Events.evMouseDown)
         {
             TPoint mouse = MakeLocal(@event.mouse.where);
             int i = FindSel(mouse);
-            if (i != -1) sel = i;
+            if (i != -1 && ButtonState(i)) sel = i;
             DrawView();
             do
             {
                 mouse = MakeLocal(@event.mouse.where);
-                if (FindSel(mouse) == sel) ShowCursor();
+                if (FindSel(mouse) == sel && ButtonState(sel)) ShowCursor();
                 else HideCursor();
             } while (MouseEvent(ref @event, Events.evMouseMove));
             ShowCursor();
             mouse = MakeLocal(@event.mouse.where);
-            if (FindSel(mouse) == sel)
+            if (FindSel(mouse) == sel && ButtonState(sel))
             {
                 Press(sel);
                 DrawView();
@@ -155,43 +167,29 @@ public class TCluster : TView
                 case Keys.kbUp:
                     if ((state & Views.sfFocused) != 0)
                     {
-                        if (--sel < 0) sel = Strings.Count - 1;
-                        MovedTo(sel); DrawView(); ClearEvent(ref @event);
+                        MoveToEnabled(Keys.kbUp);
+                        ClearEvent(ref @event);
                     }
                     break;
                 case Keys.kbDown:
                     if ((state & Views.sfFocused) != 0)
                     {
-                        if (++sel >= Strings.Count) sel = 0;
-                        MovedTo(sel); DrawView(); ClearEvent(ref @event);
+                        MoveToEnabled(Keys.kbDown);
+                        ClearEvent(ref @event);
                     }
                     break;
                 case Keys.kbRight:
                     if ((state & Views.sfFocused) != 0)
                     {
-                        sel += size.y;
-                        if (sel >= Strings.Count)
-                        {
-                            sel = (sel + 1) % size.y;
-                            if (sel >= Strings.Count) sel = 0;
-                        }
-                        MovedTo(sel); DrawView(); ClearEvent(ref @event);
+                        MoveToEnabled(Keys.kbRight);
+                        ClearEvent(ref @event);
                     }
                     break;
                 case Keys.kbLeft:
                     if ((state & Views.sfFocused) != 0)
                     {
-                        if (sel > 0)
-                        {
-                            sel -= size.y;
-                            if (sel < 0)
-                            {
-                                sel = ((Strings.Count + size.y - 1) / size.y) * size.y + sel - 1;
-                                if (sel >= Strings.Count) sel = Strings.Count - 1;
-                            }
-                        }
-                        else sel = Strings.Count - 1;
-                        MovedTo(sel); DrawView(); ClearEvent(ref @event);
+                        MoveToEnabled(Keys.kbLeft);
+                        ClearEvent(ref @event);
                     }
                     break;
                 default:
@@ -206,6 +204,8 @@ public class TCluster : TView
                             && char.ToUpperInvariant((char)@event.keyDown.charScan.charCode) == c;
                         if (altMatch || asciiMatch)
                         {
+                            if (!ButtonState(i))
+                                return;
                             Select();
                             sel = i;
                             MovedTo(sel);
@@ -247,6 +247,65 @@ public class TCluster : TView
 
     /// <summary>Reports whether an option should display its selected marker; the base cluster marks none.</summary>
     public virtual bool Mark(int item) => false;
+
+    /// <summary>Returns the marker-table index for an option; the base maps <see cref="Mark"/> to zero or one.</summary>
+    public virtual byte MultiMark(int item) => Mark(item) ? (byte)1 : (byte)0;
+
+    /// <summary>Returns whether the option at an index from zero through 31 is enabled.</summary>
+    public bool ButtonState(int item) => item is >= 0 and < 32 && (enableMask & (1u << item)) != 0;
+
+    /// <summary>Enables or disables options selected by a 32-bit mask and updates cluster selectability.</summary>
+    public virtual void SetButtonState(uint aMask, bool enable)
+    {
+        if (enable) enableMask |= aMask;
+        else enableMask &= ~aMask;
+        int count = Strings.Count;
+        if (count < 32)
+        {
+            uint itemMask = count == 0 ? 0 : (1u << count) - 1;
+            if ((enableMask & itemMask) != 0) options |= Views.ofSelectable;
+            else options &= unchecked((ushort)~Views.ofSelectable);
+        }
+    }
+
+    private void MoveToEnabled(ushort keyCode)
+    {
+        if (Strings.Count == 0)
+            return;
+
+        int candidate = sel;
+        for (int attempts = 0; attempts <= Strings.Count; attempts++)
+        {
+            candidate = keyCode switch
+            {
+                Keys.kbUp => candidate > 0 ? candidate - 1 : Strings.Count - 1,
+                Keys.kbDown => candidate + 1 < Strings.Count ? candidate + 1 : 0,
+                Keys.kbRight => candidate + size.y < Strings.Count ? candidate + size.y : 0,
+                Keys.kbLeft => MoveLeft(candidate),
+                _ => candidate
+            };
+            if (ButtonState(candidate))
+            {
+                sel = candidate;
+                MovedTo(sel);
+                DrawView();
+                return;
+            }
+        }
+    }
+
+    private int MoveLeft(int candidate)
+    {
+        if (candidate <= 0)
+            return Strings.Count - 1;
+
+        candidate -= size.y;
+        if (candidate >= 0)
+            return candidate;
+
+        candidate = ((Strings.Count + size.y - 1) / size.y) * size.y + candidate - 1;
+        return candidate < Strings.Count ? candidate : Strings.Count - 1;
+    }
 
     /// <summary>Notifies the owner of option focus movement when verbose broadcasts are enabled.</summary>
     public virtual void MovedTo(int item)
@@ -321,6 +380,7 @@ public class TCluster : TView
         value = isStream.ReadShort();
         sel   = (int)isStream.ReadInt();
         Strings = new List<string>();
+        enableMask = uint.MaxValue;
         if (isStream.ReadPointer() is TStringCollection sc)
             Strings.AddRange(sc.Items);
         SetCursor(2, 0);

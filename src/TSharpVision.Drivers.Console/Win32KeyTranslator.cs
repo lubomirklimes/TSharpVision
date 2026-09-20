@@ -5,7 +5,7 @@ namespace TSharpVision.Drivers.Console;
 /// <summary>
 /// Maps documented Win32 console input to TSharpVision's public key contract.
 /// </summary>
-public static class Win32KeyTranslator
+internal static class Win32KeyTranslator
 {
     /// <summary>Win32 control-state bit indicating that left Control is held.</summary>
     public const uint LEFT_CTRL_PRESSED = 0x0008;
@@ -48,6 +48,15 @@ public static class Win32KeyTranslator
     private static readonly ushort[] FunctionKeys =
         [Keys.kbF1, Keys.kbF2, Keys.kbF3, Keys.kbF4, Keys.kbF5, Keys.kbF6,
          Keys.kbF7, Keys.kbF8, Keys.kbF9, Keys.kbF10, Keys.kbF11, Keys.kbF12];
+    private static readonly ushort[] ShiftFunctionKeys =
+        [Keys.kbShiftF1, Keys.kbShiftF2, Keys.kbShiftF3, Keys.kbShiftF4, Keys.kbShiftF5, Keys.kbShiftF6,
+         Keys.kbShiftF7, Keys.kbShiftF8, Keys.kbShiftF9, Keys.kbShiftF10, Keys.kbShiftF11, Keys.kbShiftF12];
+    private static readonly ushort[] ControlFunctionKeys =
+        [Keys.kbCtrlF1, Keys.kbCtrlF2, Keys.kbCtrlF3, Keys.kbCtrlF4, Keys.kbCtrlF5, Keys.kbCtrlF6,
+         Keys.kbCtrlF7, Keys.kbCtrlF8, Keys.kbCtrlF9, Keys.kbCtrlF10, Keys.kbCtrlF11, Keys.kbCtrlF12];
+    private static readonly ushort[] AltFunctionKeys =
+        [Keys.kbAltF1, Keys.kbAltF2, Keys.kbAltF3, Keys.kbAltF4, Keys.kbAltF5, Keys.kbAltF6,
+         Keys.kbAltF7, Keys.kbAltF8, Keys.kbAltF9, Keys.kbAltF10, Keys.kbAltF11, Keys.kbAltF12];
 
     // Win32 VK identity -> target command identity. This is data from two public APIs.
     private static readonly Dictionary<ushort, (ushort Normal, ushort Ctrl)> Navigation = new()
@@ -67,7 +76,7 @@ public static class Win32KeyTranslator
         [0x0D] = (Keys.kbEnter, Keys.kbEnter, Keys.kbCtrlEnter, Keys.kbEnter),
         [0x1B] = (Keys.kbEsc, Keys.kbEsc, Keys.kbEsc, Keys.kbEsc)
     };
-    private static readonly (uint Input, ushort Output)[] StateFlags =
+    private static readonly (uint Input, uint Output)[] StateFlags =
     [
         (SHIFT_PRESSED, Keys.kbShift),
         (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED, Keys.kbCtrlShift),
@@ -83,9 +92,7 @@ public static class Win32KeyTranslator
         if (!keyDown || vk is 0x10 or 0x11 or 0x12 or 0x14 or 0x5B or 0x5C
             or 0x90 or 0x91 or >= 0xA0 and <= 0xA5) return false;
 
-        ushort state = 0;
-        foreach (var flag in StateFlags)
-            if ((ctrlState & flag.Input) != 0) state |= flag.Output;
+        uint state = ToControlKeyState(ctrlState);
         bool control = (state & Keys.kbCtrlShift) != 0;
         bool alt = (state & Keys.kbAltShift) != 0;
         bool shift = (state & Keys.kbShift) != 0;
@@ -103,10 +110,18 @@ public static class Win32KeyTranslator
         else if (alt && vk == 0xBD) command = Keys.kbAltMinus;
         else if (alt && vk == 0xBB) command = Keys.kbAltEqual;
         else if (vk >= 0x70 && vk <= 0x7B)
-            command = (ushort)(FunctionKeys[vk - 0x70] | (alt ? 0x0200 : control ? 0x0100 : shift ? 0x0080 : 0));
+        {
+            int index = vk - 0x70;
+            command = alt ? AltFunctionKeys[index] : control ? ControlFunctionKeys[index]
+                : shift ? ShiftFunctionKeys[index] : FunctionKeys[index];
+        }
         else if (Navigation.TryGetValue(vk, out var navigation))
-            command = (ushort)((control ? navigation.Ctrl : navigation.Normal)
-                | (shift && vk is 0x2D or 0x2E ? 0x0080 : 0));
+            command = control && shift && vk == 0x2D ? Keys.kbCtrlShiftIns
+                : control && shift && vk == 0x2E ? Keys.kbCtrlShiftDel
+                : control ? navigation.Ctrl
+                : shift && vk == 0x2D ? Keys.kbShiftIns
+                : shift && vk == 0x2E ? Keys.kbShiftDel
+                : navigation.Normal;
         else if (Editing.TryGetValue(vk, out var editing))
             command = alt && editing.Alt != editing.Normal ? editing.Alt
                 : control && editing.Ctrl != editing.Normal ? editing.Ctrl : shift ? editing.Shift : editing.Normal;
@@ -115,16 +130,17 @@ public static class Win32KeyTranslator
         if (command == 0) return EmitText(ch, state, out ev);
         ev.What = Events.evKeyDown;
         ev.keyDown.keyCode = command;
-        ev.keyDown.shiftState = state;
+        ev.keyDown.charScan = new CharScanType(command);
+        ev.keyDown.controlKeyState = state;
         return true;
     }
 
-    private static bool EmitText(char character, ushort state, out TEvent ev)
+    private static bool EmitText(char character, uint state, out TEvent ev)
     {
         ev = default;
         if (character == '\0') return false;
         ev.What = Events.evKeyDown;
-        ev.keyDown.shiftState = state;
+        ev.keyDown.controlKeyState = state;
         if (!char.IsControl(character)) ev.keyDown.text = character.ToString();
         if (character <= byte.MaxValue)
         {
@@ -132,5 +148,13 @@ public static class Win32KeyTranslator
             ev.keyDown.charScan = new CharScanType((byte)character, 0);
         }
         return true;
+    }
+
+    internal static uint ToControlKeyState(uint controlKeyState)
+    {
+        uint state = 0;
+        foreach (var flag in StateFlags)
+            if ((controlKeyState & flag.Input) != 0) state |= flag.Output;
+        return state;
     }
 }

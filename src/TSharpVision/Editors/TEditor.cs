@@ -7,9 +7,9 @@ namespace TSharpVision;
 public class TEditor : TView
 {
     /// <summary>Shared compatibility buffer for clipboard text; the clipboard editor handles normal copy and paste.</summary>
-    public static char[] clipboardBuffer;
+    public static char[] clipboardBuffer = Array.Empty<char>();
     /// <summary>Shared editor storing the in-process clipboard selection.</summary>
-    public static TEditor clipboard;
+    public static TEditor? clipboard;
     /// <summary>Shared search, replacement, and file-backup option bits.</summary>
     public static ushort editorFlags = (ushort)(Views.efBackupFiles | Views.efPromptOnReplace);
     /// <summary>Shared null-terminated UTF-16 search pattern buffer.</summary>
@@ -22,19 +22,19 @@ public class TEditor : TView
     // editorDialog callback — upstream `TEditorDialog`. Default returns
     // cmCancel, mirroring `defEditorDialog`
     /// <summary>Callback for editor prompts; receives a dialog identifier and payload and returns a response command.</summary>
-    public delegate ushort TEditorDialog(int dialog, object info);
+    public delegate ushort TEditorDialog(int dialog, object? info);
     /// <summary>Shared prompt callback; the default cancels every prompt.</summary>
     public static TEditorDialog editorDialog =
-        (int _dlg, object _info) => Views.cmCancel;
+        (int _dlg, object? _info) => Views.cmCancel;
 
     /// <summary>Associated horizontal scrollbar; ownership remains with its containing group.</summary>
-    public TScrollBar hScrollBar;
+    public TScrollBar? hScrollBar;
     /// <summary>Associated vertical scrollbar; ownership remains with its containing group.</summary>
-    public TScrollBar vScrollBar;
+    public TScrollBar? vScrollBar;
     /// <summary>Associated caret-position and modification indicator, owned by its containing group.</summary>
-    public TIndicator indicator;
+    public TIndicator? indicator;
     /// <summary>Physical UTF-16 storage including the gap; use BufChar for logical document indexing.</summary>
-    public char[] buffer;
+    public char[]? buffer;
     /// <summary>Capacity of the physical buffer in UTF-16 code units.</summary>
     public uint bufSize;
     /// <summary>Logical document length in UTF-16 code units, excluding the gap.</summary>
@@ -91,8 +91,8 @@ public class TEditor : TView
     private const int KeyStateBlock = 2; // Ctrl-K prefix active
 
     /// <summary>Creates an empty editor at owner-relative cell bounds with a code-unit buffer capacity and optional associated controls.</summary>
-    public TEditor(TRect bounds, TScrollBar aHScrollBar, TScrollBar aVScrollBar,
-                   TIndicator aIndicator, uint aBufSize)
+    public TEditor(TRect bounds, TScrollBar? aHScrollBar, TScrollBar? aVScrollBar,
+                   TIndicator? aIndicator, uint aBufSize)
         : base(bounds)
     {
         hScrollBar = aHScrollBar;
@@ -136,7 +136,7 @@ public class TEditor : TView
     public char BufChar(uint p)
     {
         if (p >= curPtr) p += gapLen;
-        return buffer[p];
+        return Buf[p];
     }
 
     /// <summary>Converts a logical document offset to a physical buffer index across the gap.</summary>
@@ -306,16 +306,16 @@ public class TEditor : TView
             if (p > curPtr)
             {
                 uint l = p - curPtr;
-                Array.Copy(buffer, curPtr + gapLen, buffer, curPtr, l);
-                curPos.y += CountLines(buffer, curPtr, l);
+                Array.Copy(Buf, curPtr + gapLen, Buf, curPtr, l);
+                curPos.y += CountLines(Buf, curPtr, l);
                 curPtr = p;
             }
             else
             {
                 uint l = curPtr - p;
                 curPtr = p;
-                curPos.y -= CountLines(buffer, curPtr, l);
-                Array.Copy(buffer, curPtr, buffer, curPtr + gapLen, l);
+                curPos.y -= CountLines(Buf, curPtr, l);
+                Array.Copy(Buf, curPtr, Buf, curPtr + gapLen, l);
             }
             drawLine = curPos.y;
             drawPtr  = LineStart(p);
@@ -398,11 +398,25 @@ public class TEditor : TView
         SetState(Views.sfCursorIns, !GetState(Views.sfCursorIns));
     }
 
-    /// <summary>Allocates physical UTF-16 storage using the configured buffer capacity.</summary>
-    public void InitBuffer() => buffer = new char[bufSize];
+    /// <summary>
+    /// Allocates physical UTF-16 storage using the configured buffer capacity. Editor construction and stream
+    /// restoration call this hook; overrides that retain the standard managed buffer should normally call base.
+    /// </summary>
+    public virtual void InitBuffer() => buffer = new char[bufSize];
 
-    /// <summary>Releases the editor's reference to its text buffer.</summary>
-    public void DoneBuffer() => buffer = null;
+    /// <summary>
+    /// Releases the editor's reference to its text buffer during <see cref="ShutDown"/>. Overrides that add buffer
+    /// lifecycle work should normally call base and must tolerate the editor's deterministic shutdown contract.
+    /// </summary>
+    public virtual void DoneBuffer() => buffer = null;
+
+    // Text storage is present exactly while the editor is valid: InitBuffer()
+    // allocates it during construction/Read and DoneBuffer() releases it in
+    // ShutDown(). Editing operations run only on a valid editor, so this
+    // accessor states that invariant once instead of guarding every access.
+    private protected char[] Buf =>
+        buffer ?? throw new InvalidOperationException(
+            "TEditor text buffer is unavailable; the editor is not valid.");
 
     /// <summary>Replaces the selection with a source-array slice, optionally recording undo and selecting inserted text; returns false if capacity cannot be obtained.</summary>
     public bool InsertBuffer(char[] p, uint offset, uint length,
@@ -427,21 +441,21 @@ public class TEditor : TView
         // Snapshot the input so that, if `p` aliases our own buffer
         // (insertFrom uses the source editor's buffer directly), the
         // subsequent in-place memmoves cannot corrupt it.
-        char[] src = null;
+        char[]? src = null;
         if (length > 0)
         {
             src = new char[length];
             Array.Copy(p, (int)offset, src, 0, (int)length);
         }
 
-        int selLines = CountLines(buffer, BufPtr(selStart), selLen);
+        int selLines = CountLines(Buf, BufPtr(selStart), selLen);
         if (curPtr == selEnd)
         {
             if (allowUndo)
             {
                 if (delLen > 0)
-                    Array.Copy(buffer, selStart,
-                               buffer, curPtr + gapLen - delCount - delLen,
+                    Array.Copy(Buf, selStart,
+                               Buf, curPtr + gapLen - delCount - delLen,
                                delLen);
                 insCount -= selLen - delLen;
             }
@@ -454,10 +468,10 @@ public class TEditor : TView
             if (delta.y < curPos.y) delta.y = curPos.y;
         }
 
-        if (length > 0)
-            Array.Copy(src, 0, buffer, (int)curPtr, (int)length);
+        if (length > 0 && src != null)
+            Array.Copy(src, 0, Buf, (int)curPtr, (int)length);
 
-        int lines = length > 0 ? CountLines(buffer, curPtr, length) : 0;
+        int lines = length > 0 ? CountLines(Buf, curPtr, length) : 0;
         curPtr += length;
         curPos.y += lines;
         drawLine = curPos.y;
@@ -480,9 +494,12 @@ public class TEditor : TView
         return true;
     }
 
-    /// <summary>Replaces the selection with the source editor's selected text, using this editor's undo policy.</summary>
-    public bool InsertFrom(TEditor editor)
-        => InsertBuffer(editor.buffer,
+    /// <summary>
+    /// Replaces the selection with the source editor's selected text, using this editor's undo policy. Clipboard
+    /// copy/paste routes through this hook; overrides may adapt insertion and normally call base for standard editing.
+    /// </summary>
+    public virtual bool InsertFrom(TEditor editor)
+        => InsertBuffer(editor.Buf,
                         editor.BufPtr(editor.selStart),
                         editor.selEnd - editor.selStart,
                         canUndo, IsClipboard());
@@ -491,8 +508,11 @@ public class TEditor : TView
     public bool InsertText(char[] text, uint length, bool selectText)
         => InsertBuffer(text ?? Array.Empty<char>(), 0, length, canUndo, selectText);
 
+    /// <summary>Replaces the selection with text without selecting the inserted content; null or empty text deletes the selection.</summary>
+    public bool InsertText(string text) => InsertText(text, false);
+
     /// <summary>Replaces the selection with text, optionally selecting it; null or empty text deletes the selection.</summary>
-    public bool InsertText(string text, bool selectText = false)
+    public bool InsertText(string text, bool selectText)
     {
         char[] chars = string.IsNullOrEmpty(text) ? Array.Empty<char>() : text.ToCharArray();
         return InsertText(chars, (uint)chars.Length, selectText);
@@ -535,7 +555,7 @@ public class TEditor : TView
     {
         uint p = LineStart(curPtr);
         uint i = p;
-        while (i < curPtr && (buffer[BufPtr(i)] == ' ' || buffer[BufPtr(i)] == '\t'))
+        while (i < curPtr && (Buf[BufPtr(i)] == ' ' || Buf[BufPtr(i)] == '\t'))
             i++;
         InsertText(new char[] { '\n' }, 1, false);
         if (autoIndent)
@@ -543,7 +563,7 @@ public class TEditor : TView
             uint indentLen = i - p;
             var indent = new char[indentLen];
             for (uint k = 0; k < indentLen; k++)
-                indent[k] = buffer[BufPtr(p + k)];
+                indent[k] = Buf[BufPtr(p + k)];
             InsertText(indent, indentLen, false);
         }
     }
@@ -624,7 +644,7 @@ public class TEditor : TView
             uint length = delCount;
             delCount = 0;
             insCount = 0;
-            InsertBuffer(buffer, curPtr + gapLen - length, length, false, true);
+            InsertBuffer(Buf, curPtr + gapLen - length, length, false, true);
         }
     }
 
@@ -800,7 +820,7 @@ public class TEditor : TView
         curPos   = delta;
         limit.x  = Views.maxLineLength;
         limit.y  = (buffer != null && bufLen > 0
-                       ? CountLines(buffer, gapLen, bufLen)
+                       ? CountLines(Buf, gapLen, bufLen)
                        : 0) + 1;
         drawLine = 0;
         drawPtr  = 0;
@@ -983,9 +1003,9 @@ public class TEditor : TView
     }
 
     /// <summary>Copies a matching scrollbar notification's value into a viewport offset and schedules redraw when it changes.</summary>
-    public void CheckScrollBar(ref TEvent ev, TScrollBar p, ref int d)
+    public void CheckScrollBar(ref TEvent ev, TScrollBar? p, ref int d)
     {
-        if (ev.message.infoPtr == p && p.value != d)
+        if (p != null && ev.message.infoPtr == p && p.value != d)
         {
             d = p.value;
             Update(Views.ufView);
@@ -996,8 +1016,12 @@ public class TEditor : TView
     // keyState == 0  → normal key lookup (firstKeys)
     // keyState == KeyStateQuick (1) → Ctrl-Q prefix (quickKeys)
     // keyState == KeyStateBlock (2) → Ctrl-K prefix (blockKeys)
-    /// <summary>Translates editor keyboard bindings and Ctrl+Q/Ctrl+K prefixes into command events.</summary>
-    public void ConvertEvent(ref TEvent ev)
+    /// <summary>
+    /// Translates editor keyboard bindings and Ctrl+Q/Ctrl+K prefixes into command events. <see cref="HandleEvent"/>
+    /// calls this before command execution; overrides may intercept or transform events and should call base when the
+    /// standard key map is still desired.
+    /// </summary>
+    public virtual void ConvertEvent(ref TEvent ev)
     {
         if (ev.What != Events.evKeyDown) return;
         ushort key = ev.keyDown.keyCode;
@@ -1263,7 +1287,9 @@ public class TEditor : TView
             {
                 // Wheel scrolls the viewport without moving the
                 // cursor or touching the buffer contents.
-                bool up = (ev.mouse.buttons & Events.mbButton4) != 0;
+                bool up = (ev.mouse.eventFlags & Events.meWheelUp) != 0;
+                bool down = (ev.mouse.eventFlags & Events.meWheelDown) != 0;
+                if (!up && !down) return;
                 ScrollTo(delta.x, delta.y + (up ? -WheelStep : WheelStep));
                 break;
             }
@@ -1294,9 +1320,9 @@ public class TEditor : TView
     public override object Read(Ipstream isStream)
     {
         base.Read(isStream);
-        hScrollBar = (TScrollBar)isStream.ReadPointer();
-        vScrollBar = (TScrollBar)isStream.ReadPointer();
-        indicator  = (TIndicator)isStream.ReadPointer();
+        hScrollBar = isStream.ReadPointer() as TScrollBar;
+        vScrollBar = isStream.ReadPointer() as TScrollBar;
+        indicator  = isStream.ReadPointer() as TIndicator;
         bufSize    = isStream.ReadInt();
         canUndo    = isStream.ReadShort() != 0;
         selecting  = false;
@@ -1333,11 +1359,11 @@ public sealed class TextInfo : IInfo
     /// <summary>UTF-16 code units carried by the insertion command.</summary>
     public char[] Text;
     /// <summary>References the supplied text array; null becomes an empty array.</summary>
-    public TextInfo(char[] text) { Text = text ?? Array.Empty<char>(); }
+    public TextInfo(char[]? text) { Text = text ?? Array.Empty<char>(); }
     /// <summary>Copies the supplied string into a text payload; null becomes empty text.</summary>
-    public TextInfo(string text) { Text = (text ?? string.Empty).ToCharArray(); }
+    public TextInfo(string? text) { Text = (text ?? string.Empty).ToCharArray(); }
     /// <summary>Creates text by mapping each byte directly to the same-valued Unicode character.</summary>
-    public TextInfo(byte[] bytes)
+    public TextInfo(byte[]? bytes)
     {
         if (bytes == null) { Text = Array.Empty<char>(); return; }
         Text = new char[bytes.Length];
@@ -1362,7 +1388,7 @@ public sealed class TFindDialogRec : IInfo
     public TFindDialogRec(byte[] f, ushort opts)
         : this(BytesToChars(f), opts) { }
 
-    private static char[] BytesToChars(byte[] bytes)
+    private static char[] BytesToChars(byte[]? bytes)
     {
         if (bytes == null) return Array.Empty<char>();
         var chars = new char[bytes.Length];
@@ -1391,7 +1417,7 @@ public sealed class TReplaceDialogRec : IInfo
     public TReplaceDialogRec(byte[] f, byte[] r, ushort opts)
         : this(BytesToChars(f), BytesToChars(r), opts) { }
 
-    private static char[] BytesToChars(byte[] bytes)
+    private static char[] BytesToChars(byte[]? bytes)
     {
         if (bytes == null) return Array.Empty<char>();
         var chars = new char[bytes.Length];

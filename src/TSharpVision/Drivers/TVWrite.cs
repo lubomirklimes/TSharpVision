@@ -62,14 +62,11 @@ public ref struct TVWrite
     private int wOffset;    // unclipped left edge of source span in owner space;
                             //   srcOffset = Max(0, X - wOffset) in L50
     private int edx;        // 0 = copy normally; >0 = apply shadow attribute
-    private bool bufIsShort;
-    private ReadOnlySpan<ushort> ShortBuffer;
     private ReadOnlySpan<TScreenChar> CellBuffer;
 
     /// <summary>Writes count source cells at view-local character-cell coordinates, clipping through the destination's owner hierarchy.</summary>
     public void L0(TView dest, int x, int y, int count, ReadOnlySpan<TScreenChar> buffer)
     {
-        bufIsShort = false;
         CellBuffer = buffer;
 
         Target = dest;
@@ -136,9 +133,9 @@ public ref struct TVWrite
     //                                   when edx++ is set around the L30 call.
     // Bottom-shadow-only rows are handled by the else-if branch below.
     // When next == Target: call L40 to commit the write.
-    private void L20(TView current)
+    private void L20(TView? current)
     {
-        TView next = current.Next;
+        if (current?.Next is not TView next) return;
         if (next == Target)
         {
             L40(next);
@@ -165,11 +162,11 @@ public ref struct TVWrite
                             else return;
                         }
                         if ((next.state & Views.sfShadow) != 0
-                            && next.origin.y + next.shadowSize.y <= Y)
+                            && next.origin.y + TView.shadowSize.y <= Y)
                         {
                             // Right-shadow strip: columns [ex, sx2) are in shadow.
                             // Matches upstream lab26: in_shadow++; render; in_shadow--.
-                            int sx2 = ex + next.shadowSize.x;
+                            int sx2 = ex + TView.shadowSize.x;
                             if (X < sx2)
                             {
                                 edx++;          // enter shadow
@@ -181,13 +178,13 @@ public ref struct TVWrite
                         else break;
                     } while (false);
                 }
-                else if ((next.state & Views.sfShadow) != 0 && Y < endY + next.shadowSize.y)
+                else if ((next.state & Views.sfShadow) != 0 && Y < endY + TView.shadowSize.y)
                 {
                     // Bottom-shadow-only row: columns [sx, exShadow) are in shadow.
                     // Matches upstream lab22/lab26:
                     //   [origin.x, sx)         → rendered normally via L30
                     //   [sx, sx + size.x)      → rendered with shadow attribute
-                    int sx = next.origin.x + next.shadowSize.x;
+                    int sx = next.origin.x + TView.shadowSize.x;
                     int exShadow = sx + next.size.x;
 
                     // Render [X, sx) normally (the narrow strip left of the shadow).
@@ -299,7 +296,9 @@ public ref struct TVWrite
     // (0x08 = dark gray on black); the character is preserved from the source.
     private void L50(TGroup owner)
     {
-        Span<TScreenChar> dst = owner.buffer.Data;
+        ScreenBuffer? ownerBuffer = owner.buffer;
+        if (ownerBuffer == null) return;
+        Span<TScreenChar> dst = ownerBuffer.Data;
 
         // Flat destination index: row * stride + column (both in owner space).
         int idx = Y * owner.size.x + X;
@@ -309,69 +308,34 @@ public ref struct TVWrite
         // Can happen when a partially off-screen view's clip leaves X or Count
         // at a value that would access past the buffer end.
         if (idx < 0 || len <= 0 || idx + len > dst.Length) return;
-        if (bufIsShort)
+        // srcOffset = number of source cells removed by left-clip in L10.
+        int srcOffset = Math.Max(0, X - wOffset);
+        if (srcOffset + len > CellBuffer.Length) return;
+        var src = CellBuffer.Slice(srcOffset, len);
+        if (edx == 0)
         {
-            // Legacy ushort-packed path (low byte = char, high byte = attr).
-            int srcOffset = Math.Max(0, X - wOffset);
-            if (srcOffset + len > ShortBuffer.Length) return;
-            var src = ShortBuffer.Slice(srcOffset, len);
-            if (!ReferenceEquals(owner.buffer, TScreen.ScreenBuffer))
-                copyShort2Cell(dst.Slice(idx, len), src);
-            else
-            {
-                copyShort(dst.Slice(idx, len), src);
-                TScreen.ScreenWrite(X, Y, dst.Slice(idx, len), len);
-            }
+            copyCell(dst.Slice(idx, len), src); // normal: copy attributes as-is
         }
         else
         {
-            // TScreenChar path (primary path for all modern views).
-            // srcOffset = number of source cells removed by left-clip in L10.
-            int srcOffset = Math.Max(0, X - wOffset);
-            if (srcOffset + len > CellBuffer.Length) return;
-            var src = CellBuffer.Slice(srcOffset, len);
-            if (edx == 0)
+            // Shadow mode: replace attribute with 0x08 (dark gray on black).
+            // The character comes from the source so the shadow shows the
+            // content underneath dimly.
+            for (int i = 0; i < len; i++)
             {
-                copyCell(dst.Slice(idx, len), src); // normal: copy attributes as-is
+                var cell = src[i];
+                cell.Attr = applyShadow(getAttr(cell));
+                dst[idx + i] = cell;
             }
-            else
-            {
-                // Shadow mode: replace attribute with 0x08 (dark gray on black).
-                // The character comes from the source so the shadow shows the
-                // content underneath dimly.
-                for (int i = 0; i < len; i++)
-                {
-                    var cell = src[i];
-                    cell.Attr = applyShadow(getAttr(cell));
-                    dst[idx + i] = cell;
-                }
-            }
-            // Push to hardware display when writing into the root screen buffer.
-            if (ReferenceEquals(owner.buffer, TScreen.ScreenBuffer))
-                TScreen.ScreenWrite(X, Y, dst.Slice(idx, len), len);
         }
-    }
-
-    // Unpack a ushort-encoded cell and write into TScreenChar (legacy path).
-    private void copyShort(Span<TScreenChar> dst, ReadOnlySpan<ushort> src)
-    {
-        for (int i = 0; i < src.Length; i++)
-        {
-            ushort w = src[i];
-            dst[i].Character = (char)(w & 0xFF);
-            dst[i].Attr = (TColorAttr)((w >> 8) & 0xFF);
-        }
+        // Push to hardware display when writing into the root screen buffer.
+        if (ReferenceEquals(owner.buffer, TScreen.ScreenBuffer))
+            TScreen.ScreenWrite(X, Y, dst.Slice(idx, len), len);
     }
 
     // Direct cell-to-cell copy without any attribute transform.
     private void copyCell(Span<TScreenChar> dst, ReadOnlySpan<TScreenChar> src)
         => src.CopyTo(dst);
-
-    // Stub for ushort → TScreenChar copy into non-hardware buffers.
-    private void copyShort2Cell(Span<TScreenChar> dst, ReadOnlySpan<ushort> src)
-    {
-        // TODO: implement once the ushort-packed path is exercised.
-    }
 
     // Shadow attribute: 0x08 = dark gray on black.  Matches upstream tvwrite.asm:
     //   uchar shadowAttr = 0x08; s[1] = shadowAttr;

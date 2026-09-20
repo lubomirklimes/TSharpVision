@@ -44,7 +44,7 @@ public class TRangeValidator : TFilterValidator
     }
 
     /// <inheritdoc />
-    public override bool IsValid(string s)
+    public override bool IsValid(string? s)
     {
         if (!base.IsValid(s)) return false;
         if (string.IsNullOrWhiteSpace(s)) return false;
@@ -71,7 +71,7 @@ public class TRangeValidator : TFilterValidator
     /// vtGetData: parse current string into buffer as long.
     /// vtSetData: format long in buffer back to string (out via ref of long).
     /// vtDataSize: return sizeof(long) = 8.
-    public override ushort Transfer(string s, object buffer, TVTransfer flag)
+    public override ushort Transfer(string? s, object buffer, TVTransfer flag)
     {
         if ((Options & VoTransfer) == 0) return 0;
         switch (flag)

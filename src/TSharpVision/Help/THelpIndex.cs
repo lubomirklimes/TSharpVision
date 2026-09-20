@@ -20,7 +20,7 @@ public class THelpIndex : TStreamable
     /// <summary>Number of allocated context slots, including unused entries.</summary>
     public ushort size;
     /// <summary>Position array indexed by help context; unused slots contain -1, and an empty index may be null.</summary>
-    public long[] index;
+    public long[]? index;
 
     /// <summary>Stream registry descriptor and factory for restoring this concrete type.</summary>
     public static readonly TStreamableClass StreamableClass =
@@ -36,7 +36,7 @@ public class THelpIndex : TStreamable
     /// <summary>Returns the file byte position for a nonnegative context identifier, or -1 when its slot is absent or unused.</summary>
     public long Position(int i)
     {
-        if (i < size) return index[i];
+        if (i >= 0 && i < size && index != null) return index[i];
         return -1;
     }
 
@@ -48,21 +48,24 @@ public class THelpIndex : TStreamable
         {
             int newSize = (i + delta) / delta * delta;
             var p = new long[newSize];
-            if (size > 0)
+            if (size > 0 && index != null)
                 Array.Copy(index, p, size);
             for (int k = size; k < newSize; k++) p[k] = -1;
             index = p;
             size = (ushort)newSize;
         }
-        index[i] = val;
+        long[] positions = index
+            ?? throw new InvalidOperationException("The help index storage was not allocated.");
+        positions[i] = val;
     }
 
     /// <inheritdoc />
     public override void Write(Opstream os)
     {
         os.WriteShort(size);
+        long[] positions = index ?? Array.Empty<long>();
         for (int i = 0; i < size; i++)
-            os.WriteLong((uint)index[i]);
+            os.WriteLong((uint)positions[i]);
     }
 
     /// <inheritdoc />

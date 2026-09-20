@@ -46,7 +46,7 @@ public class TView : TStreamable, IInfo, IDisposable
     /// <summary>Shared set of enabled command identifiers for the application.</summary>
     public static TCommandSet curCommandSet = InitCommands();
     /// <summary>Containing group, or null while the view is detached.</summary>
-    public TGroup owner;
+    public TGroup? owner;
     /// <summary>Whether controls draw selection markers in addition to color feedback.</summary>
     public static bool showMarkers;
     /// <summary>Fallback color attribute for invalid palette indices.</summary>
@@ -54,15 +54,21 @@ public class TView : TStreamable, IInfo, IDisposable
 
     // From Viewes.H
     /// <summary>Next sibling in the owner's circular child list.</summary>
-    public TView Next;
+    public TView? Next;
 
-    // From TVIEW.CPP
-    /// <summary>Horizontal and vertical shadow extension in character cells.</summary>
-    public TPoint shadowSize = new TPoint(2, 1);
+    /// <summary>
+    /// Gets or sets the process-wide screen shadow extension in character cells.
+    /// The active screen mode controls this shared value for every view.
+    /// </summary>
+    public static TPoint shadowSize
+    {
+        get => TScreen.ShadowSize;
+        set => TScreen.ShadowSize = value;
+    }
 
-    // From TGROUP.CPP
-    /// <summary>Optional override for the modal root returned by <see cref="TopView"/>.</summary>
-    public TView TheTopView;
+    // TGROUP.CPP keeps this as translation-unit state shared by every view.
+    // It is an implementation detail of modal dispatch, not per-view public state.
+    internal static TView? ModalTopView { get; set; }
 
     //protected static IDriver driver;
     private bool disposedValue;
@@ -114,11 +120,18 @@ public class TView : TStreamable, IInfo, IDisposable
     /// <summary>Finalizer hook; owned resources must be released through deterministic disposal.</summary>
     ~TView() { }
 
+    /// <summary>
+    /// Performs post-reconstruction initialization after the containing streamed view graph is fully linked.
+    /// The base view has no work; derived streamed views may override this method and normally need not call base.
+    /// Normal construction does not invoke this stream-only lifecycle hook.
+    /// </summary>
+    public virtual void Awaken() { }
+
     /// <summary>Returns minimum and maximum dimensions in cells; the default maximum is the owner's size, or unbounded when detached.</summary>
     public virtual void SizeLimits(ref TPoint min, ref TPoint max)
     {
         min.x = min.y = 0;
-        if (owner != null)
+        if ((growMode & Views.gfFixed) == 0 && owner != null)
             max = owner.size;
         else
         {
@@ -348,6 +361,29 @@ public class TView : TStreamable, IInfo, IDisposable
 
     /// <summary>Determines whether the view permits the requested command; the base view accepts all commands.</summary>
     public virtual bool Valid(ushort command) => true;
+
+    /// <summary>
+    /// Attempts to move the focused selection chain to this view, consulting an outgoing view marked
+    /// with <see cref="Views.ofValidate"/> before selection. Returns false when an owner or validator rejects the move.
+    /// </summary>
+    public bool Focus()
+    {
+        if ((state & (Views.sfSelected | Views.sfModal)) != 0)
+            return true;
+        if (owner == null)
+            return true;
+        if (!owner.Focus())
+            return false;
+
+        TView? current = owner.current;
+        if (current != null
+            && (current.options & Views.ofValidate) != 0
+            && !current.Valid(Views.cmReleasedFocus))
+            return false;
+
+        Select();
+        return true;
+    }
     /// <summary>Clears the visible state and updates affected drawing and selection.</summary>
     public virtual void Hide() 
     {
@@ -440,8 +476,8 @@ public class TView : TStreamable, IInfo, IDisposable
                 // L20_L23: goo through all siblings from `last.Next` back to `this`
                 bool occluded = false;
                 // we start from first in layer, which is last.Next
-                TView sib = grp.last.Next;
-                while (true)
+                TView? sib = grp.last?.Next;
+                while (sib is not null)
                 {
                     if (sib == this)
                         break;  // we get to targer view
@@ -477,14 +513,16 @@ public class TView : TStreamable, IInfo, IDisposable
     public virtual void HideCursor() => SetState(Views.sfCursorVis, false);
 
     /// <summary>Refreshes the caret and redraws siblings uncovered by hiding this view, stopping before the supplied sibling.</summary>
-    public virtual void DrawHide(TView lastView)
+    /// <param name="lastView">Sibling to stop before; null redraws through the end of the sibling sequence.</param>
+    public virtual void DrawHide(TView? lastView)
     {
         DrawCursor();
         DrawUnderView((state & Views.sfShadow) != 0, lastView);
     }
     
     /// <summary>Draws this view and refreshes its shadow over siblings up to the supplied stopping point.</summary>
-    public virtual void DrawShow(TView lastView) 
+    /// <param name="lastView">Sibling to stop before; null draws through the end of the sibling sequence.</param>
+    public virtual void DrawShow(TView? lastView)
     {
         DrawView();
         if ((state & Views.sfShadow) != 0)
@@ -492,7 +530,9 @@ public class TView : TStreamable, IInfo, IDisposable
     }
     
     /// <summary>Redraws underlying siblings within an owner-relative rectangle, stopping before the supplied sibling.</summary>
-    public virtual void DrawUnderRect(ref TRect r, TView lastView)
+    /// <param name="r">Owner-relative rectangle limiting the redraw.</param>
+    /// <param name="lastView">Sibling to stop before; null redraws through the end of the sibling sequence.</param>
+    public virtual void DrawUnderRect(ref TRect r, TView? lastView)
     {
         if (owner == null) return;
         owner.clip.Intersect(r);
@@ -501,7 +541,9 @@ public class TView : TStreamable, IInfo, IDisposable
     }
 
     /// <summary>Redraws siblings under this view, optionally including its shadow area.</summary>
-    public virtual void DrawUnderView(bool doShadow, TView lastView)
+    /// <param name="doShadow">Whether the shadow area is included in the redrawn region.</param>
+    /// <param name="lastView">Sibling to stop before; null redraws through the end of the sibling sequence.</param>
+    public virtual void DrawUnderView(bool doShadow, TView? lastView)
     {
         TRect r = GetBounds();
         if (doShadow) r.b += shadowSize;
@@ -620,9 +662,7 @@ public class TView : TStreamable, IInfo, IDisposable
             if ((state & (Views.sfSelected | Views.sfDisabled)) == 0
                 && (options & Views.ofSelectable) != 0)
             {
-                Select();
-                if ((state & Views.sfSelected) == 0
-                    || (options & Views.ofFirstClick) == 0)
+                if (!Focus() || (options & Views.ofFirstClick) == 0)
                     ClearEvent(ref @event);
             }
         }
@@ -826,18 +866,18 @@ public class TView : TStreamable, IInfo, IDisposable
         return temp;
     }
     /// <summary>Returns the next sibling in drawing order, or null after the last sibling.</summary>
-    public virtual TView NextView() 
+    public virtual TView? NextView()
     {
-        if (this == owner.last)
+        if (owner == null || this == owner.last)
             return null;
         else
             return Next;
     }
 
     /// <summary>Returns the preceding sibling in drawing order, or null before the first sibling.</summary>
-    public virtual TView PrevView()
+    public virtual TView? PrevView()
     {
-        if (owner != null && this == owner.First())
+        if (owner == null || this == owner.First())
             return null;
         return Prev();
     }
@@ -847,7 +887,12 @@ public class TView : TStreamable, IInfo, IDisposable
     {
         TView res = this;
         while (res.Next != this)
-            res = res.Next;
+        {
+            // A detached view has no sibling link; its predecessor is itself.
+            if (res.Next is not TView next)
+                return res;
+            res = next;
+        }
         return res;
     }
 
@@ -862,7 +907,7 @@ public class TView : TStreamable, IInfo, IDisposable
     // bring a window to the front. Triggers Hide/Show so that the owner's
     // ResetCurrent() runs and updates `current` to the moved view.
     /// <summary>Moves this view before a sibling in the owner's drawing order and refreshes visibility and selection.</summary>
-    public virtual void PutInFrontOf(TView target)
+    public virtual void PutInFrontOf(TView? target)
     {
         if (owner == null || target == this || target == NextView()) return;
         if (target != null && target.owner != owner) return;
@@ -879,15 +924,15 @@ public class TView : TStreamable, IInfo, IDisposable
             Show();
     }
     /// <summary>Returns the explicit top-view override or the nearest modal view in the owner chain.</summary>
-    public virtual TView TopView()
+    public virtual TView? TopView()
     {
-        if (TheTopView != null)
+        if (ModalTopView != null)
         {
-            return TheTopView;
+            return ModalTopView;
         }
         else
         {
-            TView p = this;
+            TView? p = this;
             while (p != null && (p.state & Views.sfModal) == 0)
             {
                 p = p.owner;

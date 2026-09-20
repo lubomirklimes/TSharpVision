@@ -9,7 +9,7 @@ namespace TSharpVision.Tests.Infrastructure;
 /// </summary>
 public sealed class DriverScope : IDisposable
 {
-    private readonly IDriver _previous;
+    private readonly IDriver? _previous;
     public NullDriver Driver { get; }
 
     public DriverScope() : this(80, 25) { }

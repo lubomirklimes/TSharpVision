@@ -110,7 +110,7 @@ public sealed class PaletteNameValidationTests
     [InlineData("something")]
     [InlineData("")]
     [InlineData(null)]
-    public void UnknownPaletteNames_NotRecognizedByCommandIds(string name)
+    public void UnknownPaletteNames_NotRecognizedByCommandIds(string? name)
     {
         Assert.False(CommandIds.IsKnownPaletteName(name));
     }

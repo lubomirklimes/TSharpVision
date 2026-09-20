@@ -12,17 +12,17 @@ public static class TEditorDialogHelper
     /// Returns <see cref="Views.cmYes"/> to overwrite, anything else to cancel.
     /// Replace in tests to simulate Yes/No without interactive UI.
     /// </summary>
-    public static Func<TDeskTop, string, ushort> OverwriteConfirm = DefaultOverwriteConfirm;
+    public static Func<TDeskTop?, string, ushort> OverwriteConfirm = DefaultOverwriteConfirm;
 
     /// <summary>
     /// The built-in (non-injected) overwrite confirmation implementation.
     /// Exposed publicly so smoke tests can restore the default without
     /// capturing a private delegate reference.
     /// </summary>
-    public static ushort OverwriteConfirmDefault(TDeskTop deskTop, string path)
+    public static ushort OverwriteConfirmDefault(TDeskTop? deskTop, string path)
         => DefaultOverwriteConfirm(deskTop, path);
 
-    private static ushort DefaultOverwriteConfirm(TDeskTop deskTop, string path)
+    private static ushort DefaultOverwriteConfirm(TDeskTop? deskTop, string path)
     {
         if (deskTop == null) return Views.cmCancel;
         return MsgBox.MessageBox(deskTop,
@@ -39,9 +39,9 @@ public static class TEditorDialogHelper
     /// <paramref name="deskTop"/>; if <paramref name="deskTop"/> is null,
     /// dialog paths return <see cref="Views.cmCancel"/> without throwing.
     /// </summary>
-    public static void Install(TDeskTop deskTop)
+    public static void Install(TDeskTop? deskTop)
     {
-        TEditor.editorDialog = (int dialog, object info) =>
+        TEditor.editorDialog = (int dialog, object? info) =>
         {
             switch (dialog)
             {

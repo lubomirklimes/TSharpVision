@@ -16,7 +16,8 @@ public sealed class EditorEditingTests
         byte[] bytes = Encoding.ASCII.GetBytes(text);
         ed.bufLen = (uint)bytes.Length;
         ed.gapLen = ed.bufSize - ed.bufLen;
-        Array.Copy(bytes, 0, ed.buffer, (int)ed.gapLen, bytes.Length);
+        char[] buffer = Assert.IsType<char[]>(ed.buffer);
+        Array.Copy(bytes, 0, buffer, (int)ed.gapLen, bytes.Length);
         ed.curPtr   = 0;
         ed.curPos   = default;
         ed.delta    = default;
@@ -279,6 +280,29 @@ public sealed class EditorEditingTests
 
         Assert.Equal(0u, ed.curPtr);
         Assert.Equal(Events.evNothing, ev.What);
+    }
+
+    [Fact]
+    public void HandleEvent_RepeatedDownMovesOncePerKeyDownAndKeyUpDoesNotMove()
+    {
+        var ed = MakeEditor("a\nb\nc\nd");
+        ed.SetCurPtr(0, 0);
+
+        for (int repeat = 0; repeat < 3; repeat++)
+        {
+            var down = new TEvent { What = Events.evKeyDown };
+            down.keyDown.keyCode = Keys.kbDown;
+            ed.HandleEvent(ref down);
+            Assert.Equal(Events.evNothing, down.What);
+        }
+
+        Assert.Equal(6u, ed.curPtr);
+        var up = new TEvent { What = Events.evKeyUp };
+        up.keyDown.keyCode = Keys.kbDown;
+        ed.HandleEvent(ref up);
+
+        Assert.Equal(6u, ed.curPtr);
+        Assert.Equal(Events.evNothing, up.What);
     }
 
     [Fact]

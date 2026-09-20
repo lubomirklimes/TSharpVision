@@ -52,7 +52,8 @@ public sealed class FileDialogPathPolishTests
             0);
         try
         {
-            Assert.True(dlg.fileName.MaxLen >= FileDialogConstants.MaxPathLen - 1);
+            var fileName = Assert.IsType<TFileInputLine>(dlg.fileName);
+            Assert.True(fileName.MaxLen >= FileDialogConstants.MaxPathLen - 1);
         }
         finally
         {
@@ -66,7 +67,8 @@ public sealed class FileDialogPathPolishTests
         var dlg = new TChDirDialog(ChDirDialogOptions.cdNoLoadDir, 0);
         try
         {
-            Assert.True(dlg.dirInput.MaxLen >= FileDialogConstants.MaxPathLen - 1);
+            var dirInput = Assert.IsType<TInputLine>(dlg.dirInput);
+            Assert.True(dirInput.MaxLen >= FileDialogConstants.MaxPathLen - 1);
         }
         finally
         {
@@ -163,7 +165,7 @@ public sealed class FileDialogPathPolishTests
         try
         {
             TEditorDialogHelper.OverwriteConfirm = (_, _) => Views.cmYes;
-            TEditor.editorDialog = (int dialog, object info) =>
+            TEditor.editorDialog = (int dialog, object? info) =>
             {
                 if (dialog == Views.edSaveAs && info is TFileEditor editor)
                 {

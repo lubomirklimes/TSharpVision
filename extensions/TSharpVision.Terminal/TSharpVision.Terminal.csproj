@@ -1,7 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <PropertyGroup>
+    <PackageId>TSharpVision.Terminal</PackageId>
+    <Description>ConPTY and POSIX pseudo-terminal session implementations for TSharpVision terminal controls.</Description>
+    <PackageTags>tsharpvision;tui;terminal;pty;conpty;posix</PackageTags>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\..\src\TSharpVision\TSharpVision.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="TSharpVision.Terminal.Tests" />
   </ItemGroup>
 
 </Project>

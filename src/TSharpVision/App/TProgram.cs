@@ -50,28 +50,28 @@ public class TProgram : TGroup
     /// <summary>Application reference initialized to this root program.</summary>
     public TProgram Application { get; set; }
     /// <summary>Status-line view displaying context-sensitive shortcuts.</summary>
-    public TStatusLine StatusLine { get; set; }
+    public TStatusLine? StatusLine { get; set; }
     /// <summary>Top-level menu view for application commands.</summary>
-    public TMenuBar MenuBar { get; set; }
+    public TMenuBar? MenuBar { get; set; }
     /// <summary>Desktop group that owns application windows.</summary>
-    public TDeskTop DeskTop { get; set; }
+    public TDeskTop? DeskTop { get; set; }
     /// <summary>Palette family used to resolve standard application colors.</summary>
     public AP AppPalette { get; set; }
 
     /// <summary>Single pending event returned before normal queued input.</summary>
-    public static TEvent Pending;
+    protected static TEvent Pending;
 
     // Idle / CPU-throttle bookkeeping.
     /// <summary>Environment tick count, in milliseconds, at the last idle-time measurement.</summary>
-    public static int LastIdleClock;
+    internal static int LastIdleClock;
     /// <summary>Accumulated idle duration in milliseconds.</summary>
-    public static int InIdleTime;
+    internal static int InIdleTime;
     /// <summary>Whether idle processing is currently active.</summary>
-    public static bool InIdle;
+    internal static bool InIdle;
     /// <summary>Nonzero inhibits yielding the CPU during idle processing.</summary>
-    public static byte DoNotReleaseCPU;
+    protected static byte DoNotReleaseCPU;
     /// <summary>Nonzero disables the standard Alt+number window-selection handler.</summary>
-    public static byte DoNotHandleAltNumber;
+    protected static byte DoNotHandleAltNumber;
 
     // Zeroes the idle accumulator so suspend/resume bridges don't leak
     // measured idle ticks across pauses.
@@ -127,7 +127,7 @@ public class TProgram : TGroup
     /// <inheritdoc />
     public override void GetEvent(ref TEvent @event)
     {
-        TScreen.driver.PumpMessages();
+        TScreen.ActiveDriver.PumpMessages();
 
         // One posted event per pass. Every loop reaches this method through the owner chain,
         // including the nested one a modal view runs via TGroup.ExecView, so a post always
@@ -144,7 +144,7 @@ public class TProgram : TGroup
         }
         else
         {
-            @event.GetNextEvent(TScreen.driver);
+            @event.GetNextEvent(TScreen.ActiveDriver);
             if (@event.What == Events.evNothing)
             {
                 Idle();
@@ -198,9 +198,9 @@ public class TProgram : TGroup
             char ac = TMenuView.GetAltChar(
                 @event.keyDown.keyCode,
                 @event.keyDown.charScan.charCode,
-                @event.keyDown.shiftState);
+                @event.keyDown.controlKeyState);
             if (ac >= '1' && ac <= '9'
-                && (current == null || current.Valid(Views.cmReleasedFocus)))
+                && CanMoveFocus())
             {
                 if (DeskTop != null)
                 {
@@ -271,16 +271,15 @@ public class TProgram : TGroup
     // application-supplied help-file factory. Default returns null, which suppresses the
     // cmHelp dispatch above. Subclasses override to bind a THelpFile.
     /// <summary>Returns the application help store, or null to disable standard help dispatch; override to supply help topics.</summary>
-    public virtual THelpFile GetHelpFile() => null;
+    public virtual THelpFile? GetHelpFile() => null;
 
     // inserts the help window non-modally into the desktop. Split out so smoke
     // tests can intercept this step without reimplementing the cmHelp dispatch.
     /// <summary>Inserts the help window into the desktop for nonmodal interaction.</summary>
     protected virtual void ExecuteHelp(THelpWindow window)
     {
-        if (DeskTop != null)
+        if (InsertWindow(window) != null)
         {
-            DeskTop.Insert(window);
             _helpWindow = window;
         }
     }
@@ -311,12 +310,9 @@ public class TProgram : TGroup
     {
         if ((TScreen.ScreenMode & (TScreen.SM)0x00FF) != TDisplay.SM.Mono)
         {
-            if ((TScreen.ScreenMode & TDisplay.SM.Font8x8) != 0)
-                shadowSize.x = 1;
-            else
-                shadowSize.x = 2;
-
-            shadowSize.y = 1;
+            TView.shadowSize = (TScreen.ScreenMode & TDisplay.SM.Font8x8) != 0
+                ? new TPoint(1, 1)
+                : new TPoint(2, 1);
             showMarkers = false;
 
             if ((TScreen.ScreenMode & (TScreen.SM)0x00FF) == TDisplay.SM.BW80)
@@ -326,8 +322,7 @@ public class TProgram : TGroup
         }
         else
         {
-            shadowSize.x = 0;
-            shadowSize.y = 0;
+            TView.shadowSize = new TPoint(0, 0);
             showMarkers = true;
             AppPalette = AP.Monochrome;
         }
@@ -397,8 +392,99 @@ public class TProgram : TGroup
         SetState(Views.sfExposed, true);
     }
 
+    /// <summary>
+    /// Determines whether the desktop's currently selected validation-enabled control permits focus to leave.
+    /// The framework calls this before Alt+number window selection and window insertion; derived programs may
+    /// override it to add an application-level focus policy.
+    /// </summary>
+    public virtual bool CanMoveFocus()
+        => DeskTop != null && DeskTop.Valid(Views.cmReleasedFocus);
+
+    /// <summary>
+    /// Validates and executes a dialog modally, optionally initializing it from managed data and copying accepted
+    /// results back. The helper takes lifecycle ownership of the dialog and always shuts it down, but does not call
+    /// <see cref="IDisposable.Dispose"/>. Group/dialog aggregate data must be supplied as a compatible
+    /// <see cref="TDataRecord"/>; cancellation leaves that record unchanged.
+    /// </summary>
+    /// <param name="dialog">Dialog whose active use ends when this method returns.</param>
+    /// <param name="data">Optional aggregate record used for initialization and accepted-result extraction.</param>
+    /// <returns>The modal result, or <see cref="Views.cmCancel"/> when validation or execution cannot start.</returns>
+    public virtual ushort ExecuteDialog(TDialog? dialog, object? data = null)
+    {
+        if (dialog == null)
+            return Views.cmCancel;
+        if (ValidView(dialog) == null)
+            return Views.cmCancel;
+        if (DeskTop == null)
+        {
+            dialog.ShutDown();
+            return Views.cmCancel;
+        }
+
+        ushort result = Views.cmCancel;
+        try
+        {
+            if (data != null)
+                dialog.SetData(data);
+
+            result = DeskTop.ExecView(dialog);
+            if (result != Views.cmCancel && data != null)
+            {
+                object extracted = data;
+                dialog.GetData(ref extracted);
+                if (data is TDataRecord target && extracted is TDataRecord source)
+                    CopyRecordValues(source, target);
+            }
+            return result;
+        }
+        finally
+        {
+            dialog.ShutDown();
+        }
+    }
+
+    private static void CopyRecordValues(TDataRecord source, TDataRecord target)
+    {
+        if (source.Size != target.Size || source.Segments.Count != target.Segments.Count)
+            throw new InvalidOperationException("The accepted dialog data layout changed during execution.");
+
+        for (int i = 0; i < source.Segments.Count; i++)
+        {
+            TDataRecord.Segment sourceSegment = source.Segments[i];
+            TDataRecord.Segment targetSegment = target.Segments[i];
+            if (sourceSegment.Offset != targetSegment.Offset || sourceSegment.Size != targetSegment.Size)
+                throw new InvalidOperationException("The accepted dialog data layout changed during execution.");
+            target.SetValue(i, sourceSegment.Value);
+        }
+    }
+
+    /// <summary>
+    /// Validates a window, checks the virtual focus-movement policy, and inserts it into the desktop.
+    /// On validation or focus rejection the window is shut down according to the managed Close lifecycle but is
+    /// not disposed. A successful return is the inserted window owned and selected by the desktop.
+    /// </summary>
+    public virtual TWindow? InsertWindow(TWindow? window)
+    {
+        if (window == null || ValidView(window) == null)
+            return null;
+        if (!CanMoveFocus())
+        {
+            window.ShutDown();
+            return null;
+        }
+
+        if (DeskTop == null)
+        {
+            window.ShutDown();
+            return null;
+        }
+
+        DeskTop.Insert(window);
+        return window;
+    }
+
     /// <summary>Returns a view that accepts the validation command; otherwise shuts it down and returns null.</summary>
-    public TView ValidView(TView p)
+    public TView? ValidView(TView? p)
     {
         if (p == null) return null;
         if (!p.Valid(Views.cmValid)) { p.ShutDown(); return null; }
@@ -433,7 +519,7 @@ public class TProgram : TGroup
     public virtual void Resume() { }
 
     /// <summary>Creates a one-row status line at the bottom of the supplied cell bounds with the default quit shortcut.</summary>
-    public virtual TStatusLine InitStatusLine(TRect r)
+    public virtual TStatusLine? InitStatusLine(TRect r)
     {
         r.a.y = r.b.y - 1;
 
@@ -449,14 +535,14 @@ public class TProgram : TGroup
     }
     
     /// <summary>Creates an empty menu bar in the top row of the supplied cell bounds.</summary>
-    public virtual TMenuBar InitMenuBar(TRect r)
+    public virtual TMenuBar? InitMenuBar(TRect r)
     {
         r.b.y = r.a.y + 1;
-        return new TMenuBar(r, (TMenu)null);
+        return new TMenuBar(r, (TMenu?)null);
     }
     
     /// <summary>Creates a desktop within the screen bounds, reserving the menu and status areas.</summary>
-    public virtual TDeskTop InitDesktop(TRect r)
+    public virtual TDeskTop? InitDesktop(TRect r)
     {
         if (MenuBar != null)
             r.a.y += MenuBar.size.y;

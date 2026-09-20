@@ -1,0 +1,85 @@
+#nullable enable
+const TSharpVision.TableView.TTableView.HeaderLines = 2 -> int
+const TSharpVision.TableView.TTableView.MaxColumnWidth = 40 -> int
+const TSharpVision.TableView.TTableView.MinColumnWidth = 4 -> int
+const TSharpVision.TableView.TTableView.RowsPerRead = 64 -> int
+override TSharpVision.TableView.TTableView.ChangeBounds(TSharpVision.TRect bounds) -> void
+override TSharpVision.TableView.TTableView.Draw() -> void
+override TSharpVision.TableView.TTableView.GetPalette() -> TSharpVision.TPalette!
+override TSharpVision.TableView.TTableView.HandleEvent(ref TSharpVision.TEvent ev) -> void
+override TSharpVision.TableView.TTableView.SetState(ushort aState, bool enable) -> void
+override TSharpVision.TableView.TTableView.ShutDown() -> void
+static TSharpVision.TableView.TTableView.ColumnSeparator -> char
+static TSharpVision.TableView.TTableView.HeaderCrossing -> char
+static TSharpVision.TableView.TTableView.HeaderLine -> char
+TSharpVision.TableView.ITableDataSource
+TSharpVision.TableView.ITableDataSource.Columns.get -> System.Collections.Generic.IReadOnlyList<TSharpVision.TableView.TableColumn!>!
+TSharpVision.TableView.ITableDataSource.ReadRowsAsync(long start, int count, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<TSharpVision.TableView.TableRowBlock!>
+TSharpVision.TableView.ITableDataSource.RowCount.get -> long?
+TSharpVision.TableView.TableAlignment
+TSharpVision.TableView.TableAlignment.Left = 0 -> TSharpVision.TableView.TableAlignment
+TSharpVision.TableView.TableAlignment.Right = 1 -> TSharpVision.TableView.TableAlignment
+TSharpVision.TableView.TableCell
+TSharpVision.TableView.TableCell.Role.get -> TSharpVision.TableView.TableCellRole
+TSharpVision.TableView.TableCell.TableCell() -> void
+TSharpVision.TableView.TableCell.TableCell(string? text, TSharpVision.TableView.TableCellRole role = TSharpVision.TableView.TableCellRole.Normal) -> void
+TSharpVision.TableView.TableCell.Text.get -> string!
+TSharpVision.TableView.TableCellRole
+TSharpVision.TableView.TableCellRole.Error = 3 -> TSharpVision.TableView.TableCellRole
+TSharpVision.TableView.TableCellRole.Normal = 0 -> TSharpVision.TableView.TableCellRole
+TSharpVision.TableView.TableCellRole.Null = 1 -> TSharpVision.TableView.TableCellRole
+TSharpVision.TableView.TableCellRole.Special = 2 -> TSharpVision.TableView.TableCellRole
+TSharpVision.TableView.TableColumn
+TSharpVision.TableView.TableColumn.Alignment.get -> TSharpVision.TableView.TableAlignment
+TSharpVision.TableView.TableColumn.PreferredWidth.get -> int?
+TSharpVision.TableView.TableColumn.TableColumn(string? title, int? preferredWidth = null, TSharpVision.TableView.TableAlignment alignment = TSharpVision.TableView.TableAlignment.Left) -> void
+TSharpVision.TableView.TableColumn.Title.get -> string!
+TSharpVision.TableView.TableRow
+TSharpVision.TableView.TableRow.Cells.get -> System.Collections.Generic.IReadOnlyList<TSharpVision.TableView.TableCell>!
+TSharpVision.TableView.TableRow.Tag.get -> object?
+TSharpVision.TableView.TableRowBlock
+TSharpVision.TableView.TableRowBlock.ReachedEnd.get -> bool
+TSharpVision.TableView.TableRowBlock.Rows.get -> System.Collections.Generic.IReadOnlyList<TSharpVision.TableView.TableRow!>!
+TSharpVision.TableView.TableRowBlock.Start.get -> long
+TSharpVision.TableView.TableRowBlock.TableRowBlock(long start, System.Collections.Generic.IReadOnlyList<TSharpVision.TableView.TableRow!>! rows, bool reachedEnd) -> void
+TSharpVision.TableView.TTableView
+TSharpVision.TableView.TTableView.ColumnCount.get -> int
+TSharpVision.TableView.TTableView.CurrentColumn.get -> int
+TSharpVision.TableView.TTableView.CurrentRow.get -> long
+TSharpVision.TableView.TTableView.DataSource.get -> TSharpVision.TableView.ITableDataSource?
+TSharpVision.TableView.TTableView.GetColumnWidth(int column) -> int
+TSharpVision.TableView.TTableView.IsLoading.get -> bool
+TSharpVision.TableView.TTableView.IsRowCountKnown.get -> bool
+TSharpVision.TableView.TTableView.KnownRowCount.get -> long
+TSharpVision.TableView.TTableView.LastError.get -> string?
+TSharpVision.TableView.TTableView.LeftColumn.get -> int
+TSharpVision.TableView.TTableView.MoveTo(long row, int column) -> void
+TSharpVision.TableView.TTableView.RetryFailedBlocks() -> void
+TSharpVision.TableView.TTableView.RowCount.get -> long?
+TSharpVision.TableView.TTableView.SetDataSource(TSharpVision.TableView.ITableDataSource? dataSource, long initialRow = 0, int initialColumn = 0) -> void
+TSharpVision.TableView.TTableView.TopRow.get -> long
+TSharpVision.TableView.TTableView.TryGetRow(long row, out TSharpVision.TableView.TableRow? value) -> bool
+TSharpVision.TableView.TTableView.TTableView(TSharpVision.TRect bounds, TSharpVision.TScrollBar? horizontalScrollBar, TSharpVision.TScrollBar? verticalScrollBar) -> void
+TSharpVision.TableView.TTableView.VisibleRowCount.get -> int
+virtual TSharpVision.TableView.TTableView.OnViewChanged() -> void
+virtual TSharpVision.TableView.TTableView.StartRead(System.Func<System.Threading.Tasks.Task!>! read) -> System.Threading.Tasks.Task!
+const TSharpVision.TableView.TTableView.MaxRowHeaderWidth = 16 -> int
+TSharpVision.TableView.TableRow.Label.get -> string?
+TSharpVision.TableView.TableRow.Role.get -> TSharpVision.TableView.TableRowRole
+TSharpVision.TableView.TableRowRole
+TSharpVision.TableView.TableRowRole.Muted = 1 -> TSharpVision.TableView.TableRowRole
+TSharpVision.TableView.TableRowRole.Normal = 0 -> TSharpVision.TableView.TableRowRole
+TSharpVision.TableView.TableRowRole.Warning = 2 -> TSharpVision.TableView.TableRowRole
+TSharpVision.TableView.TableViewPosition
+TSharpVision.TableView.TableViewPosition.Column.get -> int
+TSharpVision.TableView.TableViewPosition.LeftColumn.get -> int
+TSharpVision.TableView.TableViewPosition.Row.get -> long
+TSharpVision.TableView.TableViewPosition.TableViewPosition() -> void
+TSharpVision.TableView.TableViewPosition.TableViewPosition(long row, int column, long topRow, int leftColumn, System.Collections.Generic.IReadOnlyList<int>? columnWidths = null) -> void
+TSharpVision.TableView.TableViewPosition.ColumnWidths.get -> System.Collections.Generic.IReadOnlyList<int>?
+TSharpVision.TableView.TableViewPosition.TopRow.get -> long
+TSharpVision.TableView.TTableView.Position.get -> TSharpVision.TableView.TableViewPosition
+TSharpVision.TableView.TTableView.RowHeaderWidth.get -> int
+TSharpVision.TableView.TTableView.RowHeaderWidth.set -> void
+TSharpVision.TableView.TTableView.SetDataSource(TSharpVision.TableView.ITableDataSource? dataSource, TSharpVision.TableView.TableViewPosition position) -> void
+TSharpVision.TableView.TableRow.TableRow(System.Collections.Generic.IReadOnlyList<TSharpVision.TableView.TableCell>! cells, object? tag = null, TSharpVision.TableView.TableRowRole role = TSharpVision.TableView.TableRowRole.Normal, string? label = null) -> void

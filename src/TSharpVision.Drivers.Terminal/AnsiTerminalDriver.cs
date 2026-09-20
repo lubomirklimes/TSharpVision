@@ -100,7 +100,7 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
     private int _caretY;
     private bool _installedClipboardService;
     private readonly Queue<TEvent> _pendingKeys = new();
-    private readonly List<byte> _pendingBytes = new(64);
+    private readonly TerminalInputDecoder _input = new();
     private readonly System.Text.StringBuilder _writeBuilder = new(4096);
 
     /// <inheritdoc />
@@ -109,11 +109,17 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
     public bool SupportsTrueColor => true;
     /// <inheritdoc />
     public bool SupportsGraphics  => false;
+    /// <summary>
+    /// Gets keyboard features confirmed at runtime through Kitty protocol negotiation;
+    /// legacy ANSI mode reports <see cref="KeyboardCapabilities.None"/>.
+    /// </summary>
+    public KeyboardCapabilities KeyboardCapabilities => _input.KeyboardCapabilities;
 
     /// <inheritdoc />
     public void Initialize()
     {
         if (OperatingSystem.IsWindows()) return;
+        if (_attached) return;
         try
         {
             // Both stdin and stdout must be a real TTY.
@@ -166,6 +172,8 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
 
             _attached = true;
 
+            WriteControl(_input.BeginKeyboardNegotiation());
+
             if (ScreenDriverFactory.WindowTitle is { } title)
                 Write($"\x1b]0;{title}\x07");
 
@@ -174,6 +182,19 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
         }
         catch
         {
+            _input.EndKeyboardMode();
+            _pendingKeys.Clear();
+            if (_savedTermios != IntPtr.Zero)
+            {
+                tcsetattr(STDIN_FILENO, TCSANOW, _savedTermios);
+                Marshal.FreeHGlobal(_savedTermios);
+                _savedTermios = IntPtr.Zero;
+            }
+            if (_installedClipboardService)
+            {
+                ClipboardService.Reset();
+                _installedClipboardService = false;
+            }
             _attached = false;
         }
     }
@@ -182,9 +203,10 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
     public void Suspend()
     {
         if (!_attached) return;
-        Write("\x1b[?1006l\x1b[?1002l"); // mouse off
-        Write("\x1b[?25h");                // cursor on
-        Write("\x1b[?1049l");             // primary screen
+        if (_input.EndKeyboardMode() is { } restoreKeyboard)
+            WriteControl(restoreKeyboard);
+        _pendingKeys.Clear();
+        WriteControl("\x1b[?1006l\x1b[?1002l\x1b[?25h\x1b[?1049l");
         if (_savedTermios != IntPtr.Zero)
             tcsetattr(STDIN_FILENO, TCSANOW, _savedTermios);
     }
@@ -213,10 +235,8 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
             }
             finally { Marshal.FreeHGlobal(raw); }
         }
-        Write("\x1b[?1049h");
-        Write("\x1b[?25l");
-        Write("\x1b[?1002h\x1b[?1006h");
-        Console.Out.Flush();
+        WriteControl("\x1b[?1049h\x1b[?25l\x1b[?1002h\x1b[?1006h"
+            + _input.BeginKeyboardNegotiation());
     }
 
     /// <inheritdoc />
@@ -330,10 +350,10 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
             {
                 int n = read(STDIN_FILENO, p, tmp.Length);
                 if (n <= 0) break;
-                for (int i = 0; i < n; i++) _pendingBytes.Add(tmp[i]);
+                _input.Feed(tmp[..n], WriteControl);
             }
         }
-        DrainBuffer();
+        PublishNextInputEvent();
         PollResize();
     }
 
@@ -363,28 +383,16 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
         }
     }
 
-    private void DrainBuffer()
+    private void PublishNextInputEvent()
     {
-        while (_pendingBytes.Count > 0)
-        {
-            var span = System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_pendingBytes);
-
-            // Try mouse first (its prefix ESC[< is unambiguous).
-            int consumed = AnsiMouseDecoder.TryDecode(span, out var mev, out bool mc);
-            if (consumed > 0)
-            {
-                if (mev.What != Events.evNothing) TEventQueue.Enqueue(mev);
-                _pendingBytes.RemoveRange(0, consumed);
-                continue;
-            }
-            if (!mc && consumed == 0) return; // need more bytes
-
-            consumed = AnsiKeyDecoder.TryDecode(span, out var kev, out bool kc);
-            if (!kc && consumed == 0) return;
-            if (consumed == 0) return; // safety: shouldn't happen
-            if (kev.What == Events.evKeyDown) _pendingKeys.Enqueue(kev);
-            _pendingBytes.RemoveRange(0, consumed);
-        }
+        // Publish one native event per framework pump. Holding later mouse input
+        // behind a pending key preserves the original byte/event order despite
+        // the framework's separate mouse and keyboard retrieval paths.
+        if (_pendingKeys.Count != 0 || !_input.TryRead(out TEvent ev)) return;
+        if ((ev.What & Events.evMouse) != 0)
+            TEventQueue.Enqueue(ev);
+        else
+            _pendingKeys.Enqueue(ev);
     }
 
     /// <inheritdoc />
@@ -398,9 +406,27 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
     /// <summary>Shuts down the backend and releases its display and input resources.</summary>
     public void Dispose() => Shutdown();
 
+    internal string BeginKeyboardNegotiationForTesting() => _input.BeginKeyboardNegotiation();
+    internal void FeedInputForTesting(ReadOnlySpan<byte> bytes, Action<string> output)
+        => _input.Feed(bytes, output);
+
     // ---- helpers -------------------------------------------------------
 
     private static void Write(string s) => Console.Write(s);
+
+    private static void WriteControl(string value)
+    {
+        try
+        {
+            Console.Write(value);
+            Console.Out.Flush();
+        }
+        catch (IOException)
+        {
+            // Capability and restore writes are best-effort. A failed outer
+            // terminal transport must not break the application input loop.
+        }
+    }
 
     private void AppendCaretPosition(System.Text.StringBuilder sb)
         => AppendCaretPosition(sb, _caretX, _caretY);
@@ -419,7 +445,7 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
     /// Translate a tvision <see cref="TColorAttr"/> (FG nibble | BG nibble)
     /// into an SGR escape sequence using the same VGA palette as the SDL driver.
     /// </summary>
-    public static string AttrToSgr(TColorAttr attr)
+    internal static string AttrToSgr(TColorAttr attr)
         => SgrCache[(byte)attr];
 
     private static string[] BuildSgrCache()

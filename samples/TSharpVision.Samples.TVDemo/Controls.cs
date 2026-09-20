@@ -44,10 +44,10 @@ public partial class TVDemoApp
 
         // Keep references to the interactive controls so we can read their
         // values after the user presses OK.
-        TInputLine    nameInput = null;
-        TCheckBoxes   checkBoxes = null;
-        TRadioButtons radioButtons = null;
-        TListBox      listBox = null;
+        TInputLine nameInput;
+        TCheckBoxes checkBoxes;
+        TRadioButtons radioButtons;
+        TListBox listBox;
 
         TDialog dlg = BuildControlsShowcaseDialog(
             out nameInput, out checkBoxes, out radioButtons, out listBox);

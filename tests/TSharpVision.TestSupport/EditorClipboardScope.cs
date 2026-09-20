@@ -10,7 +10,7 @@ namespace TSharpVision.Tests.Infrastructure;
 /// </summary>
 public sealed class EditorClipboardScope : IDisposable
 {
-    private readonly TEditor _savedClipboard;
+    private readonly TEditor? _savedClipboard;
     private readonly TEditor.TEditorDialog _savedDialog;
     private readonly ushort _savedFlags;
     private readonly char[] _savedFindStr;

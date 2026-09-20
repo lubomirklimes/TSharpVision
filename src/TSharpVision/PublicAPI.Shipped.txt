@@ -1,0 +1,2927 @@
+#nullable enable
+abstract TSharpVision.TCollection.ReadItem(TSharpVision.Ipstream! isStream) -> object?
+abstract TSharpVision.TCollection.WriteItem(object? item, TSharpVision.Opstream! os) -> void
+abstract TSharpVision.TSortedCollection.At(int index) -> object!
+abstract TSharpVision.TSortedCollection.Compare(object! key1, object! key2) -> int
+abstract TSharpVision.TSortedCollection.Count.get -> int
+abstract TSharpVision.TSortedCollection.KeyOf(object! item) -> object!
+abstract TSharpVision.TStreamable.Read(TSharpVision.Ipstream! s) -> object!
+abstract TSharpVision.TStreamable.Write(TSharpVision.Opstream! s) -> void
+const TSharpVision.ButtonConstants.bfBroadcast = 4 -> byte
+const TSharpVision.ButtonConstants.bfDefault = 1 -> byte
+const TSharpVision.ButtonConstants.bfGrabFocus = 8 -> byte
+const TSharpVision.ButtonConstants.bfLeftJust = 2 -> byte
+const TSharpVision.ButtonConstants.bfNormal = 0 -> byte
+const TSharpVision.ButtonConstants.cmRecordHistory = 60 -> ushort
+const TSharpVision.ChDirDialogOptions.cdHelpButton = 2 -> ushort
+const TSharpVision.ChDirDialogOptions.cdNoLoadDir = 1 -> ushort
+const TSharpVision.ChDirDialogOptions.cdNormal = 0 -> ushort
+const TSharpVision.ClipboardEncoding.NulReplacement = 32 -> byte
+const TSharpVision.ClipboardEncoding.UnsupportedReplacement = 63 -> byte
+const TSharpVision.Constants.Colors.bgBlack = 0 -> byte
+const TSharpVision.Constants.Colors.bgBlue = 16 -> byte
+const TSharpVision.Constants.Colors.bgBrown = 96 -> byte
+const TSharpVision.Constants.Colors.bgCyan = 48 -> byte
+const TSharpVision.Constants.Colors.bgGreen = 32 -> byte
+const TSharpVision.Constants.Colors.bgLightGray = 112 -> byte
+const TSharpVision.Constants.Colors.bgMagenta = 80 -> byte
+const TSharpVision.Constants.Colors.bgMask = 240 -> byte
+const TSharpVision.Constants.Colors.bgRed = 64 -> byte
+const TSharpVision.Constants.Colors.blink = 128 -> byte
+const TSharpVision.Constants.Colors.fgBlack = 0 -> byte
+const TSharpVision.Constants.Colors.fgBlue = 1 -> byte
+const TSharpVision.Constants.Colors.fgBrown = 6 -> byte
+const TSharpVision.Constants.Colors.fgCyan = 3 -> byte
+const TSharpVision.Constants.Colors.fgDarkGray = 8 -> byte
+const TSharpVision.Constants.Colors.fgGreen = 2 -> byte
+const TSharpVision.Constants.Colors.fgLightBlue = 9 -> byte
+const TSharpVision.Constants.Colors.fgLightCyan = 11 -> byte
+const TSharpVision.Constants.Colors.fgLightGray = 7 -> byte
+const TSharpVision.Constants.Colors.fgLightGreen = 10 -> byte
+const TSharpVision.Constants.Colors.fgLightMagenta = 13 -> byte
+const TSharpVision.Constants.Colors.fgLightRed = 12 -> byte
+const TSharpVision.Constants.Colors.fgMagenta = 5 -> byte
+const TSharpVision.Constants.Colors.fgMask = 15 -> byte
+const TSharpVision.Constants.Colors.fgRed = 4 -> byte
+const TSharpVision.Constants.Colors.fgWhite = 15 -> byte
+const TSharpVision.Constants.Colors.fgYellow = 14 -> byte
+const TSharpVision.Constants.Commands.cmFirstUserCommand = 100 -> ushort
+const TSharpVision.Constants.Events.evBroadcast = 512 -> ushort
+const TSharpVision.Constants.Events.evCommand = 256 -> ushort
+const TSharpVision.Constants.Events.evKeyboard = 16 -> ushort
+const TSharpVision.Constants.Events.evKeyDown = 16 -> ushort
+const TSharpVision.Constants.Events.evKeyUp = 128 -> ushort
+const TSharpVision.Constants.Events.evMessage = 65280 -> ushort
+const TSharpVision.Constants.Events.evModifierChanged = 64 -> ushort
+const TSharpVision.Constants.Events.evMouse = 15 -> ushort
+const TSharpVision.Constants.Events.evMouseAuto = 8 -> ushort
+const TSharpVision.Constants.Events.evMouseDown = 1 -> ushort
+const TSharpVision.Constants.Events.evMouseMove = 4 -> ushort
+const TSharpVision.Constants.Events.evMouseUp = 2 -> ushort
+const TSharpVision.Constants.Events.evMouseWheel = 32 -> ushort
+const TSharpVision.Constants.Events.evNothing = 0 -> ushort
+const TSharpVision.Constants.Events.mbButton4 = 8 -> ushort
+const TSharpVision.Constants.Events.mbButton5 = 16 -> ushort
+const TSharpVision.Constants.Events.mbLeftButton = 1 -> ushort
+const TSharpVision.Constants.Events.mbMiddleButton = 4 -> ushort
+const TSharpVision.Constants.Events.mbRightButton = 2 -> ushort
+const TSharpVision.Constants.Events.meDoubleClick = 2 -> uint
+const TSharpVision.Constants.Events.meMouseMoved = 1 -> uint
+const TSharpVision.Constants.Events.meWheelDown = 8 -> uint
+const TSharpVision.Constants.Events.meWheelLeft = 16 -> uint
+const TSharpVision.Constants.Events.meWheelRight = 32 -> uint
+const TSharpVision.Constants.Events.meWheelUp = 4 -> uint
+const TSharpVision.Constants.FileDialogConstants.MaxPathLen = 4096 -> int
+const TSharpVision.Constants.Keys.kbAlt0 = 33024 -> ushort
+const TSharpVision.Constants.Keys.kbAlt1 = 30720 -> ushort
+const TSharpVision.Constants.Keys.kbAlt2 = 30976 -> ushort
+const TSharpVision.Constants.Keys.kbAlt3 = 31232 -> ushort
+const TSharpVision.Constants.Keys.kbAlt4 = 31488 -> ushort
+const TSharpVision.Constants.Keys.kbAlt5 = 31744 -> ushort
+const TSharpVision.Constants.Keys.kbAlt6 = 32000 -> ushort
+const TSharpVision.Constants.Keys.kbAlt7 = 32256 -> ushort
+const TSharpVision.Constants.Keys.kbAlt8 = 32512 -> ushort
+const TSharpVision.Constants.Keys.kbAlt9 = 32768 -> ushort
+const TSharpVision.Constants.Keys.kbAltA = 7680 -> ushort
+const TSharpVision.Constants.Keys.kbAltB = 12288 -> ushort
+const TSharpVision.Constants.Keys.kbAltBack = 2048 -> ushort
+const TSharpVision.Constants.Keys.kbAltC = 11776 -> ushort
+const TSharpVision.Constants.Keys.kbAltD = 8192 -> ushort
+const TSharpVision.Constants.Keys.kbAltE = 4608 -> ushort
+const TSharpVision.Constants.Keys.kbAltEqual = 33536 -> ushort
+const TSharpVision.Constants.Keys.kbAltF = 8448 -> ushort
+const TSharpVision.Constants.Keys.kbAltF1 = 26624 -> ushort
+const TSharpVision.Constants.Keys.kbAltF10 = 28928 -> ushort
+const TSharpVision.Constants.Keys.kbAltF11 = 35584 -> ushort
+const TSharpVision.Constants.Keys.kbAltF12 = 35840 -> ushort
+const TSharpVision.Constants.Keys.kbAltF2 = 26880 -> ushort
+const TSharpVision.Constants.Keys.kbAltF3 = 27136 -> ushort
+const TSharpVision.Constants.Keys.kbAltF4 = 27392 -> ushort
+const TSharpVision.Constants.Keys.kbAltF5 = 27648 -> ushort
+const TSharpVision.Constants.Keys.kbAltF6 = 27904 -> ushort
+const TSharpVision.Constants.Keys.kbAltF7 = 28160 -> ushort
+const TSharpVision.Constants.Keys.kbAltF8 = 28416 -> ushort
+const TSharpVision.Constants.Keys.kbAltF9 = 28672 -> ushort
+const TSharpVision.Constants.Keys.kbAltG = 8704 -> ushort
+const TSharpVision.Constants.Keys.kbAltH = 8960 -> ushort
+const TSharpVision.Constants.Keys.kbAltI = 5888 -> ushort
+const TSharpVision.Constants.Keys.kbAltJ = 9216 -> ushort
+const TSharpVision.Constants.Keys.kbAltK = 9472 -> ushort
+const TSharpVision.Constants.Keys.kbAltL = 9728 -> ushort
+const TSharpVision.Constants.Keys.kbAltM = 12800 -> ushort
+const TSharpVision.Constants.Keys.kbAltMinus = 33280 -> ushort
+const TSharpVision.Constants.Keys.kbAltN = 12544 -> ushort
+const TSharpVision.Constants.Keys.kbAltO = 6144 -> ushort
+const TSharpVision.Constants.Keys.kbAltP = 6400 -> ushort
+const TSharpVision.Constants.Keys.kbAltQ = 4096 -> ushort
+const TSharpVision.Constants.Keys.kbAltR = 4864 -> ushort
+const TSharpVision.Constants.Keys.kbAltS = 7936 -> ushort
+const TSharpVision.Constants.Keys.kbAltShift = 8 -> uint
+const TSharpVision.Constants.Keys.kbAltSpace = 512 -> ushort
+const TSharpVision.Constants.Keys.kbAltT = 5120 -> ushort
+const TSharpVision.Constants.Keys.kbAltU = 5632 -> ushort
+const TSharpVision.Constants.Keys.kbAltV = 12032 -> ushort
+const TSharpVision.Constants.Keys.kbAltW = 4352 -> ushort
+const TSharpVision.Constants.Keys.kbAltX = 11520 -> ushort
+const TSharpVision.Constants.Keys.kbAltY = 5376 -> ushort
+const TSharpVision.Constants.Keys.kbAltZ = 11264 -> ushort
+const TSharpVision.Constants.Keys.kbBack = 3592 -> ushort
+const TSharpVision.Constants.Keys.kbCapsState = 64 -> uint
+const TSharpVision.Constants.Keys.kbCtrlA = 1 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlB = 2 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlBack = 3711 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlC = 3 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlD = 4 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlDel = 1536 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlE = 5 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlEnd = 29952 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlEnter = 7178 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlF = 6 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlF1 = 24064 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlF10 = 26368 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlF11 = 35072 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlF12 = 35328 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlF2 = 24320 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlF3 = 24576 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlF4 = 24832 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlF5 = 25088 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlF6 = 25344 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlF7 = 25600 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlF8 = 25856 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlF9 = 26112 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlG = 7 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlH = 8 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlHome = 30464 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlI = 9 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlIns = 1024 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlJ = 10 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlK = 11 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlL = 12 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlLeft = 29440 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlM = 13 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlN = 14 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlO = 15 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlP = 16 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlPgDn = 30208 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlPgUp = 33792 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlPrtSc = 29184 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlQ = 17 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlR = 18 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlRight = 29696 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlS = 19 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlShift = 4 -> uint
+const TSharpVision.Constants.Keys.kbCtrlShiftDel = 462 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlShiftIns = 461 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlT = 20 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlU = 21 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlV = 22 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlW = 23 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlX = 24 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlY = 25 -> ushort
+const TSharpVision.Constants.Keys.kbCtrlZ = 26 -> ushort
+const TSharpVision.Constants.Keys.kbDel = 21248 -> ushort
+const TSharpVision.Constants.Keys.kbDown = 20480 -> ushort
+const TSharpVision.Constants.Keys.kbEnd = 20224 -> ushort
+const TSharpVision.Constants.Keys.kbEnter = 7181 -> ushort
+const TSharpVision.Constants.Keys.kbEsc = 283 -> ushort
+const TSharpVision.Constants.Keys.kbF1 = 15104 -> ushort
+const TSharpVision.Constants.Keys.kbF10 = 17408 -> ushort
+const TSharpVision.Constants.Keys.kbF11 = 22272 -> ushort
+const TSharpVision.Constants.Keys.kbF12 = 22528 -> ushort
+const TSharpVision.Constants.Keys.kbF2 = 15360 -> ushort
+const TSharpVision.Constants.Keys.kbF3 = 15616 -> ushort
+const TSharpVision.Constants.Keys.kbF4 = 15872 -> ushort
+const TSharpVision.Constants.Keys.kbF5 = 16128 -> ushort
+const TSharpVision.Constants.Keys.kbF6 = 16384 -> ushort
+const TSharpVision.Constants.Keys.kbF7 = 16640 -> ushort
+const TSharpVision.Constants.Keys.kbF8 = 16896 -> ushort
+const TSharpVision.Constants.Keys.kbF9 = 17152 -> ushort
+const TSharpVision.Constants.Keys.kbGrayMinus = 18989 -> ushort
+const TSharpVision.Constants.Keys.kbGrayPlus = 20011 -> ushort
+const TSharpVision.Constants.Keys.kbHome = 18176 -> ushort
+const TSharpVision.Constants.Keys.kbIns = 20992 -> ushort
+const TSharpVision.Constants.Keys.kbInsState = 128 -> uint
+const TSharpVision.Constants.Keys.kbLeft = 19200 -> ushort
+const TSharpVision.Constants.Keys.kbLeftAlt = 8 -> uint
+const TSharpVision.Constants.Keys.kbLeftCtrl = 4 -> uint
+const TSharpVision.Constants.Keys.kbLeftShift = 1 -> uint
+const TSharpVision.Constants.Keys.kbNoKey = 0 -> ushort
+const TSharpVision.Constants.Keys.kbNumState = 32 -> uint
+const TSharpVision.Constants.Keys.kbPgDn = 20736 -> ushort
+const TSharpVision.Constants.Keys.kbPgUp = 18688 -> ushort
+const TSharpVision.Constants.Keys.kbRight = 19712 -> ushort
+const TSharpVision.Constants.Keys.kbRightAlt = 8 -> uint
+const TSharpVision.Constants.Keys.kbRightCtrl = 4 -> uint
+const TSharpVision.Constants.Keys.kbRightShift = 2 -> uint
+const TSharpVision.Constants.Keys.kbScrollState = 16 -> uint
+const TSharpVision.Constants.Keys.kbShift = 3 -> uint
+const TSharpVision.Constants.Keys.kbShiftDel = 1792 -> ushort
+const TSharpVision.Constants.Keys.kbShiftF1 = 21504 -> ushort
+const TSharpVision.Constants.Keys.kbShiftF10 = 23808 -> ushort
+const TSharpVision.Constants.Keys.kbShiftF11 = 34560 -> ushort
+const TSharpVision.Constants.Keys.kbShiftF12 = 34816 -> ushort
+const TSharpVision.Constants.Keys.kbShiftF2 = 21760 -> ushort
+const TSharpVision.Constants.Keys.kbShiftF3 = 22016 -> ushort
+const TSharpVision.Constants.Keys.kbShiftF4 = 22272 -> ushort
+const TSharpVision.Constants.Keys.kbShiftF5 = 22528 -> ushort
+const TSharpVision.Constants.Keys.kbShiftF6 = 22784 -> ushort
+const TSharpVision.Constants.Keys.kbShiftF7 = 23040 -> ushort
+const TSharpVision.Constants.Keys.kbShiftF8 = 23296 -> ushort
+const TSharpVision.Constants.Keys.kbShiftF9 = 23552 -> ushort
+const TSharpVision.Constants.Keys.kbShiftIns = 1280 -> ushort
+const TSharpVision.Constants.Keys.kbShiftTab = 3840 -> ushort
+const TSharpVision.Constants.Keys.kbSpace = 52 -> ushort
+const TSharpVision.Constants.Keys.kbTab = 3849 -> ushort
+const TSharpVision.Constants.Keys.kbUp = 18432 -> ushort
+const TSharpVision.Constants.Views.cmBackSpace = 513 -> ushort
+const TSharpVision.Constants.Views.cmCallShell = 65 -> ushort
+const TSharpVision.Constants.Views.cmCancel = 11 -> ushort
+const TSharpVision.Constants.Views.cmCascade = 26 -> ushort
+const TSharpVision.Constants.Views.cmChangeDir = 1005 -> ushort
+const TSharpVision.Constants.Views.cmCharLeft = 500 -> ushort
+const TSharpVision.Constants.Views.cmCharRight = 501 -> ushort
+const TSharpVision.Constants.Views.cmChDir = 35 -> ushort
+const TSharpVision.Constants.Views.cmClear = 24 -> ushort
+const TSharpVision.Constants.Views.cmClose = 4 -> ushort
+const TSharpVision.Constants.Views.cmCloseAll = 37 -> ushort
+const TSharpVision.Constants.Views.cmClosingWindow = 57 -> ushort
+const TSharpVision.Constants.Views.cmClusterMovedTo = 58 -> ushort
+const TSharpVision.Constants.Views.cmClusterPress = 59 -> ushort
+const TSharpVision.Constants.Views.cmColorBackgroundChanged = 72 -> ushort
+const TSharpVision.Constants.Views.cmColorForegroundChanged = 71 -> ushort
+const TSharpVision.Constants.Views.cmColorSet = 73 -> ushort
+const TSharpVision.Constants.Views.cmCommandSetChanged = 52 -> ushort
+const TSharpVision.Constants.Views.cmCopy = 21 -> ushort
+const TSharpVision.Constants.Views.cmCut = 20 -> ushort
+const TSharpVision.Constants.Views.cmDefault = 14 -> ushort
+const TSharpVision.Constants.Views.cmDelChar = 514 -> ushort
+const TSharpVision.Constants.Views.cmDelEnd = 517 -> ushort
+const TSharpVision.Constants.Views.cmDelLine = 518 -> ushort
+const TSharpVision.Constants.Views.cmDelStart = 516 -> ushort
+const TSharpVision.Constants.Views.cmDelWord = 515 -> ushort
+const TSharpVision.Constants.Views.cmDirSelection = 1008 -> ushort
+const TSharpVision.Constants.Views.cmDosShell = 36 -> ushort
+const TSharpVision.Constants.Views.cmError = 2 -> ushort
+const TSharpVision.Constants.Views.cmFileClear = 1003 -> ushort
+const TSharpVision.Constants.Views.cmFileDoubleClicked = 103 -> ushort
+const TSharpVision.Constants.Views.cmFileFocused = 102 -> ushort
+const TSharpVision.Constants.Views.cmFileInit = 1004 -> ushort
+const TSharpVision.Constants.Views.cmFileOpen = 1001 -> ushort
+const TSharpVision.Constants.Views.cmFileReplace = 1002 -> ushort
+const TSharpVision.Constants.Views.cmFileSelect = 1007 -> ushort
+const TSharpVision.Constants.Views.cmFind = 82 -> ushort
+const TSharpVision.Constants.Views.cmGrabDefault = 62 -> ushort
+const TSharpVision.Constants.Views.cmHelp = 9 -> ushort
+const TSharpVision.Constants.Views.cmHelpBack = 67 -> ushort
+const TSharpVision.Constants.Views.cmHelpIndex = 68 -> ushort
+const TSharpVision.Constants.Views.cmHideSelect = 521 -> ushort
+const TSharpVision.Constants.Views.cmIndentMode = 522 -> ushort
+const TSharpVision.Constants.Views.cmInsertText = 524 -> ushort
+const TSharpVision.Constants.Views.cmInsMode = 519 -> ushort
+const TSharpVision.Constants.Views.cmLineDown = 507 -> ushort
+const TSharpVision.Constants.Views.cmLineEnd = 505 -> ushort
+const TSharpVision.Constants.Views.cmLineStart = 504 -> ushort
+const TSharpVision.Constants.Views.cmLineUp = 506 -> ushort
+const TSharpVision.Constants.Views.cmListItemFocused = 61 -> ushort
+const TSharpVision.Constants.Views.cmListItemSelected = 56 -> ushort
+const TSharpVision.Constants.Views.cmMenu = 3 -> ushort
+const TSharpVision.Constants.Views.cmNew = 30 -> ushort
+const TSharpVision.Constants.Views.cmNewColorIndex = 75 -> ushort
+const TSharpVision.Constants.Views.cmNewColorItem = 74 -> ushort
+const TSharpVision.Constants.Views.cmNewLine = 512 -> ushort
+const TSharpVision.Constants.Views.cmNext = 7 -> ushort
+const TSharpVision.Constants.Views.cmNo = 13 -> ushort
+const TSharpVision.Constants.Views.cmOK = 10 -> ushort
+const TSharpVision.Constants.Views.cmOpen = 31 -> ushort
+const TSharpVision.Constants.Views.cmPageDown = 509 -> ushort
+const TSharpVision.Constants.Views.cmPageUp = 508 -> ushort
+const TSharpVision.Constants.Views.cmPaste = 22 -> ushort
+const TSharpVision.Constants.Views.cmPrev = 8 -> ushort
+const TSharpVision.Constants.Views.cmQuit = 1 -> ushort
+const TSharpVision.Constants.Views.cmReceivedFocus = 50 -> ushort
+const TSharpVision.Constants.Views.cmRecordHistory = 60 -> ushort
+const TSharpVision.Constants.Views.cmReleaseDefault = 63 -> ushort
+const TSharpVision.Constants.Views.cmReleasedFocus = 51 -> ushort
+const TSharpVision.Constants.Views.cmReplace = 83 -> ushort
+const TSharpVision.Constants.Views.cmResize = 6 -> ushort
+const TSharpVision.Constants.Views.cmRevert = 1006 -> ushort
+const TSharpVision.Constants.Views.cmSave = 32 -> ushort
+const TSharpVision.Constants.Views.cmSaveAll = 34 -> ushort
+const TSharpVision.Constants.Views.cmSaveAs = 33 -> ushort
+const TSharpVision.Constants.Views.cmSaveColorIndex = 76 -> ushort
+const TSharpVision.Constants.Views.cmScreenResized = 66 -> ushort
+const TSharpVision.Constants.Views.cmScrollBarChanged = 53 -> ushort
+const TSharpVision.Constants.Views.cmScrollBarClicked = 54 -> ushort
+const TSharpVision.Constants.Views.cmSearchAgain = 84 -> ushort
+const TSharpVision.Constants.Views.cmSelectWindowNum = 55 -> ushort
+const TSharpVision.Constants.Views.cmStartSelect = 520 -> ushort
+const TSharpVision.Constants.Views.cmTextEnd = 511 -> ushort
+const TSharpVision.Constants.Views.cmTextStart = 510 -> ushort
+const TSharpVision.Constants.Views.cmTile = 25 -> ushort
+const TSharpVision.Constants.Views.cmTryColors = 78 -> ushort
+const TSharpVision.Constants.Views.cmUndo = 23 -> ushort
+const TSharpVision.Constants.Views.cmUpdateCodePage = 64 -> ushort
+const TSharpVision.Constants.Views.cmUpdateColorsChanged = 77 -> ushort
+const TSharpVision.Constants.Views.cmUpdateTitle = 523 -> ushort
+const TSharpVision.Constants.Views.cmValid = 0 -> ushort
+const TSharpVision.Constants.Views.cmWordLeft = 502 -> ushort
+const TSharpVision.Constants.Views.cmWordRight = 503 -> ushort
+const TSharpVision.Constants.Views.cmYes = 12 -> ushort
+const TSharpVision.Constants.Views.cmZoom = 5 -> ushort
+const TSharpVision.Constants.Views.dmDragGrow = 2 -> byte
+const TSharpVision.Constants.Views.dmDragMove = 1 -> byte
+const TSharpVision.Constants.Views.dmLimitAll = 240 -> byte
+const TSharpVision.Constants.Views.dmLimitHiX = 64 -> byte
+const TSharpVision.Constants.Views.dmLimitHiY = 128 -> byte
+const TSharpVision.Constants.Views.dmLimitLoX = 16 -> byte
+const TSharpVision.Constants.Views.dmLimitLoY = 32 -> byte
+const TSharpVision.Constants.Views.dsktTileHorizontal = 0 -> ushort
+const TSharpVision.Constants.Views.dsktTileVertical = 1 -> ushort
+const TSharpVision.Constants.Views.edCreateError = 3 -> int
+const TSharpVision.Constants.Views.edEncodingWriteError = 11 -> int
+const TSharpVision.Constants.Views.edFind = 7 -> int
+const TSharpVision.Constants.Views.edOutOfMemory = 0 -> int
+const TSharpVision.Constants.Views.edReadError = 1 -> int
+const TSharpVision.Constants.Views.edReplace = 9 -> int
+const TSharpVision.Constants.Views.edReplacePrompt = 10 -> int
+const TSharpVision.Constants.Views.edSaveAs = 6 -> int
+const TSharpVision.Constants.Views.edSaveModify = 4 -> int
+const TSharpVision.Constants.Views.edSaveUntitled = 5 -> int
+const TSharpVision.Constants.Views.edSearchFailed = 8 -> int
+const TSharpVision.Constants.Views.edWriteError = 2 -> int
+const TSharpVision.Constants.Views.efBackupFiles = 256 -> ushort
+const TSharpVision.Constants.Views.efCaseSensitive = 1 -> ushort
+const TSharpVision.Constants.Views.efDoReplace = 16 -> ushort
+const TSharpVision.Constants.Views.efPromptOnReplace = 4 -> ushort
+const TSharpVision.Constants.Views.efReplaceAll = 8 -> ushort
+const TSharpVision.Constants.Views.efWholeWordsOnly = 2 -> ushort
+const TSharpVision.Constants.Views.focusedEvents = 272 -> ushort
+const TSharpVision.Constants.Views.gfFixed = 32 -> byte
+const TSharpVision.Constants.Views.gfGrowAll = 15 -> byte
+const TSharpVision.Constants.Views.gfGrowHiX = 4 -> byte
+const TSharpVision.Constants.Views.gfGrowHiY = 8 -> byte
+const TSharpVision.Constants.Views.gfGrowLoX = 1 -> byte
+const TSharpVision.Constants.Views.gfGrowLoY = 2 -> byte
+const TSharpVision.Constants.Views.gfGrowRel = 16 -> byte
+const TSharpVision.Constants.Views.hcDragging = 1 -> ushort
+const TSharpVision.Constants.Views.hcNoContext = 0 -> ushort
+const TSharpVision.Constants.Views.maxFindStrLen = 80 -> int
+const TSharpVision.Constants.Views.maxLineLength = 256 -> int
+const TSharpVision.Constants.Views.maxReplaceStrLen = 80 -> int
+const TSharpVision.Constants.Views.noBackground = 8 -> ushort
+const TSharpVision.Constants.Views.noDeskTop = 2 -> ushort
+const TSharpVision.Constants.Views.noFrame = 16 -> ushort
+const TSharpVision.Constants.Views.noHistory = 64 -> ushort
+const TSharpVision.Constants.Views.noMenuBar = 1 -> ushort
+const TSharpVision.Constants.Views.noStatusLine = 4 -> ushort
+const TSharpVision.Constants.Views.noViewer = 32 -> ushort
+const TSharpVision.Constants.Views.ofBuffered = 64 -> ushort
+const TSharpVision.Constants.Views.ofCentered = 768 -> ushort
+const TSharpVision.Constants.Views.ofCenterX = 256 -> ushort
+const TSharpVision.Constants.Views.ofCenterY = 512 -> ushort
+const TSharpVision.Constants.Views.ofFirstClick = 4 -> ushort
+const TSharpVision.Constants.Views.ofFramed = 8 -> ushort
+const TSharpVision.Constants.Views.ofPostProcess = 32 -> ushort
+const TSharpVision.Constants.Views.ofPreProcess = 16 -> ushort
+const TSharpVision.Constants.Views.ofSelectable = 1 -> ushort
+const TSharpVision.Constants.Views.ofTileable = 128 -> ushort
+const TSharpVision.Constants.Views.ofTopSelect = 2 -> ushort
+const TSharpVision.Constants.Views.ofValidate = 1024 -> ushort
+const TSharpVision.Constants.Views.positionalEvents = 15 -> ushort
+const TSharpVision.Constants.Views.sbDownArrow = 5 -> ushort
+const TSharpVision.Constants.Views.sbHandleKeyboard = 2 -> ushort
+const TSharpVision.Constants.Views.sbHorizontal = 0 -> ushort
+const TSharpVision.Constants.Views.sbIndicator = 8 -> ushort
+const TSharpVision.Constants.Views.sbLeftArrow = 0 -> ushort
+const TSharpVision.Constants.Views.sbPageDown = 7 -> ushort
+const TSharpVision.Constants.Views.sbPageLeft = 2 -> ushort
+const TSharpVision.Constants.Views.sbPageRight = 3 -> ushort
+const TSharpVision.Constants.Views.sbPageUp = 6 -> ushort
+const TSharpVision.Constants.Views.sbRightArrow = 1 -> ushort
+const TSharpVision.Constants.Views.sbUpArrow = 4 -> ushort
+const TSharpVision.Constants.Views.sbVertical = 1 -> ushort
+const TSharpVision.Constants.Views.sfActive = 16 -> ushort
+const TSharpVision.Constants.Views.sfCursorIns = 4 -> ushort
+const TSharpVision.Constants.Views.sfCursorVis = 2 -> ushort
+const TSharpVision.Constants.Views.sfDefault = 1024 -> ushort
+const TSharpVision.Constants.Views.sfDisabled = 256 -> ushort
+const TSharpVision.Constants.Views.sfDragging = 128 -> ushort
+const TSharpVision.Constants.Views.sfExposed = 2048 -> ushort
+const TSharpVision.Constants.Views.sfFocused = 64 -> ushort
+const TSharpVision.Constants.Views.sfModal = 512 -> ushort
+const TSharpVision.Constants.Views.sfSearchFailed = 4294967295 -> uint
+const TSharpVision.Constants.Views.sfSelected = 32 -> ushort
+const TSharpVision.Constants.Views.sfShadow = 8 -> ushort
+const TSharpVision.Constants.Views.sfVisible = 1 -> ushort
+const TSharpVision.Constants.Views.smDouble = 2 -> byte
+const TSharpVision.Constants.Views.smExtend = 1 -> byte
+const TSharpVision.Constants.Views.ufLine = 2 -> byte
+const TSharpVision.Constants.Views.ufUpdate = 1 -> byte
+const TSharpVision.Constants.Views.ufView = 4 -> byte
+const TSharpVision.Constants.Views.wfClose = 4 -> byte
+const TSharpVision.Constants.Views.wfGrow = 2 -> byte
+const TSharpVision.Constants.Views.wfMove = 1 -> byte
+const TSharpVision.Constants.Views.wfZoom = 8 -> byte
+const TSharpVision.Constants.Views.wnNoNumber = 0 -> ushort
+const TSharpVision.Constants.Views.wpBlueWindow = 0 -> ushort
+const TSharpVision.Constants.Views.wpCyanWindow = 1 -> ushort
+const TSharpVision.Constants.Views.wpGrayWindow = 2 -> ushort
+const TSharpVision.FileAttr.faArch = 32 -> byte
+const TSharpVision.FileAttr.faDirec = 16 -> byte
+const TSharpVision.FileAttr.faHidden = 2 -> byte
+const TSharpVision.FileAttr.faReadOnly = 1 -> byte
+const TSharpVision.FileAttr.faSystem = 4 -> byte
+const TSharpVision.FileAttr.faVolumeId = 8 -> byte
+const TSharpVision.FileCollectionOptions.fcolAlphabetical = 0 -> uint
+const TSharpVision.FileCollectionOptions.fcolCaseInsensitive = 32 -> uint
+const TSharpVision.FileCollectionOptions.fcolCaseSensitive = 0 -> uint
+const TSharpVision.FileCollectionOptions.fcolDirsFirst = 1 -> uint
+const TSharpVision.FileCollectionOptions.fcolDirsLast = 2 -> uint
+const TSharpVision.FileCollectionOptions.fcolDotsFirst = 0 -> uint
+const TSharpVision.FileCollectionOptions.fcolDotsLast = 128 -> uint
+const TSharpVision.FileCollectionOptions.fcolHideEndBkp = 512 -> uint
+const TSharpVision.FileCollectionOptions.fcolHideEndTilde = 256 -> uint
+const TSharpVision.FileCollectionOptions.fcolHideMask = 3840 -> uint
+const TSharpVision.FileCollectionOptions.fcolHideStartDot = 1024 -> uint
+const TSharpVision.FileCollectionOptions.fcolParentFirst = 0 -> uint
+const TSharpVision.FileCollectionOptions.fcolParentLast = 64 -> uint
+const TSharpVision.FileCollectionOptions.fcolTypeMask = 31 -> uint
+const TSharpVision.FileDialogOptions.fdAddButton = 128 -> ushort
+const TSharpVision.FileDialogOptions.fdClearButton = 8 -> ushort
+const TSharpVision.FileDialogOptions.fdDoneButton = 64 -> ushort
+const TSharpVision.FileDialogOptions.fdEncodingSelector = 512 -> ushort
+const TSharpVision.FileDialogOptions.fdHelpButton = 16 -> ushort
+const TSharpVision.FileDialogOptions.fdNoLoadDir = 256 -> ushort
+const TSharpVision.FileDialogOptions.fdOKButton = 1 -> ushort
+const TSharpVision.FileDialogOptions.fdOpenButton = 2 -> ushort
+const TSharpVision.FileDialogOptions.fdReplaceButton = 4 -> ushort
+const TSharpVision.FileDialogOptions.fdSelectButton = 32 -> ushort
+const TSharpVision.MsgBox.mfCancelButton = 2048 -> ushort
+const TSharpVision.MsgBox.mfConfirmation = 3 -> ushort
+const TSharpVision.MsgBox.mfError = 1 -> ushort
+const TSharpVision.MsgBox.mfInformation = 2 -> ushort
+const TSharpVision.MsgBox.mfNoButton = 512 -> ushort
+const TSharpVision.MsgBox.mfOKButton = 1024 -> ushort
+const TSharpVision.MsgBox.mfOKCancel = 3072 -> ushort
+const TSharpVision.MsgBox.mfWarning = 0 -> ushort
+const TSharpVision.MsgBox.mfYesButton = 256 -> ushort
+const TSharpVision.MsgBox.mfYesNoCancel = 2816 -> ushort
+const TSharpVision.Pstream.IOSBadBit = 4 -> int
+const TSharpVision.Pstream.IOSEOFBit = 1 -> int
+const TSharpVision.Pstream.IOSFailBit = 2 -> int
+const TSharpVision.Pstream.ptIndexed = 1 -> byte
+const TSharpVision.Pstream.ptNull = 0 -> byte
+const TSharpVision.Pstream.ptObject = 2 -> byte
+const TSharpVision.TCluster.ofBeVerbose = 2048 -> ushort
+const TSharpVision.TCommandSet.CommandCount = 65536 -> int
+const TSharpVision.TDrawBuffer.MaxViewWidth = 256 -> int
+const TSharpVision.THelpFile.FormatV1Latin1 = 1 -> int
+const TSharpVision.THelpFile.FormatV2Utf16 = 2 -> int
+const TSharpVision.THelpFile.magicHeader = 1179140678 -> uint
+const TSharpVision.THelpFile.magicHeaderV2 = 843596358 -> uint
+const TSharpVision.THelpIndex.TypeName = "THelpIndex" -> string!
+const TSharpVision.THelpTopic.TypeName = "THelpTopic" -> string!
+const TSharpVision.THelpViewer.IndexContext = 1 -> int
+const TSharpVision.THistoryList.HistorySize = 64 -> int
+const TSharpVision.TMenuView.cpMenuView = "\u0002\u0003\u0004\u0005\u0006\a" -> string!
+const TSharpVision.TProgram.cpBlackWhite = "ppx\u007f\a\a\u000f\a\u000f\app\ap\0\a\u000f\app\ap\0p\u007f\u007fp\ap\a\0p\u007f\u007fp\app\u007f\u007f\a\u000f\u000fx\u000fx\a\u000f\u000f\u000fp\u000f\appp\ap\u000f\a\a\a\0" -> string!
+const TSharpVision.TProgram.cpColor = "qpxt ($\u0017\u001f\u001a11\u001eq\07?:\u0013\u0013>!\0p\u007fz\u0013\u0013p\u007f\0p\u007fz\u0013\u0013pp\u007f~ +/x.p0?>\u001f/\u001a r110/>1\u00138\0" -> string!
+const TSharpVision.TProgram.cpMonochrome = "p\a\a\u000fppp\a\u000f\app\ap\0\a\u000f\app\ap\0ppp\a\ap\a\0ppp\a\appp\u000f\a\a\u000fp\u000fp\a\u000f\u000f\ap\a\ap\a\a\ap\u000f\a\a\a\0" -> string!
+const TSharpVision.TResourceCollection.Name = "TResourceCollection" -> string!
+const TSharpVision.TResourceFile.rStreamMagic = 1380991558 -> uint
+const TSharpVision.TResourceStringProvider.DefaultResourceKey = "sharpvision.intl" -> string!
+const TSharpVision.TSharpVisionGlyphs.BackgroundFillDark = '▓' -> char
+const TSharpVision.TSharpVisionGlyphs.BackgroundFillLight = '░' -> char
+const TSharpVision.TSharpVisionGlyphs.BackgroundFillMedium = '▒' -> char
+const TSharpVision.TSharpVisionGlyphs.CheckBoxChecked = 'X' -> char
+const TSharpVision.TSharpVisionGlyphs.CheckBoxUnchecked = ' ' -> char
+const TSharpVision.TSharpVisionGlyphs.FrameBottomLeft = '└' -> char
+const TSharpVision.TSharpVisionGlyphs.FrameBottomRight = '┘' -> char
+const TSharpVision.TSharpVisionGlyphs.FrameDoubleBottomLeft = '╚' -> char
+const TSharpVision.TSharpVisionGlyphs.FrameDoubleBottomRight = '╝' -> char
+const TSharpVision.TSharpVisionGlyphs.FrameDoubleHorizontal = '═' -> char
+const TSharpVision.TSharpVisionGlyphs.FrameDoubleTopLeft = '╔' -> char
+const TSharpVision.TSharpVisionGlyphs.FrameDoubleTopRight = '╗' -> char
+const TSharpVision.TSharpVisionGlyphs.FrameDoubleVertical = '║' -> char
+const TSharpVision.TSharpVisionGlyphs.FrameHorizontal = '─' -> char
+const TSharpVision.TSharpVisionGlyphs.FrameLeftTee = '├' -> char
+const TSharpVision.TSharpVisionGlyphs.FrameRightTee = '┤' -> char
+const TSharpVision.TSharpVisionGlyphs.FrameTopLeft = '┌' -> char
+const TSharpVision.TSharpVisionGlyphs.FrameTopRight = '┐' -> char
+const TSharpVision.TSharpVisionGlyphs.FrameVertical = '│' -> char
+const TSharpVision.TSharpVisionGlyphs.IndicatorDragFrame = '═' -> char
+const TSharpVision.TSharpVisionGlyphs.IndicatorModified = '●' -> char
+const TSharpVision.TSharpVisionGlyphs.IndicatorNormalFrame = '─' -> char
+const TSharpVision.TSharpVisionGlyphs.MenuSubmenuArrow = '►' -> char
+const TSharpVision.TSharpVisionGlyphs.RadioChecked = '●' -> char
+const TSharpVision.TSharpVisionGlyphs.RadioUnchecked = ' ' -> char
+const TSharpVision.TSharpVisionGlyphs.ScrollArrowDown = '▼' -> char
+const TSharpVision.TSharpVisionGlyphs.ScrollArrowLeft = '◄' -> char
+const TSharpVision.TSharpVisionGlyphs.ScrollArrowRight = '►' -> char
+const TSharpVision.TSharpVisionGlyphs.ScrollArrowUp = '▲' -> char
+const TSharpVision.TSharpVisionGlyphs.ScrollBarBright = '░' -> char
+const TSharpVision.TSharpVisionGlyphs.ScrollBarThumb = '■' -> char
+const TSharpVision.TSharpVisionGlyphs.ScrollBarTrack = '▒' -> char
+const TSharpVision.TSharpVisionGlyphs.StatusHintSeparator = '│' -> char
+const TSharpVision.TSharpVisionGlyphs.SystemMenu = '≡' -> char
+const TSharpVision.TSharpVisionGlyphs.SystemMenuFallback = '≡' -> char
+const TSharpVision.TStatusLine.cpStatusLine = "\u0002\u0003\u0004\u0005\u0006\a" -> string!
+const TSharpVision.TStringCollection.TypeName = "TStringCollection" -> string!
+const TSharpVision.TStringResource.Name = "TStringResource" -> string!
+const TSharpVision.TTerminal.DefaultMaxCommandHistory = 100 -> int
+const TSharpVision.TTerminal.DefaultMaxLines = 500 -> int
+const TSharpVision.TValidator.VoFill = 1 -> ushort
+const TSharpVision.TValidator.VoOnAppend = 4 -> ushort
+const TSharpVision.TValidator.VoTransfer = 2 -> ushort
+const TSharpVision.TValidator.VsOk = 0 -> ushort
+const TSharpVision.TValidator.VsSyntax = 1 -> ushort
+override TSharpVision.SetBlock.GetHashCode() -> int
+override TSharpVision.TApplication.Dispose(bool disposing) -> void
+override TSharpVision.TApplication.Resume() -> void
+override TSharpVision.TApplication.Suspend() -> void
+override TSharpVision.TBackground.Draw() -> void
+override TSharpVision.TBackground.GetPalette() -> TSharpVision.TPalette!
+override TSharpVision.TBackground.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TBackground.StreamableName() -> string!
+override TSharpVision.TBackground.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TButton.Draw() -> void
+override TSharpVision.TButton.GetPalette() -> TSharpVision.TPalette!
+override TSharpVision.TButton.HandleEvent(ref TSharpVision.TEvent event) -> void
+override TSharpVision.TButton.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TButton.SetState(ushort aState, bool enable) -> void
+override TSharpVision.TButton.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TChDirDialog.DataSize() -> ushort
+override TSharpVision.TChDirDialog.HandleEvent(ref TSharpVision.TEvent event) -> void
+override TSharpVision.TChDirDialog.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TChDirDialog.SetData(object! _) -> void
+override TSharpVision.TChDirDialog.ShutDown() -> void
+override TSharpVision.TChDirDialog.Valid(ushort command) -> bool
+override TSharpVision.TChDirDialog.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TCheckBoxes.Draw() -> void
+override TSharpVision.TCheckBoxes.Mark(int item) -> bool
+override TSharpVision.TCheckBoxes.Press(int item) -> void
+override TSharpVision.TCluster.DataSize() -> ushort
+override TSharpVision.TCluster.GetData(ref object! rec) -> void
+override TSharpVision.TCluster.GetHelpCtx() -> ushort
+override TSharpVision.TCluster.GetPalette() -> TSharpVision.TPalette!
+override TSharpVision.TCluster.HandleEvent(ref TSharpVision.TEvent event) -> void
+override TSharpVision.TCluster.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TCluster.SetData(object! rec) -> void
+override TSharpVision.TCluster.SetState(ushort aState, bool enable) -> void
+override TSharpVision.TCluster.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TCollection.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TCollection.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TColorAttr.Equals(object? obj) -> bool
+override TSharpVision.TColorAttr.GetHashCode() -> int
+override TSharpVision.TColorAttr.ToString() -> string!
+override TSharpVision.TColorDialog.DataSize() -> ushort
+override TSharpVision.TColorDialog.HandleEvent(ref TSharpVision.TEvent event) -> void
+override TSharpVision.TColorDialog.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TColorDialog.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TColorDisplay.Draw() -> void
+override TSharpVision.TColorDisplay.HandleEvent(ref TSharpVision.TEvent event) -> void
+override TSharpVision.TColorDisplay.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TColorDisplay.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TColorGroupList.FocusItem(int item) -> void
+override TSharpVision.TColorGroupList.GetText(int item, int maxLen) -> string!
+override TSharpVision.TColorGroupList.HandleEvent(ref TSharpVision.TEvent event) -> void
+override TSharpVision.TColorGroupList.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TColorGroupList.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TColorItemList.FocusItem(int item) -> void
+override TSharpVision.TColorItemList.GetText(int item, int maxLen) -> string!
+override TSharpVision.TColorItemList.HandleEvent(ref TSharpVision.TEvent event) -> void
+override TSharpVision.TColorSelector.Draw() -> void
+override TSharpVision.TColorSelector.HandleEvent(ref TSharpVision.TEvent event) -> void
+override TSharpVision.TColorSelector.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TColorSelector.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TCommandSet.Equals(object? obj) -> bool
+override TSharpVision.TCommandSet.GetHashCode() -> int
+override TSharpVision.TDeskTop.ExecView(TSharpVision.TView! p) -> ushort
+override TSharpVision.TDeskTop.HandleEvent(ref TSharpVision.TEvent event) -> void
+override TSharpVision.TDeskTop.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TDeskTop.ShutDown() -> void
+override TSharpVision.TDeskTop.StreamableName() -> string!
+override TSharpVision.TDeskTop.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TDialog.GetPalette() -> TSharpVision.TPalette!
+override TSharpVision.TDialog.HandleEvent(ref TSharpVision.TEvent event) -> void
+override TSharpVision.TDialog.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TDialog.Valid(ushort command) -> bool
+override TSharpVision.TDialog.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TDirListBox.DataSize() -> ushort
+override TSharpVision.TDirListBox.GetData(ref object! rec) -> void
+override TSharpVision.TDirListBox.GetText(int item, int maxChars) -> string!
+override TSharpVision.TDirListBox.HandleEvent(ref TSharpVision.TEvent event) -> void
+override TSharpVision.TDirListBox.IsSelected(int item) -> bool
+override TSharpVision.TDirListBox.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TDirListBox.SetData(object! rec) -> void
+override TSharpVision.TDirListBox.SetState(ushort aState, bool enable) -> void
+override TSharpVision.TDirListBox.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TEditor.ChangeBounds(TSharpVision.TRect bounds) -> void
+override TSharpVision.TEditor.Draw() -> void
+override TSharpVision.TEditor.GetPalette() -> TSharpVision.TPalette!
+override TSharpVision.TEditor.HandleEvent(ref TSharpVision.TEvent ev) -> void
+override TSharpVision.TEditor.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TEditor.SetState(ushort aState, bool enable) -> void
+override TSharpVision.TEditor.ShutDown() -> void
+override TSharpVision.TEditor.Valid(ushort _) -> bool
+override TSharpVision.TEditor.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TEditorApp.HandleEvent(ref TSharpVision.TEvent ev) -> void
+override TSharpVision.TEditorApp.InitMenuBar(TSharpVision.TRect r) -> TSharpVision.TMenuBar!
+override TSharpVision.TEditorApp.InitStatusLine(TSharpVision.TRect r) -> TSharpVision.TStatusLine!
+override TSharpVision.TEditWindow.Close() -> void
+override TSharpVision.TEditWindow.GetTitle(short maxSize) -> string!
+override TSharpVision.TEditWindow.HandleEvent(ref TSharpVision.TEvent ev) -> void
+override TSharpVision.TEditWindow.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TEditWindow.SizeLimits(ref TSharpVision.TPoint min, ref TSharpVision.TPoint max) -> void
+override TSharpVision.TEditWindow.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TerminalSize.Equals(object? obj) -> bool
+override TSharpVision.TerminalSize.GetHashCode() -> int
+override TSharpVision.TerminalSize.ToString() -> string!
+override TSharpVision.TerminalTextPosition.Equals(object? obj) -> bool
+override TSharpVision.TerminalTextPosition.GetHashCode() -> int
+override TSharpVision.TerminalTextPosition.ToString() -> string!
+override TSharpVision.TFileCollection.At(int index) -> object!
+override TSharpVision.TFileCollection.Compare(object! key1, object! key2) -> int
+override TSharpVision.TFileCollection.Count.get -> int
+override TSharpVision.TFileCollection.KeyOf(object! item) -> object!
+override TSharpVision.TFileDialog.HandleEvent(ref TSharpVision.TEvent event) -> void
+override TSharpVision.TFileDialog.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TFileDialog.SetData(object! rec) -> void
+override TSharpVision.TFileDialog.ShutDown() -> void
+override TSharpVision.TFileDialog.SizeLimits(ref TSharpVision.TPoint min, ref TSharpVision.TPoint max) -> void
+override TSharpVision.TFileDialog.Valid(ushort command) -> bool
+override TSharpVision.TFileDialog.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TFileEditor.HandleEvent(ref TSharpVision.TEvent ev) -> void
+override TSharpVision.TFileEditor.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TFileEditor.SetBufSize(uint newSize) -> bool
+override TSharpVision.TFileEditor.ShutDown() -> void
+override TSharpVision.TFileEditor.UpdateCommands() -> void
+override TSharpVision.TFileEditor.Valid(ushort command) -> bool
+override TSharpVision.TFileEditor.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TFileInfoPane.Draw() -> void
+override TSharpVision.TFileInfoPane.GetPalette() -> TSharpVision.TPalette!
+override TSharpVision.TFileInfoPane.HandleEvent(ref TSharpVision.TEvent event) -> void
+override TSharpVision.TFileInfoPane.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TFileInfoPane.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TFileInputLine.HandleEvent(ref TSharpVision.TEvent event) -> void
+override TSharpVision.TFileInputLine.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TFileInputLine.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TFileList.DataSize() -> ushort
+override TSharpVision.TFileList.FocusItem(int item) -> void
+override TSharpVision.TFileList.GetData(ref object! rec) -> void
+override TSharpVision.TFileList.GetItemText(object! item) -> string!
+override TSharpVision.TFileList.GetKey(string! s) -> object!
+override TSharpVision.TFileList.HandleEvent(ref TSharpVision.TEvent event) -> void
+override TSharpVision.TFileList.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TFileList.SelectItem(int item) -> void
+override TSharpVision.TFileList.SetData(object! rec) -> void
+override TSharpVision.TFileList.SetState(ushort aState, bool enable) -> void
+override TSharpVision.TFileList.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TFilterValidator.Error() -> void
+override TSharpVision.TFilterValidator.IsValid(string? s) -> bool
+override TSharpVision.TFilterValidator.IsValidInput(string? s, bool suppressFill) -> bool
+override TSharpVision.TFilterValidator.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TFilterValidator.streamableName.get -> string!
+override TSharpVision.TFilterValidator.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TFrame.Draw() -> void
+override TSharpVision.TFrame.GetPalette() -> TSharpVision.TPalette!
+override TSharpVision.TFrame.HandleEvent(ref TSharpVision.TEvent event) -> void
+override TSharpVision.TFrame.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TFrame.SetState(ushort aState, bool enable) -> void
+override TSharpVision.TFrame.StreamableName() -> string!
+override TSharpVision.TFrame.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TGroup.Awaken() -> void
+override TSharpVision.TGroup.ChangeBounds(TSharpVision.TRect bounds) -> void
+override TSharpVision.TGroup.DataSize() -> ushort
+override TSharpVision.TGroup.Draw() -> void
+override TSharpVision.TGroup.EndModal(ushort command) -> void
+override TSharpVision.TGroup.Execute() -> ushort
+override TSharpVision.TGroup.GetData(ref object! rec) -> void
+override TSharpVision.TGroup.GetHelpCtx() -> ushort
+override TSharpVision.TGroup.HandleEvent(ref TSharpVision.TEvent event) -> void
+override TSharpVision.TGroup.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TGroup.ResetCursor() -> void
+override TSharpVision.TGroup.SetData(object! rec) -> void
+override TSharpVision.TGroup.SetState(ushort aState, bool enable) -> void
+override TSharpVision.TGroup.ShutDown() -> void
+override TSharpVision.TGroup.StreamableName() -> string!
+override TSharpVision.TGroup.Valid(ushort command) -> bool
+override TSharpVision.TGroup.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.THelpIndex.Read(TSharpVision.Ipstream! s) -> object!
+override TSharpVision.THelpIndex.streamableName.get -> string!
+override TSharpVision.THelpIndex.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.THelpTopic.Read(TSharpVision.Ipstream! s) -> object!
+override TSharpVision.THelpTopic.streamableName.get -> string!
+override TSharpVision.THelpTopic.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.THelpViewer.ChangeBounds(TSharpVision.TRect bounds) -> void
+override TSharpVision.THelpViewer.Draw() -> void
+override TSharpVision.THelpViewer.GetPalette() -> TSharpVision.TPalette!
+override TSharpVision.THelpViewer.HandleEvent(ref TSharpVision.TEvent ev) -> void
+override TSharpVision.THelpWindow.GetPalette() -> TSharpVision.TPalette!
+override TSharpVision.THistory.Draw() -> void
+override TSharpVision.THistory.GetPalette() -> TSharpVision.TPalette!
+override TSharpVision.THistory.HandleEvent(ref TSharpVision.TEvent event) -> void
+override TSharpVision.THistory.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.THistory.ShutDown() -> void
+override TSharpVision.THistory.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.THistoryViewer.GetPalette() -> TSharpVision.TPalette!
+override TSharpVision.THistoryViewer.GetText(int item, int maxChars) -> string!
+override TSharpVision.THistoryViewer.HandleEvent(ref TSharpVision.TEvent event) -> void
+override TSharpVision.THistoryWindow.GetPalette() -> TSharpVision.TPalette!
+override TSharpVision.TIndicator.Draw() -> void
+override TSharpVision.TIndicator.GetPalette() -> TSharpVision.TPalette!
+override TSharpVision.TIndicator.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TIndicator.SetState(ushort aState, bool enable) -> void
+override TSharpVision.TIndicator.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TInputLine.DataSize() -> ushort
+override TSharpVision.TInputLine.Draw() -> void
+override TSharpVision.TInputLine.GetData(ref object! rec) -> void
+override TSharpVision.TInputLine.GetPalette() -> TSharpVision.TPalette!
+override TSharpVision.TInputLine.HandleEvent(ref TSharpVision.TEvent event) -> void
+override TSharpVision.TInputLine.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TInputLine.SetData(object! rec) -> void
+override TSharpVision.TInputLine.SetState(ushort aState, bool enable) -> void
+override TSharpVision.TInputLine.Valid(ushort command) -> bool
+override TSharpVision.TInputLine.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TLabel.Draw() -> void
+override TSharpVision.TLabel.GetPalette() -> TSharpVision.TPalette!
+override TSharpVision.TLabel.HandleEvent(ref TSharpVision.TEvent event) -> void
+override TSharpVision.TLabel.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TLabel.SetState(ushort aState, bool enable) -> void
+override TSharpVision.TLabel.ShutDown() -> void
+override TSharpVision.TLabel.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TListBox.DataSize() -> ushort
+override TSharpVision.TListBox.GetData(ref object! rec) -> void
+override TSharpVision.TListBox.GetText(int item, int maxChars) -> string!
+override TSharpVision.TListBox.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TListBox.SetData(object! rec) -> void
+override TSharpVision.TListBox.StreamableName() -> string!
+override TSharpVision.TListBox.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TListViewer.ChangeBounds(TSharpVision.TRect bounds) -> void
+override TSharpVision.TListViewer.Draw() -> void
+override TSharpVision.TListViewer.GetPalette() -> TSharpVision.TPalette!
+override TSharpVision.TListViewer.HandleEvent(ref TSharpVision.TEvent event) -> void
+override TSharpVision.TListViewer.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TListViewer.SetState(ushort aState, bool enable) -> void
+override TSharpVision.TListViewer.ShutDown() -> void
+override TSharpVision.TListViewer.StreamableName() -> string!
+override TSharpVision.TListViewer.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TLookupValidator.IsValid(string? s) -> bool
+override TSharpVision.TLookupValidator.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TLookupValidator.streamableName.get -> string!
+override TSharpVision.TLookupValidator.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TMemo.DataSize() -> ushort
+override TSharpVision.TMemo.GetPalette() -> TSharpVision.TPalette!
+override TSharpVision.TMemo.HandleEvent(ref TSharpVision.TEvent ev) -> void
+override TSharpVision.TMemo.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TMemo.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TMenuBar.Draw() -> void
+override TSharpVision.TMenuBar.GetItemRect(TSharpVision.TMenuItem! item) -> TSharpVision.TRect
+override TSharpVision.TMenuBox.Draw() -> void
+override TSharpVision.TMenuBox.GetItemRect(TSharpVision.TMenuItem! item) -> TSharpVision.TRect
+override TSharpVision.TMenuView.Draw() -> void
+override TSharpVision.TMenuView.Execute() -> ushort
+override TSharpVision.TMenuView.GetHelpCtx() -> ushort
+override TSharpVision.TMenuView.GetPalette() -> TSharpVision.TPalette!
+override TSharpVision.TMenuView.HandleEvent(ref TSharpVision.TEvent event) -> void
+override TSharpVision.TMenuView.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TMenuView.SetBounds(TSharpVision.TRect bounds) -> void
+override TSharpVision.TMenuView.ToString() -> string!
+override TSharpVision.TMenuView.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TMonoSelector.Draw() -> void
+override TSharpVision.TMonoSelector.HandleEvent(ref TSharpVision.TEvent event) -> void
+override TSharpVision.TMonoSelector.Mark(int item) -> bool
+override TSharpVision.TMonoSelector.MovedTo(int item) -> void
+override TSharpVision.TMonoSelector.Press(int item) -> void
+override TSharpVision.TParamText.DataSize() -> ushort
+override TSharpVision.TParamText.GetText(out string! result) -> void
+override TSharpVision.TParamText.SetData(object! rec) -> void
+override TSharpVision.TPoint.Equals(object? obj) -> bool
+override TSharpVision.TPoint.GetHashCode() -> int
+override TSharpVision.TPoint.ToString() -> string!
+override TSharpVision.TProgram.GetEvent(ref TSharpVision.TEvent event) -> void
+override TSharpVision.TProgram.GetPalette() -> TSharpVision.TPalette!
+override TSharpVision.TProgram.HandleEvent(ref TSharpVision.TEvent event) -> void
+override TSharpVision.TProgram.PutEvent(ref TSharpVision.TEvent ev) -> void
+override TSharpVision.TProgram.ShutDown() -> void
+override TSharpVision.TPXPictureValidator.IsValid(string? s) -> bool
+override TSharpVision.TPXPictureValidator.IsValidInput(string? s, bool suppressFill) -> bool
+override TSharpVision.TPXPictureValidator.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TPXPictureValidator.streamableName.get -> string!
+override TSharpVision.TPXPictureValidator.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TRadioButtons.Draw() -> void
+override TSharpVision.TRadioButtons.Mark(int item) -> bool
+override TSharpVision.TRadioButtons.MovedTo(int item) -> void
+override TSharpVision.TRadioButtons.Press(int item) -> void
+override TSharpVision.TRadioButtons.SetData(object! rec) -> void
+override TSharpVision.TRangeValidator.IsValid(string? s) -> bool
+override TSharpVision.TRangeValidator.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TRangeValidator.streamableName.get -> string!
+override TSharpVision.TRangeValidator.Transfer(string? s, object! buffer, TSharpVision.TVTransfer flag) -> ushort
+override TSharpVision.TRangeValidator.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TRect.Equals(object? obj) -> bool
+override TSharpVision.TRect.GetHashCode() -> int
+override TSharpVision.TRect.ToString() -> string!
+override TSharpVision.TResourceCollection.Read(TSharpVision.Ipstream! s) -> object!
+override TSharpVision.TResourceCollection.streamableName.get -> string!
+override TSharpVision.TResourceCollection.Write(TSharpVision.Opstream! s) -> void
+override TSharpVision.TScreen.Dispose(bool disposing) -> void
+override TSharpVision.TScrollBar.Draw() -> void
+override TSharpVision.TScrollBar.GetPalette() -> TSharpVision.TPalette!
+override TSharpVision.TScrollBar.HandleEvent(ref TSharpVision.TEvent event) -> void
+override TSharpVision.TScrollBar.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TScrollBar.StreamableName() -> string!
+override TSharpVision.TScrollBar.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TScroller.ChangeBounds(TSharpVision.TRect bounds) -> void
+override TSharpVision.TScroller.GetPalette() -> TSharpVision.TPalette!
+override TSharpVision.TScroller.HandleEvent(ref TSharpVision.TEvent event) -> void
+override TSharpVision.TScroller.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TScroller.SetState(ushort aState, bool enable) -> void
+override TSharpVision.TScroller.ShutDown() -> void
+override TSharpVision.TScroller.StreamableName() -> string!
+override TSharpVision.TScroller.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TSortedListBox.GetText(int item, int maxChars) -> string!
+override TSharpVision.TSortedListBox.HandleEvent(ref TSharpVision.TEvent event) -> void
+override TSharpVision.TStaticText.Draw() -> void
+override TSharpVision.TStaticText.GetPalette() -> TSharpVision.TPalette!
+override TSharpVision.TStaticText.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TStaticText.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TStatusLine.Draw() -> void
+override TSharpVision.TStatusLine.GetPalette() -> TSharpVision.TPalette!
+override TSharpVision.TStatusLine.HandleEvent(ref TSharpVision.TEvent event) -> void
+override TSharpVision.TStatusLine.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TStatusLine.ToString() -> string!
+override TSharpVision.TStatusLine.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TStringCollection.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TStringCollection.streamableName.get -> string!
+override TSharpVision.TStringCollection.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TStringLookupValidator.Error() -> void
+override TSharpVision.TStringLookupValidator.Lookup(string? s) -> bool
+override TSharpVision.TStringLookupValidator.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TStringLookupValidator.streamableName.get -> string!
+override TSharpVision.TStringLookupValidator.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TStringResource.Read(TSharpVision.Ipstream! s) -> object!
+override TSharpVision.TStringResource.streamableName.get -> string!
+override TSharpVision.TStringResource.Write(TSharpVision.Opstream! s) -> void
+override TSharpVision.TTerminal.ChangeBounds(TSharpVision.TRect bounds) -> void
+override TSharpVision.TTerminal.Draw() -> void
+override TSharpVision.TTerminal.GetPalette() -> TSharpVision.TPalette!
+override TSharpVision.TTerminal.HandleEvent(ref TSharpVision.TEvent ev) -> void
+override TSharpVision.TTerminal.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TTerminal.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TValidator.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TValidator.streamableName.get -> string!
+override TSharpVision.TValidator.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TView.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TView.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TWindow.GetPalette() -> TSharpVision.TPalette!
+override TSharpVision.TWindow.HandleEvent(ref TSharpVision.TEvent event) -> void
+override TSharpVision.TWindow.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TWindow.SetState(ushort aState, bool enable) -> void
+override TSharpVision.TWindow.ShutDown() -> void
+override TSharpVision.TWindow.SizeLimits(ref TSharpVision.TPoint min, ref TSharpVision.TPoint max) -> void
+override TSharpVision.TWindow.StreamableName() -> string!
+override TSharpVision.TWindow.Write(TSharpVision.Opstream! os) -> void
+readonly TSharpVision.Fpstream.In -> TSharpVision.Ipstream!
+readonly TSharpVision.Fpstream.Out -> TSharpVision.Opstream!
+readonly TSharpVision.TStreamableClass.build -> System.Func<TSharpVision.TStreamable!>!
+readonly TSharpVision.TStreamableClass.delta -> int
+readonly TSharpVision.TStreamableClass.name -> string!
+static readonly TSharpVision.InputTrace.Enabled -> bool
+static readonly TSharpVision.TBackground.Name -> string!
+static readonly TSharpVision.TBackground.StreamableClassTBackground -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TButton.Name -> string!
+static readonly TSharpVision.TButton.StreamableClassTButton -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TChDirDialog.Name -> string!
+static readonly TSharpVision.TChDirDialog.StreamableClassTChDirDialog -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TCheckBoxes.Name -> string!
+static readonly TSharpVision.TCheckBoxes.StreamableClassTCheckBoxes -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TCluster.Name -> string!
+static readonly TSharpVision.TCluster.StreamableClassTCluster -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TCollection.Name -> string!
+static readonly TSharpVision.TColorDialog.Name -> string!
+static readonly TSharpVision.TColorDialog.StreamableClassTColorDialog -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TColorDisplay.Name -> string!
+static readonly TSharpVision.TColorDisplay.StreamableClassTColorDisplay -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TColorGroupList.Name -> string!
+static readonly TSharpVision.TColorGroupList.StreamableClassTColorGroupList -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TColorItemList.Name -> string!
+static readonly TSharpVision.TColorItemList.StreamableClassTColorItemList -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TColorSelector.Name -> string!
+static readonly TSharpVision.TColorSelector.StreamableClassTColorSelector -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TDeskTop.Name -> string!
+static readonly TSharpVision.TDeskTop.StreamableClassTDeskTop -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TDialog.Name -> string!
+static readonly TSharpVision.TDialog.StreamableClassTDialog -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TDirListBox.Name -> string!
+static readonly TSharpVision.TDirListBox.StreamableClassTDirListBox -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TEditor.StreamableClassTEditor -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TEditWindow.MinEditWinSize -> TSharpVision.TPoint
+static readonly TSharpVision.TEditWindow.StreamableClassTEditWindow -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.Text.LegacyTextEncodings.Cp437 -> TSharpVision.Text.ILegacyTextEncoding!
+static readonly TSharpVision.Text.LegacyTextEncodings.Cp852 -> TSharpVision.Text.ILegacyTextEncoding!
+static readonly TSharpVision.Text.LegacyTextEncodings.Iso8859_2 -> TSharpVision.Text.ILegacyTextEncoding!
+static readonly TSharpVision.Text.LegacyTextEncodings.Kamenicky -> TSharpVision.Text.ILegacyTextEncoding!
+static readonly TSharpVision.Text.LegacyTextEncodings.Latin1 -> TSharpVision.Text.ILegacyTextEncoding!
+static readonly TSharpVision.Text.LegacyTextEncodings.Windows1250 -> TSharpVision.Text.ILegacyTextEncoding!
+static readonly TSharpVision.TFileDialog.Name -> string!
+static readonly TSharpVision.TFileDialog.StreamableClassTFileDialog -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TFileEditor.StreamableClassTFileEditor -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TFileInfoPane.Months -> string![]!
+static readonly TSharpVision.TFileInfoPane.Name -> string!
+static readonly TSharpVision.TFileInfoPane.StreamableClassTFileInfoPane -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TFileInputLine.Name -> string!
+static readonly TSharpVision.TFileInputLine.StreamableClassTFileInputLine -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TFileList.Name -> string!
+static readonly TSharpVision.TFileList.StreamableClassTFileList -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TFilterValidator.Name -> string!
+static readonly TSharpVision.TFilterValidator.StreamableClassTFilterValidator -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TFrame.FrameChars -> char[]!
+static readonly TSharpVision.TFrame.InitFrame -> byte[]!
+static readonly TSharpVision.TFrame.Name -> string!
+static readonly TSharpVision.TFrame.StreamableClassTFrame -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TGroup.Name -> string!
+static readonly TSharpVision.TGroup.StreamableClassTGroup -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.THelpIndex.StreamableClass -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.THelpTopic.StreamableClass -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.THelpViewer.Name -> string!
+static readonly TSharpVision.THelpWindow.Name -> string!
+static readonly TSharpVision.THistory.Name -> string!
+static readonly TSharpVision.THistory.StreamableClassTHistory -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.THistoryViewer.Name -> string!
+static readonly TSharpVision.THistoryWindow.Name -> string!
+static readonly TSharpVision.TIndicator.StreamableClassTIndicator -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TInputLine.Name -> string!
+static readonly TSharpVision.TInputLine.StreamableClassTInputLine -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TLabel.Name -> string!
+static readonly TSharpVision.TLabel.StreamableClassTLabel -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TListBox.Name -> string!
+static readonly TSharpVision.TListBox.StreamableClassTListBox -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TListViewer.Name -> string!
+static readonly TSharpVision.TListViewer.StreamableClassTListViewer -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TLookupValidator.Name -> string!
+static readonly TSharpVision.TLookupValidator.StreamableClassTLookupValidator -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TMemo.StreamableClassTMemo -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TMenuBar.Name -> string!
+static readonly TSharpVision.TMenuBar.StreamableClassTMenuBar -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TMenuBox.frameCharsArr -> char[]!
+static readonly TSharpVision.TMenuBox.Name -> string!
+static readonly TSharpVision.TMenuView.Name -> string!
+static readonly TSharpVision.TMenuView.StreamableClassTMenuView -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TMonoSelector.Name -> string!
+static readonly TSharpVision.TMonoSelector.StreamableClassTMonoSelector -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TParamText.Name -> string!
+static readonly TSharpVision.TParamText.StreamableClassTParamText -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TPXPictureValidator.Name -> string!
+static readonly TSharpVision.TPXPictureValidator.StreamableClassTPXPictureValidator -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TRadioButtons.Name -> string!
+static readonly TSharpVision.TRadioButtons.StreamableClassTRadioButtons -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TRangeValidator.Name -> string!
+static readonly TSharpVision.TRangeValidator.StreamableClassTRangeValidator -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TRect.Empty -> TSharpVision.TRect
+static readonly TSharpVision.TResourceCollection.StreamableClass -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TScrollBar.hChars -> char[]!
+static readonly TSharpVision.TScrollBar.Name -> string!
+static readonly TSharpVision.TScrollBar.StreamableClassTScrollBar -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TScrollBar.vChars -> char[]!
+static readonly TSharpVision.TScroller.Name -> string!
+static readonly TSharpVision.TScroller.StreamableClassTScroller -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TSortedListBox.Name -> string!
+static readonly TSharpVision.TStaticText.Name -> string!
+static readonly TSharpVision.TStaticText.StreamableClassTStaticText -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TStatusLine.Name -> string!
+static readonly TSharpVision.TStatusLine.StreamableClassTStatusLine -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TStringCollection.StreamableClass -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TStringLookupValidator.Name -> string!
+static readonly TSharpVision.TStringLookupValidator.StreamableClassTStringLookupValidator -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TStringResource.StreamableClass -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TTerminal.Name -> string!
+static readonly TSharpVision.TTerminal.StreamableClassTTerminal -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TValidator.Name -> string!
+static readonly TSharpVision.TValidator.StreamableClassTValidator -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TView.Name -> string!
+static readonly TSharpVision.TView.StreamableClassTView -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TWindow.MinWinSize -> TSharpVision.TPoint
+static readonly TSharpVision.TWindow.Name -> string!
+static readonly TSharpVision.TWindow.StreamableClassTWindow -> TSharpVision.TStreamableClass!
+static TSharpVision.AppLifecycleGuard.Run(TSharpVision.TApplication! app, System.Action<System.Exception!>? onError = null) -> int
+static TSharpVision.ClipboardEncoding.BytesToClipboardString(byte[]! buffer, int start, int length) -> string!
+static TSharpVision.ClipboardEncoding.CharsToClipboardString(char[]! buffer, int start, int length) -> string!
+static TSharpVision.ClipboardEncoding.ClipboardStringToBytes(string? text) -> byte[]!
+static TSharpVision.ClipboardEncoding.ClipboardStringToChars(string? text) -> char[]!
+static TSharpVision.ClipboardEncoding.MaxPasteChars -> int
+static TSharpVision.ClipboardEncoding.NormalizeFromCrLf(string! text) -> string!
+static TSharpVision.ClipboardEncoding.NormalizeToCrLf(string! text) -> string!
+static TSharpVision.ClipboardService.Current.get -> TSharpVision.IClipboardService!
+static TSharpVision.ClipboardService.Current.set -> void
+static TSharpVision.ClipboardService.Reset() -> void
+static TSharpVision.Config.IniConfigurationReader.Parse(string! text) -> TSharpVision.Config.IniConfigurationReader!
+static TSharpVision.Config.TSharpVisionConfigurationLoader.Load() -> TSharpVision.Config.TSharpVisionConfiguration!
+static TSharpVision.Config.TSharpVisionConfigurationLoader.LoadFromPath(string! path) -> TSharpVision.Config.TSharpVisionConfiguration!
+static TSharpVision.Config.TSharpVisionConfigurationLoader.ResolveConfigPath() -> string?
+static TSharpVision.Config.TSharpVisionConfigurationLoader.ResolveUserConfigPath() -> string!
+static TSharpVision.Drivers.ScreenDriverFactory.Configuration.get -> TSharpVision.Config.TSharpVisionConfiguration?
+static TSharpVision.Drivers.ScreenDriverFactory.Configuration.set -> void
+static TSharpVision.Drivers.ScreenDriverFactory.CreateScreenDriver() -> TSharpVision.Drivers.IDriver!
+static TSharpVision.Drivers.ScreenDriverFactory.GetConfigSection<T>() -> T
+static TSharpVision.Drivers.ScreenDriverFactory.RegisterConfigSection<T>() -> T
+static TSharpVision.Drivers.ScreenDriverFactory.TryGetConfigSection<T>() -> T?
+static TSharpVision.Drivers.ScreenDriverFactory.WindowTitle.get -> string?
+static TSharpVision.Drivers.ScreenDriverFactory.WindowTitle.set -> void
+static TSharpVision.EditorEncodingChoices.BuiltIn.get -> System.Collections.Generic.IReadOnlyList<TSharpVision.EditorEncodingChoice!>!
+static TSharpVision.EditorTextEncoding.Auto.get -> TSharpVision.EditorTextEncoding!
+static TSharpVision.EditorTextEncoding.Latin1.get -> TSharpVision.EditorTextEncoding!
+static TSharpVision.EditorTextEncoding.Legacy(TSharpVision.Text.ILegacyTextEncoding! encoding) -> TSharpVision.EditorTextEncoding!
+static TSharpVision.EditorTextEncoding.Utf8.get -> TSharpVision.EditorTextEncoding!
+static TSharpVision.Fpbase.OpenRead(string! path) -> System.IO.FileStream!
+static TSharpVision.Fpbase.OpenReadWrite(string! path) -> System.IO.FileStream!
+static TSharpVision.Fpbase.OpenWrite(string! path) -> System.IO.FileStream!
+static TSharpVision.InputTrace.FormatEvent(in TSharpVision.TEvent ev) -> string!
+static TSharpVision.InputTrace.Log(string! stage, string! detail) -> void
+static TSharpVision.InputTrace.LogEvent(string! stage, in TSharpVision.TEvent ev) -> void
+static TSharpVision.KeyText.PrintableText(in TSharpVision.KeyDownEvent keyDown, bool includeTab = false, bool extendedLegacy = true) -> string!
+static TSharpVision.LocalizedResourceResolver.GetCandidatePaths(string! basePath, string! extension, string! language, string! fallbackLanguage = "en") -> System.Collections.Generic.IEnumerable<string!>!
+static TSharpVision.LocalizedResourceResolver.Resolve(string! basePath, string! extension, string! language, string! fallbackLanguage = "en") -> string?
+static TSharpVision.MsgBox.BuildInputBox(TSharpVision.TRect bounds, string! title, string! aLabel, string! s, int limit) -> TSharpVision.TDialog!
+static TSharpVision.MsgBox.BuildMessageBox(TSharpVision.TRect r, string! msg, ushort options) -> TSharpVision.TDialog!
+static TSharpVision.MsgBox.DefaultRect(TSharpVision.TGroup? host) -> TSharpVision.TRect
+static TSharpVision.MsgBox.InputBox(TSharpVision.TGroup? host, string! title, string! aLabel, string! s, int limit) -> (ushort code, string! value)
+static TSharpVision.MsgBox.InputBoxRect(TSharpVision.TGroup? host, TSharpVision.TRect bounds, string! title, string! aLabel, string! s, int limit) -> (ushort code, string! value)
+static TSharpVision.MsgBox.MessageBox(TSharpVision.TGroup? host, string! msg, ushort options) -> ushort
+static TSharpVision.MsgBox.MessageBoxRect(TSharpVision.TGroup? host, TSharpVision.TRect r, string! msg, ushort options) -> ushort
+static TSharpVision.Pstream.DeInitTypes() -> void
+static TSharpVision.Pstream.InitTypes() -> void
+static TSharpVision.Pstream.RegisterType(TSharpVision.TStreamableClass! tc) -> void
+static TSharpVision.Pstream.types -> TSharpVision.TStreamableTypes!
+static TSharpVision.RawSessionKeyMap.GetSequence(ushort keyCode, byte charCode) -> string?
+static TSharpVision.ScreenBuffer.GetSize() -> int
+static TSharpVision.SetBlock.operator !=(TSharpVision.SetBlock left, TSharpVision.SetBlock right) -> bool
+static TSharpVision.SetBlock.operator ==(TSharpVision.SetBlock left, TSharpVision.SetBlock right) -> bool
+static TSharpVision.StreamableRegistration.RegisterAll() -> void
+static TSharpVision.TBackground.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TButton.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TChDirDialog.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TCheckBoxes.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TCluster.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TCluster.ExtraOptions -> ushort
+static TSharpVision.TColorAttr.implicit operator byte(TSharpVision.TColorAttr a) -> byte
+static TSharpVision.TColorAttr.implicit operator TSharpVision.TColorAttr(byte raw) -> TSharpVision.TColorAttr
+static TSharpVision.TColorAttr.implicit operator TSharpVision.TColorAttr(ushort raw) -> TSharpVision.TColorAttr
+static TSharpVision.TColorAttr.implicit operator ushort(TSharpVision.TColorAttr a) -> ushort
+static TSharpVision.TColorAttr.operator !=(TSharpVision.TColorAttr a, TSharpVision.TColorAttr b) -> bool
+static TSharpVision.TColorAttr.operator ==(TSharpVision.TColorAttr a, TSharpVision.TColorAttr b) -> bool
+static TSharpVision.TColorDialog.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TColorDisplay.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TColorGroup.operator +(TSharpVision.TColorGroup! g, TSharpVision.TColorItem! i) -> TSharpVision.TColorGroup!
+static TSharpVision.TColorGroup.operator +(TSharpVision.TColorGroup! g1, TSharpVision.TColorGroup! g2) -> TSharpVision.TColorGroup!
+static TSharpVision.TColorGroupList.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TColorItem.operator +(TSharpVision.TColorItem! i1, TSharpVision.TColorItem! i2) -> TSharpVision.TColorItem!
+static TSharpVision.TColorItemList.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TColorSelector.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TColorSelector.Icon -> char
+static TSharpVision.TColorSelector.Mark -> char
+static TSharpVision.TCommandSet.operator !=(TSharpVision.TCommandSet? a, TSharpVision.TCommandSet? b) -> bool
+static TSharpVision.TCommandSet.operator &(TSharpVision.TCommandSet! a, TSharpVision.TCommandSet! b) -> TSharpVision.TCommandSet!
+static TSharpVision.TCommandSet.operator ==(TSharpVision.TCommandSet? a, TSharpVision.TCommandSet? b) -> bool
+static TSharpVision.TCommandSet.operator |(TSharpVision.TCommandSet! a, TSharpVision.TCommandSet! b) -> TSharpVision.TCommandSet!
+static TSharpVision.TDeskTop.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TDeskTop.defaultBkgrnd -> char
+static TSharpVision.TDeskTop.InitBackgroundDefault(TSharpVision.TRect r) -> TSharpVision.TBackground!
+static TSharpVision.TDeskTop.odefaultBkgrnd -> char
+static TSharpVision.TDialog.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TDirListBox.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TDirListBox.FirstDir -> string!
+static TSharpVision.TDirListBox.Graphics -> string!
+static TSharpVision.TDirListBox.LastDir -> string!
+static TSharpVision.TDirListBox.MiddleDir -> string!
+static TSharpVision.TDirListBox.PathDir -> string!
+static TSharpVision.TDirListBox.SplitRootForDisplay(string! path, out string! drive) -> string!
+static TSharpVision.TDisplay.ClearScreen(ushort cols, ushort rows) -> void
+static TSharpVision.TDisplay.driver -> TSharpVision.Drivers.IDriver?
+static TSharpVision.TDisplay.GetCols() -> ushort
+static TSharpVision.TDisplay.GetCrtMode() -> TSharpVision.TDisplay.SM
+static TSharpVision.TDisplay.GetCursorType() -> ushort
+static TSharpVision.TDisplay.GetRows() -> ushort
+static TSharpVision.TDisplay.SetCrtMode(TSharpVision.TDisplay.SM mode) -> void
+static TSharpVision.TDisplay.SetCursorType(ushort cursorType) -> void
+static TSharpVision.TEditor.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TEditor.clipboard -> TSharpVision.TEditor?
+static TSharpVision.TEditor.clipboardBuffer -> char[]!
+static TSharpVision.TEditor.editorDialog -> TSharpVision.TEditor.TEditorDialog!
+static TSharpVision.TEditor.editorFlags -> ushort
+static TSharpVision.TEditor.findStr -> char[]!
+static TSharpVision.TEditor.replaceStr -> char[]!
+static TSharpVision.TEditor.tabSize -> uint
+static TSharpVision.TEditorDialogHelper.Install(TSharpVision.TDeskTop? deskTop) -> void
+static TSharpVision.TEditorDialogHelper.OverwriteConfirm -> System.Func<TSharpVision.TDeskTop?, string!, ushort>!
+static TSharpVision.TEditorDialogHelper.OverwriteConfirmDefault(TSharpVision.TDeskTop? deskTop, string! path) -> ushort
+static TSharpVision.TEditorFindDialog.Build(TSharpVision.TFindDialogRec! rec, out TSharpVision.TInputLine! findInput, out TSharpVision.TCheckBoxes! checkBoxes) -> TSharpVision.TDialog!
+static TSharpVision.TEditorFindDialog.BytesToString(byte[]? b) -> string!
+static TSharpVision.TEditorFindDialog.BytesToString(char[]? b) -> string!
+static TSharpVision.TEditorFindDialog.Execute(TSharpVision.TGroup! host, TSharpVision.TFindDialogRec! rec) -> ushort
+static TSharpVision.TEditorFindDialog.ReadBack(TSharpVision.TFindDialogRec! rec, TSharpVision.TInputLine! findInput, TSharpVision.TCheckBoxes! checkBoxes) -> void
+static TSharpVision.TEditorFindDialog.StringToBytes(string? s, byte[]! dest) -> void
+static TSharpVision.TEditorFindDialog.StringToBytes(string? s, char[]! dest) -> void
+static TSharpVision.TEditorReplaceDialog.Build(TSharpVision.TReplaceDialogRec! rec, out TSharpVision.TInputLine! findInput, out TSharpVision.TInputLine! replaceInput, out TSharpVision.TCheckBoxes! checkBoxes) -> TSharpVision.TDialog!
+static TSharpVision.TEditorReplaceDialog.Execute(TSharpVision.TGroup! host, TSharpVision.TReplaceDialogRec! rec) -> ushort
+static TSharpVision.TEditorReplaceDialog.ReadBack(TSharpVision.TReplaceDialogRec! rec, TSharpVision.TInputLine! findInput, TSharpVision.TInputLine! replaceInput, TSharpVision.TCheckBoxes! checkBoxes) -> void
+static TSharpVision.TEditWindow.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TEditWindow.clipboardTitle.get -> string!
+static TSharpVision.TEditWindow.untitled.get -> string!
+static TSharpVision.TerminalSize.operator !=(TSharpVision.TerminalSize left, TSharpVision.TerminalSize right) -> bool
+static TSharpVision.TerminalSize.operator ==(TSharpVision.TerminalSize left, TSharpVision.TerminalSize right) -> bool
+static TSharpVision.TerminalTextPosition.operator !=(TSharpVision.TerminalTextPosition a, TSharpVision.TerminalTextPosition b) -> bool
+static TSharpVision.TerminalTextPosition.operator ==(TSharpVision.TerminalTextPosition a, TSharpVision.TerminalTextPosition b) -> bool
+static TSharpVision.TEventQueue.AutoDelay -> int
+static TSharpVision.TEventQueue.ClaimUiThread() -> void
+static TSharpVision.TEventQueue.ClearPosted() -> void
+static TSharpVision.TEventQueue.DeliverPostedEvent() -> bool
+static TSharpVision.TEventQueue.DoubleDelay -> int
+static TSharpVision.TEventQueue.Enqueue(TSharpVision.TEvent ev) -> void
+static TSharpVision.TEventQueue.GetMouseEvent(ref TSharpVision.TEvent ev) -> void
+static TSharpVision.TEventQueue.GetNextEvent(ref TSharpVision.TEvent ev) -> void
+static TSharpVision.TEventQueue.IsUiThread.get -> bool
+static TSharpVision.TEventQueue.MouseReverse -> bool
+static TSharpVision.TEventQueue.PostedCount.get -> int
+static TSharpVision.TEventQueue.RepeatDelay -> int
+static TSharpVision.TEventQueue.Resume() -> void
+static TSharpVision.TEventQueue.Suspend() -> void
+static TSharpVision.TEventQueue.UiThreadId.get -> int
+static TSharpVision.Text.LegacyTextEncodings.Register(string! name, TSharpVision.Text.ILegacyTextEncoding! encoding) -> void
+static TSharpVision.Text.LegacyTextEncodings.RegisterSingleByte(string! name, System.Collections.Generic.IReadOnlyList<char>! byteToChar) -> void
+static TSharpVision.Text.LegacyTextEncodings.TryGet(string! name, out TSharpVision.Text.ILegacyTextEncoding? encoding) -> bool
+static TSharpVision.Text.LegacyTextEncodings.TryRegister(string! name, TSharpVision.Text.ILegacyTextEncoding! encoding) -> bool
+static TSharpVision.TFileCollection.SortOptions -> uint
+static TSharpVision.TFileDialog.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TFileDialog.IsWild(string? s) -> bool
+static TSharpVision.TFileEditor.backupExt -> string!
+static TSharpVision.TFileEditor.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TFileInfoPane.AmText -> string!
+static TSharpVision.TFileInfoPane.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TFileInfoPane.PmText -> string!
+static TSharpVision.TFileInputLine.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TFileList.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TFileList.ExcludeSpecial(string! name) -> bool
+static TSharpVision.TFilterValidator.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TFrame.AnimIcon -> string!
+static TSharpVision.TFrame.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TFrame.CloseIcon -> string!
+static TSharpVision.TFrame.DoAnimation -> bool
+static TSharpVision.TFrame.DragIcon -> string!
+static TSharpVision.TFrame.UnZoomIcon -> string!
+static TSharpVision.TFrame.ZoomIcon -> string!
+static TSharpVision.TGroup.Build() -> TSharpVision.TStreamable!
+static TSharpVision.THelpFile.InvalidContext.get -> string!
+static TSharpVision.THelpFile.RegisterStreamableTypes() -> void
+static TSharpVision.THelpTopic.crossRefHandler -> TSharpVision.THelpTopic.TCrossRefHandler!
+static TSharpVision.THelpTopic.NotAssigned(TSharpVision.Opstream! _, int __) -> void
+static TSharpVision.THelpWindow.helpWinTitle.get -> string!
+static TSharpVision.THistory.Build() -> TSharpVision.TStreamable!
+static TSharpVision.THistory.Icon -> string!
+static TSharpVision.THistoryList.Add(ushort id, string! str) -> void
+static TSharpVision.THistoryList.Clear() -> void
+static TSharpVision.THistoryList.Count(ushort id) -> int
+static TSharpVision.THistoryList.Str(ushort id, int index) -> string!
+static TSharpVision.TIndicator.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TIndicator.DragFrame -> char
+static TSharpVision.TIndicator.ModifiedStar -> char
+static TSharpVision.TIndicator.NormalFrame -> char
+static TSharpVision.TInputLine.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TInternationalizationExtensions.Loc(string! key, string? fallback = null) -> string!
+static TSharpVision.TLabel.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TListBox.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TListViewer.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TListViewer.ColumnSeparator -> char
+static TSharpVision.TLookupValidator.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TMemo.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TMenu.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TMenuBar.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TMenuBox.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TMenuItem.NewLine() -> TSharpVision.TMenuItem!
+static TSharpVision.TMenuItem.operator +(TSharpVision.TSubMenu! s, TSharpVision.TMenuItem! i) -> TSharpVision.TSubMenu!
+static TSharpVision.TMenuView.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TMenuView.FindHotKey(TSharpVision.TMenuItem? p, ushort keyCode) -> TSharpVision.TMenuItem?
+static TSharpVision.TMenuView.GetAltChar(ushort keyCode, byte charCode, uint controlKeyState) -> char
+static TSharpVision.TMenuView.UpdateMenu(TSharpVision.TMenu! menu) -> bool
+static TSharpVision.TMonoSelector.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TMonoSelector.Button -> string!
+static TSharpVision.TParamText.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TPoint.operator !=(TSharpVision.TPoint p1, TSharpVision.TPoint p2) -> bool
+static TSharpVision.TPoint.operator +(TSharpVision.TPoint p1, TSharpVision.TPoint p2) -> TSharpVision.TPoint
+static TSharpVision.TPoint.operator -(TSharpVision.TPoint p1, TSharpVision.TPoint p2) -> TSharpVision.TPoint
+static TSharpVision.TPoint.operator ==(TSharpVision.TPoint p1, TSharpVision.TPoint p2) -> bool
+static TSharpVision.TPoint.Parse(string! input) -> TSharpVision.TPoint
+static TSharpVision.TProgram.DoNotHandleAltNumber -> byte
+static TSharpVision.TProgram.DoNotReleaseCPU -> byte
+static TSharpVision.TProgram.Pending -> TSharpVision.TEvent
+static TSharpVision.TProgram.ResetIdleTime() -> void
+static TSharpVision.TPXPictureValidator.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TRadioButtons.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TRangeValidator.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TRect.operator !=(TSharpVision.TRect left, TSharpVision.TRect right) -> bool
+static TSharpVision.TRect.operator ==(TSharpVision.TRect left, TSharpVision.TRect right) -> bool
+static TSharpVision.TResourceStringProvider.Load(string! path, string! resourceKey = "sharpvision.intl") -> TSharpVision.TResourceStringProvider!
+static TSharpVision.TResourceStringProvider.TryLoad(string? path, string! resourceKey = "sharpvision.intl") -> TSharpVision.TResourceStringProvider?
+static TSharpVision.TScreen.CheckSnow.get -> bool
+static TSharpVision.TScreen.CheckSnow.set -> void
+static TSharpVision.TScreen.ClearScreen() -> void
+static TSharpVision.TScreen.CursorLines.get -> ushort
+static TSharpVision.TScreen.CursorLines.set -> void
+static TSharpVision.TScreen.FixCrtMode(ushort mode) -> TSharpVision.TDisplay.SM
+static TSharpVision.TScreen.GetEvent(ref TSharpVision.TEvent ev) -> void
+static TSharpVision.TScreen.HiResScreen.get -> bool
+static TSharpVision.TScreen.HiResScreen.set -> void
+static TSharpVision.TScreen.MakeBeep() -> void
+static TSharpVision.TScreen.Resume() -> void
+static TSharpVision.TScreen.ScreenBuffer.get -> TSharpVision.ScreenBuffer?
+static TSharpVision.TScreen.ScreenBuffer.set -> void
+static TSharpVision.TScreen.ScreenHeight.get -> ushort
+static TSharpVision.TScreen.ScreenHeight.set -> void
+static TSharpVision.TScreen.ScreenMode.get -> TSharpVision.TDisplay.SM
+static TSharpVision.TScreen.ScreenMode.set -> void
+static TSharpVision.TScreen.ScreenWidth.get -> ushort
+static TSharpVision.TScreen.ScreenWidth.set -> void
+static TSharpVision.TScreen.ScreenWrite(int x, int y, System.Span<TSharpVision.TScreenChar> span, int len) -> void
+static TSharpVision.TScreen.SetCrtData() -> void
+static TSharpVision.TScreen.SetVideoMode(ushort mode) -> void
+static TSharpVision.TScreen.StartupCursor.get -> ushort
+static TSharpVision.TScreen.StartupCursor.set -> void
+static TSharpVision.TScreen.StartupMode.get -> TSharpVision.TDisplay.SM
+static TSharpVision.TScreen.StartupMode.set -> void
+static TSharpVision.TScreen.Suspend() -> void
+static TSharpVision.TScrollBar.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TScroller.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TSharpVisionIntl.Current.get -> TSharpVision.ITSharpVisionStringProvider!
+static TSharpVision.TSharpVisionIntl.Current.set -> void
+static TSharpVision.TSharpVisionIntl.Get(string! key, string! fallback) -> string!
+static TSharpVision.TSharpVisionIntl.MissingKey -> System.EventHandler<TSharpVision.MissingLocalizationKeyEventArgs!>?
+static TSharpVision.TSharpVisionIntl._(string! englishLiteral, string? key = null) -> string!
+static TSharpVision.TSharpVisionRuntime.Configure(string? title = null) -> TSharpVision.Config.TSharpVisionConfiguration!
+static TSharpVision.TSharpVisionRuntime.Run(System.Func<TSharpVision.TApplication!>! appFactory, string? title = null) -> int
+static TSharpVision.TStaticText.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TStatusDef.operator +(TSharpVision.TStatusDef! s1, TSharpVision.TStatusDef! s2) -> TSharpVision.TStatusDef!
+static TSharpVision.TStatusDef.operator +(TSharpVision.TStatusDef! s1, TSharpVision.TStatusItem! s2) -> TSharpVision.TStatusDef!
+static TSharpVision.TStatusLine.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TStringLookupValidator.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TSubMenu.operator +(TSharpVision.TSubMenu! s1, TSharpVision.TSubMenu! s2) -> TSharpVision.TSubMenu!
+static TSharpVision.TTerminal.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TValidator.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TValidator.RegisterStreamableTypes() -> void
+static TSharpVision.TView.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TView.CommandEnabled(ushort command) -> bool
+static TSharpVision.TView.commandSetChanged -> bool
+static TSharpVision.TView.curCommandSet -> TSharpVision.TCommandSet!
+static TSharpVision.TView.DisableCommand(ushort command) -> void
+static TSharpVision.TView.DisableCommands(TSharpVision.TCommandSet! commands) -> void
+static TSharpVision.TView.EnableCommand(ushort command) -> void
+static TSharpVision.TView.EnableCommands(TSharpVision.TCommandSet! commands) -> void
+static TSharpVision.TView.errorAttr -> byte
+static TSharpVision.TView.GetCommands(TSharpVision.TCommandSet! commands) -> void
+static TSharpVision.TView.Message(TSharpVision.TView? receiver, ushort what, ushort command, TSharpVision.IInfo? infoPtr) -> TSharpVision.IInfo?
+static TSharpVision.TView.SetCommands(TSharpVision.TCommandSet! commands) -> void
+static TSharpVision.TView.shadowSize.get -> TSharpVision.TPoint
+static TSharpVision.TView.shadowSize.set -> void
+static TSharpVision.TView.showMarkers -> bool
+static TSharpVision.TViewExtensions.Message(this TSharpVision.TView? receiver, ushort what, ushort command, TSharpVision.IInfo? info) -> TSharpVision.IInfo?
+static TSharpVision.TWindow.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TWindow.InitFrame(TSharpVision.TRect r) -> TSharpVision.TFrame!
+TSharpVision.AppLifecycleGuard
+TSharpVision.ButtonConstants
+TSharpVision.ccIndex
+TSharpVision.CharScanType
+TSharpVision.CharScanType.charCode -> byte
+TSharpVision.CharScanType.CharScanType() -> void
+TSharpVision.CharScanType.CharScanType(byte ch, byte sc) -> void
+TSharpVision.CharScanType.CharScanType(ushort packed) -> void
+TSharpVision.CharScanType.scanCode -> byte
+TSharpVision.CharScanType.ToUShort() -> ushort
+TSharpVision.ChDirDialogOptions
+TSharpVision.ClipboardEncoding
+TSharpVision.ClipboardService
+TSharpVision.Config.DriverConfiguration
+TSharpVision.Config.DriverConfiguration.DriverConfiguration() -> void
+TSharpVision.Config.DriverConfiguration.Name.get -> string?
+TSharpVision.Config.DriverConfiguration.Name.init -> void
+TSharpVision.Config.GraphicsDriverConfiguration
+TSharpVision.Config.GraphicsDriverConfiguration.FontName.get -> string?
+TSharpVision.Config.GraphicsDriverConfiguration.FontName.init -> void
+TSharpVision.Config.GraphicsDriverConfiguration.FontSize.get -> int?
+TSharpVision.Config.GraphicsDriverConfiguration.FontSize.init -> void
+TSharpVision.Config.GraphicsDriverConfiguration.GraphicsDriverConfiguration() -> void
+TSharpVision.Config.IConfigurationSection
+TSharpVision.Config.IConfigurationSection.Bind(System.Collections.Generic.IReadOnlyDictionary<string!, string!>! rawValues) -> void
+TSharpVision.Config.IConfigurationSection.SectionName.get -> string!
+TSharpVision.Config.IniConfigurationReader
+TSharpVision.Config.IniConfigurationReader.Get(string! section, string! key) -> string?
+TSharpVision.Config.IniConfigurationReader.GetAllSections() -> System.Collections.Generic.IReadOnlyDictionary<string!, System.Collections.Generic.IReadOnlyDictionary<string!, string!>!>!
+TSharpVision.Config.LocalizationConfiguration
+TSharpVision.Config.LocalizationConfiguration.Language.get -> string?
+TSharpVision.Config.LocalizationConfiguration.Language.init -> void
+TSharpVision.Config.LocalizationConfiguration.LocalizationConfiguration() -> void
+TSharpVision.Config.TSharpVisionConfiguration
+TSharpVision.Config.TSharpVisionConfiguration.Driver.get -> TSharpVision.Config.DriverConfiguration!
+TSharpVision.Config.TSharpVisionConfiguration.Driver.init -> void
+TSharpVision.Config.TSharpVisionConfiguration.GetRawSection(string! section) -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
+TSharpVision.Config.TSharpVisionConfiguration.Graphics.get -> TSharpVision.Config.GraphicsDriverConfiguration!
+TSharpVision.Config.TSharpVisionConfiguration.Graphics.init -> void
+TSharpVision.Config.TSharpVisionConfiguration.Localization.get -> TSharpVision.Config.LocalizationConfiguration!
+TSharpVision.Config.TSharpVisionConfiguration.Localization.init -> void
+TSharpVision.Config.TSharpVisionConfiguration.RawSections.get -> System.Collections.Generic.IReadOnlyDictionary<string!, System.Collections.Generic.IReadOnlyDictionary<string!, string!>!>!
+TSharpVision.Config.TSharpVisionConfiguration.RawSections.init -> void
+TSharpVision.Config.TSharpVisionConfiguration.TSharpVisionConfiguration() -> void
+TSharpVision.Config.TSharpVisionConfigurationLoader
+TSharpVision.Constants.Colors
+TSharpVision.Constants.Commands
+TSharpVision.Constants.Events
+TSharpVision.Constants.FileDialogConstants
+TSharpVision.Constants.Keys
+TSharpVision.Constants.Views
+TSharpVision.DefaultEnglishStringProvider
+TSharpVision.DefaultEnglishStringProvider.DefaultEnglishStringProvider() -> void
+TSharpVision.DefaultEnglishStringProvider.Get(string! key, string? fallback) -> string?
+TSharpVision.DefaultEnglishStringProvider.TryGet(string! key, out string? value) -> bool
+TSharpVision.Drivers.IDriver
+TSharpVision.Drivers.IDriver.AllocateScreenBuffer() -> TSharpVision.ScreenBuffer!
+TSharpVision.Drivers.IDriver.ClearScreen(ushort cols, ushort rows) -> void
+TSharpVision.Drivers.IDriver.GetCols() -> ushort
+TSharpVision.Drivers.IDriver.GetCursorType() -> ushort
+TSharpVision.Drivers.IDriver.GetRows() -> ushort
+TSharpVision.Drivers.IDriver.GetScreenMode() -> TSharpVision.TDisplay.SM
+TSharpVision.Drivers.IDriver.Initialize() -> void
+TSharpVision.Drivers.IDriver.KeyboardCapabilities.get -> TSharpVision.Drivers.KeyboardCapabilities
+TSharpVision.Drivers.IDriver.MakeBeep() -> void
+TSharpVision.Drivers.IDriver.PumpMessages() -> void
+TSharpVision.Drivers.IDriver.ReadKeyEvent(out TSharpVision.TEvent ev) -> bool
+TSharpVision.Drivers.IDriver.Resume() -> void
+TSharpVision.Drivers.IDriver.SetCaretPosition(int x, int y) -> void
+TSharpVision.Drivers.IDriver.SetCursorType(ushort cursorType) -> void
+TSharpVision.Drivers.IDriver.SetScreenMode(TSharpVision.TDisplay.SM mode) -> void
+TSharpVision.Drivers.IDriver.Shutdown() -> void
+TSharpVision.Drivers.IDriver.SupportsGraphics.get -> bool
+TSharpVision.Drivers.IDriver.SupportsMouse.get -> bool
+TSharpVision.Drivers.IDriver.SupportsTrueColor.get -> bool
+TSharpVision.Drivers.IDriver.Suspend() -> void
+TSharpVision.Drivers.IDriver.WriteBuf(int x, int y, int w, int h, System.Span<TSharpVision.TScreenChar> buf) -> void
+TSharpVision.Drivers.IRenderer
+TSharpVision.Drivers.IRenderer.Render(TSharpVision.ScreenBuffer! screenBuffer, uint regionX, uint regionY, uint regionWidth, uint regionHeight) -> void
+TSharpVision.Drivers.KeyboardCapabilities
+TSharpVision.Drivers.KeyboardCapabilities.KeyReleaseEvents = 1 -> TSharpVision.Drivers.KeyboardCapabilities
+TSharpVision.Drivers.KeyboardCapabilities.None = 0 -> TSharpVision.Drivers.KeyboardCapabilities
+TSharpVision.Drivers.KeyboardCapabilities.StandaloneModifierTransitions = 2 -> TSharpVision.Drivers.KeyboardCapabilities
+TSharpVision.Drivers.NullDriver
+TSharpVision.Drivers.NullDriver.AllocateScreenBuffer() -> TSharpVision.ScreenBuffer!
+TSharpVision.Drivers.NullDriver.ClearScreen(ushort cols, ushort rows) -> void
+TSharpVision.Drivers.NullDriver.EnqueueCommand(ushort command) -> void
+TSharpVision.Drivers.NullDriver.EnqueueKey(TSharpVision.TEvent ev) -> void
+TSharpVision.Drivers.NullDriver.GetCols() -> ushort
+TSharpVision.Drivers.NullDriver.GetCursorType() -> ushort
+TSharpVision.Drivers.NullDriver.GetRows() -> ushort
+TSharpVision.Drivers.NullDriver.GetScreenMode() -> TSharpVision.TDisplay.SM
+TSharpVision.Drivers.NullDriver.Initialize() -> void
+TSharpVision.Drivers.NullDriver.MakeBeep() -> void
+TSharpVision.Drivers.NullDriver.NullDriver() -> void
+TSharpVision.Drivers.NullDriver.NullDriver(ushort cols, ushort rows) -> void
+TSharpVision.Drivers.NullDriver.PumpMessages() -> void
+TSharpVision.Drivers.NullDriver.ReadKeyEvent(out TSharpVision.TEvent ev) -> bool
+TSharpVision.Drivers.NullDriver.Resume() -> void
+TSharpVision.Drivers.NullDriver.SetCaretPosition(int x, int y) -> void
+TSharpVision.Drivers.NullDriver.SetCursorType(ushort cursorType) -> void
+TSharpVision.Drivers.NullDriver.SetScreenMode(TSharpVision.TDisplay.SM mode) -> void
+TSharpVision.Drivers.NullDriver.Shutdown() -> void
+TSharpVision.Drivers.NullDriver.SimulateResize(ushort cols, ushort rows) -> void
+TSharpVision.Drivers.NullDriver.SupportsGraphics.get -> bool
+TSharpVision.Drivers.NullDriver.SupportsMouse.get -> bool
+TSharpVision.Drivers.NullDriver.SupportsTrueColor.get -> bool
+TSharpVision.Drivers.NullDriver.Suspend() -> void
+TSharpVision.Drivers.NullDriver.WriteBuf(int x, int y, int w, int h, System.Span<TSharpVision.TScreenChar> buf) -> void
+TSharpVision.Drivers.Platform
+TSharpVision.Drivers.Platform.Linux = 2 -> TSharpVision.Drivers.Platform
+TSharpVision.Drivers.Platform.MacOS = 1 -> TSharpVision.Drivers.Platform
+TSharpVision.Drivers.Platform.Windows = 0 -> TSharpVision.Drivers.Platform
+TSharpVision.Drivers.ScreenDriverAttribute
+TSharpVision.Drivers.ScreenDriverAttribute.Driver.get -> string!
+TSharpVision.Drivers.ScreenDriverAttribute.Driver.set -> void
+TSharpVision.Drivers.ScreenDriverAttribute.Priority.get -> int
+TSharpVision.Drivers.ScreenDriverAttribute.Priority.set -> void
+TSharpVision.Drivers.ScreenDriverAttribute.ScreenDriverAttribute() -> void
+TSharpVision.Drivers.ScreenDriverAttribute.System.get -> TSharpVision.Drivers.Platform
+TSharpVision.Drivers.ScreenDriverAttribute.System.set -> void
+TSharpVision.Drivers.ScreenDriverFactory
+TSharpVision.Drivers.ScreenDriverFactory.ScreenDriverFactory() -> void
+TSharpVision.Drivers.TVWrite
+TSharpVision.Drivers.TVWrite.L0(TSharpVision.TView! dest, int x, int y, int count, System.ReadOnlySpan<TSharpVision.TScreenChar> buffer) -> void
+TSharpVision.Drivers.TVWrite.TVWrite() -> void
+TSharpVision.EditorEncodingChoice
+TSharpVision.EditorEncodingChoice.EditorEncodingChoice(string! key, string! fallback, TSharpVision.EditorTextEncoding! encoding) -> void
+TSharpVision.EditorEncodingChoice.Encoding.get -> TSharpVision.EditorTextEncoding!
+TSharpVision.EditorEncodingChoice.Fallback.get -> string!
+TSharpVision.EditorEncodingChoice.Key.get -> string!
+TSharpVision.EditorEncodingChoice.Label.get -> string!
+TSharpVision.EditorEncodingChoices
+TSharpVision.EditorEncodingKind
+TSharpVision.EditorEncodingKind.Latin1 = 2 -> TSharpVision.EditorEncodingKind
+TSharpVision.EditorEncodingKind.Legacy = 3 -> TSharpVision.EditorEncodingKind
+TSharpVision.EditorEncodingKind.Utf8 = 0 -> TSharpVision.EditorEncodingKind
+TSharpVision.EditorEncodingKind.Utf8Bom = 1 -> TSharpVision.EditorEncodingKind
+TSharpVision.EditorTextEncoding
+TSharpVision.EditorTextEncoding.LegacyEncoding.get -> TSharpVision.Text.ILegacyTextEncoding?
+TSharpVision.EditorTextEncoding.Mode.get -> TSharpVision.EditorTextEncodingMode
+TSharpVision.EditorTextEncodingMode
+TSharpVision.EditorTextEncodingMode.Auto = 0 -> TSharpVision.EditorTextEncodingMode
+TSharpVision.EditorTextEncodingMode.Legacy = 2 -> TSharpVision.EditorTextEncodingMode
+TSharpVision.EditorTextEncodingMode.Utf8 = 1 -> TSharpVision.EditorTextEncodingMode
+TSharpVision.FakePtyTerminalSession
+TSharpVision.FakePtyTerminalSession.Complete() -> void
+TSharpVision.FakePtyTerminalSession.Dispose() -> void
+TSharpVision.FakePtyTerminalSession.EchoInput.get -> bool
+TSharpVision.FakePtyTerminalSession.EchoInput.set -> void
+TSharpVision.FakePtyTerminalSession.Emit(string! text) -> void
+TSharpVision.FakePtyTerminalSession.EmitLine(string! text) -> void
+TSharpVision.FakePtyTerminalSession.Exited -> System.EventHandler?
+TSharpVision.FakePtyTerminalSession.FakePtyTerminalSession() -> void
+TSharpVision.FakePtyTerminalSession.InterruptAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.FakePtyTerminalSession.InterruptCount.get -> int
+TSharpVision.FakePtyTerminalSession.IsRunning.get -> bool
+TSharpVision.FakePtyTerminalSession.LastSize.get -> TSharpVision.TerminalSize?
+TSharpVision.FakePtyTerminalSession.OutputReceived -> System.EventHandler<TSharpVision.TerminalOutputEventArgs!>?
+TSharpVision.FakePtyTerminalSession.ReceivedSizes.get -> System.Collections.Generic.IReadOnlyList<TSharpVision.TerminalSize>!
+TSharpVision.FakePtyTerminalSession.ResizeAsync(TSharpVision.TerminalSize size, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.FakePtyTerminalSession.SendInputAsync(string! input, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.FakePtyTerminalSession.SentInputs.get -> System.Collections.Generic.IReadOnlyList<string!>!
+TSharpVision.FakePtyTerminalSession.StartAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.FakePtyTerminalSession.StopAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.FileAttr
+TSharpVision.FileCollectionOptions
+TSharpVision.FileDialogOptions
+TSharpVision.Fpbase
+TSharpVision.Fpstream
+TSharpVision.Fpstream.Close() -> void
+TSharpVision.Fpstream.Filelength() -> long
+TSharpVision.Fpstream.Fpstream(string! path) -> void
+TSharpVision.Fpstream.Fpstream(System.IO.FileStream! stream, bool ownsStream = false) -> void
+TSharpVision.Fpstream.SetLength(long len) -> void
+TSharpVision.Fpstream.Tellg() -> long
+TSharpVision.Fpstream.Tellp() -> long
+TSharpVision.HelpV1CompileOptions
+TSharpVision.HelpV1CompileOptions.HelpV1CompileOptions() -> void
+TSharpVision.HelpV1CompileOptions.LegacyEncoding.get -> TSharpVision.Text.ILegacyTextEncoding!
+TSharpVision.HelpV1CompileOptions.LegacyEncoding.set -> void
+TSharpVision.HelpV1LoadOptions
+TSharpVision.HelpV1LoadOptions.HelpV1LoadOptions() -> void
+TSharpVision.HelpV1LoadOptions.LegacyEncoding.get -> TSharpVision.Text.ILegacyTextEncoding!
+TSharpVision.HelpV1LoadOptions.LegacyEncoding.set -> void
+TSharpVision.IClipboardService
+TSharpVision.IClipboardService.GetText() -> string?
+TSharpVision.IClipboardService.IsAvailable.get -> bool
+TSharpVision.IClipboardService.SetText(string! text) -> bool
+TSharpVision.IClipboardService.TryGetText(out string! text) -> bool
+TSharpVision.IFileDialogContext
+TSharpVision.IFileDialogContext.Directory.get -> string!
+TSharpVision.IFileDialogContext.WildCard.get -> string!
+TSharpVision.Ifpstream
+TSharpVision.Ifpstream.Close() -> void
+TSharpVision.Ifpstream.Ifpstream(string! path) -> void
+TSharpVision.Ifpstream.Ifpstream(System.IO.Stream! s) -> void
+TSharpVision.IInfo
+TSharpVision.IInterruptibleTerminalSession
+TSharpVision.IInterruptibleTerminalSession.InterruptAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.InMemoryClipboardService
+TSharpVision.InMemoryClipboardService.Clear() -> void
+TSharpVision.InMemoryClipboardService.GetText() -> string?
+TSharpVision.InMemoryClipboardService.InMemoryClipboardService() -> void
+TSharpVision.InMemoryClipboardService.IsAvailable.get -> bool
+TSharpVision.InMemoryClipboardService.SetText(string! text) -> bool
+TSharpVision.InMemoryClipboardService.TryGetText(out string! text) -> bool
+TSharpVision.InMemoryTerminalSession
+TSharpVision.InMemoryTerminalSession.Dispose() -> void
+TSharpVision.InMemoryTerminalSession.Emit(string! text) -> void
+TSharpVision.InMemoryTerminalSession.Exited -> System.EventHandler?
+TSharpVision.InMemoryTerminalSession.InMemoryTerminalSession() -> void
+TSharpVision.InMemoryTerminalSession.InterruptAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.InMemoryTerminalSession.InterruptCount.get -> int
+TSharpVision.InMemoryTerminalSession.IsRunning.get -> bool
+TSharpVision.InMemoryTerminalSession.OutputReceived -> System.EventHandler<TSharpVision.TerminalOutputEventArgs!>?
+TSharpVision.InMemoryTerminalSession.ReceivedSizes.get -> System.Collections.Generic.IReadOnlyList<TSharpVision.TerminalSize>!
+TSharpVision.InMemoryTerminalSession.ResizeAsync(TSharpVision.TerminalSize size, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.InMemoryTerminalSession.SendInputAsync(string! input, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.InMemoryTerminalSession.SentInputs.get -> System.Collections.Generic.IReadOnlyList<string!>!
+TSharpVision.InMemoryTerminalSession.StartAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.InMemoryTerminalSession.StopAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.InputTrace
+TSharpVision.Ipstream
+TSharpVision.Ipstream.Find(uint id) -> object?
+TSharpVision.Ipstream.Ipstream() -> void
+TSharpVision.Ipstream.Ipstream(System.IO.Stream! sb) -> void
+TSharpVision.Ipstream.Read16() -> ushort
+TSharpVision.Ipstream.Read32() -> uint
+TSharpVision.Ipstream.Read64() -> ulong
+TSharpVision.Ipstream.ReadByte() -> byte
+TSharpVision.Ipstream.ReadBytes(byte[]! data, int offset, int sz) -> void
+TSharpVision.Ipstream.ReadBytes(byte[]! data, int sz) -> void
+TSharpVision.Ipstream.ReadData(TSharpVision.TStreamableClass? c, TSharpVision.TStreamable? mem) -> object?
+TSharpVision.Ipstream.ReadInt() -> uint
+TSharpVision.Ipstream.ReadLong() -> uint
+TSharpVision.Ipstream.ReadObject(TSharpVision.TStreamable! t) -> TSharpVision.Ipstream!
+TSharpVision.Ipstream.ReadPointer() -> object?
+TSharpVision.Ipstream.ReadPrefix() -> TSharpVision.TStreamableClass?
+TSharpVision.Ipstream.ReadShort() -> ushort
+TSharpVision.Ipstream.ReadString() -> string?
+TSharpVision.Ipstream.ReadSuffix() -> void
+TSharpVision.Ipstream.ReadTPoint() -> TSharpVision.TPoint
+TSharpVision.Ipstream.ReadTRect() -> TSharpVision.TRect
+TSharpVision.Ipstream.ReadWord() -> ushort
+TSharpVision.Ipstream.RegisterObject(object! adr) -> void
+TSharpVision.Ipstream.Seekg(long off, System.IO.SeekOrigin origin) -> TSharpVision.Ipstream!
+TSharpVision.Ipstream.Seekg(long pos) -> TSharpVision.Ipstream!
+TSharpVision.Ipstream.Tellg() -> long
+TSharpVision.IResizableTerminalSession
+TSharpVision.IResizableTerminalSession.ResizeAsync(TSharpVision.TerminalSize size, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.ITerminalSession
+TSharpVision.ITerminalSession.Exited -> System.EventHandler!
+TSharpVision.ITerminalSession.IsRunning.get -> bool
+TSharpVision.ITerminalSession.OutputReceived -> System.EventHandler<TSharpVision.TerminalOutputEventArgs!>!
+TSharpVision.ITerminalSession.SendInputAsync(string! input, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.ITerminalSession.StartAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.ITerminalSession.StopAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.ITSharpVisionStringLookupProvider
+TSharpVision.ITSharpVisionStringLookupProvider.TryGet(string! key, out string? value) -> bool
+TSharpVision.ITSharpVisionStringProvider
+TSharpVision.ITSharpVisionStringProvider.Get(string! key, string? fallback) -> string?
+TSharpVision.KeyDownEvent
+TSharpVision.KeyDownEvent.charScan -> TSharpVision.CharScanType
+TSharpVision.KeyDownEvent.controlKeyState -> uint
+TSharpVision.KeyDownEvent.keyCode -> ushort
+TSharpVision.KeyDownEvent.KeyDownEvent() -> void
+TSharpVision.KeyDownEvent.raw_scanCode -> byte
+TSharpVision.KeyDownEvent.text.get -> string!
+TSharpVision.KeyDownEvent.text.set -> void
+TSharpVision.KeyText
+TSharpVision.LineEndingKind
+TSharpVision.LineEndingKind.Cr = 3 -> TSharpVision.LineEndingKind
+TSharpVision.LineEndingKind.CrLf = 2 -> TSharpVision.LineEndingKind
+TSharpVision.LineEndingKind.Lf = 1 -> TSharpVision.LineEndingKind
+TSharpVision.LineEndingKind.Mixed = 4 -> TSharpVision.LineEndingKind
+TSharpVision.LineEndingKind.Unknown = 0 -> TSharpVision.LineEndingKind
+TSharpVision.LocalizedResourceResolver
+TSharpVision.MessageEvent
+TSharpVision.MessageEvent.command -> ushort
+TSharpVision.MessageEvent.infoByte -> byte
+TSharpVision.MessageEvent.infoChar -> char
+TSharpVision.MessageEvent.infoInt -> short
+TSharpVision.MessageEvent.infoLong -> long
+TSharpVision.MessageEvent.infoPtr -> TSharpVision.IInfo?
+TSharpVision.MessageEvent.infoWord -> ushort
+TSharpVision.MessageEvent.MessageEvent() -> void
+TSharpVision.MissingLocalizationKeyEventArgs
+TSharpVision.MissingLocalizationKeyEventArgs.Fallback.get -> string!
+TSharpVision.MissingLocalizationKeyEventArgs.Key.get -> string!
+TSharpVision.MissingLocalizationKeyEventArgs.MissingLocalizationKeyEventArgs(string! key, string! fallback, TSharpVision.ITSharpVisionStringProvider! provider) -> void
+TSharpVision.MissingLocalizationKeyEventArgs.Provider.get -> TSharpVision.ITSharpVisionStringProvider!
+TSharpVision.MouseEventType
+TSharpVision.MouseEventType.buttons -> byte
+TSharpVision.MouseEventType.controlKeyState -> uint
+TSharpVision.MouseEventType.doubleClick.get -> bool
+TSharpVision.MouseEventType.doubleClick.set -> void
+TSharpVision.MouseEventType.eventFlags -> uint
+TSharpVision.MouseEventType.MouseEventType() -> void
+TSharpVision.MouseEventType.where -> TSharpVision.TPoint
+TSharpVision.MsgBox
+TSharpVision.NullClipboardService
+TSharpVision.NullClipboardService.GetText() -> string?
+TSharpVision.NullClipboardService.IsAvailable.get -> bool
+TSharpVision.NullClipboardService.NullClipboardService() -> void
+TSharpVision.NullClipboardService.SetText(string! text) -> bool
+TSharpVision.NullClipboardService.TryGetText(out string! text) -> bool
+TSharpVision.Ofpstream
+TSharpVision.Ofpstream.Close() -> void
+TSharpVision.Ofpstream.Ofpstream(string! path) -> void
+TSharpVision.Ofpstream.Ofpstream(System.IO.Stream! s) -> void
+TSharpVision.Opstream
+TSharpVision.Opstream.Find(object! adr) -> uint
+TSharpVision.Opstream.Flush() -> TSharpVision.Opstream!
+TSharpVision.Opstream.Opstream() -> void
+TSharpVision.Opstream.Opstream(System.IO.Stream! sb) -> void
+TSharpVision.Opstream.RegisterObject(object! adr) -> void
+TSharpVision.Opstream.Seekp(long off, System.IO.SeekOrigin origin) -> TSharpVision.Opstream!
+TSharpVision.Opstream.Seekp(long pos) -> TSharpVision.Opstream!
+TSharpVision.Opstream.Tellp() -> long
+TSharpVision.Opstream.Write16(ushort v) -> void
+TSharpVision.Opstream.Write32(uint v) -> void
+TSharpVision.Opstream.Write64(ulong v) -> void
+TSharpVision.Opstream.WriteByte(byte ch) -> void
+TSharpVision.Opstream.WriteBytes(byte[]! data, int offset, int sz) -> void
+TSharpVision.Opstream.WriteBytes(byte[]! data, int sz) -> void
+TSharpVision.Opstream.WriteData(TSharpVision.TStreamable! t) -> void
+TSharpVision.Opstream.WriteInt(uint val) -> void
+TSharpVision.Opstream.WriteLong(uint val) -> void
+TSharpVision.Opstream.WriteObject(TSharpVision.TStreamable! t) -> TSharpVision.Opstream!
+TSharpVision.Opstream.WritePointer(TSharpVision.TStreamable? t) -> TSharpVision.Opstream!
+TSharpVision.Opstream.WritePrefix(TSharpVision.TStreamable! t) -> void
+TSharpVision.Opstream.WriteShort(ushort val) -> void
+TSharpVision.Opstream.WriteString(string? str) -> void
+TSharpVision.Opstream.WriteSuffix(TSharpVision.TStreamable! _) -> void
+TSharpVision.Opstream.WriteTPoint(TSharpVision.TPoint p) -> void
+TSharpVision.Opstream.WriteTRect(TSharpVision.TRect r) -> void
+TSharpVision.Opstream.WriteWord(ushort val) -> void
+TSharpVision.ProcessTerminalSession
+TSharpVision.ProcessTerminalSession.Dispose() -> void
+TSharpVision.ProcessTerminalSession.ExitCode.get -> int?
+TSharpVision.ProcessTerminalSession.Exited -> System.EventHandler?
+TSharpVision.ProcessTerminalSession.InterruptAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.ProcessTerminalSession.IsRunning.get -> bool
+TSharpVision.ProcessTerminalSession.OutputReceived -> System.EventHandler<TSharpVision.TerminalOutputEventArgs!>?
+TSharpVision.ProcessTerminalSession.ProcessTerminalSession(string! fileName, string! arguments = "", string? workingDirectory = null) -> void
+TSharpVision.ProcessTerminalSession.ResizeAsync(TSharpVision.TerminalSize size, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.ProcessTerminalSession.SendInputAsync(string! input, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.ProcessTerminalSession.StartAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.ProcessTerminalSession.StopAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.Pstream
+TSharpVision.Pstream.Bad() -> int
+TSharpVision.Pstream.bp -> System.IO.Stream?
+TSharpVision.Pstream.Clear(int s = 0) -> void
+TSharpVision.Pstream.Eof() -> int
+TSharpVision.Pstream.Fail() -> int
+TSharpVision.Pstream.Good() -> bool
+TSharpVision.Pstream.hasError -> bool
+TSharpVision.Pstream.HelpFormatVersion -> int
+TSharpVision.Pstream.HelpLegacyEncoding -> TSharpVision.Text.ILegacyTextEncoding!
+TSharpVision.Pstream.Init(System.IO.Stream! sb) -> void
+TSharpVision.Pstream.lastError -> TSharpVision.Pstream.StreamableError
+TSharpVision.Pstream.Pstream() -> void
+TSharpVision.Pstream.Pstream(System.IO.Stream! sb) -> void
+TSharpVision.Pstream.Rdstate() -> int
+TSharpVision.Pstream.SetState(int s) -> void
+TSharpVision.Pstream.state -> int
+TSharpVision.Pstream.StreamableError
+TSharpVision.Pstream.StreamableError.peInvalidType = 1 -> TSharpVision.Pstream.StreamableError
+TSharpVision.Pstream.StreamableError.peNotRegistered = 0 -> TSharpVision.Pstream.StreamableError
+TSharpVision.RawSessionKeyMap
+TSharpVision.ScreenBuffer
+TSharpVision.ScreenBuffer.BufferMemory.get -> System.Memory<TSharpVision.TScreenChar>
+TSharpVision.ScreenBuffer.Clear() -> void
+TSharpVision.ScreenBuffer.Data.get -> System.Span<TSharpVision.TScreenChar>
+TSharpVision.ScreenBuffer.GetChar(uint x, uint y) -> TSharpVision.TScreenChar
+TSharpVision.ScreenBuffer.GetSpan() -> TSharpVision.TDrawBuffer
+TSharpVision.ScreenBuffer.Height.get -> uint
+TSharpVision.ScreenBuffer.ScreenBuffer(int size) -> void
+TSharpVision.ScreenBuffer.ScreenBuffer(uint width, uint height) -> void
+TSharpVision.ScreenBuffer.SetChar(uint x, uint y, TSharpVision.TScreenChar c) -> void
+TSharpVision.ScreenBuffer.Size.get -> int
+TSharpVision.ScreenBuffer.Width.get -> uint
+TSharpVision.SetBlock
+TSharpVision.SetBlock.Deconstruct(out ushort st, out bool en) -> void
+TSharpVision.SetBlock.en.get -> bool
+TSharpVision.SetBlock.en.init -> void
+TSharpVision.SetBlock.Equals(TSharpVision.SetBlock other) -> bool
+TSharpVision.SetBlock.SetBlock() -> void
+TSharpVision.SetBlock.SetBlock(ushort st, bool en) -> void
+TSharpVision.SetBlock.st.get -> ushort
+TSharpVision.SetBlock.st.init -> void
+TSharpVision.StreamableInit
+TSharpVision.StreamableInit.streamableInit = 0 -> TSharpVision.StreamableInit
+TSharpVision.StreamableRegistration
+TSharpVision.TApplication
+TSharpVision.TApplication.TApplication() -> void
+TSharpVision.TApplication.tsc -> TSharpVision.TScreen!
+TSharpVision.TBackground
+TSharpVision.TBackground.ChangePattern(char newP) -> void
+TSharpVision.TBackground.pattern -> char
+TSharpVision.TBackground.TBackground(TSharpVision.StreamableInit init) -> void
+TSharpVision.TBackground.TBackground(TSharpVision.TRect bounds, char aPattern) -> void
+TSharpVision.TButton
+TSharpVision.TButton.AmDefault.get -> bool
+TSharpVision.TButton.AmDefault.set -> void
+TSharpVision.TButton.Command.get -> ushort
+TSharpVision.TButton.Command.set -> void
+TSharpVision.TButton.DrawState(bool down) -> void
+TSharpVision.TButton.Flags.get -> byte
+TSharpVision.TButton.Flags.set -> void
+TSharpVision.TButton.MakeDefault(bool enable) -> void
+TSharpVision.TButton.TButton(TSharpVision.StreamableInit init) -> void
+TSharpVision.TButton.TButton(TSharpVision.TRect bounds, string! aTitle, ushort aCommand, ushort aFlags) -> void
+TSharpVision.TButton.Title.get -> string!
+TSharpVision.TButton.Title.set -> void
+TSharpVision.TButton.~TButton() -> void
+TSharpVision.TChDirDialog
+TSharpVision.TChDirDialog.chDirButton -> TSharpVision.TButton?
+TSharpVision.TChDirDialog.dirInput -> TSharpVision.TInputLine?
+TSharpVision.TChDirDialog.dirList -> TSharpVision.TDirListBox?
+TSharpVision.TChDirDialog.LastError -> string!
+TSharpVision.TChDirDialog.okButton -> TSharpVision.TButton?
+TSharpVision.TChDirDialog.TChDirDialog(TSharpVision.StreamableInit init) -> void
+TSharpVision.TChDirDialog.TChDirDialog(ushort opts, ushort histId) -> void
+TSharpVision.TCheckBoxes
+TSharpVision.TCheckBoxes.TCheckBoxes(TSharpVision.StreamableInit init) -> void
+TSharpVision.TCheckBoxes.TCheckBoxes(TSharpVision.TRect bounds, TSharpVision.TSItem! aStrings) -> void
+TSharpVision.TCluster
+TSharpVision.TCluster.Column(int item) -> int
+TSharpVision.TCluster.DrawBox(string! icon, char marker) -> void
+TSharpVision.TCluster.FindSel(TSharpVision.TPoint p) -> int
+TSharpVision.TCluster.GetItemText(int item) -> string!
+TSharpVision.TCluster.Row(int item) -> int
+TSharpVision.TCluster.sel -> int
+TSharpVision.TCluster.Strings -> System.Collections.Generic.List<string!>!
+TSharpVision.TCluster.TCluster(TSharpVision.StreamableInit init) -> void
+TSharpVision.TCluster.TCluster(TSharpVision.TRect bounds, TSharpVision.TSItem! aStrings) -> void
+TSharpVision.TCluster.value -> uint
+TSharpVision.TCluster.~TCluster() -> void
+TSharpVision.TCollection
+TSharpVision.TCollection.count -> int
+TSharpVision.TCollection.delta -> int
+TSharpVision.TCollection.items -> object?[]?
+TSharpVision.TCollection.limit -> int
+TSharpVision.TCollection.TCollection(int aLimit, int aDelta) -> void
+TSharpVision.TColorAttr
+TSharpVision.TColorAttr.Background.get -> byte
+TSharpVision.TColorAttr.Equals(TSharpVision.TColorAttr other) -> bool
+TSharpVision.TColorAttr.Foreground.get -> byte
+TSharpVision.TColorAttr.IsDefault.get -> bool
+TSharpVision.TColorAttr.TColorAttr() -> void
+TSharpVision.TColorAttr.TColorAttr(byte raw) -> void
+TSharpVision.TColorAttr.TColorAttr(int raw) -> void
+TSharpVision.TColorDialog
+TSharpVision.TColorDialog.DisplayForTest.get -> TSharpVision.TColorDisplay?
+TSharpVision.TColorDialog.GroupsForTest.get -> TSharpVision.TColorGroupList?
+TSharpVision.TColorDialog.Pal.get -> TSharpVision.TPalette?
+TSharpVision.TColorDialog.TColorDialog(TSharpVision.StreamableInit init) -> void
+TSharpVision.TColorDialog.TColorDialog(TSharpVision.TPalette! aPalette, TSharpVision.TColorGroup! aGroups) -> void
+TSharpVision.TColorDisplay
+TSharpVision.TColorDisplay.SetColor(byte[]! data, int offset) -> void
+TSharpVision.TColorDisplay.TColorDisplay(TSharpVision.StreamableInit init) -> void
+TSharpVision.TColorDisplay.TColorDisplay(TSharpVision.TRect bounds, string! aText) -> void
+TSharpVision.TColorGroup
+TSharpVision.TColorGroup.Index -> byte
+TSharpVision.TColorGroup.Items -> TSharpVision.TColorItem?
+TSharpVision.TColorGroup.Name -> string!
+TSharpVision.TColorGroup.Next -> TSharpVision.TColorGroup?
+TSharpVision.TColorGroup.TColorGroup(string! name, TSharpVision.TColorItem? items = null, TSharpVision.TColorGroup? next = null) -> void
+TSharpVision.TColorGroupList
+TSharpVision.TColorGroupList.TColorGroupList(TSharpVision.StreamableInit init) -> void
+TSharpVision.TColorGroupList.TColorGroupList(TSharpVision.TRect bounds, TSharpVision.TScrollBar! aScrollBar, TSharpVision.TColorGroup! aGroups) -> void
+TSharpVision.TColorItem
+TSharpVision.TColorItem.Index -> byte
+TSharpVision.TColorItem.Name -> string!
+TSharpVision.TColorItem.Next -> TSharpVision.TColorItem?
+TSharpVision.TColorItem.TColorItem(string! name, byte index, TSharpVision.TColorItem? next = null) -> void
+TSharpVision.TColorItemList
+TSharpVision.TColorItemList.TColorItemList(TSharpVision.StreamableInit init) -> void
+TSharpVision.TColorItemList.TColorItemList(TSharpVision.TRect bounds, TSharpVision.TScrollBar? aVScrollBar, TSharpVision.TColorItem? aItems, TSharpVision.TScrollBar? aHScrollBar = null) -> void
+TSharpVision.TColorSelector
+TSharpVision.TColorSelector.ColorSel
+TSharpVision.TColorSelector.ColorSel.csBackground = 0 -> TSharpVision.TColorSelector.ColorSel
+TSharpVision.TColorSelector.ColorSel.csForeground = 1 -> TSharpVision.TColorSelector.ColorSel
+TSharpVision.TColorSelector.TColorSelector(TSharpVision.StreamableInit init) -> void
+TSharpVision.TColorSelector.TColorSelector(TSharpVision.TRect bounds, TSharpVision.TColorSelector.ColorSel aSelType) -> void
+TSharpVision.TCommandSet
+TSharpVision.TCommandSet.Add(int cmd) -> void
+TSharpVision.TCommandSet.Add(TSharpVision.TCommandSet! tc) -> void
+TSharpVision.TCommandSet.CopyFrom(TSharpVision.TCommandSet! other) -> void
+TSharpVision.TCommandSet.DisableAll() -> void
+TSharpVision.TCommandSet.DisableCmd(int cmd) -> void
+TSharpVision.TCommandSet.EnableAll() -> void
+TSharpVision.TCommandSet.EnableCmd(int cmd) -> void
+TSharpVision.TCommandSet.Has(int cmd) -> bool
+TSharpVision.TCommandSet.Intersects(TSharpVision.TCommandSet! other) -> bool
+TSharpVision.TCommandSet.IsEmpty() -> bool
+TSharpVision.TCommandSet.IsSupersetOf(TSharpVision.TCommandSet! other) -> bool
+TSharpVision.TCommandSet.Remove(int cmd) -> void
+TSharpVision.TCommandSet.Remove(TSharpVision.TCommandSet! tc) -> void
+TSharpVision.TCommandSet.TCommandSet() -> void
+TSharpVision.TCommandSet.TCommandSet(TSharpVision.TCommandSet! other) -> void
+TSharpVision.TCrossRef
+TSharpVision.TCrossRef.length -> byte
+TSharpVision.TCrossRef.offset -> int
+TSharpVision.TCrossRef.ref -> int
+TSharpVision.TCrossRef.TCrossRef() -> void
+TSharpVision.TDataRecord
+TSharpVision.TDataRecord.Segment
+TSharpVision.TDataRecord.Segment.Offset.get -> ushort
+TSharpVision.TDataRecord.Segment.Segment() -> void
+TSharpVision.TDataRecord.Segment.Size.get -> ushort
+TSharpVision.TDataRecord.Segment.Value.get -> object?
+TSharpVision.TDataRecord.Segments.get -> System.Collections.Generic.IReadOnlyList<TSharpVision.TDataRecord.Segment>!
+TSharpVision.TDataRecord.SetValue(int segmentIndex, object? value) -> void
+TSharpVision.TDataRecord.Size.get -> ushort
+TSharpVision.TDeskTop
+TSharpVision.TDeskTop.background -> TSharpVision.TBackground?
+TSharpVision.TDeskTop.Cascade(TSharpVision.TRect r) -> void
+TSharpVision.TDeskTop.flagsOptions -> uint
+TSharpVision.TDeskTop.GetOptions() -> uint
+TSharpVision.TDeskTop.SetOptions(uint aFlags) -> void
+TSharpVision.TDeskTop.TDeskTop(TSharpVision.StreamableInit init) -> void
+TSharpVision.TDeskTop.TDeskTop(TSharpVision.TRect bounds) -> void
+TSharpVision.TDeskTop.Tile(TSharpVision.TRect r) -> void
+TSharpVision.TDialog
+TSharpVision.TDialog.TDialog(TSharpVision.StreamableInit init) -> void
+TSharpVision.TDialog.TDialog(TSharpVision.TRect bounds, string! aTitle) -> void
+TSharpVision.TDirCollection
+TSharpVision.TDirCollection.At(int index) -> TSharpVision.TDirEntry!
+TSharpVision.TDirCollection.Count.get -> int
+TSharpVision.TDirCollection.Insert(TSharpVision.TDirEntry? item) -> void
+TSharpVision.TDirCollection.Items -> System.Collections.Generic.List<TSharpVision.TDirEntry!>!
+TSharpVision.TDirCollection.TDirCollection() -> void
+TSharpVision.TDirCollection.this[int index].get -> TSharpVision.TDirEntry!
+TSharpVision.TDirEntry
+TSharpVision.TDirEntry.Dir() -> string!
+TSharpVision.TDirEntry.Offset() -> int
+TSharpVision.TDirEntry.TDirEntry(string! txt, string! dir, int anOffset = 0) -> void
+TSharpVision.TDirEntry.Text() -> string!
+TSharpVision.TDirListBox
+TSharpVision.TDirListBox.cur -> int
+TSharpVision.TDirListBox.dir -> string!
+TSharpVision.TDirListBox.incPos -> int
+TSharpVision.TDirListBox.List() -> TSharpVision.TDirCollection?
+TSharpVision.TDirListBox.TDirListBox(TSharpVision.StreamableInit init) -> void
+TSharpVision.TDirListBox.TDirListBox(TSharpVision.TRect bounds, TSharpVision.TScrollBar! aVScrollBar, TSharpVision.TScrollBar! aHScrollBar) -> void
+TSharpVision.TDirListBox.UpdateCursorPos() -> void
+TSharpVision.TDisplay
+TSharpVision.TDisplay.Dispose() -> void
+TSharpVision.TDisplay.SM
+TSharpVision.TDisplay.SM.BW80 = 2 -> TSharpVision.TDisplay.SM
+TSharpVision.TDisplay.SM.CO80 = 3 -> TSharpVision.TDisplay.SM
+TSharpVision.TDisplay.SM.Font8x8 = 256 -> TSharpVision.TDisplay.SM
+TSharpVision.TDisplay.SM.Mono = 7 -> TSharpVision.TDisplay.SM
+TSharpVision.TDisplay.TDisplay() -> void
+TSharpVision.TDisplay.TDisplay(TSharpVision.TDisplay! other) -> void
+TSharpVision.TDrawBuffer
+TSharpVision.TDrawBuffer.Data.get -> System.Span<TSharpVision.TScreenChar>
+TSharpVision.TDrawBuffer.Length.get -> int
+TSharpVision.TDrawBuffer.moveBuf(int indent, System.ReadOnlySpan<char> source, ushort attr, int count) -> void
+TSharpVision.TDrawBuffer.moveChar(int indent, char c, ushort attr, int count) -> void
+TSharpVision.TDrawBuffer.moveCStr(int indent, string! str, ushort attrs) -> ushort
+TSharpVision.TDrawBuffer.moveStr(int indent, string! str, ushort attr) -> void
+TSharpVision.TDrawBuffer.moveStr(int indent, string! str, ushort attr, int maxWidth, int strOffset) -> void
+TSharpVision.TDrawBuffer.putAttribute(int indent, ushort attr) -> void
+TSharpVision.TDrawBuffer.putChar(int indent, char c) -> void
+TSharpVision.TDrawBuffer.TDrawBuffer() -> void
+TSharpVision.TDrawBuffer.TDrawBuffer(System.Span<TSharpVision.TScreenChar> backing) -> void
+TSharpVision.TEditor
+TSharpVision.TEditor.autoIndent -> bool
+TSharpVision.TEditor.BufChar(uint p) -> char
+TSharpVision.TEditor.buffer -> char[]?
+TSharpVision.TEditor.bufLen -> uint
+TSharpVision.TEditor.BufPtr(uint p) -> uint
+TSharpVision.TEditor.bufSize -> uint
+TSharpVision.TEditor.canUndo -> bool
+TSharpVision.TEditor.CharPos(uint p, uint target) -> int
+TSharpVision.TEditor.CharPtr(uint p, int target) -> uint
+TSharpVision.TEditor.CheckScrollBar(ref TSharpVision.TEvent ev, TSharpVision.TScrollBar? p, ref int d) -> void
+TSharpVision.TEditor.ClipCopy() -> bool
+TSharpVision.TEditor.ClipCut() -> void
+TSharpVision.TEditor.ClipPaste() -> void
+TSharpVision.TEditor.curPos -> TSharpVision.TPoint
+TSharpVision.TEditor.curPtr -> uint
+TSharpVision.TEditor.CursorVisible() -> bool
+TSharpVision.TEditor.delCount -> uint
+TSharpVision.TEditor.DeleteRange(uint startPtr, uint endPtr, bool delSelect) -> void
+TSharpVision.TEditor.DeleteSelect() -> void
+TSharpVision.TEditor.delta -> TSharpVision.TPoint
+TSharpVision.TEditor.DoSearchReplace() -> void
+TSharpVision.TEditor.DoUpdate() -> void
+TSharpVision.TEditor.drawLine -> int
+TSharpVision.TEditor.DrawLines(int y, int count, uint linePtr) -> void
+TSharpVision.TEditor.drawPtr -> uint
+TSharpVision.TEditor.errorInfo -> string!
+TSharpVision.TEditor.Find() -> void
+TSharpVision.TEditor.gapLen -> uint
+TSharpVision.TEditor.GetMousePtr(TSharpVision.TPoint m) -> uint
+TSharpVision.TEditor.HasSelection() -> bool
+TSharpVision.TEditor.HideSelect() -> void
+TSharpVision.TEditor.hScrollBar -> TSharpVision.TScrollBar?
+TSharpVision.TEditor.indicator -> TSharpVision.TIndicator?
+TSharpVision.TEditor.insCount -> uint
+TSharpVision.TEditor.InsertBuffer(char[]! p, uint offset, uint length, bool allowUndo, bool selectText) -> bool
+TSharpVision.TEditor.InsertText(byte[]! text, uint length, bool selectText) -> bool
+TSharpVision.TEditor.InsertText(char[]! text, uint length, bool selectText) -> bool
+TSharpVision.TEditor.InsertText(string! text) -> bool
+TSharpVision.TEditor.InsertText(string! text, bool selectText) -> bool
+TSharpVision.TEditor.IsClipboard() -> bool
+TSharpVision.TEditor.isValid -> bool
+TSharpVision.TEditor.keyState -> int
+TSharpVision.TEditor.limit -> TSharpVision.TPoint
+TSharpVision.TEditor.LineEnd(uint p) -> uint
+TSharpVision.TEditor.LineMove(uint p, int count) -> uint
+TSharpVision.TEditor.LineStart(uint p) -> uint
+TSharpVision.TEditor.Lock() -> void
+TSharpVision.TEditor.lockCount -> int
+TSharpVision.TEditor.modified -> bool
+TSharpVision.TEditor.NewLine() -> void
+TSharpVision.TEditor.NextChar(uint p) -> uint
+TSharpVision.TEditor.NextLine(uint p) -> uint
+TSharpVision.TEditor.NextWord(uint p) -> uint
+TSharpVision.TEditor.overwrite -> bool
+TSharpVision.TEditor.PrevChar(uint p) -> uint
+TSharpVision.TEditor.PrevLine(uint p) -> uint
+TSharpVision.TEditor.PrevWord(uint p) -> uint
+TSharpVision.TEditor.Replace() -> void
+TSharpVision.TEditor.ScrollTo(int x, int y) -> void
+TSharpVision.TEditor.Search(byte[]! needle, ushort opts) -> bool
+TSharpVision.TEditor.Search(char[]! needle, ushort opts) -> bool
+TSharpVision.TEditor.selecting -> bool
+TSharpVision.TEditor.selEnd -> uint
+TSharpVision.TEditor.selStart -> uint
+TSharpVision.TEditor.SetBufLen(uint length) -> void
+TSharpVision.TEditor.SetCmdState(ushort command, bool enable) -> void
+TSharpVision.TEditor.SetCurPtr(uint p, byte selectMode) -> void
+TSharpVision.TEditor.SetSelect(uint newStart, uint newEnd, bool curStart) -> void
+TSharpVision.TEditor.StartSelect() -> void
+TSharpVision.TEditor.TEditor(TSharpVision.StreamableInit init) -> void
+TSharpVision.TEditor.TEditor(TSharpVision.TRect bounds, TSharpVision.TScrollBar? aHScrollBar, TSharpVision.TScrollBar? aVScrollBar, TSharpVision.TIndicator? aIndicator, uint aBufSize) -> void
+TSharpVision.TEditor.TEditorDialog
+TSharpVision.TEditor.ToggleInsMode() -> void
+TSharpVision.TEditor.TrackCursor(bool center) -> void
+TSharpVision.TEditor.Undo() -> void
+TSharpVision.TEditor.Unlock() -> void
+TSharpVision.TEditor.Update(byte aFlags) -> void
+TSharpVision.TEditor.updateFlags -> byte
+TSharpVision.TEditor.vScrollBar -> TSharpVision.TScrollBar?
+TSharpVision.TEditorApp
+TSharpVision.TEditorApp.TEditorApp() -> void
+TSharpVision.TEditorDialogHelper
+TSharpVision.TEditorFindDialog
+TSharpVision.TEditorReplaceDialog
+TSharpVision.TEditWindow
+TSharpVision.TEditWindow.editor -> TSharpVision.TFileEditor?
+TSharpVision.TEditWindow.TEditWindow(TSharpVision.StreamableInit init) -> void
+TSharpVision.TEditWindow.TEditWindow(TSharpVision.TRect bounds, string? fileName, int aNumber) -> void
+TSharpVision.TEditWindow.TEditWindow(TSharpVision.TRect bounds, string? fileName, int aNumber, TSharpVision.TFileEditorOpenOptions? openOptions) -> void
+TSharpVision.TerminalCell
+TSharpVision.TerminalCell.Attr.get -> ushort
+TSharpVision.TerminalCell.Character.get -> char
+TSharpVision.TerminalCell.TerminalCell() -> void
+TSharpVision.TerminalCell.TerminalCell(char character, ushort attr) -> void
+TSharpVision.TerminalCommandEventArgs
+TSharpVision.TerminalCommandEventArgs.Command.get -> string!
+TSharpVision.TerminalCommandEventArgs.TerminalCommandEventArgs(string! command) -> void
+TSharpVision.TerminalInputMode
+TSharpVision.TerminalInputMode.Command = 1 -> TSharpVision.TerminalInputMode
+TSharpVision.TerminalInputMode.None = 0 -> TSharpVision.TerminalInputMode
+TSharpVision.TerminalInputMode.RawSession = 2 -> TSharpVision.TerminalInputMode
+TSharpVision.TerminalOutputEventArgs
+TSharpVision.TerminalOutputEventArgs.IsError.get -> bool
+TSharpVision.TerminalOutputEventArgs.TerminalOutputEventArgs(string! text, bool isError = false) -> void
+TSharpVision.TerminalOutputEventArgs.Text.get -> string!
+TSharpVision.TerminalSize
+TSharpVision.TerminalSize.Columns.get -> int
+TSharpVision.TerminalSize.Equals(TSharpVision.TerminalSize other) -> bool
+TSharpVision.TerminalSize.Rows.get -> int
+TSharpVision.TerminalSize.TerminalSize() -> void
+TSharpVision.TerminalSize.TerminalSize(int columns, int rows) -> void
+TSharpVision.TerminalTextPosition
+TSharpVision.TerminalTextPosition.Column.get -> int
+TSharpVision.TerminalTextPosition.Equals(TSharpVision.TerminalTextPosition other) -> bool
+TSharpVision.TerminalTextPosition.IsBefore(TSharpVision.TerminalTextPosition other) -> bool
+TSharpVision.TerminalTextPosition.LineIndex.get -> int
+TSharpVision.TerminalTextPosition.TerminalTextPosition() -> void
+TSharpVision.TerminalTextPosition.TerminalTextPosition(int lineIndex, int column) -> void
+TSharpVision.TEvent
+TSharpVision.TEvent.GetKeyEvent(TSharpVision.Drivers.IDriver! driver) -> void
+TSharpVision.TEvent.GetMouseEvent() -> void
+TSharpVision.TEvent.GetNextEvent(TSharpVision.Drivers.IDriver! driver) -> void
+TSharpVision.TEvent.keyDown -> TSharpVision.KeyDownEvent
+TSharpVision.TEvent.message -> TSharpVision.MessageEvent
+TSharpVision.TEvent.Modifiers.get -> uint
+TSharpVision.TEvent.Modifiers.set -> void
+TSharpVision.TEvent.mouse -> TSharpVision.MouseEventType
+TSharpVision.TEvent.TEvent() -> void
+TSharpVision.TEvent.What -> ushort
+TSharpVision.TEventQueue
+TSharpVision.TEventQueue.Dispose() -> void
+TSharpVision.TEventQueue.TEventQueue() -> void
+TSharpVision.Text.DotNetLegacyTextEncoding
+TSharpVision.Text.DotNetLegacyTextEncoding.Decode(System.ReadOnlySpan<byte> bytes) -> string!
+TSharpVision.Text.DotNetLegacyTextEncoding.DecodeByte(byte value) -> char
+TSharpVision.Text.DotNetLegacyTextEncoding.DotNetLegacyTextEncoding(string! name, int codePage) -> void
+TSharpVision.Text.DotNetLegacyTextEncoding.Encode(string! text) -> byte[]!
+TSharpVision.Text.DotNetLegacyTextEncoding.Name.get -> string!
+TSharpVision.Text.DotNetLegacyTextEncoding.TryEncodeChar(char ch, out byte value) -> bool
+TSharpVision.Text.ILegacyTextEncoding
+TSharpVision.Text.ILegacyTextEncoding.Decode(System.ReadOnlySpan<byte> bytes) -> string!
+TSharpVision.Text.ILegacyTextEncoding.DecodeByte(byte value) -> char
+TSharpVision.Text.ILegacyTextEncoding.Encode(string! text) -> byte[]!
+TSharpVision.Text.ILegacyTextEncoding.Name.get -> string!
+TSharpVision.Text.ILegacyTextEncoding.TryEncodeChar(char ch, out byte value) -> bool
+TSharpVision.Text.LegacyTextEncodings
+TSharpVision.Text.SingleByteTextEncoding
+TSharpVision.Text.SingleByteTextEncoding.Decode(System.ReadOnlySpan<byte> bytes) -> string!
+TSharpVision.Text.SingleByteTextEncoding.DecodeByte(byte value) -> char
+TSharpVision.Text.SingleByteTextEncoding.Encode(string! text) -> byte[]!
+TSharpVision.Text.SingleByteTextEncoding.Name.get -> string!
+TSharpVision.Text.SingleByteTextEncoding.SingleByteTextEncoding(string! name, System.Collections.Generic.IReadOnlyList<char>! byteToChar) -> void
+TSharpVision.Text.SingleByteTextEncoding.TryEncodeChar(char ch, out byte value) -> bool
+TSharpVision.TextInfo
+TSharpVision.TextInfo.Text -> char[]!
+TSharpVision.TextInfo.TextInfo(byte[]? bytes) -> void
+TSharpVision.TextInfo.TextInfo(char[]? text) -> void
+TSharpVision.TextInfo.TextInfo(string? text) -> void
+TSharpVision.TFileCollection
+TSharpVision.TFileCollection.Items -> System.Collections.Generic.List<TSharpVision.TSearchRec!>!
+TSharpVision.TFileCollection.TFileCollection() -> void
+TSharpVision.TFileDialog
+TSharpVision.TFileDialog.directory -> string?
+TSharpVision.TFileDialog.Directory.get -> string!
+TSharpVision.TFileDialog.encodingSelector -> TSharpVision.TRadioButtons?
+TSharpVision.TFileDialog.fileList -> TSharpVision.TFileList?
+TSharpVision.TFileDialog.fileName -> TSharpVision.TFileInputLine?
+TSharpVision.TFileDialog.LastError -> string!
+TSharpVision.TFileDialog.SelectedEncoding.get -> TSharpVision.EditorTextEncoding!
+TSharpVision.TFileDialog.TFileDialog(string! aWildCard, string! aTitle, string! inputName, ushort aOptions, byte histId) -> void
+TSharpVision.TFileDialog.TFileDialog(TSharpVision.StreamableInit init) -> void
+TSharpVision.TFileDialog.wildCard -> string?
+TSharpVision.TFileDialog.WildCard.get -> string!
+TSharpVision.TFileEditor
+TSharpVision.TFileEditor.fileName -> string!
+TSharpVision.TFileEditor.HadMixedLineEndings.get -> bool
+TSharpVision.TFileEditor.HadUtf8Bom.get -> bool
+TSharpVision.TFileEditor.LoadFile() -> bool
+TSharpVision.TFileEditor.OriginalEncoding.get -> TSharpVision.EditorEncodingKind
+TSharpVision.TFileEditor.OriginalLegacyEncoding.get -> TSharpVision.Text.ILegacyTextEncoding?
+TSharpVision.TFileEditor.OriginalLineEnding.get -> TSharpVision.LineEndingKind
+TSharpVision.TFileEditor.Save() -> bool
+TSharpVision.TFileEditor.SaveAs() -> bool
+TSharpVision.TFileEditor.SaveFile() -> bool
+TSharpVision.TFileEditor.SaveLineEnding.get -> TSharpVision.LineEndingKind
+TSharpVision.TFileEditor.SaveLineEnding.set -> void
+TSharpVision.TFileEditor.TFileEditor(TSharpVision.StreamableInit init) -> void
+TSharpVision.TFileEditor.TFileEditor(TSharpVision.TRect bounds, TSharpVision.TScrollBar? aHScrollBar, TSharpVision.TScrollBar? aVScrollBar, TSharpVision.TIndicator? aIndicator, string? aFileName) -> void
+TSharpVision.TFileEditor.TFileEditor(TSharpVision.TRect bounds, TSharpVision.TScrollBar? aHScrollBar, TSharpVision.TScrollBar? aVScrollBar, TSharpVision.TIndicator? aIndicator, string? aFileName, TSharpVision.TFileEditorOpenOptions? options) -> void
+TSharpVision.TFileEditorOpenOptions
+TSharpVision.TFileEditorOpenOptions.Encoding.get -> TSharpVision.EditorTextEncoding!
+TSharpVision.TFileEditorOpenOptions.Encoding.set -> void
+TSharpVision.TFileEditorOpenOptions.TFileEditorOpenOptions() -> void
+TSharpVision.TFileInfoPane
+TSharpVision.TFileInfoPane.FileBlock -> TSharpVision.TSearchRec!
+TSharpVision.TFileInfoPane.TFileInfoPane(TSharpVision.StreamableInit init) -> void
+TSharpVision.TFileInfoPane.TFileInfoPane(TSharpVision.TRect bounds) -> void
+TSharpVision.TFileInputLine
+TSharpVision.TFileInputLine.TFileInputLine(TSharpVision.StreamableInit init) -> void
+TSharpVision.TFileInputLine.TFileInputLine(TSharpVision.TRect bounds, int aMaxLen) -> void
+TSharpVision.TFileList
+TSharpVision.TFileList.LastError.get -> string!
+TSharpVision.TFileList.ShiftSearchAsDir -> bool
+TSharpVision.TFileList.TFileList(TSharpVision.StreamableInit init) -> void
+TSharpVision.TFileList.TFileList(TSharpVision.TRect bounds, TSharpVision.TScrollBar? aScrollBar) -> void
+TSharpVision.TFilterValidator
+TSharpVision.TFilterValidator.TFilterValidator(string! validChars) -> void
+TSharpVision.TFilterValidator.TFilterValidator(TSharpVision.StreamableInit _) -> void
+TSharpVision.TFilterValidator.ValidChars -> string!
+TSharpVision.TFindDialogRec
+TSharpVision.TFindDialogRec.Find -> char[]!
+TSharpVision.TFindDialogRec.Options -> ushort
+TSharpVision.TFindDialogRec.TFindDialogRec(byte[]! f, ushort opts) -> void
+TSharpVision.TFindDialogRec.TFindDialogRec(char[]! f, ushort opts) -> void
+TSharpVision.TFrame
+TSharpVision.TFrame.DragWindow(ref TSharpVision.TEvent ev, byte mode) -> void
+TSharpVision.TFrame.DrawIcon(int bNormal, int ciType) -> void
+TSharpVision.TFrame.TFrame(TSharpVision.StreamableInit init) -> void
+TSharpVision.TFrame.TFrame(TSharpVision.TRect bounds) -> void
+TSharpVision.TGroup
+TSharpVision.TGroup.At(short index) -> TSharpVision.TView?
+TSharpVision.TGroup.buffer -> TSharpVision.ScreenBuffer?
+TSharpVision.TGroup.clip -> TSharpVision.TRect
+TSharpVision.TGroup.current -> TSharpVision.TView?
+TSharpVision.TGroup.DrawSubViews(TSharpVision.TView? p, TSharpVision.TView? bottom) -> void
+TSharpVision.TGroup.endState -> ushort
+TSharpVision.TGroup.First() -> TSharpVision.TView?
+TSharpVision.TGroup.FirstMatch(ushort aState, ushort aOptions) -> TSharpVision.TView?
+TSharpVision.TGroup.FirstThat(System.Func<TSharpVision.TView!, object?, bool>! func, object? args) -> TSharpVision.TView?
+TSharpVision.TGroup.FirstThat<T>(System.Func<TSharpVision.TView!, T, bool>! func, T args) -> TSharpVision.TView?
+TSharpVision.TGroup.ForEach<T>(System.Action<TSharpVision.TView!, T>! func, T args) -> void
+TSharpVision.TGroup.ForEachView(System.Action<TSharpVision.TView!>! action) -> void
+TSharpVision.TGroup.FreeBuffer() -> void
+TSharpVision.TGroup.GetBuffer() -> void
+TSharpVision.TGroup.IndexOf(TSharpVision.TView! p) -> short
+TSharpVision.TGroup.Insert(TSharpVision.TView! p) -> void
+TSharpVision.TGroup.InsertBefore(TSharpVision.TView! p, TSharpVision.TView? target) -> void
+TSharpVision.TGroup.InsertView(TSharpVision.TView! p, TSharpVision.TView? target) -> void
+TSharpVision.TGroup.last -> TSharpVision.TView?
+TSharpVision.TGroup.Lock() -> void
+TSharpVision.TGroup.lockFlag -> byte
+TSharpVision.TGroup.Matches(TSharpVision.TView! p) -> bool
+TSharpVision.TGroup.phase -> TSharpVision.TView.phaseType
+TSharpVision.TGroup.Redraw() -> void
+TSharpVision.TGroup.Remove(TSharpVision.TView! p) -> void
+TSharpVision.TGroup.RemoveView(TSharpVision.TView? p) -> void
+TSharpVision.TGroup.ResetCurrent() -> void
+TSharpVision.TGroup.SelectNext(bool forwards) -> void
+TSharpVision.TGroup.SetCurrent(TSharpVision.TView? p, TSharpVision.TView.selectMode mode) -> void
+TSharpVision.TGroup.TGroup(object! streamableInit) -> void
+TSharpVision.TGroup.TGroup(TSharpVision.TRect bounds) -> void
+TSharpVision.TGroup.Unlock() -> void
+TSharpVision.TGroup.~TGroup() -> void
+TSharpVision.THelpFile
+TSharpVision.THelpFile.Flush() -> void
+TSharpVision.THelpFile.formatVersion -> int
+TSharpVision.THelpFile.GetTopic(int i) -> TSharpVision.THelpTopic!
+TSharpVision.THelpFile.index -> TSharpVision.THelpIndex!
+TSharpVision.THelpFile.indexPos -> long
+TSharpVision.THelpFile.InvalidTopic() -> TSharpVision.THelpTopic!
+TSharpVision.THelpFile.LegacyEncoding.get -> TSharpVision.Text.ILegacyTextEncoding!
+TSharpVision.THelpFile.modified -> bool
+TSharpVision.THelpFile.PutTopic(TSharpVision.THelpTopic! topic) -> void
+TSharpVision.THelpFile.RecordPositionInIndex(int i) -> void
+TSharpVision.THelpFile.stream -> TSharpVision.Fpstream!
+TSharpVision.THelpFile.THelpFile(TSharpVision.Fpstream! s) -> void
+TSharpVision.THelpFile.THelpFile(TSharpVision.Fpstream! s, int newFileFormatVersion) -> void
+TSharpVision.THelpFile.THelpFile(TSharpVision.Fpstream! s, int newFileFormatVersion, TSharpVision.HelpV1CompileOptions! options) -> void
+TSharpVision.THelpFile.THelpFile(TSharpVision.Fpstream! s, int newFileFormatVersion, TSharpVision.Text.ILegacyTextEncoding! legacyEncoding) -> void
+TSharpVision.THelpFile.THelpFile(TSharpVision.Fpstream! s, TSharpVision.HelpV1LoadOptions! options) -> void
+TSharpVision.THelpIndex
+TSharpVision.THelpIndex.Add(int i, long val) -> void
+TSharpVision.THelpIndex.index -> long[]?
+TSharpVision.THelpIndex.Position(int i) -> long
+TSharpVision.THelpIndex.size -> ushort
+TSharpVision.THelpIndex.THelpIndex() -> void
+TSharpVision.THelpTopic
+TSharpVision.THelpTopic.AddCrossRef(TSharpVision.TCrossRef! r) -> void
+TSharpVision.THelpTopic.AddParagraph(TSharpVision.TParagraph! p) -> void
+TSharpVision.THelpTopic.crossRefs -> TSharpVision.TCrossRef?[]?
+TSharpVision.THelpTopic.GetCrossRef(int i, ref TSharpVision.TPoint loc, out byte length, out int ref) -> void
+TSharpVision.THelpTopic.GetLine(int line, byte[]! buffer) -> byte[]!
+TSharpVision.THelpTopic.GetLine(int line, char[]! buffer) -> char[]!
+TSharpVision.THelpTopic.GetNumCrossRefs() -> int
+TSharpVision.THelpTopic.NumLines() -> int
+TSharpVision.THelpTopic.numRefs -> int
+TSharpVision.THelpTopic.paragraphs -> TSharpVision.TParagraph?
+TSharpVision.THelpTopic.SetCrossRef(int i, TSharpVision.TCrossRef! r) -> void
+TSharpVision.THelpTopic.SetNumCrossRefs(int i) -> void
+TSharpVision.THelpTopic.SetWidth(int aWidth) -> void
+TSharpVision.THelpTopic.TCrossRefHandler
+TSharpVision.THelpTopic.THelpTopic() -> void
+TSharpVision.THelpViewer
+TSharpVision.THelpViewer.GoBack() -> void
+TSharpVision.THelpViewer.GoToIndex() -> void
+TSharpVision.THelpViewer.hFile -> TSharpVision.THelpFile!
+TSharpVision.THelpViewer.MakeSelectVisible(int sel, ref TSharpVision.TPoint keyPoint, out byte keyLength, out int keyRef) -> void
+TSharpVision.THelpViewer.NavigateTo(int keyRef) -> void
+TSharpVision.THelpViewer.selected -> int
+TSharpVision.THelpViewer.SwitchToTopic(int keyRef) -> void
+TSharpVision.THelpViewer.THelpViewer(TSharpVision.TRect bounds, TSharpVision.TScrollBar? aHScrollBar, TSharpVision.TScrollBar? aVScrollBar, TSharpVision.THelpFile! aHelpFile, ushort context) -> void
+TSharpVision.THelpViewer.topic -> TSharpVision.THelpTopic!
+TSharpVision.THelpWindow
+TSharpVision.THelpWindow.THelpWindow(TSharpVision.THelpFile! hFile, ushort context) -> void
+TSharpVision.THelpWindow.THelpWindow(TSharpVision.TRect bounds, TSharpVision.THelpFile! hFile, ushort context) -> void
+TSharpVision.THistInit
+TSharpVision.THistInit.createListViewer -> System.Func<TSharpVision.TRect, TSharpVision.TWindow!, ushort, TSharpVision.TListViewer!>!
+TSharpVision.THistInit.THistInit(System.Func<TSharpVision.TRect, TSharpVision.TWindow!, ushort, TSharpVision.TListViewer!>! cListViewer) -> void
+TSharpVision.THistory
+TSharpVision.THistory.HistoryId -> ushort
+TSharpVision.THistory.Link -> TSharpVision.TInputLine?
+TSharpVision.THistory.THistory(TSharpVision.StreamableInit init) -> void
+TSharpVision.THistory.THistory(TSharpVision.TRect bounds, TSharpVision.TInputLine! aLink, ushort aHistoryId) -> void
+TSharpVision.THistoryList
+TSharpVision.THistoryViewer
+TSharpVision.THistoryViewer.HistoryId -> ushort
+TSharpVision.THistoryViewer.HistoryWidth() -> int
+TSharpVision.THistoryViewer.THistoryViewer(TSharpVision.TRect bounds, TSharpVision.TScrollBar? aHScrollBar, TSharpVision.TScrollBar? aVScrollBar, ushort aHistoryId) -> void
+TSharpVision.THistoryWindow
+TSharpVision.THistoryWindow.GetSelection() -> string!
+TSharpVision.THistoryWindow.THistoryWindow(TSharpVision.TRect bounds, ushort historyId) -> void
+TSharpVision.THistoryWindow.Viewer -> TSharpVision.THistoryViewer?
+TSharpVision.TIndicator
+TSharpVision.TIndicator.location -> TSharpVision.TPoint
+TSharpVision.TIndicator.modified -> bool
+TSharpVision.TIndicator.TIndicator(TSharpVision.StreamableInit init) -> void
+TSharpVision.TIndicator.TIndicator(TSharpVision.TRect bounds) -> void
+TSharpVision.TInputLine
+TSharpVision.TInputLine.CurPos -> int
+TSharpVision.TInputLine.Data -> string!
+TSharpVision.TInputLine.DeleteSelect() -> void
+TSharpVision.TInputLine.FirstPos -> int
+TSharpVision.TInputLine.MakeVisible() -> void
+TSharpVision.TInputLine.MaxLen -> int
+TSharpVision.TInputLine.MouseDelta(TSharpVision.TEvent ev) -> int
+TSharpVision.TInputLine.MousePos(TSharpVision.TEvent ev) -> int
+TSharpVision.TInputLine.PasswordChar.get -> char?
+TSharpVision.TInputLine.PasswordChar.set -> void
+TSharpVision.TInputLine.SelEnd -> int
+TSharpVision.TInputLine.SelStart -> int
+TSharpVision.TInputLine.TInputLine(TSharpVision.StreamableInit init) -> void
+TSharpVision.TInputLine.TInputLine(TSharpVision.TRect bounds, int aMaxLen) -> void
+TSharpVision.TInputLine.Validator -> TSharpVision.TValidator?
+TSharpVision.TInternationalizationExtensions
+TSharpVision.TLabel
+TSharpVision.TLabel.Light -> bool
+TSharpVision.TLabel.Link -> TSharpVision.TView?
+TSharpVision.TLabel.TLabel(TSharpVision.StreamableInit init) -> void
+TSharpVision.TLabel.TLabel(TSharpVision.TRect bounds, string! aText, TSharpVision.TView? aLink) -> void
+TSharpVision.TListBox
+TSharpVision.TListBox.center -> bool
+TSharpVision.TListBox.items -> TSharpVision.TStringCollection?
+TSharpVision.TListBox.List() -> TSharpVision.TStringCollection?
+TSharpVision.TListBox.TListBox(TSharpVision.StreamableInit init) -> void
+TSharpVision.TListBox.TListBox(TSharpVision.TRect bounds, ushort aNumCols, TSharpVision.TScrollBar? aScrollBar) -> void
+TSharpVision.TListBoxRec
+TSharpVision.TListBoxRec.Items -> TSharpVision.TStringCollection?
+TSharpVision.TListBoxRec.Selection -> int
+TSharpVision.TListBoxRec.TListBoxRec() -> void
+TSharpVision.TListViewer
+TSharpVision.TListViewer.focused -> int
+TSharpVision.TListViewer.hScrollBar -> TSharpVision.TScrollBar?
+TSharpVision.TListViewer.numCols -> int
+TSharpVision.TListViewer.range -> int
+TSharpVision.TListViewer.SetNumCols(int aNumCols) -> void
+TSharpVision.TListViewer.SetRange(int aRange) -> void
+TSharpVision.TListViewer.TListViewer(TSharpVision.StreamableInit init) -> void
+TSharpVision.TListViewer.TListViewer(TSharpVision.TRect bounds, ushort aNumCols, TSharpVision.TScrollBar? aHScrollBar, TSharpVision.TScrollBar? aVScrollBar) -> void
+TSharpVision.TListViewer.topItem -> int
+TSharpVision.TListViewer.vScrollBar -> TSharpVision.TScrollBar?
+TSharpVision.TLookupValidator
+TSharpVision.TLookupValidator.TLookupValidator() -> void
+TSharpVision.TLookupValidator.TLookupValidator(TSharpVision.StreamableInit _) -> void
+TSharpVision.TMemo
+TSharpVision.TMemo.TMemo(TSharpVision.StreamableInit init) -> void
+TSharpVision.TMemo.TMemo(TSharpVision.TRect bounds, TSharpVision.TScrollBar? aHScrollBar, TSharpVision.TScrollBar? aVScrollBar, TSharpVision.TIndicator? aIndicator, uint aBufSize) -> void
+TSharpVision.TMemoData
+TSharpVision.TMemoData.buffer -> char[]!
+TSharpVision.TMemoData.length -> uint
+TSharpVision.TMemoData.TMemoData(uint capacity) -> void
+TSharpVision.TMenu
+TSharpVision.TMenu.Default.get -> TSharpVision.TMenuItem?
+TSharpVision.TMenu.Default.set -> void
+TSharpVision.TMenu.Items.get -> TSharpVision.TMenuItem?
+TSharpVision.TMenu.Items.set -> void
+TSharpVision.TMenu.TMenu() -> void
+TSharpVision.TMenu.TMenu(TSharpVision.TMenuItem? itemList) -> void
+TSharpVision.TMenu.TMenu(TSharpVision.TMenuItem? itemList, TSharpVision.TMenuItem? theDefault) -> void
+TSharpVision.TMenu.~TMenu() -> void
+TSharpVision.TMenuBar
+TSharpVision.TMenuBar.TMenuBar(TSharpVision.StreamableInit init) -> void
+TSharpVision.TMenuBar.TMenuBar(TSharpVision.TRect bounds, TSharpVision.TMenu? aMenu) -> void
+TSharpVision.TMenuBar.TMenuBar(TSharpVision.TRect bounds, TSharpVision.TSubMenu! aMenu) -> void
+TSharpVision.TMenuBar.~TMenuBar() -> void
+TSharpVision.TMenuBox
+TSharpVision.TMenuBox.TMenuBox(TSharpVision.StreamableInit init) -> void
+TSharpVision.TMenuBox.TMenuBox(TSharpVision.TRect bounds, TSharpVision.TMenu! aMenu) -> void
+TSharpVision.TMenuBox.TMenuBox(TSharpVision.TRect bounds, TSharpVision.TMenu! aMenu, TSharpVision.TMenuView? aParentMenu) -> void
+TSharpVision.TMenuItem
+TSharpVision.TMenuItem.Append(TSharpVision.TMenuItem! aNext) -> void
+TSharpVision.TMenuItem.Command.get -> ushort
+TSharpVision.TMenuItem.Command.set -> void
+TSharpVision.TMenuItem.Disabled.get -> bool
+TSharpVision.TMenuItem.Disabled.set -> void
+TSharpVision.TMenuItem.HelpCtx.get -> ushort
+TSharpVision.TMenuItem.HelpCtx.set -> void
+TSharpVision.TMenuItem.HotChar() -> char
+TSharpVision.TMenuItem.IsSubMenu.get -> bool
+TSharpVision.TMenuItem.KeyCode.get -> ushort
+TSharpVision.TMenuItem.KeyCode.set -> void
+TSharpVision.TMenuItem.Name.get -> string?
+TSharpVision.TMenuItem.Name.set -> void
+TSharpVision.TMenuItem.Next.get -> TSharpVision.TMenuItem?
+TSharpVision.TMenuItem.Next.set -> void
+TSharpVision.TMenuItem.Param.get -> string?
+TSharpVision.TMenuItem.Param.set -> void
+TSharpVision.TMenuItem.SubMenu.get -> TSharpVision.TMenu!
+TSharpVision.TMenuItem.SubMenu.set -> void
+TSharpVision.TMenuItem.TMenuItem(string? aName, ushort aCommand, ushort aKeyCode) -> void
+TSharpVision.TMenuItem.TMenuItem(string? aName, ushort aCommand, ushort aKeyCode, ushort aHelpCtx) -> void
+TSharpVision.TMenuItem.TMenuItem(string? aName, ushort aCommand, ushort aKeyCode, ushort aHelpCtx, string? p) -> void
+TSharpVision.TMenuItem.TMenuItem(string? aName, ushort aCommand, ushort aKeyCode, ushort aHelpCtx, string? p, TSharpVision.TMenuItem? aNext) -> void
+TSharpVision.TMenuItem.TMenuItem(string! aName, ushort aKeyCode, TSharpVision.TMenu! aSubMenu) -> void
+TSharpVision.TMenuItem.TMenuItem(string! aName, ushort aKeyCode, TSharpVision.TMenu! aSubMenu, ushort aHelpCtx) -> void
+TSharpVision.TMenuItem.TMenuItem(string! aName, ushort aKeyCode, TSharpVision.TMenu! aSubMenu, ushort aHelpCtx, TSharpVision.TMenuItem? aNext) -> void
+TSharpVision.TMenuView
+TSharpVision.TMenuView.Current.get -> TSharpVision.TMenuItem?
+TSharpVision.TMenuView.Current.set -> void
+TSharpVision.TMenuView.DoASelect(ref TSharpVision.TEvent ev) -> void
+TSharpVision.TMenuView.KeyToHotKey(ref TSharpVision.TEvent ev) -> bool
+TSharpVision.TMenuView.KeyToItem(ref TSharpVision.TEvent ev) -> bool
+TSharpVision.TMenuView.Menu.get -> TSharpVision.TMenu?
+TSharpVision.TMenuView.Menu.set -> void
+TSharpVision.TMenuView.MouseInMenus(TSharpVision.TEvent e) -> bool
+TSharpVision.TMenuView.MouseInOwner(TSharpVision.TEvent e) -> bool
+TSharpVision.TMenuView.NextItem() -> void
+TSharpVision.TMenuView.ParentMenu.get -> TSharpVision.TMenuView?
+TSharpVision.TMenuView.ParentMenu.set -> void
+TSharpVision.TMenuView.PrevItem() -> void
+TSharpVision.TMenuView.TMenuView(TSharpVision.StreamableInit init) -> void
+TSharpVision.TMenuView.TMenuView(TSharpVision.TRect bounds) -> void
+TSharpVision.TMenuView.TMenuView(TSharpVision.TRect bounds, TSharpVision.TMenu? aMenu, TSharpVision.TMenuView? aParent) -> void
+TSharpVision.TMenuView.TopMenu() -> TSharpVision.TMenuView!
+TSharpVision.TMenuView.TrackKey(bool findNext) -> void
+TSharpVision.TMenuView.TrackMouse(TSharpVision.TEvent e) -> void
+TSharpVision.TMonoSelector
+TSharpVision.TMonoSelector.NewColor() -> void
+TSharpVision.TMonoSelector.TMonoSelector(TSharpVision.StreamableInit init) -> void
+TSharpVision.TMonoSelector.TMonoSelector(TSharpVision.TRect bounds) -> void
+TSharpVision.TNSCollection
+TSharpVision.TNSCollection.SetLimit(int limit) -> void
+TSharpVision.TPalette
+TSharpVision.TPalette.Clone() -> TSharpVision.TPalette!
+TSharpVision.TPalette.Data.get -> byte[]!
+TSharpVision.TPalette.Size.get -> int
+TSharpVision.TPalette.this[int index].get -> byte
+TSharpVision.TPalette.this[int index].set -> void
+TSharpVision.TPalette.TPalette(byte[]! rawWithLeadingSize) -> void
+TSharpVision.TPalette.TPalette(string! data, int size) -> void
+TSharpVision.TPalette.TPalette(TSharpVision.TPalette! other) -> void
+TSharpVision.TParagraph
+TSharpVision.TParagraph.chars -> char[]!
+TSharpVision.TParagraph.next -> TSharpVision.TParagraph?
+TSharpVision.TParagraph.size -> ushort
+TSharpVision.TParagraph.text.get -> byte[]!
+TSharpVision.TParagraph.Text.get -> string!
+TSharpVision.TParagraph.Text.set -> void
+TSharpVision.TParagraph.text.set -> void
+TSharpVision.TParagraph.TParagraph() -> void
+TSharpVision.TParagraph.wrap -> bool
+TSharpVision.TParamText
+TSharpVision.TParamText.ParamCount -> short
+TSharpVision.TParamText.ParamList -> object![]!
+TSharpVision.TParamText.SetText(string! fmt, params object![]! args) -> void
+TSharpVision.TParamText.TParamText(TSharpVision.StreamableInit init) -> void
+TSharpVision.TParamText.TParamText(TSharpVision.TRect bounds, string! aText, int aParamCount) -> void
+TSharpVision.TPicResult
+TSharpVision.TPicResult.prAmbiguous = 5 -> TSharpVision.TPicResult
+TSharpVision.TPicResult.prComplete = 0 -> TSharpVision.TPicResult
+TSharpVision.TPicResult.prEmpty = 2 -> TSharpVision.TPicResult
+TSharpVision.TPicResult.prError = 3 -> TSharpVision.TPicResult
+TSharpVision.TPicResult.prIncomplete = 1 -> TSharpVision.TPicResult
+TSharpVision.TPicResult.prIncompNoFill = 6 -> TSharpVision.TPicResult
+TSharpVision.TPicResult.prSyntax = 4 -> TSharpVision.TPicResult
+TSharpVision.TPoint
+TSharpVision.TPoint.Add(TSharpVision.TPoint other) -> void
+TSharpVision.TPoint.Subtract(TSharpVision.TPoint other) -> void
+TSharpVision.TPoint.TPoint() -> void
+TSharpVision.TPoint.TPoint(int x, int y) -> void
+TSharpVision.TPoint.x -> int
+TSharpVision.TPoint.y -> int
+TSharpVision.TProgram
+TSharpVision.TProgram.AP
+TSharpVision.TProgram.AP.BlackWhite = 1 -> TSharpVision.TProgram.AP
+TSharpVision.TProgram.AP.Color = 0 -> TSharpVision.TProgram.AP
+TSharpVision.TProgram.AP.Monochrome = 2 -> TSharpVision.TProgram.AP
+TSharpVision.TProgram.Application.get -> TSharpVision.TProgram!
+TSharpVision.TProgram.Application.set -> void
+TSharpVision.TProgram.AppPalette.get -> TSharpVision.TProgram.AP
+TSharpVision.TProgram.AppPalette.set -> void
+TSharpVision.TProgram.DeskTop.get -> TSharpVision.TDeskTop?
+TSharpVision.TProgram.DeskTop.set -> void
+TSharpVision.TProgram.MenuBar.get -> TSharpVision.TMenuBar?
+TSharpVision.TProgram.MenuBar.set -> void
+TSharpVision.TProgram.SetScreenMode(ushort mode) -> void
+TSharpVision.TProgram.StatusLine.get -> TSharpVision.TStatusLine?
+TSharpVision.TProgram.StatusLine.set -> void
+TSharpVision.TProgram.TProgram() -> void
+TSharpVision.TProgram.ValidView(TSharpVision.TView? p) -> TSharpVision.TView?
+TSharpVision.TProgram.~TProgram() -> void
+TSharpVision.TPXPictureValidator
+TSharpVision.TPXPictureValidator.Pic -> string!
+TSharpVision.TPXPictureValidator.Picture(ref string! s, bool doFill) -> TSharpVision.TPicResult
+TSharpVision.TPXPictureValidator.TPXPictureValidator(string! aPic, bool autoFill = false) -> void
+TSharpVision.TPXPictureValidator.TPXPictureValidator(TSharpVision.StreamableInit _) -> void
+TSharpVision.TRadioButtons
+TSharpVision.TRadioButtons.TRadioButtons(TSharpVision.StreamableInit init) -> void
+TSharpVision.TRadioButtons.TRadioButtons(TSharpVision.TRect bounds, TSharpVision.TSItem! aStrings) -> void
+TSharpVision.TRangeValidator
+TSharpVision.TRangeValidator.Max -> long
+TSharpVision.TRangeValidator.Min -> long
+TSharpVision.TRangeValidator.TRangeValidator(long min, long max) -> void
+TSharpVision.TRangeValidator.TRangeValidator(TSharpVision.StreamableInit _) -> void
+TSharpVision.TRect
+TSharpVision.TRect.a -> TSharpVision.TPoint
+TSharpVision.TRect.b -> TSharpVision.TPoint
+TSharpVision.TRect.Contains(TSharpVision.TPoint p) -> bool
+TSharpVision.TRect.Equals(TSharpVision.TRect other) -> bool
+TSharpVision.TRect.Grow(int aDX, int aDY) -> void
+TSharpVision.TRect.Intersect(TSharpVision.TRect r) -> void
+TSharpVision.TRect.IsEmpty() -> bool
+TSharpVision.TRect.Move(int aDX, int aDY) -> void
+TSharpVision.TRect.TRect() -> void
+TSharpVision.TRect.TRect(int ax, int ay, int bx, int by) -> void
+TSharpVision.TRect.TRect(TSharpVision.TPoint p1, TSharpVision.TPoint p2) -> void
+TSharpVision.TRect.Union(TSharpVision.TRect r) -> void
+TSharpVision.TReplaceDialogRec
+TSharpVision.TReplaceDialogRec.Find -> char[]!
+TSharpVision.TReplaceDialogRec.Options -> ushort
+TSharpVision.TReplaceDialogRec.Replace -> char[]!
+TSharpVision.TReplaceDialogRec.TReplaceDialogRec(byte[]! f, byte[]! r, ushort opts) -> void
+TSharpVision.TReplaceDialogRec.TReplaceDialogRec(char[]! f, char[]! r, ushort opts) -> void
+TSharpVision.TResourceCollection
+TSharpVision.TResourceCollection.At(int i) -> TSharpVision.TResourceItem!
+TSharpVision.TResourceCollection.AtInsert(int i, TSharpVision.TResourceItem! item) -> void
+TSharpVision.TResourceCollection.AtRemove(int i) -> void
+TSharpVision.TResourceCollection.Count.get -> int
+TSharpVision.TResourceCollection.delta -> ushort
+TSharpVision.TResourceCollection.limit -> ushort
+TSharpVision.TResourceCollection.Search(string! key, out int i) -> bool
+TSharpVision.TResourceCollection.TResourceCollection() -> void
+TSharpVision.TResourceCollection.TResourceCollection(ushort aLimit, ushort aDelta) -> void
+TSharpVision.TResourceFile
+TSharpVision.TResourceFile.BasePos.get -> long
+TSharpVision.TResourceFile.Count() -> short
+TSharpVision.TResourceFile.Flush() -> void
+TSharpVision.TResourceFile.Get(string! key) -> object?
+TSharpVision.TResourceFile.GetRawBytes(string! key) -> byte[]?
+TSharpVision.TResourceFile.ItemAt(int index) -> TSharpVision.TResourceItem!
+TSharpVision.TResourceFile.KeyAt(short i) -> string!
+TSharpVision.TResourceFile.Pack() -> void
+TSharpVision.TResourceFile.Put(TSharpVision.TStreamable! item, string! key) -> void
+TSharpVision.TResourceFile.Remove(string! key) -> void
+TSharpVision.TResourceFile.TResourceFile(TSharpVision.Fpstream! aStream) -> void
+TSharpVision.TResourceItem
+TSharpVision.TResourceItem.key -> string!
+TSharpVision.TResourceItem.pos -> long
+TSharpVision.TResourceItem.size -> long
+TSharpVision.TResourceItem.TResourceItem() -> void
+TSharpVision.TResourceStringProvider
+TSharpVision.TResourceStringProvider.Get(string! key, string? fallback) -> string?
+TSharpVision.TResourceStringProvider.TResourceStringProvider(TSharpVision.TStringResource? resource) -> void
+TSharpVision.TResourceStringProvider.TryGet(string! key, out string? value) -> bool
+TSharpVision.TScreen
+TSharpVision.TScreen.TScreen() -> void
+TSharpVision.TScreenChar
+TSharpVision.TScreenChar.Attr -> TSharpVision.TColorAttr
+TSharpVision.TScreenChar.Character -> char
+TSharpVision.TScreenChar.TScreenChar() -> void
+TSharpVision.TScreenChar.TScreenChar(char character, System.ConsoleColor foreground, System.ConsoleColor background) -> void
+TSharpVision.TScreenChar.TScreenChar(char character, TSharpVision.TColorAttr attr) -> void
+TSharpVision.TScrollBar
+TSharpVision.TScrollBar.arStep -> int
+TSharpVision.TScrollBar.chars -> char[]!
+TSharpVision.TScrollBar.GetPos() -> int
+TSharpVision.TScrollBar.GetSize() -> int
+TSharpVision.TScrollBar.maxVal -> int
+TSharpVision.TScrollBar.minVal -> int
+TSharpVision.TScrollBar.pgStep -> int
+TSharpVision.TScrollBar.SetParams(int aValue, int aMin, int aMax, int aPgStep, int aArStep) -> void
+TSharpVision.TScrollBar.SetRange(int aMin, int aMax) -> void
+TSharpVision.TScrollBar.SetStep(int aPgStep, int aArStep) -> void
+TSharpVision.TScrollBar.SetValue(int aValue) -> void
+TSharpVision.TScrollBar.TScrollBar(TSharpVision.StreamableInit init) -> void
+TSharpVision.TScrollBar.TScrollBar(TSharpVision.TRect bounds) -> void
+TSharpVision.TScrollBar.value -> int
+TSharpVision.TScroller
+TSharpVision.TScroller.CheckDraw() -> void
+TSharpVision.TScroller.delta -> TSharpVision.TPoint
+TSharpVision.TScroller.drawFlag -> bool
+TSharpVision.TScroller.drawLock -> byte
+TSharpVision.TScroller.hScrollBar -> TSharpVision.TScrollBar?
+TSharpVision.TScroller.limit -> TSharpVision.TPoint
+TSharpVision.TScroller.ScrollTo(int x, int y) -> void
+TSharpVision.TScroller.SetLimit(int x, int y) -> void
+TSharpVision.TScroller.TScroller(TSharpVision.StreamableInit init) -> void
+TSharpVision.TScroller.TScroller(TSharpVision.TRect bounds, TSharpVision.TScrollBar? aHScrollBar, TSharpVision.TScrollBar? aVScrollBar) -> void
+TSharpVision.TScroller.vScrollBar -> TSharpVision.TScrollBar?
+TSharpVision.TSearchRec
+TSharpVision.TSearchRec.attr -> byte
+TSharpVision.TSearchRec.name -> string!
+TSharpVision.TSearchRec.size -> long
+TSharpVision.TSearchRec.time -> long
+TSharpVision.TSearchRec.TSearchRec() -> void
+TSharpVision.TSharpVisionGlyphs
+TSharpVision.TSharpVisionIntl
+TSharpVision.TSharpVisionRuntime
+TSharpVision.TSharpVisionStringProviderChain
+TSharpVision.TSharpVisionStringProviderChain.Get(string! key, string? fallback) -> string?
+TSharpVision.TSharpVisionStringProviderChain.TryGet(string! key, out string? value) -> bool
+TSharpVision.TSharpVisionStringProviderChain.TSharpVisionStringProviderChain(params TSharpVision.ITSharpVisionStringProvider?[]? providers) -> void
+TSharpVision.TSItem
+TSharpVision.TSItem.Append(TSharpVision.TSItem! aNext) -> TSharpVision.TSItem!
+TSharpVision.TSItem.Next.get -> TSharpVision.TSItem?
+TSharpVision.TSItem.Next.set -> void
+TSharpVision.TSItem.TSItem(string! aValue, TSharpVision.TSItem? aNext) -> void
+TSharpVision.TSItem.Value.get -> string!
+TSharpVision.TSItem.Value.set -> void
+TSharpVision.TSortedCollection
+TSharpVision.TSortedCollection.Duplicates -> bool
+TSharpVision.TSortedCollection.TSortedCollection() -> void
+TSharpVision.TSortedListBox
+TSharpVision.TSortedListBox.controlKeyState -> byte
+TSharpVision.TSortedListBox.searchPos -> ushort
+TSharpVision.TSortedListBox.sortedItems -> TSharpVision.TSortedCollection?
+TSharpVision.TSortedListBox.TSortedListBox(TSharpVision.StreamableInit init) -> void
+TSharpVision.TSortedListBox.TSortedListBox(TSharpVision.TRect bounds, ushort aNumCols, TSharpVision.TScrollBar? aScrollBar) -> void
+TSharpVision.TStaticText
+TSharpVision.TStaticText.Text -> string!
+TSharpVision.TStaticText.TStaticText(TSharpVision.StreamableInit init) -> void
+TSharpVision.TStaticText.TStaticText(TSharpVision.TRect bounds, string! aText) -> void
+TSharpVision.TStaticText.~TStaticText() -> void
+TSharpVision.TStatusDef
+TSharpVision.TStatusDef.Items.get -> TSharpVision.TStatusItem?
+TSharpVision.TStatusDef.Items.set -> void
+TSharpVision.TStatusDef.Max.get -> ushort
+TSharpVision.TStatusDef.Max.set -> void
+TSharpVision.TStatusDef.Min.get -> ushort
+TSharpVision.TStatusDef.Min.set -> void
+TSharpVision.TStatusDef.Next.get -> TSharpVision.TStatusDef?
+TSharpVision.TStatusDef.Next.set -> void
+TSharpVision.TStatusDef.TStatusDef(ushort aMin, ushort aMax, TSharpVision.TStatusItem? someItems = null, TSharpVision.TStatusDef? aNext = null) -> void
+TSharpVision.TStatusItem
+TSharpVision.TStatusItem.Command.get -> ushort
+TSharpVision.TStatusItem.Command.set -> void
+TSharpVision.TStatusItem.KeyCode.get -> ushort
+TSharpVision.TStatusItem.KeyCode.set -> void
+TSharpVision.TStatusItem.Next.get -> TSharpVision.TStatusItem?
+TSharpVision.TStatusItem.Next.set -> void
+TSharpVision.TStatusItem.Text.get -> string?
+TSharpVision.TStatusItem.Text.set -> void
+TSharpVision.TStatusItem.TStatusItem(string? aText, ushort key, ushort cmd, TSharpVision.TStatusItem? aNext = null) -> void
+TSharpVision.TStatusLine
+TSharpVision.TStatusLine.Defs.get -> TSharpVision.TStatusDef?
+TSharpVision.TStatusLine.Defs.set -> void
+TSharpVision.TStatusLine.Items.get -> TSharpVision.TStatusItem?
+TSharpVision.TStatusLine.Items.set -> void
+TSharpVision.TStatusLine.TStatusLine(TSharpVision.StreamableInit init) -> void
+TSharpVision.TStatusLine.TStatusLine(TSharpVision.TRect bounds, TSharpVision.TStatusDef! aDefs) -> void
+TSharpVision.TStatusLine.Update() -> void
+TSharpVision.TStatusLine.~TStatusLine() -> void
+TSharpVision.TStreamable
+TSharpVision.TStreamable.TStreamable() -> void
+TSharpVision.TStreamableClass
+TSharpVision.TStreamableClass.TStreamableClass(string! n, System.Func<TSharpVision.TStreamable!>! b, int d = 0) -> void
+TSharpVision.TStreamableTypes
+TSharpVision.TStreamableTypes.Count.get -> int
+TSharpVision.TStreamableTypes.Lookup(string! name) -> TSharpVision.TStreamableClass?
+TSharpVision.TStreamableTypes.RegisterType(TSharpVision.TStreamableClass! c) -> void
+TSharpVision.TStreamableTypes.TStreamableTypes() -> void
+TSharpVision.TStringCollection
+TSharpVision.TStringCollection.Count.get -> int
+TSharpVision.TStringCollection.Insert(string! s) -> void
+TSharpVision.TStringCollection.Items -> System.Collections.Generic.List<string!>!
+TSharpVision.TStringCollection.this[int index].get -> string!
+TSharpVision.TStringCollection.TStringCollection() -> void
+TSharpVision.TStringCollectionStub
+TSharpVision.TStringCollectionStub.TStringCollectionStub() -> void
+TSharpVision.TStringLookupValidator
+TSharpVision.TStringLookupValidator.Strings -> TSharpVision.TStringCollection?
+TSharpVision.TStringLookupValidator.TStringLookupValidator(TSharpVision.StreamableInit _) -> void
+TSharpVision.TStringLookupValidator.TStringLookupValidator(TSharpVision.TStringCollection! aStrings) -> void
+TSharpVision.TStringResource
+TSharpVision.TStringResource.Strings.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
+TSharpVision.TStringResource.TryGetValue(string! key, out string! value) -> bool
+TSharpVision.TStringResource.TStringResource() -> void
+TSharpVision.TStringResource.TStringResource(System.Collections.Generic.IDictionary<string!, string!>! strings) -> void
+TSharpVision.TSubMenu
+TSharpVision.TSubMenu.TSubMenu(string! aName, ushort aKeyCode, ushort aHelpCtx = 0) -> void
+TSharpVision.TTerminal
+TSharpVision.TTerminal.AnsiEnabled.get -> bool
+TSharpVision.TTerminal.AnsiEnabled.set -> void
+TSharpVision.TTerminal.ApplyColorMap(byte[]! map16) -> void
+TSharpVision.TTerminal.AttachSession(TSharpVision.ITerminalSession! session) -> void
+TSharpVision.TTerminal.AttachVerticalScrollBar(TSharpVision.TScrollBar! scrollBar) -> void
+TSharpVision.TTerminal.Clear() -> void
+TSharpVision.TTerminal.ClearSelection() -> void
+TSharpVision.TTerminal.CommandHistory.get -> System.Collections.Generic.IReadOnlyList<string!>!
+TSharpVision.TTerminal.CommandSubmitted -> System.EventHandler<TSharpVision.TerminalCommandEventArgs!>?
+TSharpVision.TTerminal.CopySelection() -> string!
+TSharpVision.TTerminal.CurrentLine.get -> string!
+TSharpVision.TTerminal.CursorColumn.get -> int
+TSharpVision.TTerminal.DetachSession() -> void
+TSharpVision.TTerminal.DetachVerticalScrollBar() -> void
+TSharpVision.TTerminal.GetSelectedText() -> string!
+TSharpVision.TTerminal.GetVisibleCellLines(int height) -> TSharpVision.TerminalCell[]?[]?
+TSharpVision.TTerminal.GetVisibleLines(int height) -> System.Collections.Generic.IReadOnlyList<string!>!
+TSharpVision.TTerminal.HandleControlC() -> void
+TSharpVision.TTerminal.HasSelection.get -> bool
+TSharpVision.TTerminal.InputBackspace() -> void
+TSharpVision.TTerminal.InputBuffer.get -> string!
+TSharpVision.TTerminal.InputCursor.get -> int
+TSharpVision.TTerminal.InputDelete() -> void
+TSharpVision.TTerminal.InputEnabled.get -> bool
+TSharpVision.TTerminal.InputEnabled.set -> void
+TSharpVision.TTerminal.InputInsertChar(char c) -> void
+TSharpVision.TTerminal.InputMode.get -> TSharpVision.TerminalInputMode
+TSharpVision.TTerminal.InputMode.set -> void
+TSharpVision.TTerminal.IsAtBottom.get -> bool
+TSharpVision.TTerminal.Lines.get -> System.Collections.Generic.IReadOnlyList<string!>!
+TSharpVision.TTerminal.MaxCommandHistory.get -> int
+TSharpVision.TTerminal.MaxCommandHistory.set -> void
+TSharpVision.TTerminal.MaxLines.get -> int
+TSharpVision.TTerminal.MaxLines.set -> void
+TSharpVision.TTerminal.PasteText(string! text) -> void
+TSharpVision.TTerminal.Prompt.get -> string!
+TSharpVision.TTerminal.Prompt.set -> void
+TSharpVision.TTerminal.ScrollLineDown() -> void
+TSharpVision.TTerminal.ScrollLineUp() -> void
+TSharpVision.TTerminal.ScrollOffset.get -> int
+TSharpVision.TTerminal.ScrollPageDown() -> void
+TSharpVision.TTerminal.ScrollPageUp() -> void
+TSharpVision.TTerminal.ScrollToBottom() -> void
+TSharpVision.TTerminal.ScrollToTop() -> void
+TSharpVision.TTerminal.SetSelection(TSharpVision.TerminalTextPosition anchor, TSharpVision.TerminalTextPosition active) -> void
+TSharpVision.TTerminal.SubmitInput() -> void
+TSharpVision.TTerminal.TerminalSize.get -> TSharpVision.TerminalSize
+TSharpVision.TTerminal.TTerminal(TSharpVision.StreamableInit init) -> void
+TSharpVision.TTerminal.TTerminal(TSharpVision.TRect bounds) -> void
+TSharpVision.TTerminal.TTerminal(TSharpVision.TRect bounds, int maxLines) -> void
+TSharpVision.TTerminal.VisualPointToPosition(int col, int row, int outputHeight) -> TSharpVision.TerminalTextPosition
+TSharpVision.TTerminal.VisualRowToLineIndex(int row, int outputHeight) -> int
+TSharpVision.TTerminal.Write(string! text) -> void
+TSharpVision.TTerminal.WriteLine(string! line) -> void
+TSharpVision.TValidator
+TSharpVision.TValidator.Options -> ushort
+TSharpVision.TValidator.Status -> ushort
+TSharpVision.TValidator.TValidator() -> void
+TSharpVision.TValidator.TValidator(TSharpVision.StreamableInit _) -> void
+TSharpVision.TValidator.Validate(string? s) -> bool
+TSharpVision.TView
+TSharpVision.TView.cursor -> TSharpVision.TPoint
+TSharpVision.TView.Dispose() -> void
+TSharpVision.TView.dragMode -> byte
+TSharpVision.TView.eventMask -> ushort
+TSharpVision.TView.Exposed() -> bool
+TSharpVision.TView.Focus() -> bool
+TSharpVision.TView.growMode -> byte
+TSharpVision.TView.helpCtx -> ushort
+TSharpVision.TView.Next -> TSharpVision.TView?
+TSharpVision.TView.options -> ushort
+TSharpVision.TView.origin -> TSharpVision.TPoint
+TSharpVision.TView.owner -> TSharpVision.TGroup?
+TSharpVision.TView.phaseType
+TSharpVision.TView.phaseType.phFocused = 0 -> TSharpVision.TView.phaseType
+TSharpVision.TView.phaseType.phPostProcess = 2 -> TSharpVision.TView.phaseType
+TSharpVision.TView.phaseType.phPreProcess = 1 -> TSharpVision.TView.phaseType
+TSharpVision.TView.Post(ushort command, TSharpVision.IInfo? info = null) -> void
+TSharpVision.TView.PutEvent(ushort what, ushort command, TSharpVision.IInfo? infoPtr) -> void
+TSharpVision.TView.selectMode
+TSharpVision.TView.selectMode.enterSelect = 1 -> TSharpVision.TView.selectMode
+TSharpVision.TView.selectMode.leaveSelect = 2 -> TSharpVision.TView.selectMode
+TSharpVision.TView.selectMode.normalSelect = 0 -> TSharpVision.TView.selectMode
+TSharpVision.TView.size -> TSharpVision.TPoint
+TSharpVision.TView.state -> ushort
+TSharpVision.TView.TView(object! _) -> void
+TSharpVision.TView.TView(TSharpVision.StreamableInit init) -> void
+TSharpVision.TView.TView(TSharpVision.TRect bounds) -> void
+TSharpVision.TView.~TView() -> void
+TSharpVision.TViewExtensions
+TSharpVision.TVTransfer
+TSharpVision.TVTransfer.vtDataSize = 0 -> TSharpVision.TVTransfer
+TSharpVision.TVTransfer.vtGetData = 2 -> TSharpVision.TVTransfer
+TSharpVision.TVTransfer.vtSetData = 1 -> TSharpVision.TVTransfer
+TSharpVision.TWindow
+TSharpVision.TWindow.flags -> byte
+TSharpVision.TWindow.frame -> TSharpVision.TFrame?
+TSharpVision.TWindow.number -> ushort
+TSharpVision.TWindow.palette -> short
+TSharpVision.TWindow.StandardScrollBar(ushort aOptions) -> TSharpVision.TScrollBar!
+TSharpVision.TWindow.title -> string?
+TSharpVision.TWindow.TWindow(TSharpVision.StreamableInit init) -> void
+TSharpVision.TWindow.TWindow(TSharpVision.TRect bounds, string? aTitle, ushort aNumber) -> void
+TSharpVision.TWindow.zoomRect -> TSharpVision.TRect
+TSharpVision.TWindow.~TWindow() -> void
+TSharpVision.TWindowInit
+TSharpVision.TWindowInit.createFrame -> System.Func<TSharpVision.TRect, TSharpVision.TFrame!>!
+TSharpVision.TWindowInit.TWindowInit(System.Func<TSharpVision.TRect, TSharpVision.TFrame!>! cFrame) -> void
+virtual TSharpVision.ccIndex.Invoke() -> int
+virtual TSharpVision.Pstream.Error(TSharpVision.Pstream.StreamableError e) -> void
+virtual TSharpVision.Pstream.Error(TSharpVision.Pstream.StreamableError e, TSharpVision.TStreamable! t) -> void
+virtual TSharpVision.TButton.Press() -> void
+virtual TSharpVision.TChDirDialog.GetData(object! _) -> void
+virtual TSharpVision.TChDirDialog.SetUpDialog() -> void
+virtual TSharpVision.TCluster.Mark(int item) -> bool
+virtual TSharpVision.TCluster.MovedTo(int item) -> void
+virtual TSharpVision.TCluster.Press(int item) -> void
+virtual TSharpVision.TCollection.SetLimit(int newLimit) -> void
+virtual TSharpVision.TCollection.StreamableName() -> string!
+virtual TSharpVision.TColorDialog.GetData(out byte[]! rec) -> void
+virtual TSharpVision.TColorDialog.SetData(byte[]? rec) -> void
+virtual TSharpVision.TDeskTop.CanShowCursor() -> bool
+virtual TSharpVision.TDeskTop.InitBackground(TSharpVision.TRect r) -> TSharpVision.TBackground?
+virtual TSharpVision.TDeskTop.TileError() -> void
+virtual TSharpVision.TDirListBox.NewDirectory(string! str) -> void
+virtual TSharpVision.TDirListBox.NewList(TSharpVision.TDirCollection! aList) -> void
+virtual TSharpVision.TDirListBox.ShowDirs(TSharpVision.TDirCollection! dirs) -> void
+virtual TSharpVision.TDirListBox.ShowDrives(TSharpVision.TDirCollection! dirs) -> void
+virtual TSharpVision.TDisplay.Dispose(bool disposing) -> void
+virtual TSharpVision.TEditor.ConvertEvent(ref TSharpVision.TEvent ev) -> void
+virtual TSharpVision.TEditor.DoneBuffer() -> void
+virtual TSharpVision.TEditor.InitBuffer() -> void
+virtual TSharpVision.TEditor.InsertFrom(TSharpVision.TEditor! editor) -> bool
+virtual TSharpVision.TEditor.SetBufSize(uint newSize) -> bool
+virtual TSharpVision.TEditor.TEditorDialog.Invoke(int dialog, object? info) -> ushort
+virtual TSharpVision.TEditor.UpdateCommands() -> void
+virtual TSharpVision.TEditorApp.Cascade() -> void
+virtual TSharpVision.TEditorApp.FileNew() -> void
+virtual TSharpVision.TEditorApp.FileOpen() -> void
+virtual TSharpVision.TEditorApp.OpenEditor(string? fileName, bool visible) -> TSharpVision.TEditWindow?
+virtual TSharpVision.TEditorApp.OpenEditor(string? fileName, bool visible, TSharpVision.TFileEditorOpenOptions? openOptions) -> TSharpVision.TEditWindow?
+virtual TSharpVision.TEditorApp.Tile() -> void
+virtual TSharpVision.TEventQueue.Dispose(bool disposing) -> void
+virtual TSharpVision.TFileCollection.Insert(TSharpVision.TSearchRec? item) -> void
+virtual TSharpVision.TFileDialog.CheckDirectory(string! str) -> bool
+virtual TSharpVision.TFileDialog.GetData(out string! rec) -> void
+virtual TSharpVision.TFileDialog.GetFileName(out string! s) -> void
+virtual TSharpVision.TFileDialog.ReadDirectory() -> void
+virtual TSharpVision.TFileDialog.SetUpCurDir() -> void
+virtual TSharpVision.TFileList.ReadDirectory(string! dir, string! wildCard) -> void
+virtual TSharpVision.TFileList.ReadDirectory(string! path) -> void
+virtual TSharpVision.TGroup.EventError(TSharpVision.TEvent ev) -> void
+virtual TSharpVision.TGroup.ExecView(TSharpVision.TView! p) -> ushort
+virtual TSharpVision.THelpTopic.TCrossRefHandler.Invoke(TSharpVision.Opstream! s, int value) -> void
+virtual TSharpVision.THistory.InitHistoryWindow(TSharpVision.TRect bounds) -> TSharpVision.THistoryWindow!
+virtual TSharpVision.THistoryWindow.InitViewer(TSharpVision.TRect r, TSharpVision.TWindow! win, ushort historyId) -> TSharpVision.THistoryViewer!
+virtual TSharpVision.TIndicator.SetValue(TSharpVision.TPoint aLocation, bool aModified) -> void
+virtual TSharpVision.TInputLine.CanScroll(int delta) -> bool
+virtual TSharpVision.TInputLine.InsertChar(char value) -> bool
+virtual TSharpVision.TInputLine.SelectAll(bool enable) -> void
+virtual TSharpVision.TListBox.NewList(TSharpVision.TStringCollection? aList) -> void
+virtual TSharpVision.TListViewer.FocusItem(int item) -> void
+virtual TSharpVision.TListViewer.FocusItemNum(int item) -> void
+virtual TSharpVision.TListViewer.GetText(int item, int maxLen) -> string!
+virtual TSharpVision.TListViewer.IsSelected(int item) -> bool
+virtual TSharpVision.TListViewer.SelectItem(int item) -> void
+virtual TSharpVision.TLookupValidator.Lookup(string? s) -> bool
+virtual TSharpVision.TMemo.GetData(TSharpVision.TMemoData! data) -> void
+virtual TSharpVision.TMemo.SetData(TSharpVision.TMemoData! data) -> void
+virtual TSharpVision.TMenuView.FindItem(char ch) -> TSharpVision.TMenuItem?
+virtual TSharpVision.TMenuView.GetItemRect(TSharpVision.TMenuItem! item) -> TSharpVision.TRect
+virtual TSharpVision.TMenuView.HotKey(ushort keyCode) -> TSharpVision.TMenuItem?
+virtual TSharpVision.TMenuView.NewSubView(TSharpVision.TRect bounds, TSharpVision.TMenu! aMenu, TSharpVision.TMenuView? aParentMenu) -> TSharpVision.TMenuView!
+virtual TSharpVision.TProgram.CanMoveFocus() -> bool
+virtual TSharpVision.TProgram.ExecuteDialog(TSharpVision.TDialog? dialog, object? data = null) -> ushort
+virtual TSharpVision.TProgram.ExecuteHelp(TSharpVision.THelpWindow! window) -> void
+virtual TSharpVision.TProgram.GetHelpFile() -> TSharpVision.THelpFile?
+virtual TSharpVision.TProgram.HandleScreenResize() -> void
+virtual TSharpVision.TProgram.Idle() -> void
+virtual TSharpVision.TProgram.InitDesktop(TSharpVision.TRect r) -> TSharpVision.TDeskTop?
+virtual TSharpVision.TProgram.InitMenuBar(TSharpVision.TRect r) -> TSharpVision.TMenuBar?
+virtual TSharpVision.TProgram.InitScreen() -> void
+virtual TSharpVision.TProgram.InitStatusLine(TSharpVision.TRect r) -> TSharpVision.TStatusLine?
+virtual TSharpVision.TProgram.InsertWindow(TSharpVision.TWindow? window) -> TSharpVision.TWindow?
+virtual TSharpVision.TProgram.OutOfMemory() -> void
+virtual TSharpVision.TProgram.Resume() -> void
+virtual TSharpVision.TProgram.Run() -> void
+virtual TSharpVision.TProgram.Suspend() -> void
+virtual TSharpVision.TScrollBar.DrawPos(int pos) -> void
+virtual TSharpVision.TScrollBar.ScrollDraw() -> void
+virtual TSharpVision.TScrollBar.ScrollStep(int part) -> int
+virtual TSharpVision.TScroller.ScrollDraw() -> void
+virtual TSharpVision.TSortedCollection.Search(object! key, out int index) -> bool
+virtual TSharpVision.TSortedListBox.GetItemText(object! item) -> string!
+virtual TSharpVision.TSortedListBox.GetKey(string! s) -> object!
+virtual TSharpVision.TSortedListBox.NewList(TSharpVision.TSortedCollection! aList) -> void
+virtual TSharpVision.TStaticText.GetText(out string! result) -> void
+virtual TSharpVision.TStatusLine.Hint(ushort aHelpCtx) -> string!
+virtual TSharpVision.TStreamable.streamableName.get -> string!
+virtual TSharpVision.TValidator.Error() -> void
+virtual TSharpVision.TValidator.Format(ref string! s) -> void
+virtual TSharpVision.TValidator.IsValid(string? s) -> bool
+virtual TSharpVision.TValidator.IsValidInput(string? s, bool suppressFill) -> bool
+virtual TSharpVision.TValidator.Transfer(string? s, object! buffer, TSharpVision.TVTransfer flag) -> ushort
+virtual TSharpVision.TView.Awaken() -> void
+virtual TSharpVision.TView.BlockCursor() -> void
+virtual TSharpVision.TView.CalcBounds(ref TSharpVision.TRect bounds, TSharpVision.TPoint delta) -> void
+virtual TSharpVision.TView.ChangeBounds(TSharpVision.TRect bounds) -> void
+virtual TSharpVision.TView.ClearEvent(ref TSharpVision.TEvent ev) -> void
+virtual TSharpVision.TView.ContainsMouse(TSharpVision.TEvent ev) -> bool
+virtual TSharpVision.TView.DataSize() -> ushort
+virtual TSharpVision.TView.Dispose(bool disposing) -> void
+virtual TSharpVision.TView.DragView(TSharpVision.TEvent ev, byte mode, ref TSharpVision.TRect limits, TSharpVision.TPoint minSize, TSharpVision.TPoint maxSize) -> void
+virtual TSharpVision.TView.Draw() -> void
+virtual TSharpVision.TView.DrawCursor() -> void
+virtual TSharpVision.TView.DrawHide(TSharpVision.TView? lastView) -> void
+virtual TSharpVision.TView.DrawShow(TSharpVision.TView? lastView) -> void
+virtual TSharpVision.TView.DrawUnderRect(ref TSharpVision.TRect r, TSharpVision.TView? lastView) -> void
+virtual TSharpVision.TView.DrawUnderView(bool doShadow, TSharpVision.TView? lastView) -> void
+virtual TSharpVision.TView.DrawView() -> void
+virtual TSharpVision.TView.EndModal(ushort command) -> void
+virtual TSharpVision.TView.EventAvail() -> bool
+virtual TSharpVision.TView.Execute() -> ushort
+virtual TSharpVision.TView.GetBounds() -> TSharpVision.TRect
+virtual TSharpVision.TView.GetClipRect() -> TSharpVision.TRect
+virtual TSharpVision.TView.GetColor(ushort color) -> ushort
+virtual TSharpVision.TView.GetData(ref object! rec) -> void
+virtual TSharpVision.TView.GetEvent(ref TSharpVision.TEvent event) -> void
+virtual TSharpVision.TView.GetExtent() -> TSharpVision.TRect
+virtual TSharpVision.TView.GetHelpCtx() -> ushort
+virtual TSharpVision.TView.GetPalette() -> TSharpVision.TPalette!
+virtual TSharpVision.TView.GetState(ushort aState) -> bool
+virtual TSharpVision.TView.GrowTo(int x, int y) -> void
+virtual TSharpVision.TView.HandleEvent(ref TSharpVision.TEvent event) -> void
+virtual TSharpVision.TView.Hide() -> void
+virtual TSharpVision.TView.HideCursor() -> void
+virtual TSharpVision.TView.KeyEvent(ref TSharpVision.TEvent ev) -> void
+virtual TSharpVision.TView.Locate(TSharpVision.TRect bounds) -> void
+virtual TSharpVision.TView.MakeFirst() -> void
+virtual TSharpVision.TView.MakeGlobal(TSharpVision.TPoint source) -> TSharpVision.TPoint
+virtual TSharpVision.TView.MakeLocal(TSharpVision.TPoint source) -> TSharpVision.TPoint
+virtual TSharpVision.TView.MapColor(int index) -> byte
+virtual TSharpVision.TView.MouseEvent(ref TSharpVision.TEvent ev, ushort mask) -> bool
+virtual TSharpVision.TView.MouseInView(TSharpVision.TPoint mouse) -> bool
+virtual TSharpVision.TView.MoveTo(int x, int y) -> void
+virtual TSharpVision.TView.NextView() -> TSharpVision.TView?
+virtual TSharpVision.TView.NormalCursor() -> void
+virtual TSharpVision.TView.Prev() -> TSharpVision.TView!
+virtual TSharpVision.TView.PrevView() -> TSharpVision.TView?
+virtual TSharpVision.TView.PutEvent(ref TSharpVision.TEvent ev) -> void
+virtual TSharpVision.TView.PutInFrontOf(TSharpVision.TView? target) -> void
+virtual TSharpVision.TView.ResetCursor() -> void
+virtual TSharpVision.TView.Select() -> void
+virtual TSharpVision.TView.SetBounds(TSharpVision.TRect bounds) -> void
+virtual TSharpVision.TView.SetCursor(int x, int y) -> void
+virtual TSharpVision.TView.SetData(object! rec) -> void
+virtual TSharpVision.TView.SetState(ushort aState, bool enable) -> void
+virtual TSharpVision.TView.Show() -> void
+virtual TSharpVision.TView.ShowCursor() -> void
+virtual TSharpVision.TView.ShutDown() -> void
+virtual TSharpVision.TView.SizeLimits(ref TSharpVision.TPoint min, ref TSharpVision.TPoint max) -> void
+virtual TSharpVision.TView.StreamableName() -> string!
+virtual TSharpVision.TView.TopView() -> TSharpVision.TView?
+virtual TSharpVision.TView.Valid(ushort command) -> bool
+virtual TSharpVision.TView.WriteBuf(int x, int y, int w, int h, System.Span<TSharpVision.TScreenChar> b) -> void
+virtual TSharpVision.TView.WriteBuf(int x, int y, int w, int h, TSharpVision.ScreenBuffer! buf) -> void
+virtual TSharpVision.TView.WriteBuf(int x, int y, int w, int h, TSharpVision.TDrawBuffer b) -> void
+virtual TSharpVision.TView.WriteChar(int x, int y, char c, byte color, int count) -> void
+virtual TSharpVision.TView.WriteLine(int x, int y, int w, int h, System.Span<TSharpVision.TScreenChar> b) -> void
+virtual TSharpVision.TView.WriteLine(int x, int y, int w, int h, TSharpVision.TDrawBuffer b) -> void
+virtual TSharpVision.TView.WriteStr(int x, int y, string! str, byte color) -> void
+virtual TSharpVision.TWindow.Close() -> void
+virtual TSharpVision.TWindow.GetTitle(short maxSize) -> string?
+virtual TSharpVision.TWindow.Zoom() -> void
+~override TSharpVision.SetBlock.Equals(object obj) -> bool
+~override TSharpVision.SetBlock.ToString() -> string
+abstract TSharpVision.TOutlineViewer.Adjust(TSharpVision.TNode! node, bool expand) -> void
+abstract TSharpVision.TOutlineViewer.GetChild(TSharpVision.TNode! node, int i) -> TSharpVision.TNode?
+abstract TSharpVision.TOutlineViewer.GetNumChildren(TSharpVision.TNode! node) -> int
+abstract TSharpVision.TOutlineViewer.GetRoot() -> TSharpVision.TNode?
+abstract TSharpVision.TOutlineViewer.GetText(TSharpVision.TNode! node) -> string!
+abstract TSharpVision.TOutlineViewer.HasChildren(TSharpVision.TNode! node) -> bool
+abstract TSharpVision.TOutlineViewer.IsExpanded(TSharpVision.TNode! node) -> bool
+const TSharpVision.Constants.Views.cmOutlineItemSelected = 301 -> ushort
+const TSharpVision.Constants.Views.ovChildren = 2 -> ushort
+const TSharpVision.Constants.Views.ovExpanded = 1 -> ushort
+const TSharpVision.Constants.Views.ovLast = 4 -> ushort
+override TSharpVision.TOutline.Adjust(TSharpVision.TNode! node, bool expand) -> void
+override TSharpVision.TOutline.GetChild(TSharpVision.TNode! node, int i) -> TSharpVision.TNode?
+override TSharpVision.TOutline.GetNumChildren(TSharpVision.TNode! node) -> int
+override TSharpVision.TOutline.GetRoot() -> TSharpVision.TNode?
+override TSharpVision.TOutline.GetText(TSharpVision.TNode! node) -> string!
+override TSharpVision.TOutline.HasChildren(TSharpVision.TNode! node) -> bool
+override TSharpVision.TOutline.IsExpanded(TSharpVision.TNode! node) -> bool
+override TSharpVision.TOutline.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TOutline.ShutDown() -> void
+override TSharpVision.TOutline.StreamableName() -> string!
+override TSharpVision.TOutline.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TOutlineViewer.Draw() -> void
+override TSharpVision.TOutlineViewer.GetPalette() -> TSharpVision.TPalette!
+override TSharpVision.TOutlineViewer.HandleEvent(ref TSharpVision.TEvent event) -> void
+override TSharpVision.TOutlineViewer.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TOutlineViewer.SetState(ushort aState, bool enable) -> void
+override TSharpVision.TOutlineViewer.Write(TSharpVision.Opstream! os) -> void
+static readonly TSharpVision.TOutline.Name -> string!
+static readonly TSharpVision.TOutline.StreamableClassTOutline -> TSharpVision.TStreamableClass!
+static TSharpVision.TOutline.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TOutlineViewer.DisposeNode(TSharpVision.TNode? node) -> void
+TSharpVision.TNode
+TSharpVision.TNode.childList -> TSharpVision.TNode?
+TSharpVision.TNode.expanded -> bool
+TSharpVision.TNode.next -> TSharpVision.TNode?
+TSharpVision.TNode.text -> string!
+TSharpVision.TNode.TNode(string! aText, TSharpVision.TNode? aChildren, TSharpVision.TNode? aNext, bool initialState = true) -> void
+TSharpVision.TNode.TNode(string! aText) -> void
+TSharpVision.TOutline
+TSharpVision.TOutline.root -> TSharpVision.TNode?
+TSharpVision.TOutline.TOutline(TSharpVision.StreamableInit init) -> void
+TSharpVision.TOutline.TOutline(TSharpVision.TRect bounds, TSharpVision.TScrollBar? aHScrollBar, TSharpVision.TScrollBar? aVScrollBar, TSharpVision.TNode? aRoot) -> void
+TSharpVision.TOutlineViewer
+TSharpVision.TOutlineViewer.CreateGraph(int level, long lines, ushort flags, int levWidth, int endWidth, string! chars) -> string!
+TSharpVision.TOutlineViewer.ExpandAll(TSharpVision.TNode! node) -> void
+TSharpVision.TOutlineViewer.FirstThat(System.Func<TSharpVision.TOutlineViewer!, TSharpVision.TNode!, int, int, long, ushort, bool>! test) -> TSharpVision.TNode?
+TSharpVision.TOutlineViewer.foc -> int
+TSharpVision.TOutlineViewer.ForEach(System.Func<TSharpVision.TOutlineViewer!, TSharpVision.TNode!, int, int, long, ushort, bool>! action) -> TSharpVision.TNode?
+TSharpVision.TOutlineViewer.TOutlineViewer(TSharpVision.StreamableInit init) -> void
+TSharpVision.TOutlineViewer.TOutlineViewer(TSharpVision.TRect bounds, TSharpVision.TScrollBar? aHScrollBar, TSharpVision.TScrollBar? aVScrollBar) -> void
+TSharpVision.TOutlineViewer.Update() -> void
+virtual TSharpVision.TOutline.ReadNode(TSharpVision.Ipstream! isStream) -> TSharpVision.TNode!
+virtual TSharpVision.TOutline.WriteNode(TSharpVision.TNode! node, TSharpVision.Opstream! os) -> void
+virtual TSharpVision.TOutlineViewer.Focused(int i) -> void
+virtual TSharpVision.TOutlineViewer.GetGraph(int level, long lines, ushort flags) -> string!
+virtual TSharpVision.TOutlineViewer.GetNode(int i) -> TSharpVision.TNode?
+virtual TSharpVision.TOutlineViewer.IsSelected(int i) -> bool
+virtual TSharpVision.TOutlineViewer.Selected(int i) -> void
+static readonly TSharpVision.TOutlineViewer.Name -> string!
+static TSharpVision.TOutlineViewer.Build() -> TSharpVision.TStreamable!
+const TSharpVision.TMultiCheckBoxes.cfEightBits = 2303 -> ushort
+const TSharpVision.TMultiCheckBoxes.cfFourBits = 1039 -> ushort
+const TSharpVision.TMultiCheckBoxes.cfOneBit = 257 -> ushort
+const TSharpVision.TMultiCheckBoxes.cfTwoBits = 515 -> ushort
+override TSharpVision.TMenuPopup.HandleEvent(ref TSharpVision.TEvent event) -> void
+override TSharpVision.TMenuPopup.StreamableName() -> string!
+override TSharpVision.TMultiCheckBoxes.DataSize() -> ushort
+override TSharpVision.TMultiCheckBoxes.Draw() -> void
+override TSharpVision.TMultiCheckBoxes.GetData(ref object! rec) -> void
+override TSharpVision.TMultiCheckBoxes.MultiMark(int item) -> byte
+override TSharpVision.TMultiCheckBoxes.Press(int item) -> void
+override TSharpVision.TMultiCheckBoxes.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.TMultiCheckBoxes.SetData(object! rec) -> void
+override TSharpVision.TMultiCheckBoxes.StreamableName() -> string!
+override TSharpVision.TMultiCheckBoxes.Write(TSharpVision.Opstream! os) -> void
+static readonly TSharpVision.TMenuPopup.Name -> string!
+static readonly TSharpVision.TMenuPopup.StreamableClassTMenuPopup -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.TMultiCheckBoxes.Name -> string!
+static readonly TSharpVision.TMultiCheckBoxes.StreamableClassTMultiCheckBoxes -> TSharpVision.TStreamableClass!
+static TSharpVision.TMenuPopup.Build() -> TSharpVision.TStreamable!
+static TSharpVision.TMultiCheckBoxes.Build() -> TSharpVision.TStreamable!
+TSharpVision.TCluster.ButtonState(int item) -> bool
+TSharpVision.TCluster.DrawMultiBox(string! icon, string! markers) -> void
+TSharpVision.TCluster.enableMask -> uint
+TSharpVision.TMenuPopup
+TSharpVision.TMenuPopup.TMenuPopup(TSharpVision.StreamableInit init) -> void
+TSharpVision.TMenuPopup.TMenuPopup(TSharpVision.TRect bounds, TSharpVision.TMenu! aMenu) -> void
+TSharpVision.TMultiCheckBoxes
+TSharpVision.TMultiCheckBoxes.TMultiCheckBoxes(TSharpVision.StreamableInit init) -> void
+TSharpVision.TMultiCheckBoxes.TMultiCheckBoxes(TSharpVision.TRect bounds, TSharpVision.TSItem! aStrings, byte aSelRange, ushort aFlags, string! aStates) -> void
+virtual TSharpVision.TCluster.MultiMark(int item) -> byte
+virtual TSharpVision.TCluster.SetButtonState(uint aMask, bool enable) -> void

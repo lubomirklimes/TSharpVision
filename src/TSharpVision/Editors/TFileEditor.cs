@@ -23,24 +23,24 @@ public class TFileEditor : TEditor
     /// <summary>Encoding recognized or selected when the document was loaded.</summary>
     public EditorEncodingKind OriginalEncoding { get; private set; } = EditorEncodingKind.Utf8;
     /// <summary>Legacy codec associated with the loaded file, or null for UTF-8.</summary>
-    public ILegacyTextEncoding OriginalLegacyEncoding { get; private set; }
+    public ILegacyTextEncoding? OriginalLegacyEncoding { get; private set; }
     /// <summary>Whether the loaded file began with a UTF-8 byte-order mark.</summary>
     public bool HadUtf8Bom { get; private set; }
     private TFileEditorOpenOptions openOptions;
 
     /// <summary>Creates a file editor at owner-relative cell bounds and loads the path using automatic encoding detection; empty path creates an unnamed document.</summary>
-    public TFileEditor(TRect bounds, TScrollBar aHScrollBar,
-                       TScrollBar aVScrollBar, TIndicator aIndicator,
-                       string aFileName)
+    public TFileEditor(TRect bounds, TScrollBar? aHScrollBar,
+                       TScrollBar? aVScrollBar, TIndicator? aIndicator,
+                       string? aFileName)
         : this(bounds, aHScrollBar, aVScrollBar, aIndicator, aFileName, null)
     {
     }
 
     /// <summary>Creates a file editor with associated controls and loads the path using the supplied decoding policy; null options use defaults.</summary>
-    public TFileEditor(TRect bounds, TScrollBar aHScrollBar,
-                       TScrollBar aVScrollBar, TIndicator aIndicator,
-                       string aFileName,
-                       TFileEditorOpenOptions options)
+    public TFileEditor(TRect bounds, TScrollBar? aHScrollBar,
+                       TScrollBar? aVScrollBar, TIndicator? aIndicator,
+                       string? aFileName,
+                       TFileEditorOpenOptions? options)
         : base(bounds, aHScrollBar, aVScrollBar, aIndicator, 4096)
     {
         openOptions = options ?? new TFileEditorOpenOptions();
@@ -121,7 +121,7 @@ public class TFileEditor : TEditor
         }
 
         if (normalized.Length > 0)
-            Array.Copy(normalized, 0, buffer, (int)(bufSize - (uint)normalized.Length), normalized.Length);
+            Array.Copy(normalized, 0, Buf, (int)(bufSize - (uint)normalized.Length), normalized.Length);
 
         SetBufLen((uint)normalized.Length);
         return true;
@@ -226,7 +226,7 @@ public class TFileEditor : TEditor
         EditorTextEncoding requestedEncoding,
         out EditorEncodingKind encoding,
         out bool hadBom,
-        out ILegacyTextEncoding legacyEncoding)
+        out ILegacyTextEncoding? legacyEncoding)
     {
         requestedEncoding ??= EditorTextEncoding.Auto;
         legacyEncoding = null;
@@ -243,12 +243,14 @@ public class TFileEditor : TEditor
 
         if (requestedEncoding.Mode == EditorTextEncodingMode.Legacy)
         {
-            encoding = requestedEncoding.LegacyEncoding == LegacyTextEncodings.Latin1
+            ILegacyTextEncoding selectedLegacyEncoding = requestedEncoding.LegacyEncoding
+                ?? throw new InvalidOperationException("Legacy mode requires a legacy text encoding.");
+            encoding = selectedLegacyEncoding == LegacyTextEncodings.Latin1
                 ? EditorEncodingKind.Latin1
                 : EditorEncodingKind.Legacy;
-            legacyEncoding = requestedEncoding.LegacyEncoding;
+            legacyEncoding = selectedLegacyEncoding;
             hadBom = false;
-            return requestedEncoding.LegacyEncoding.Decode(source);
+            return selectedLegacyEncoding.Decode(source);
         }
 
         try
@@ -359,10 +361,10 @@ public class TFileEditor : TEditor
         int end = offset + length;
         for (int i = offset; i < end; i++)
         {
-            if (buffer[i] == '\n')
+            if (Buf[i] == '\n')
                 sb.Append(lineEnding);
             else
-                sb.Append(buffer[i]);
+                sb.Append(Buf[i]);
         }
         byte[] bytes = EncodeTextForSave(sb.ToString());
         stream.Write(bytes, 0, bytes.Length);
@@ -393,7 +395,7 @@ public class TFileEditor : TEditor
         newSize = (newSize + 0x0FFFu) & 0xFFFFF000u;
         if (newSize != bufSize)
         {
-            char[] temp = buffer;
+            char[]? temp = buffer;
             char[] fresh;
             try { fresh = new char[newSize]; }
             catch (OutOfMemoryException) { return false; }

@@ -18,7 +18,7 @@ public sealed class SdlKeyTranslatorTests
         Assert.True(ok);
         Assert.Equal(Events.evKeyDown, ev.What);
         Assert.Equal((ushort)'a', ev.keyDown.keyCode);
-        Assert.Equal(0, ev.keyDown.shiftState);
+        Assert.Equal(0u, ev.keyDown.controlKeyState);
     }
 
     [Fact]
@@ -27,7 +27,7 @@ public sealed class SdlKeyTranslatorTests
         bool ok = SdlKeyTranslator.TryTranslate('a', SdlKeyTranslator.SDL_KMOD_LSHIFT, 'A', out var ev);
         Assert.True(ok);
         Assert.Equal((ushort)'A', ev.keyDown.keyCode);
-        Assert.NotEqual(0, ev.keyDown.shiftState & Keys.kbShift);
+        Assert.NotEqual(0u, ev.keyDown.controlKeyState & Keys.kbShift);
     }
 
     [Fact]
@@ -36,7 +36,7 @@ public sealed class SdlKeyTranslatorTests
         bool ok = SdlKeyTranslator.TryTranslate('c', SdlKeyTranslator.SDL_KMOD_LCTRL, '\0', out var ev);
         Assert.True(ok);
         Assert.Equal(Keys.kbCtrlC, ev.keyDown.keyCode);
-        Assert.NotEqual(0, ev.keyDown.shiftState & Keys.kbCtrlShift);
+        Assert.NotEqual(0u, ev.keyDown.controlKeyState & Keys.kbCtrlShift);
     }
 
     [Fact]
@@ -45,7 +45,7 @@ public sealed class SdlKeyTranslatorTests
         bool ok = SdlKeyTranslator.TryTranslate('x', SdlKeyTranslator.SDL_KMOD_LALT, '\0', out var ev);
         Assert.True(ok);
         Assert.Equal(Keys.kbAltX, ev.keyDown.keyCode);
-        Assert.NotEqual(0, ev.keyDown.shiftState & Keys.kbAltShift);
+        Assert.NotEqual(0u, ev.keyDown.controlKeyState & Keys.kbAltShift);
     }
 
     [Fact]

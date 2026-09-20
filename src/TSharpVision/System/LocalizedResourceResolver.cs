@@ -20,7 +20,7 @@ public static class LocalizedResourceResolver
         string normalizedExt = NormalizeExtension(extension);
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (string suffix in new[] { NormalizeLanguage(language), NormalizeLanguage(fallbackLanguage), null })
+        foreach (string? suffix in new string?[] { NormalizeLanguage(language), NormalizeLanguage(fallbackLanguage), null })
         {
             string candidate = suffix == null
                 ? normalizedBase + normalizedExt
@@ -32,7 +32,7 @@ public static class LocalizedResourceResolver
     }
 
     /// <summary>Returns the first existing localized candidate path, or null when none exists.</summary>
-    public static string Resolve(
+    public static string? Resolve(
         string basePath,
         string extension,
         string language,
@@ -61,7 +61,7 @@ public static class LocalizedResourceResolver
         return extension[0] == '.' ? extension : "." + extension;
     }
 
-    private static string NormalizeLanguage(string language)
+    private static string? NormalizeLanguage(string language)
     {
         if (string.IsNullOrWhiteSpace(language))
             return null;

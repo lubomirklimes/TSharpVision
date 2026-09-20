@@ -20,27 +20,28 @@ namespace TSharpVision.Terminal.Windows;
 /// to <see cref="TTerminal"/> (which contains the ANSI parser).
 /// </remarks>
 [SupportedOSPlatform("windows10.0.17763")]
-public sealed class ConPtyTerminalSession : ITerminalSession, IResizableTerminalSession, IInterruptibleTerminalSession
+public sealed class ConPtyTerminalSession : ITerminalSession, IResizableTerminalSession,
+    IInterruptibleTerminalSession, IExitCodeTerminalSession
 {
     private readonly ConPtyTerminalSessionOptions _options;
 
     // ConPTY handle — non-null and valid between StartAsync and cleanup.
-    private SafePseudoConsoleHandle _hPseudoConsole;
+    private SafePseudoConsoleHandle? _hPseudoConsole;
     private int _conPtyClosed;   // 0 = open, 1 = closed; guarded by CompareExchange
 
     // Pipe streams — wrap the parent-side pipe handles.
-    private FileStream _inputStream;    // parent writes input here
-    private FileStream _outputStream;   // parent reads output here
+    private FileStream? _inputStream;    // parent writes input here
+    private FileStream? _outputStream;   // parent reads output here
 
     // Process handle.
-    private SafeProcessHandle _hProcess;
+    private SafeProcessHandle? _hProcess;
 
     // Job Object for process-tree cleanup (best-effort; null when unavailable).
-    private SafeJobObjectHandle _hJob;
+    private SafeJobObjectHandle? _hJob;
 
     // Background tasks.
-    private Task _outputReaderTask;
-    private Task _processWatcherTask;
+    private Task? _outputReaderTask;
+    private Task? _processWatcherTask;
 
     // Thread-safety for input writes.
     private readonly object _inputLock = new();
@@ -51,10 +52,10 @@ public sealed class ConPtyTerminalSession : ITerminalSession, IResizableTerminal
     private int _disposed;      // 0 = alive; guarded by CompareExchange
 
     /// <inheritdoc/>
-    public event EventHandler<TerminalOutputEventArgs> OutputReceived;
+    public event EventHandler<TerminalOutputEventArgs>? OutputReceived;
 
     /// <inheritdoc/>
-    public event EventHandler Exited;
+    public event EventHandler? Exited;
 
     /// <inheritdoc/>
     public bool IsRunning => _isRunning;
@@ -77,7 +78,7 @@ public sealed class ConPtyTerminalSession : ITerminalSession, IResizableTerminal
     /// <summary>
     /// Convenience constructor: creates options from individual parameters.
     /// </summary>
-    public ConPtyTerminalSession(string fileName, string arguments = "", TerminalSize? initialSize = null)
+    public ConPtyTerminalSession(string fileName, string? arguments = "", TerminalSize? initialSize = null)
         : this(new ConPtyTerminalSessionOptions
         {
             FileName    = fileName,
@@ -99,6 +100,7 @@ public sealed class ConPtyTerminalSession : ITerminalSession, IResizableTerminal
     /// </exception>
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 17763))
             throw new PlatformNotSupportedException(
                 "ConPtyTerminalSession requires Windows 10 version 1809 (build 17763) or later.");
@@ -115,11 +117,11 @@ public sealed class ConPtyTerminalSession : ITerminalSession, IResizableTerminal
 
     private void StartCore()
     {
-        SafeFileHandle inputRead   = null;
-        SafeFileHandle inputWrite  = null;
-        SafeFileHandle outputRead  = null;
-        SafeFileHandle outputWrite = null;
-        SafePseudoConsoleHandle hPseudoConsole = null;
+        SafeFileHandle? inputRead   = null;
+        SafeFileHandle? inputWrite  = null;
+        SafeFileHandle? outputRead  = null;
+        SafeFileHandle? outputWrite = null;
+        SafePseudoConsoleHandle? hPseudoConsole = null;
         IntPtr attributeList = IntPtr.Zero;
         bool success = false;
 
@@ -207,10 +209,9 @@ public sealed class ConPtyTerminalSession : ITerminalSession, IResizableTerminal
             _hJob = TryCreateJobForProcess(_hProcess.DangerousGetHandle());
 
             // ── Start background tasks ────────────────────────────────────────
+            _isRunning = true;
             _outputReaderTask   = Task.Run(RunOutputReader);
             _processWatcherTask = Task.Run(RunProcessWatcher);
-
-            _isRunning = true;
             success    = true;
         }
         finally
@@ -280,6 +281,12 @@ public sealed class ConPtyTerminalSession : ITerminalSession, IResizableTerminal
                       .ConfigureAwait(false);
         }
 
+        if (_processWatcherTask != null)
+        {
+            await Task.WhenAny(_processWatcherTask, Task.Delay(5000, CancellationToken.None))
+                      .ConfigureAwait(false);
+        }
+
         _isRunning = false;
         FireExited();
         ReleaseHandles();
@@ -345,13 +352,15 @@ public sealed class ConPtyTerminalSession : ITerminalSession, IResizableTerminal
 
     private void RunOutputReader()
     {
+        FileStream? stream = _outputStream;
+        if (stream is null) return;
         var buffer   = new byte[4096];
         var charBuf  = new char[Encoding.UTF8.GetMaxCharCount(4096)];
         var decoder  = Encoding.UTF8.GetDecoder();
         try
         {
             int bytesRead;
-            while ((bytesRead = _outputStream.Read(buffer, 0, buffer.Length)) > 0)
+            while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
             {
                 int charCount = decoder.GetChars(buffer, 0, bytesRead, charBuf, 0);
                 if (charCount > 0)
@@ -364,40 +373,47 @@ public sealed class ConPtyTerminalSession : ITerminalSession, IResizableTerminal
 
     // Creates a Job Object with JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE and assigns
     // the child process to it. Returns an invalid handle on failure (non-fatal).
-    private static SafeJobObjectHandle TryCreateJobForProcess(IntPtr hProcess)
+    private static SafeJobObjectHandle? TryCreateJobForProcess(IntPtr hProcess)
     {
         SafeJobObjectHandle hJob = NativeMethods.CreateJobObject(IntPtr.Zero, null);
         if (hJob.IsInvalid) return hJob;
         try
         {
-            var info = new NativeMethods.JOBOBJECT_BASIC_LIMIT_INFORMATION
+            var info = new NativeMethods.JOBOBJECT_EXTENDED_LIMIT_INFORMATION
             {
-                LimitFlags = NativeMethods.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+                BasicLimitInformation = new NativeMethods.JOBOBJECT_BASIC_LIMIT_INFORMATION
+                {
+                    LimitFlags = NativeMethods.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+                },
             };
-            NativeMethods.SetInformationJobObject(
+            bool configured = NativeMethods.SetInformationJobObject(
                 hJob,
-                NativeMethods.JobObjectBasicLimitInformation,
+                NativeMethods.JobObjectExtendedLimitInformation,
                 ref info,
-                Marshal.SizeOf<NativeMethods.JOBOBJECT_BASIC_LIMIT_INFORMATION>());
-            NativeMethods.AssignProcessToJobObject(hJob, hProcess);
+                Marshal.SizeOf<NativeMethods.JOBOBJECT_EXTENDED_LIMIT_INFORMATION>());
+            bool assigned = configured && NativeMethods.AssignProcessToJobObject(hJob, hProcess);
+            if (!assigned) { hJob.Dispose(); return null; }
         }
         catch
         {
             // Non-fatal: fall back to direct-process termination only.
+            hJob.Dispose();
+            return null;
         }
         return hJob;
     }
 
     private async Task RunProcessWatcher()
     {
-        if (_hProcess == null || _hProcess.IsInvalid) return;
+        SafeProcessHandle? process = _hProcess;
+        if (process == null || process.IsInvalid) return;
 
         // Block the thread pool thread until the process exits.
         await Task.Run(() => NativeMethods.WaitForSingleObject(
-            _hProcess.DangerousGetHandle(), NativeMethods.INFINITE)).ConfigureAwait(false);
+            process.DangerousGetHandle(), NativeMethods.INFINITE)).ConfigureAwait(false);
 
         // Capture exit code before closing anything.
-        if (NativeMethods.GetExitCodeProcess(_hProcess.DangerousGetHandle(), out uint code)
+        if (NativeMethods.GetExitCodeProcess(process.DangerousGetHandle(), out uint code)
             && code != NativeMethods.STILL_ACTIVE)
         {
             ExitCode = (int)code;
@@ -434,12 +450,13 @@ public sealed class ConPtyTerminalSession : ITerminalSession, IResizableTerminal
 
     private void TerminateChildIfAlive()
     {
-        if (_hProcess == null || _hProcess.IsInvalid || _hProcess.IsClosed) return;
+        SafeProcessHandle? process = _hProcess;
+        if (process == null || process.IsInvalid || process.IsClosed) return;
         try
         {
-            NativeMethods.GetExitCodeProcess(_hProcess.DangerousGetHandle(), out uint code);
+            NativeMethods.GetExitCodeProcess(process.DangerousGetHandle(), out uint code);
             if (code == NativeMethods.STILL_ACTIVE)
-                NativeMethods.TerminateProcess(_hProcess.DangerousGetHandle(), 0);
+                NativeMethods.TerminateProcess(process.DangerousGetHandle(), 0);
         }
         catch { }
     }

@@ -20,7 +20,8 @@ namespace TSharpVision.Terminal.Posix;
 /// </remarks>
 [SupportedOSPlatform("linux")]
 [SupportedOSPlatform("macos")]
-public sealed class PosixPtyTerminalSession : ITerminalSession, IResizableTerminalSession, IInterruptibleTerminalSession
+public sealed class PosixPtyTerminalSession : ITerminalSession, IResizableTerminalSession,
+    IInterruptibleTerminalSession, IExitCodeTerminalSession
 {
     private readonly PosixPtyTerminalSessionOptions _options;
 
@@ -32,8 +33,8 @@ public sealed class PosixPtyTerminalSession : ITerminalSession, IResizableTermin
     private int _childPid = -1;
 
     // Background tasks started after a successful StartAsync.
-    private Task _outputReaderTask;
-    private Task _processWatcherTask;
+    private Task? _outputReaderTask;
+    private Task? _processWatcherTask;
 
     // Serialises input writes to the PTY master.
     private readonly object _inputLock = new();
@@ -44,10 +45,10 @@ public sealed class PosixPtyTerminalSession : ITerminalSession, IResizableTermin
     private int _disposed;     // 0 = alive;  guarded by CompareExchange
 
     /// <inheritdoc/>
-    public event EventHandler<TerminalOutputEventArgs> OutputReceived;
+    public event EventHandler<TerminalOutputEventArgs>? OutputReceived;
 
     /// <inheritdoc/>
-    public event EventHandler Exited;
+    public event EventHandler? Exited;
 
     /// <inheritdoc/>
     public bool IsRunning => _isRunning;
@@ -68,7 +69,7 @@ public sealed class PosixPtyTerminalSession : ITerminalSession, IResizableTermin
     }
 
     /// <summary>Convenience constructor.</summary>
-    public PosixPtyTerminalSession(string fileName, string arguments = "", TerminalSize? initialSize = null)
+    public PosixPtyTerminalSession(string fileName, string? arguments = "", TerminalSize? initialSize = null)
         : this(new PosixPtyTerminalSessionOptions
         {
             FileName    = fileName,
@@ -90,6 +91,7 @@ public sealed class PosixPtyTerminalSession : ITerminalSession, IResizableTermin
     /// </exception>
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS())
             throw new PlatformNotSupportedException(
                 "PosixPtyTerminalSession requires Linux or macOS.");
@@ -137,10 +139,9 @@ public sealed class PosixPtyTerminalSession : ITerminalSession, IResizableTermin
             _masterFd = masterFd;
             _childPid = childPid;
 
+            _isRunning = true;
             _outputReaderTask   = Task.Run(RunOutputReader);
             _processWatcherTask = Task.Run(RunProcessWatcher);
-
-            _isRunning = true;
             success    = true;
         }
         finally
@@ -176,16 +177,16 @@ public sealed class PosixPtyTerminalSession : ITerminalSession, IResizableTermin
     // argv[0] is the basename of the executable. The remaining elements are
     // derived from Arguments using a simple shell-like tokenizer that honours
     // double-quoted and single-quoted arguments. A null entry terminates.
-    private string[] BuildArgv()
+    private string?[] BuildArgv()
     {
         string name = Path.GetFileName(_options.FileName);
         if (string.IsNullOrEmpty(name)) name = _options.FileName;
 
         if (string.IsNullOrWhiteSpace(_options.Arguments))
-            return new string[] { name, null };
+            return new string?[] { name, null };
 
-        string[] parts = TokenizeArguments(_options.Arguments);
-        var argv = new string[parts.Length + 2]; // name + parts + null terminator
+        string[] parts = TokenizeArguments(_options.Arguments ?? string.Empty);
+        var argv = new string?[parts.Length + 2]; // name + parts + null terminator
         argv[0] = name;
         for (int i = 0; i < parts.Length; i++)
             argv[i + 1] = parts[i];
@@ -199,7 +200,7 @@ public sealed class PosixPtyTerminalSession : ITerminalSession, IResizableTermin
     /// whitespace; backslash escapes one character inside double quotes;
     /// single-quoted strings are treated literally.
     /// </summary>
-    public static string[] TokenizeArguments(string args)
+    internal static string[] TokenizeArguments(string args)
     {
         var tokens = new List<string>();
         int i = 0;

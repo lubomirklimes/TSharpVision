@@ -8,7 +8,7 @@ public class THistoryWindow : TWindow
     public new static readonly string Name = "THistoryWindow";
 
     /// <summary>Owned history-list view, or null when no viewer was created.</summary>
-    public THistoryViewer Viewer;
+    public THistoryViewer? Viewer;
 
     private static readonly TPalette _palette = new TPalette(
         "\x13\x13\x15\x18\x17\x13\x14", 7);

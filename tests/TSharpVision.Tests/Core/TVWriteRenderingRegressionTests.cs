@@ -336,7 +336,7 @@ public sealed class TVWriteRenderingRegressionTests : IDisposable
         var caster = new TVWriteTestView(new TRect(3, 0, 9, 1), 'C', 0x1F);
         caster.state |= (ushort)(Views.sfVisible | Views.sfExposed | Views.sfShadow);
         // shadowSize is already (2,1) by default; set explicitly for clarity.
-        caster.shadowSize = new TPoint(2, 1);
+        TView.shadowSize = new TPoint(2, 1);
         root.Insert(caster);
 
         // Draw caster first, then bg (which triggers L20 shadow logic).
@@ -362,7 +362,7 @@ public sealed class TVWriteRenderingRegressionTests : IDisposable
 
         var caster = new TVWriteTestView(new TRect(3, 0, 9, 1), 'C', 0x1F);
         caster.state |= (ushort)(Views.sfVisible | Views.sfExposed | Views.sfShadow);
-        caster.shadowSize = new TPoint(2, 1);
+        TView.shadowSize = new TPoint(2, 1);
         root.Insert(caster);
 
         caster.DrawView();
@@ -386,7 +386,7 @@ public sealed class TVWriteRenderingRegressionTests : IDisposable
 
         var caster = new TVWriteTestView(new TRect(3, 0, 9, 1), 'C', 0x1F);
         caster.state |= (ushort)(Views.sfVisible | Views.sfExposed | Views.sfShadow);
-        caster.shadowSize = new TPoint(2, 1);
+        TView.shadowSize = new TPoint(2, 1);
         root.Insert(caster);
 
         caster.DrawView();
@@ -413,7 +413,7 @@ public sealed class TVWriteRenderingRegressionTests : IDisposable
 
         var shadowed = new TVWriteTestView(new TRect(2, 0, 8, 1), 'X', 0x1C);
         shadowed.state |= (ushort)(Views.sfVisible | Views.sfExposed | Views.sfShadow);
-        shadowed.shadowSize = new TPoint(2, 1);
+        TView.shadowSize = new TPoint(2, 1);
         root2.Insert(shadowed); // shadowed = First() (topmost)
 
         shadowed.DrawView();

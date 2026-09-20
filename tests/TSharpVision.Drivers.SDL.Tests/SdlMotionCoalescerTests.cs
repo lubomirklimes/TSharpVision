@@ -1,5 +1,6 @@
 // Unit tests for SdlMotionCoalescer — pure C#, no SDL runtime.
 using TSharpVision.Drivers.SDL;
+using TSharpVision.Constants;
 using Xunit;
 
 namespace TSharpVision.Drivers.SDL.Tests;
@@ -128,6 +129,16 @@ public sealed class SdlMotionCoalescerTests
         c.Accumulate(5, 5, heldButtons: 3);
         c.TryFlush(out _, out _, out byte held);
         Assert.Equal((byte)3, held);
+    }
+
+    [Fact]
+    public void TryFlush_ReturnsModifierSnapshotFromLatestMotion()
+    {
+        var c = new SdlMotionCoalescer();
+        c.Accumulate(1, 1, 0, Keys.kbShift);
+        c.Accumulate(2, 2, 1, Keys.kbShift | Keys.kbCtrlShift);
+        Assert.True(c.TryFlush(out _, out _, out _, out uint controlKeyState));
+        Assert.Equal(Keys.kbShift | Keys.kbCtrlShift, controlKeyState);
     }
 
     [Fact]

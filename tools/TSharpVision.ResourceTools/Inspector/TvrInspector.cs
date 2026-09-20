@@ -88,7 +88,7 @@ public sealed class TvrInspector
     /// Returns the raw payload bytes for the given key, or <c>null</c> if the key is not found.
     /// Opens its own file handle so it can be called independently of <see cref="Open"/>.
     /// </summary>
-    public static byte[] ReadRawPayload(string tvrPath, string key)
+    public static byte[]? ReadRawPayload(string tvrPath, string key)
     {
         if (!File.Exists(tvrPath))
             throw new FileNotFoundException($"File not found: {tvrPath}", tvrPath);
@@ -111,7 +111,7 @@ public sealed class TvrInspector
     /// Returns <c>null</c> if the payload does not start with the expected <c>ptObject + '['</c>
     /// prefix, or if the encoded length is invalid.
     /// </summary>
-    public static string PeekTypeName(byte[] payload)
+    public static string? PeekTypeName(byte[]? payload)
     {
         if (payload == null || payload.Length < 3) return null;
         if (payload[0] != PtObject)      return null;

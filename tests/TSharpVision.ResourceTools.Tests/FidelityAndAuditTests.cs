@@ -311,12 +311,12 @@ public sealed class TResourceFileExtensionAuditTests : IDisposable
         // The bytes returned by GetRawBytes should equal what TvrInspector.ReadRawPayload
         // returns for the same key (they use independent file handles).
         string tvr = CompileHello();
-        byte[] fromRf;
+        byte[]? fromRf;
         var fp = new Fpstream(tvr);
         try { fromRf = new TResourceFile(fp).GetRawBytes("dialog.hello"); }
         finally { fp.Close(); }
 
-        byte[] fromInsp = TvrInspector.ReadRawPayload(tvr, "dialog.hello");
+        byte[]? fromInsp = TvrInspector.ReadRawPayload(tvr, "dialog.hello");
         Assert.Equal(fromRf, fromInsp);
     }
 
@@ -462,7 +462,7 @@ public sealed class FidelityTests : IDisposable
         // button "~O~K" command=cmOK default → Command=10, AmDefault=true.
         string tvr = Compile(FidelityFixtures.HelloTrc, "hello.tvr");
         var dlg = GetDialog(tvr, "dialog.hello");
-        TButton okBtn = null;
+        TButton? okBtn = null;
         dlg.ForEachView(v =>
         {
             if (v is TButton b && b.AmDefault) okBtn = b;
@@ -479,7 +479,7 @@ public sealed class FidelityTests : IDisposable
         // button "~C~ancel" command=cmCancel → Command=11.
         string tvr = Compile(FidelityFixtures.HelloTrc, "hello.tvr");
         var dlg = GetDialog(tvr, "dialog.hello");
-        TButton cancelBtn = null;
+        TButton? cancelBtn = null;
         dlg.ForEachView(v =>
         {
             if (v is TButton b && !b.AmDefault) cancelBtn = b;
@@ -495,7 +495,7 @@ public sealed class FidelityTests : IDisposable
         // input "" validator=filter("ABC...") → TFilterValidator.
         string tvr = Compile(FidelityFixtures.HelloTrc, "hello.tvr");
         var dlg = GetDialog(tvr, "dialog.hello");
-        TInputLine inp = null;
+        TInputLine? inp = null;
         dlg.ForEachView(v => { if (v is TInputLine i) inp = i; });
         Assert.NotNull(inp);
         Assert.IsType<TFilterValidator>(inp.Validator);
@@ -508,7 +508,7 @@ public sealed class FidelityTests : IDisposable
         // input "" bounds=(3,4,30,5) → maxLen = width = 30-3 = 27; stored as MaxLen = 27-1 = 26.
         string tvr = Compile(FidelityFixtures.HelloTrc, "hello.tvr");
         var dlg = GetDialog(tvr, "dialog.hello");
-        TInputLine inp = null;
+        TInputLine? inp = null;
         dlg.ForEachView(v => { if (v is TInputLine i) inp = i; });
         Assert.NotNull(inp);
         // Builder sets MaxLen = width - 1 (see Builder.BuildInput: new TInputLine(rect, maxLen)
@@ -522,7 +522,7 @@ public sealed class FidelityTests : IDisposable
     {
         string tvr = Compile(FidelityFixtures.HelloTrc, "hello.tvr");
         var dlg = GetDialog(tvr, "dialog.hello");
-        TStaticText st = null;
+        TStaticText? st = null;
         dlg.ForEachView(v => { if (v is TStaticText s && !(v is TLabel)) st = s; });
         Assert.NotNull(st);
         dlg.ShutDown();
@@ -534,7 +534,7 @@ public sealed class FidelityTests : IDisposable
         // button "~O~K" bounds=(10,7,20,9) → origin=(10,7), size=(10,2).
         string tvr = Compile(FidelityFixtures.HelloTrc, "hello.tvr");
         var dlg = GetDialog(tvr, "dialog.hello");
-        TButton okBtn = null;
+        TButton? okBtn = null;
         dlg.ForEachView(v => { if (v is TButton b && b.AmDefault) okBtn = b; });
         Assert.NotNull(okBtn);
         Assert.Equal(10, okBtn.origin.x);
@@ -574,7 +574,7 @@ public sealed class FidelityTests : IDisposable
         // checkbox "Features" items=("One","Two","Three")
         string tvr = Compile(FidelityFixtures.OptionsTrc, "options.tvr");
         var dlg = GetDialog(tvr, "dialog.options");
-        TCheckBoxes cb = null;
+        TCheckBoxes? cb = null;
         dlg.ForEachView(v => { if (v is TCheckBoxes c) cb = c; });
         Assert.NotNull(cb);
         Assert.Equal(3, cb.Strings.Count);
@@ -590,7 +590,7 @@ public sealed class FidelityTests : IDisposable
         // radio "Mode" items=("Fast","Safe")
         string tvr = Compile(FidelityFixtures.OptionsTrc, "options.tvr");
         var dlg = GetDialog(tvr, "dialog.options");
-        TRadioButtons rb = null;
+        TRadioButtons? rb = null;
         dlg.ForEachView(v => { if (v is TRadioButtons r) rb = r; });
         Assert.NotNull(rb);
         Assert.Equal(2, rb.Strings.Count);

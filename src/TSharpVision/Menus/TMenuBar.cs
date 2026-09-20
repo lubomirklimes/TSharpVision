@@ -8,7 +8,7 @@ public class TMenuBar : TMenuView
     public new static readonly string Name = "TMenuBar";
 
     /// <summary>Creates a menu bar in owner-relative character-cell bounds, referencing the supplied menu.</summary>
-    public TMenuBar(TRect bounds, TMenu aMenu) : base(bounds, aMenu, null)
+    public TMenuBar(TRect bounds, TMenu? aMenu) : base(bounds, aMenu, null)
     {
         growMode = Views.gfGrowHiX;
         options |= Views.ofPreProcess;
@@ -92,7 +92,7 @@ public class TMenuBar : TMenuView
     {
         if (Menu == null || item == null) return new TRect(0, 0, 0, 0);
         int x = 1;
-        for (TMenuItem p = Menu.Items; p != null; p = p.Next)
+        for (TMenuItem? p = Menu.Items; p != null; p = p.Next)
         {
             if (string.IsNullOrEmpty(p.Name))
             {

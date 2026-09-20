@@ -10,5 +10,5 @@ public sealed class TResourceItem
     /// <summary>Serialized payload length in bytes.</summary>
     public long size;
     /// <summary>Ordinal, case-sensitive identifier used to look up this resource.</summary>
-    public string key;
+    public string key = string.Empty;
 }

@@ -33,16 +33,16 @@ public class THelpTopic : TStreamable
     public static TCrossRefHandler crossRefHandler = NotAssigned;
 
     /// <summary>First paragraph owned by this topic, or null for an empty topic.</summary>
-    public TParagraph paragraphs;
+    public TParagraph? paragraphs;
     /// <summary>Number of active cross-reference slots in the topic.</summary>
     public int numRefs;
     /// <summary>Cross-reference array indexed from zero; null when no array has been allocated.</summary>
-    public TCrossRef[] crossRefs;
+    public TCrossRef?[]? crossRefs;
 
     private int _width;
     private int _lastOffset;
     private int _lastLine;
-    private TParagraph _lastParagraph;
+    private TParagraph? _lastParagraph;
 
     // Used by `getLine` to skip the line-wrapping CRLF that upstream
     // injects via fixed 256-byte stack buffers; we mirror the limit.
@@ -68,7 +68,7 @@ public class THelpTopic : TStreamable
     public void AddCrossRef(TCrossRef r)
     {
         var p = new TCrossRef[numRefs + 1];
-        if (numRefs > 0)
+        if (numRefs > 0 && crossRefs != null)
             Array.Copy(crossRefs, p, numRefs);
         crossRefs = p;
         crossRefs[numRefs] = r;
@@ -96,7 +96,8 @@ public class THelpTopic : TStreamable
     {
         int paraOffset = 0, curOffset = 0, oldOffset = 0;
         int line = 0;
-        var c = crossRefs[i];
+        TCrossRef c = crossRefs?[i]
+            ?? throw new InvalidOperationException("The requested help cross-reference is not initialized.");
         int offset = c.offset;
         var p = paragraphs;
         while (p != null && paraOffset + curOffset < offset)
@@ -135,7 +136,7 @@ public class THelpTopic : TStreamable
     public char[] GetLine(int line, char[] buffer)
     {
         int offset;
-        TParagraph p;
+        TParagraph? p;
 
         if (_lastLine < line)
         {
@@ -198,7 +199,7 @@ public class THelpTopic : TStreamable
     /// <summary>Replaces a reference at a nonnegative zero-based index; indices at or above the count are ignored.</summary>
     public void SetCrossRef(int i, TCrossRef r)
     {
-        if (i < numRefs) crossRefs[i] = r;
+        if (i >= 0 && i < numRefs && crossRefs != null) crossRefs[i] = r;
     }
 
     /// <summary>Resizes the reference array to a nonnegative count, preserving the common prefix and leaving new slots null.</summary>
@@ -209,7 +210,8 @@ public class THelpTopic : TStreamable
         if (numRefs > 0)
         {
             int copy = Math.Min(i, numRefs);
-            Array.Copy(crossRefs, p, copy);
+            if (crossRefs != null)
+                Array.Copy(crossRefs, p, copy);
         }
         crossRefs = p;
         numRefs = i;
@@ -328,8 +330,8 @@ public class THelpTopic : TStreamable
     private void ReadParagraphs(Ipstream s)
     {
         int i = (int)s.ReadInt();
-        TParagraph head = null;
-        TParagraph tail = null;
+        TParagraph? head = null;
+        TParagraph? tail = null;
         while (i > 0)
         {
             ushort sz = s.ReadShort();
@@ -353,7 +355,10 @@ public class THelpTopic : TStreamable
                 for (int j = 0; j < sz; j++)
                     p.chars[j] = (char)s.Read16();
             }
-            if (head == null) head = p; else tail.next = p;
+            if (head == null)
+                head = p;
+            else if (tail != null)
+                tail.next = p;
             tail = p;
             i--;
         }
@@ -384,11 +389,12 @@ public class THelpTopic : TStreamable
         for (var p = paragraphs; p != null; p = p.next)
         {
             int size = p.size;
-            if (p.chars != null && size > p.chars.Length)
-                size = p.chars.Length;
+            char[] chars = p.chars ?? Array.Empty<char>();
+            if (size > chars.Length)
+                size = chars.Length;
             if (s.HelpFormatVersion == FormatV1Latin1)
             {
-                string text = p.chars == null ? string.Empty : new string(p.chars, 0, size);
+                string text = new string(chars, 0, size);
                 for (int i = 0; i < text.Length; i++)
                 {
                     if (!s.HelpLegacyEncoding.TryEncodeChar(text[i], out _))
@@ -422,7 +428,7 @@ public class THelpTopic : TStreamable
                 s.WriteShort((ushort)size);
                 s.WriteInt((uint)(p.wrap ? 1 : 0));
                 for (int i = 0; i < size; i++)
-                    s.Write16(p.chars[i]);
+                    s.Write16(chars[i]);
             }
         }
     }
@@ -434,7 +440,8 @@ public class THelpTopic : TStreamable
         {
             for (int i = 0; i < numRefs; i++)
             {
-                var c = crossRefs[i];
+                TCrossRef c = crossRefs?[i]
+                    ?? throw new InvalidOperationException("A help cross-reference is not initialized.");
                 s.WriteInt((uint)c.@ref);
                 s.WriteInt((uint)c.offset);
                 s.WriteByte(c.length);
@@ -444,7 +451,8 @@ public class THelpTopic : TStreamable
         {
             for (int i = 0; i < numRefs; i++)
             {
-                var c = crossRefs[i];
+                TCrossRef c = crossRefs?[i]
+                    ?? throw new InvalidOperationException("A help cross-reference is not initialized.");
                 crossRefHandler(s, c.@ref);
                 s.WriteInt((uint)c.offset);
                 s.WriteByte(c.length);

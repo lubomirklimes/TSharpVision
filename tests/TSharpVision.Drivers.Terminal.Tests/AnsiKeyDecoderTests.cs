@@ -77,7 +77,7 @@ public sealed class AnsiKeyDecoderTests
         int n = AnsiKeyDecoder.TryDecode(new byte[] { 0x1B, (byte)'x' }, out var ev, out _);
         Assert.Equal(2, n);
         Assert.Equal(Keys.kbAltX, ev.keyDown.keyCode);
-        Assert.NotEqual(0, ev.keyDown.shiftState & Keys.kbAltShift);
+        Assert.NotEqual(0u, ev.keyDown.controlKeyState & Keys.kbAltShift);
     }
 
     [Fact]
@@ -131,7 +131,7 @@ public sealed class AnsiKeyDecoderTests
         int n = AnsiKeyDecoder.TryDecode(bytes, out var ev, out _);
         Assert.Equal(6, n);
         Assert.Equal(Keys.kbCtrlLeft, ev.keyDown.keyCode);
-        Assert.NotEqual(0, ev.keyDown.shiftState & Keys.kbCtrlShift);
+        Assert.NotEqual(0u, ev.keyDown.controlKeyState & Keys.kbCtrlShift);
     }
 
     // ── CSI ~-sequences (function / nav) ─────────────────────────────────

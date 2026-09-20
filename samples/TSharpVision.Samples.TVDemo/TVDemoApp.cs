@@ -125,7 +125,7 @@ public partial class TVDemoApp : TApplication
     {
         base.Idle();
         // Every open instance must keep updating, not just the newest one.
-        DeskTop.ForEachView(view =>
+        DeskTop?.ForEachView(view =>
         {
             if (view is ClockDialog clock) clock.Tick();
             if (view is HeapDialog heap) heap.Tick();

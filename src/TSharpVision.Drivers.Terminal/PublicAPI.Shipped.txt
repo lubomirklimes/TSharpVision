@@ -1,0 +1,31 @@
+#nullable enable
+TSharpVision.Drivers.Terminal.AnsiTerminalDriver
+TSharpVision.Drivers.Terminal.AnsiTerminalDriver.AllocateScreenBuffer() -> TSharpVision.ScreenBuffer!
+TSharpVision.Drivers.Terminal.AnsiTerminalDriver.AnsiTerminalDriver() -> void
+TSharpVision.Drivers.Terminal.AnsiTerminalDriver.ClearScreen(ushort cols, ushort rows) -> void
+TSharpVision.Drivers.Terminal.AnsiTerminalDriver.Dispose() -> void
+TSharpVision.Drivers.Terminal.AnsiTerminalDriver.GetCols() -> ushort
+TSharpVision.Drivers.Terminal.AnsiTerminalDriver.GetCursorType() -> ushort
+TSharpVision.Drivers.Terminal.AnsiTerminalDriver.GetRows() -> ushort
+TSharpVision.Drivers.Terminal.AnsiTerminalDriver.GetScreenMode() -> TSharpVision.TDisplay.SM
+TSharpVision.Drivers.Terminal.AnsiTerminalDriver.Initialize() -> void
+TSharpVision.Drivers.Terminal.AnsiTerminalDriver.KeyboardCapabilities.get -> TSharpVision.Drivers.KeyboardCapabilities
+TSharpVision.Drivers.Terminal.AnsiTerminalDriver.MakeBeep() -> void
+TSharpVision.Drivers.Terminal.AnsiTerminalDriver.PumpMessages() -> void
+TSharpVision.Drivers.Terminal.AnsiTerminalDriver.ReadKeyEvent(out TSharpVision.TEvent ev) -> bool
+TSharpVision.Drivers.Terminal.AnsiTerminalDriver.Resume() -> void
+TSharpVision.Drivers.Terminal.AnsiTerminalDriver.SetCaretPosition(int x, int y) -> void
+TSharpVision.Drivers.Terminal.AnsiTerminalDriver.SetCursorType(ushort cursorType) -> void
+TSharpVision.Drivers.Terminal.AnsiTerminalDriver.SetScreenMode(TSharpVision.TDisplay.SM mode) -> void
+TSharpVision.Drivers.Terminal.AnsiTerminalDriver.Shutdown() -> void
+TSharpVision.Drivers.Terminal.AnsiTerminalDriver.SupportsGraphics.get -> bool
+TSharpVision.Drivers.Terminal.AnsiTerminalDriver.SupportsMouse.get -> bool
+TSharpVision.Drivers.Terminal.AnsiTerminalDriver.SupportsTrueColor.get -> bool
+TSharpVision.Drivers.Terminal.AnsiTerminalDriver.Suspend() -> void
+TSharpVision.Drivers.Terminal.AnsiTerminalDriver.WriteBuf(int x, int y, int w, int h, System.Span<TSharpVision.TScreenChar> buf) -> void
+TSharpVision.Drivers.Terminal.TerminalClipboardService
+TSharpVision.Drivers.Terminal.TerminalClipboardService.GetText() -> string?
+TSharpVision.Drivers.Terminal.TerminalClipboardService.IsAvailable.get -> bool
+TSharpVision.Drivers.Terminal.TerminalClipboardService.SetText(string! text) -> bool
+TSharpVision.Drivers.Terminal.TerminalClipboardService.TerminalClipboardService() -> void
+TSharpVision.Drivers.Terminal.TerminalClipboardService.TryGetText(out string! text) -> bool

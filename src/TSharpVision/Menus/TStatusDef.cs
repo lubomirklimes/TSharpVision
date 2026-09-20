@@ -4,16 +4,16 @@ namespace TSharpVision;
 public class TStatusDef
 {
     /// <summary>Next context-range definition, or null at the end of the chain.</summary>
-    public TStatusDef Next { get; set; }
+    public TStatusDef? Next { get; set; }
     /// <summary>Lowest help context identifier covered by this definition, inclusive.</summary>
     public ushort Min { get; set; }
     /// <summary>Highest help context identifier covered by this definition, inclusive.</summary>
     public ushort Max { get; set; }
     /// <summary>First shortcut associated with this context range, or null for none.</summary>
-    public TStatusItem Items { get; set; }
+    public TStatusItem? Items { get; set; }
 
     /// <summary>Creates an inclusive help-context range referencing an optional shortcut chain and next definition.</summary>
-    public TStatusDef(ushort aMin, ushort aMax, TStatusItem someItems = null, TStatusDef aNext = null)
+    public TStatusDef(ushort aMin, ushort aMax, TStatusItem? someItems = null, TStatusDef? aNext = null)
     {
         Min = aMin;
         Max = aMax;

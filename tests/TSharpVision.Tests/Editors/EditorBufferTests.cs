@@ -44,7 +44,8 @@ public sealed class EditorBufferTests
         byte[] bytes = Encoding.ASCII.GetBytes(text);
         ed.bufLen = (uint)bytes.Length;
         ed.gapLen = ed.bufSize - ed.bufLen;
-        Array.Copy(bytes, 0, ed.buffer, (int)ed.gapLen, bytes.Length);
+        char[] buffer = Assert.IsType<char[]>(ed.buffer);
+        Array.Copy(bytes, 0, buffer, (int)ed.gapLen, bytes.Length);
         ed.curPtr  = 0;
         ed.curPos  = default;
         ed.delta   = default;

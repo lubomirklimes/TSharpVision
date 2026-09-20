@@ -8,7 +8,7 @@ public class THistory : TView
     public new static readonly string Name = "THistory";
 
     /// <summary>Associated input line whose text is recorded and restored; the button does not own it.</summary>
-    public TInputLine Link;
+    public TInputLine? Link;
     /// <summary>Identifier selecting the shared input-history list.</summary>
     public ushort HistoryId;
 

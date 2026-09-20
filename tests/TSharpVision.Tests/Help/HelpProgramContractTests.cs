@@ -33,10 +33,11 @@ public sealed class HelpProgramContractTests : IDisposable
             app.HandleEvent(ref ev);
 
             Assert.Equal(Events.evNothing, ev.What);
-            Assert.NotNull(app.LastHelpWindow);
-            Assert.Same(dialog, app.DeskTop.current);
+            var helpWindow = Assert.IsType<THelpWindow>(app.LastHelpWindow);
+            var deskTop = Assert.IsType<TDeskTop>(app.DeskTop);
+            Assert.Same(dialog, deskTop.current);
             Assert.Same(child, dialog.current);
-            Assert.Equal("Focused topic.\n", TopicText(FindViewer(app.LastHelpWindow).topic));
+            Assert.Equal("Focused topic.\n", TopicText(FindViewer(helpWindow).topic));
         }
         finally
         {
@@ -58,17 +59,19 @@ public sealed class HelpProgramContractTests : IDisposable
 
             Assert.Equal(Events.evNothing, ev.What);
             Assert.Equal(1, app.ExecuteHelpCount);
-            Assert.Same(app.LastHelpWindow, app.DeskTop.current);
-            Assert.True(app.LastHelpWindow.GetState(Views.sfFocused));
+            var helpWindow = Assert.IsType<THelpWindow>(app.LastHelpWindow);
+            var deskTop = Assert.IsType<TDeskTop>(app.DeskTop);
+            Assert.Same(helpWindow, deskTop.current);
+            Assert.True(helpWindow.GetState(Views.sfFocused));
             TEvent close = default;
             close.What = Events.evCommand;
             close.message.command = Views.cmClose;
             app.HandleEvent(ref close);
 
             Assert.Equal(Events.evNothing, close.What);
-            Assert.Null(app.LastHelpWindow.owner);
-            Assert.False(app.LastHelpWindow.GetState(Views.sfFocused));
-            Assert.Same(dialog, app.DeskTop.current);
+            Assert.Null(helpWindow.owner);
+            Assert.False(helpWindow.GetState(Views.sfFocused));
+            Assert.Same(dialog, deskTop.current);
             Assert.Same(child, dialog.current);
             Assert.True(child.GetState(Views.sfFocused));
         }
@@ -131,7 +134,8 @@ public sealed class HelpProgramContractTests : IDisposable
             app.HandleEvent(ref ev);
 
             Assert.Equal(Events.evNothing, ev.What);
-            string text = TopicText(FindViewer(app.LastHelpWindow).topic);
+            var helpWindow = Assert.IsType<THelpWindow>(app.LastHelpWindow);
+            string text = TopicText(FindViewer(helpWindow).topic);
             Assert.Contains("No help available in this context", text);
         }
         finally
@@ -152,12 +156,13 @@ public sealed class HelpProgramContractTests : IDisposable
             {
                 var request = HelpCommand();
                 app.HandleEvent(ref request);
-                var window = app.LastHelpWindow;
-                Assert.Same(window, app.DeskTop.current);
+                var window = Assert.IsType<THelpWindow>(app.LastHelpWindow);
+                var deskTop = Assert.IsType<TDeskTop>(app.DeskTop);
+                Assert.Same(window, deskTop.current);
                 window.Close();
                 Assert.Null(window.owner);
                 Assert.False(window.GetState(Views.sfFocused));
-                Assert.Same(dialog, app.DeskTop.current);
+                Assert.Same(dialog, deskTop.current);
                 Assert.Same(child, dialog.current);
             }
             Assert.Equal(3, app.ExecuteHelpCount);
@@ -173,17 +178,18 @@ public sealed class HelpProgramContractTests : IDisposable
         try
         {
             var (dialog, child) = InsertFocusedDialogChild(app, 42);
-            app.DeskTop.Insert(new TWindow(new TRect(3, 3, 32, 12), "Other", Views.wnNoNumber));
+            var deskTop = Assert.IsType<TDeskTop>(app.DeskTop);
+            deskTop.Insert(new TWindow(new TRect(3, 3, 32, 12), "Other", Views.wnNoNumber));
             var request = HelpCommand(); app.HandleEvent(ref request);
-            var oldHelp = app.LastHelpWindow;
+            var oldHelp = Assert.IsType<THelpWindow>(app.LastHelpWindow);
             // Select without changing the z-order, so help remains the front child.
             dialog.options &= unchecked((ushort)~Views.ofTopSelect);
             dialog.Select();
             oldHelp.Close();
-            Assert.Same(dialog, app.DeskTop.current);
+            Assert.Same(dialog, deskTop.current);
             Assert.True(child.GetState(Views.sfFocused));
             request = HelpCommand(); app.HandleEvent(ref request);
-            var newHelp = app.LastHelpWindow;
+            var newHelp = Assert.IsType<THelpWindow>(app.LastHelpWindow);
             Assert.NotSame(oldHelp, newHelp);
             TEvent notification = default;
             notification.What = Events.evBroadcast;
@@ -192,7 +198,7 @@ public sealed class HelpProgramContractTests : IDisposable
             app.HandleEvent(ref notification);
             request = HelpCommand(); app.HandleEvent(ref request);
             Assert.Equal(2, app.ExecuteHelpCount);
-            Assert.Same(newHelp, app.DeskTop.current);
+            Assert.Same(newHelp, deskTop.current);
         }
         finally { app.ShutDown(); }
     }
@@ -206,15 +212,18 @@ public sealed class HelpProgramContractTests : IDisposable
         {
             var (dialog, _) = InsertFocusedDialogChild(app, 42);
             var request = HelpCommand(); app.HandleEvent(ref request);
+            var deskTop = Assert.IsType<TDeskTop>(app.DeskTop);
+            var firstHelp = Assert.IsType<THelpWindow>(app.LastHelpWindow);
             dialog.ShutDown();
-            app.LastHelpWindow.Close();
+            firstHelp.Close();
             Assert.Null(dialog.owner);
-            Assert.NotSame(dialog, app.DeskTop.current);
+            Assert.NotSame(dialog, deskTop.current);
             request = HelpCommand(); app.HandleEvent(ref request);
             Assert.Equal(Events.evNothing, request.What);
-            Assert.Same(app.LastHelpWindow, app.DeskTop.current);
-            app.LastHelpWindow.Close();
-            Assert.NotSame(app.LastHelpWindow, app.DeskTop.current);
+            var secondHelp = Assert.IsType<THelpWindow>(app.LastHelpWindow);
+            Assert.Same(secondHelp, deskTop.current);
+            secondHelp.Close();
+            Assert.NotSame(secondHelp, deskTop.current);
         }
         finally { app.ShutDown(); }
     }
@@ -260,7 +269,8 @@ public sealed class HelpProgramContractTests : IDisposable
             request = HelpCommand(); second.HandleEvent(ref request);
             Assert.Equal(Events.evCommand, request.What);
             Assert.Null(second.LastHelpWindow);
-            Assert.NotSame(first.LastHelpWindow, second.DeskTop.current);
+            var secondDeskTop = Assert.IsType<TDeskTop>(second.DeskTop);
+            Assert.NotSame(first.LastHelpWindow, secondDeskTop.current);
         }
         finally { second.ShutDown(); }
     }
@@ -308,7 +318,8 @@ public sealed class HelpProgramContractTests : IDisposable
         var child = new HelpProbeView(new TRect(1, 1, 10, 2), helpCtx);
         dialog.Insert(child);
         child.Select();
-        app.DeskTop.Insert(dialog);
+        var deskTop = Assert.IsType<TDeskTop>(app.DeskTop);
+        deskTop.Insert(dialog);
         dialog.Select();
         return (dialog, child);
     }
@@ -323,7 +334,7 @@ public sealed class HelpProgramContractTests : IDisposable
 
     private static THelpViewer FindViewer(THelpWindow window)
     {
-        THelpViewer viewer = null;
+        THelpViewer? viewer = null;
         window.ForEachView(v =>
         {
             if (v is THelpViewer helpViewer)
@@ -352,15 +363,15 @@ public sealed class HelpProgramContractTests : IDisposable
 
     private sealed class HelpContractProgram : TProgram
     {
-        private readonly THelpFile _helpFile;
+        private readonly THelpFile? _helpFile;
 
-        public HelpContractProgram(THelpFile helpFile) => _helpFile = helpFile;
+        public HelpContractProgram(THelpFile? helpFile) => _helpFile = helpFile;
 
         public bool InsertHelpWindow { get; init; }
         public int ExecuteHelpCount { get; private set; }
-        public THelpWindow LastHelpWindow { get; private set; }
+        public THelpWindow? LastHelpWindow { get; private set; }
 
-        public override THelpFile GetHelpFile() => _helpFile;
+        public override THelpFile? GetHelpFile() => _helpFile;
 
         protected override void ExecuteHelp(THelpWindow window)
         {

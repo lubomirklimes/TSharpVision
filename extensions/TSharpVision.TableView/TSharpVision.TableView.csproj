@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>TSharpVision.TableView</PackageId>
+    <Description>Read-only, paged table view for TSharpVision over any source of rows, with 64-bit row positions.</Description>
+    <PackageTags>tsharpvision;tui;table;grid;data-grid</PackageTags>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <WarningsAsErrors>$(WarningsAsErrors);RS0016;RS0017;RS0022;RS0024</WarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="TSharpVision.TableView.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\TSharpVision\TSharpVision.csproj" />
+  </ItemGroup>
+
+</Project>

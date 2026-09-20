@@ -6,7 +6,10 @@ namespace TSharpVision;
 public class TDisplay : IDisposable
 {
     /// <summary>Process-wide display driver, or null before initialization or after failed startup.</summary>
-    public static IDriver driver;
+    public static IDriver? driver;
+
+    internal static IDriver ActiveDriver =>
+        driver ?? throw new InvalidOperationException("The display driver is not initialized.");
 
     /// <summary>Legacy screen-mode identifiers and the optional 8-by-8 font mode bit.</summary>
     public enum SM : ushort
@@ -42,13 +45,13 @@ public class TDisplay : IDisposable
     /// <summary>Returns the initialized driver's display height in character cells.</summary>
     public static ushort GetRows()
     {
-        return driver.GetRows();
+        return ActiveDriver.GetRows();
     }
 
     /// <summary>Returns the initialized driver's display width in character cells.</summary>
     public static ushort GetCols()
     {
-        return driver.GetCols();
+        return ActiveDriver.GetCols();
     }
 
     /// <summary>Unsupported legacy mode-setting entry point; always throws NotImplementedException.</summary>
@@ -60,7 +63,7 @@ public class TDisplay : IDisposable
     /// <summary>Returns the initialized driver's current screen-mode identifier.</summary>
     public static SM GetCrtMode()
     {
-        return (SM)driver.GetScreenMode();
+        return (SM)ActiveDriver.GetScreenMode();
     }
 
 
@@ -69,15 +72,16 @@ public class TDisplay : IDisposable
     {
         if (driver == null)
         {
-            driver = ScreenDriverFactory.CreateScreenDriver();
+            IDriver created = ScreenDriverFactory.CreateScreenDriver();
             try
             {
-                driver.Initialize();
+                created.Initialize();
+                driver = created;
             }
             catch
             {
                 // A later application must not reuse a driver whose startup failed.
-                driver = null!;
+                driver = null;
                 throw;
             }
         }

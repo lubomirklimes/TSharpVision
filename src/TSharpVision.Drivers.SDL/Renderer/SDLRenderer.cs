@@ -24,7 +24,7 @@ namespace TSharpVision.Drivers.SDL;
 /// Rendering is dirty/on-demand: <see cref="Render"/> is only called when the
 /// screen buffer or cursor state has changed.
 /// </summary>
-public sealed class SDLRenderer : IDisposable, ISDLRenderer
+internal sealed class SDLRenderer : IDisposable, ISDLRenderer
 {
     private const int MaxCacheEntries  = 4096;
     private const int DefaultFontPtSize = 20;

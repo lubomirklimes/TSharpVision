@@ -50,7 +50,7 @@ internal static class NativeMethods
 
     /// <summary>Searches PATH for <paramref name="file"/> and executes it.</summary>
     [DllImport("libc", SetLastError = true, EntryPoint = "execvp")]
-    internal static extern int Execvp(string file, string[] argv);
+    internal static extern int Execvp(string file, string?[] argv);
 
     /// <summary>Changes the current working directory.</summary>
     [DllImport("libc", SetLastError = true, EntryPoint = "chdir")]

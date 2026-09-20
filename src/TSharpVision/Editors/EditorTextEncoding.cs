@@ -17,7 +17,7 @@ public enum EditorTextEncodingMode
 /// <summary>Immutable file-open encoding policy, optionally carrying a legacy codec.</summary>
 public sealed class EditorTextEncoding
 {
-    private EditorTextEncoding(EditorTextEncodingMode mode, ILegacyTextEncoding legacyEncoding)
+    private EditorTextEncoding(EditorTextEncodingMode mode, ILegacyTextEncoding? legacyEncoding)
     {
         Mode = mode;
         LegacyEncoding = legacyEncoding;
@@ -26,7 +26,7 @@ public sealed class EditorTextEncoding
     /// <summary>Decoding policy applied when opening a file.</summary>
     public EditorTextEncodingMode Mode { get; }
     /// <summary>Codec used in Legacy mode; null for automatic or UTF-8 policies.</summary>
-    public ILegacyTextEncoding LegacyEncoding { get; }
+    public ILegacyTextEncoding? LegacyEncoding { get; }
 
     /// <summary>Shared policy requesting automatic encoding detection.</summary>
     public static EditorTextEncoding Auto { get; } =

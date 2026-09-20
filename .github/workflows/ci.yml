@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: Build and test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet restore TSharpVision.slnx
+      - run: dotnet build TSharpVision.slnx -c Release -t:Rebuild --no-restore -v minimal
+      - run: dotnet test TSharpVision.slnx -c Release --no-build --no-restore -v minimal
+
+  pack:
+    name: Pack preview packages
+    needs: build-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet restore TSharpVision.slnx
+      - run: dotnet pack TSharpVision.slnx -c Release --no-restore -v minimal -o artifacts/nuget
+      - name: Verify complete package set
+        shell: pwsh
+        run: |
+          $ids = @(
+            'TSharpVision',
+            'TSharpVision.Drivers.Console',
+            'TSharpVision.Drivers.SDL',
+            'TSharpVision.Drivers.Terminal',
+            'TSharpVision.CodeEditor',
+            'TSharpVision.HexView',
+            'TSharpVision.TableView',
+            'TSharpVision.Terminal'
+          )
+          foreach ($extension in @('nupkg', 'snupkg')) {
+            $actual = @(Get-ChildItem artifacts/nuget -Filter "*.$extension" | ForEach-Object Name | Sort-Object)
+            $expected = @($ids | ForEach-Object { '{0}.0.1.0-preview.1.{1}' -f $_, $extension } | Sort-Object)
+            if (Compare-Object $expected $actual) {
+              Write-Error "Unexpected $extension package set: $($actual -join ', ')"
+              exit 1
+            }
+          }
+      - uses: actions/upload-artifact@v7
+        with:
+          name: nuget-packages
+          path: artifacts/nuget/*.*nupkg
+          if-no-files-found: error

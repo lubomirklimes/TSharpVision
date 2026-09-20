@@ -5,13 +5,13 @@ namespace TSharpVision;
 public sealed class TParagraph
 {
     /// <summary>Next paragraph in the topic, or null at the end of the chain.</summary>
-    public TParagraph next;
+    public TParagraph? next;
     /// <summary>Whether the paragraph wraps at the topic's configured width.</summary>
     public bool wrap;
     /// <summary>Number of meaningful UTF-16 code units in the character array, limited to 65535.</summary>
     public ushort size;
     /// <summary>UTF-16 text storage; the first size entries form the paragraph text.</summary>
-    public char[] chars;
+    public char[] chars = System.Array.Empty<char>();
 
     /// <summary>Paragraph text; assigning null creates empty storage and assigning more than 65535 code units throws an overflow exception.</summary>
     public string Text

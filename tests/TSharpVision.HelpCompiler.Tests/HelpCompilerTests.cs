@@ -678,8 +678,9 @@ public sealed class HelpCompilerTests : IDisposable
         fp.Close();
         Assert.Equal(2, index.GetNumCrossRefs());
         Assert.Equal("Alpha\nBeta\n", TopicText(index));
-        Assert.Equal(10, index.crossRefs[0].@ref);
-        Assert.Equal(20, index.crossRefs[1].@ref);
+        var refs = Assert.IsType<TCrossRef?[]>(index.crossRefs);
+        Assert.Equal(10, Assert.IsType<TCrossRef>(refs[0]).@ref);
+        Assert.Equal(20, Assert.IsType<TCrossRef>(refs[1]).@ref);
     }
 
     [Fact]
@@ -799,9 +800,11 @@ public sealed class HelpCompilerTests : IDisposable
         var topic = hf.GetTopic(2);
         fp.Close();
         Assert.Equal("Čau odkaz. ", TopicText(topic));
-        Assert.Equal(4, topic.crossRefs[0].offset);
-        Assert.Equal(5, topic.crossRefs[0].length);
-        Assert.Equal(3, topic.crossRefs[0].@ref);
+        var refs = Assert.IsType<TCrossRef?[]>(topic.crossRefs);
+        var crossRef = Assert.IsType<TCrossRef>(refs[0]);
+        Assert.Equal(4, crossRef.offset);
+        Assert.Equal(5, crossRef.length);
+        Assert.Equal(3, crossRef.@ref);
     }
 
     [Fact]
@@ -825,9 +828,11 @@ public sealed class HelpCompilerTests : IDisposable
         var topic = hf.GetTopic(2);
         fp.Close();
         Assert.Equal("Čau odkaz. ", TopicText(topic));
-        Assert.Equal(4, topic.crossRefs[0].offset);
-        Assert.Equal(5, topic.crossRefs[0].length);
-        Assert.Equal(3, topic.crossRefs[0].@ref);
+        var refs = Assert.IsType<TCrossRef?[]>(topic.crossRefs);
+        var crossRef = Assert.IsType<TCrossRef>(refs[0]);
+        Assert.Equal(4, crossRef.offset);
+        Assert.Equal(5, crossRef.length);
+        Assert.Equal(3, crossRef.@ref);
     }
 
     private static string TopicText(THelpTopic topic)

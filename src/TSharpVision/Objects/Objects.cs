@@ -17,7 +17,7 @@ public delegate int ccIndex();
 public abstract class TCollection : TStreamable, TNSCollection
 {
     /// <summary>Backing object-reference array; null when no positive capacity is allocated.</summary>
-    protected object[] items;
+    protected object?[]? items;
     /// <summary>Number of active elements in the backing array.</summary>
     protected int count;
     /// <summary>Allocated item capacity; changing it through SetLimit may truncate active elements.</summary>
@@ -36,7 +36,7 @@ public abstract class TCollection : TStreamable, TNSCollection
     public virtual void SetLimit(int newLimit)
     {
         if (newLimit == limit) return;
-        object[] newItems = newLimit > 0 ? new object[newLimit] : null;
+        object?[]? newItems = newLimit > 0 ? new object?[newLimit] : null;
         if (items != null && newItems != null)
             System.Array.Copy(items, newItems, System.Math.Min(count, newLimit));
         items = newItems;
@@ -51,10 +51,10 @@ public abstract class TCollection : TStreamable, TNSCollection
     }
 
     /// <summary>Restores one element from the current input position using the derived collection's item format.</summary>
-    protected abstract object ReadItem(Ipstream isStream);
+    protected abstract object? ReadItem(Ipstream isStream);
 
     /// <summary>Serializes one element at the current output position using the derived collection's item format.</summary>
-    protected abstract void WriteItem(object item, Opstream os);
+    protected abstract void WriteItem(object? item, Opstream os);
 
     /// <inheritdoc />
     public override void Write(Opstream os)
@@ -76,7 +76,7 @@ public abstract class TCollection : TStreamable, TNSCollection
         for (int i = 0; i < readCount; i++)
         {
             var item = ReadItem(isStream);
-            if (count < limit) items[count++] = item;
+            if (count < limit && items != null) items[count++] = item;
         }
         return this;
     }

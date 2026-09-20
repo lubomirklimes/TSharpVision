@@ -47,7 +47,7 @@ public sealed class Builder
                 continue;
             }
 
-            TStreamable obj = res.Kind switch
+            TStreamable? obj = res.Kind switch
             {
                 ResourceKind.Dialog    => BuildDialog(res),
                 ResourceKind.Menu      => BuildMenuBar(res),
@@ -64,11 +64,11 @@ public sealed class Builder
 
     // Dialog
 
-    private TDialog BuildDialog(ResourceDecl res)
+    private TDialog? BuildDialog(ResourceDecl res)
     {
         var body = res.Dialog;
 
-        if (body.Bounds == null)
+        if (body?.Bounds == null)
         {
             _diag.Add(new Diagnostic(DiagnosticCodes.MissingRequiredBounds,
                 $"Dialog '{res.Key}' is missing required 'bounds' field",
@@ -106,7 +106,7 @@ public sealed class Builder
 
     // Controls
 
-    private TView BuildControl(ControlDecl ctrl)
+    private TView? BuildControl(ControlDecl ctrl)
     {
         if (ctrl.Bounds == null)
         {
@@ -160,7 +160,7 @@ public sealed class Builder
 
     // Validators
 
-    private TValidator BuildValidator(ValidatorNode node)
+    private TValidator? BuildValidator(ValidatorNode node)
     {
         switch (node)
         {
@@ -179,23 +179,24 @@ public sealed class Builder
 
     private static readonly TRect DefaultMenuRect = new TRect(0, 0, 80, 1);
 
-    private TMenuBar BuildMenuBar(ResourceDecl res)
+    private TMenuBar? BuildMenuBar(ResourceDecl res)
     {
         var body = res.Menu;
+        if (body == null) return null;
         var rect = body.Bounds != null ? MakeRect(body.Bounds) : DefaultMenuRect;
-        TMenuItem itemList = BuildMenuItemList(body.Items, res.Line, res.Column);
+        TMenuItem? itemList = BuildMenuItemList(body.Items, res.Line, res.Column);
         return new TMenuBar(rect, new TMenu(itemList));
     }
 
-    private TMenuItem BuildMenuItemList(List<MenuItemDecl> decls, int errLine, int errCol)
+    private TMenuItem? BuildMenuItemList(List<MenuItemDecl> decls, int errLine, int errCol)
     {
-        TMenuItem head = null, tail = null;
+        TMenuItem? head = null, tail = null;
         foreach (var decl in decls)
         {
-            TMenuItem item = BuildMenuItemDecl(decl);
+            TMenuItem? item = BuildMenuItemDecl(decl);
             if (item == null) continue;
             if (head == null) { head = item; tail = item; }
-            else              { tail.Next = item; tail = item; }
+            else if (tail != null) { tail.Next = item; tail = item; }
         }
         return head;
     }
@@ -210,8 +211,8 @@ public sealed class Builder
             if (decl.Children.Count == 0)
                 _diag.Add(new Diagnostic(DiagnosticCodes.EmptySubmenu,
                     $"Submenu '{decl.Title}' has no items", decl.Line, decl.Column));
-            TMenuItem childList = BuildMenuItemList(decl.Children, decl.Line, decl.Column);
-            return new TMenuItem(decl.Title, Keys.kbNoKey, new TMenu(childList), Views.hcNoContext, null);
+            TMenuItem? childList = BuildMenuItemList(decl.Children, decl.Line, decl.Column);
+            return new TMenuItem(decl.Title ?? string.Empty, Keys.kbNoKey, new TMenu(childList), Views.hcNoContext, null);
         }
 
         // Item
@@ -224,9 +225,10 @@ public sealed class Builder
 
     private static readonly TRect DefaultStatusRect = new TRect(0, 24, 80, 25);
 
-    private TStatusLine BuildStatusLine(ResourceDecl res)
+    private TStatusLine? BuildStatusLine(ResourceDecl res)
     {
         var body = res.StatusBar;
+        if (body == null) return null;
         var rect = body.Bounds != null ? MakeRect(body.Bounds) : DefaultStatusRect;
 
         if (body.Ranges.Count == 0)
@@ -236,7 +238,7 @@ public sealed class Builder
             return new TStatusLine(rect, new TStatusDef(0, 0xFFFF, null, null));
         }
 
-        TStatusDef firstDef = null, lastDef = null;
+        TStatusDef? firstDef = null, lastDef = null;
         foreach (var rng in body.Ranges)
         {
             if (rng.Min > rng.Max)
@@ -244,28 +246,29 @@ public sealed class Builder
                     $"Status range min ({rng.Min}) must be <= max ({rng.Max})",
                     rng.Line, rng.Column));
 
-            TStatusItem firstItem = null, lastItem = null;
+            TStatusItem? firstItem = null, lastItem = null;
             foreach (var sd in rng.Items)
             {
                 ushort cmd     = ResolveCommand(sd.Command, sd.Line, sd.Column);
                 ushort keyCode = ResolveKeyCode(sd.Key, sd.Line, sd.Column);
                 var si = new TStatusItem(sd.Text, keyCode, cmd);
                 if (firstItem == null) { firstItem = si; lastItem = si; }
-                else                   { lastItem.Next = si; lastItem = si; }
+                else if (lastItem != null) { lastItem.Next = si; lastItem = si; }
             }
 
             var def = new TStatusDef((ushort)rng.Min, (ushort)rng.Max, firstItem, null);
             if (firstDef == null) { firstDef = def; lastDef = def; }
-            else                  { lastDef.Next = def; lastDef = def; }
+            else if (lastDef != null) { lastDef.Next = def; lastDef = def; }
         }
 
-        return new TStatusLine(rect, firstDef);
+        return firstDef == null ? null : new TStatusLine(rect, firstDef);
     }
 
     // Strings
 
-    private TStringResource BuildStrings(ResourceDecl res)
+    private TStringResource? BuildStrings(ResourceDecl res)
     {
+        if (res.Strings == null) return null;
         var values = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var entry in res.Strings.Entries)
         {
@@ -284,7 +287,7 @@ public sealed class Builder
 
     // Shared helpers
 
-    private ushort ResolveCommand(string identifier, int line, int col)
+    private ushort ResolveCommand(string? identifier, int line, int col)
     {
         if (string.IsNullOrEmpty(identifier)) return 0;
         if (CommandIds.TryResolve(identifier, _consts, out ushort code)) return code;
@@ -295,7 +298,7 @@ public sealed class Builder
         return 0;
     }
 
-    private ushort ResolveKeyCode(string keyText, int line, int col)
+    private ushort ResolveKeyCode(string? keyText, int line, int col)
     {
         if (string.IsNullOrEmpty(keyText)) return Keys.kbNoKey;
         if (CommandIds.TryResolveKey(keyText, out ushort kc)) return kc;
@@ -313,10 +316,10 @@ public sealed class Builder
                 ctrl.Line, ctrl.Column));
             return new TSItem("(empty)", null);
         }
-        TSItem head = null;
+        TSItem? head = null;
         for (int i = ctrl.Items.Count - 1; i >= 0; i--)
             head = new TSItem(ctrl.Items[i], head);
-        return head;
+        return head ?? throw new InvalidOperationException("The parsed item list was unexpectedly empty.");
     }
 
     private static TRect MakeRect(BoundsNode b) =>

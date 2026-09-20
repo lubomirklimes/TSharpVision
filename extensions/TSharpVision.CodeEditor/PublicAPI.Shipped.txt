@@ -1,0 +1,157 @@
+#nullable enable
+override TSharpVision.CodeEditor.TCodeEditor.Draw() -> void
+static readonly TSharpVision.CodeEditor.TCodeEditor.StreamableClassTCodeEditor -> TSharpVision.TStreamableClass!
+static readonly TSharpVision.CodeEditor.TCodeWindow.StreamableClassTCodeWindow -> TSharpVision.TStreamableClass!
+static TSharpVision.CodeEditor.TCodeEditor.Build() -> TSharpVision.TStreamable!
+static TSharpVision.CodeEditor.TCodeWindow.Build() -> TSharpVision.TStreamable!
+TSharpVision.CodeEditor.TCodeEditor
+TSharpVision.CodeEditor.TCodeEditor.LoadGrammar(string! grammarPath, string? scopeName = null) -> bool
+TSharpVision.CodeEditor.TCodeEditor.SetSyntaxScope(string? scopeName) -> void
+TSharpVision.CodeEditor.TCodeEditor.SyntaxScopeName.get -> string?
+TSharpVision.CodeEditor.TCodeEditor.TCodeEditor(TSharpVision.StreamableInit init) -> void
+TSharpVision.CodeEditor.TCodeEditor.TCodeEditor(TSharpVision.TRect bounds, TSharpVision.TScrollBar? aHScrollBar, TSharpVision.TScrollBar? aVScrollBar, TSharpVision.TIndicator? aIndicator, string? aFileName) -> void
+TSharpVision.CodeEditor.TCodeEditor.TCodeEditor(TSharpVision.TRect bounds, TSharpVision.TScrollBar? aHScrollBar, TSharpVision.TScrollBar? aVScrollBar, TSharpVision.TIndicator? aIndicator, string? aFileName, TSharpVision.TFileEditorOpenOptions? openOptions) -> void
+TSharpVision.CodeEditor.TCodeWindow
+TSharpVision.CodeEditor.TCodeWindow.CodeEditor.get -> TSharpVision.CodeEditor.TCodeEditor!
+TSharpVision.CodeEditor.TCodeWindow.LoadGrammar(string! grammarPath, string? scopeName = null) -> bool
+TSharpVision.CodeEditor.TCodeWindow.TCodeWindow(TSharpVision.StreamableInit init) -> void
+TSharpVision.CodeEditor.TCodeWindow.TCodeWindow(TSharpVision.TRect bounds, string? fileName, int aNumber) -> void
+TSharpVision.CodeEditor.TCodeWindow.TCodeWindow(TSharpVision.TRect bounds, string? fileName, int aNumber, TSharpVision.TFileEditorOpenOptions? openOptions) -> void
+virtual TSharpVision.CodeEditor.TCodeEditor.DrawCodeLines(int y, int count, uint linePtr) -> void
+TSharpVision.CodeEditor.Syntax.EditorSyntaxHighlighter
+TSharpVision.CodeEditor.Syntax.EditorSyntaxHighlighter.Classifier.get -> TSharpVision.CodeEditor.Syntax.ISyntaxClassifier?
+TSharpVision.CodeEditor.Syntax.EditorSyntaxHighlighter.ColorScheme.get -> TSharpVision.CodeEditor.Syntax.SyntaxColorScheme!
+TSharpVision.CodeEditor.Syntax.EditorSyntaxHighlighter.ColorScheme.set -> void
+TSharpVision.CodeEditor.Syntax.EditorSyntaxHighlighter.Draw() -> void
+TSharpVision.CodeEditor.Syntax.EditorSyntaxHighlighter.DrawLines(int y, int count, uint linePtr) -> void
+TSharpVision.CodeEditor.Syntax.EditorSyntaxHighlighter.Editor.get -> TSharpVision.TEditor!
+TSharpVision.CodeEditor.Syntax.EditorSyntaxHighlighter.EditorSyntaxHighlighter(TSharpVision.TEditor! editor, TSharpVision.CodeEditor.Syntax.ISyntaxService! syntaxService, System.Func<System.Func<System.Threading.Tasks.Task!>!, System.Threading.Tasks.Task!>? startBackground = null) -> void
+TSharpVision.CodeEditor.Syntax.EditorSyntaxHighlighter.HandleEvent(ref TSharpVision.TEvent ev) -> bool
+TSharpVision.CodeEditor.Syntax.EditorSyntaxHighlighter.InvalidateAll() -> void
+TSharpVision.CodeEditor.Syntax.EditorSyntaxHighlighter.IsClassifying.get -> bool
+TSharpVision.CodeEditor.Syntax.EditorSyntaxHighlighter.IsSuspended.get -> bool
+TSharpVision.CodeEditor.Syntax.EditorSyntaxHighlighter.Language.get -> TSharpVision.CodeEditor.Syntax.SyntaxLanguage!
+TSharpVision.CodeEditor.Syntax.EditorSyntaxHighlighter.MaxHighlightedCharacters.get -> int
+TSharpVision.CodeEditor.Syntax.EditorSyntaxHighlighter.MaxHighlightedCharacters.set -> void
+TSharpVision.CodeEditor.Syntax.EditorSyntaxHighlighter.MaxLinesPerRequest.get -> int
+TSharpVision.CodeEditor.Syntax.EditorSyntaxHighlighter.MaxLinesPerRequest.set -> void
+TSharpVision.CodeEditor.Syntax.EditorSyntaxHighlighter.SetClassifier(TSharpVision.CodeEditor.Syntax.ISyntaxClassifier? classifier) -> void
+TSharpVision.CodeEditor.Syntax.EditorSyntaxHighlighter.SetLanguage(TSharpVision.CodeEditor.Syntax.SyntaxLanguage! language) -> void
+TSharpVision.CodeEditor.Syntax.EditorSyntaxHighlighter.Shutdown() -> void
+TSharpVision.CodeEditor.Syntax.EditorSyntaxHighlighter.SyntaxService.get -> TSharpVision.CodeEditor.Syntax.ISyntaxService!
+TSharpVision.CodeEditor.Syntax.ISyntaxClassifier
+TSharpVision.CodeEditor.Syntax.ISyntaxClassifier.ClassifyLine(string! lineText, TSharpVision.CodeEditor.Syntax.SyntaxLineState! startState) -> TSharpVision.CodeEditor.Syntax.SyntaxLineResult
+TSharpVision.CodeEditor.Syntax.ISyntaxClassifier.InitialState.get -> TSharpVision.CodeEditor.Syntax.SyntaxLineState!
+TSharpVision.CodeEditor.Syntax.ISyntaxClassifier.Language.get -> TSharpVision.CodeEditor.Syntax.SyntaxLanguage!
+TSharpVision.CodeEditor.Syntax.ISyntaxLineSource
+TSharpVision.CodeEditor.Syntax.ISyntaxLineSource.GetLine(int index) -> string!
+TSharpVision.CodeEditor.Syntax.ISyntaxLineSource.LineCount.get -> int
+TSharpVision.CodeEditor.Syntax.ISyntaxService
+TSharpVision.CodeEditor.Syntax.ISyntaxService.CreateClassifier(TSharpVision.CodeEditor.Syntax.SyntaxLanguage! language) -> TSharpVision.CodeEditor.Syntax.ISyntaxClassifier?
+TSharpVision.CodeEditor.Syntax.ISyntaxService.DetectLanguage(string? fileName, string? contentSample) -> TSharpVision.CodeEditor.Syntax.SyntaxLanguage!
+TSharpVision.CodeEditor.Syntax.SyntaxClass
+TSharpVision.CodeEditor.Syntax.SyntaxClass.Attribute = 12 -> TSharpVision.CodeEditor.Syntax.SyntaxClass
+TSharpVision.CodeEditor.Syntax.SyntaxClass.Code = 14 -> TSharpVision.CodeEditor.Syntax.SyntaxClass
+TSharpVision.CodeEditor.Syntax.SyntaxClass.Comment = 1 -> TSharpVision.CodeEditor.Syntax.SyntaxClass
+TSharpVision.CodeEditor.Syntax.SyntaxClass.Constant = 4 -> TSharpVision.CodeEditor.Syntax.SyntaxClass
+TSharpVision.CodeEditor.Syntax.SyntaxClass.Function = 8 -> TSharpVision.CodeEditor.Syntax.SyntaxClass
+TSharpVision.CodeEditor.Syntax.SyntaxClass.Heading = 13 -> TSharpVision.CodeEditor.Syntax.SyntaxClass
+TSharpVision.CodeEditor.Syntax.SyntaxClass.Identifier = 9 -> TSharpVision.CodeEditor.Syntax.SyntaxClass
+TSharpVision.CodeEditor.Syntax.SyntaxClass.Invalid = 15 -> TSharpVision.CodeEditor.Syntax.SyntaxClass
+TSharpVision.CodeEditor.Syntax.SyntaxClass.Keyword = 5 -> TSharpVision.CodeEditor.Syntax.SyntaxClass
+TSharpVision.CodeEditor.Syntax.SyntaxClass.Number = 3 -> TSharpVision.CodeEditor.Syntax.SyntaxClass
+TSharpVision.CodeEditor.Syntax.SyntaxClass.Operator = 6 -> TSharpVision.CodeEditor.Syntax.SyntaxClass
+TSharpVision.CodeEditor.Syntax.SyntaxClass.Plain = 0 -> TSharpVision.CodeEditor.Syntax.SyntaxClass
+TSharpVision.CodeEditor.Syntax.SyntaxClass.Preprocessor = 10 -> TSharpVision.CodeEditor.Syntax.SyntaxClass
+TSharpVision.CodeEditor.Syntax.SyntaxClass.String = 2 -> TSharpVision.CodeEditor.Syntax.SyntaxClass
+TSharpVision.CodeEditor.Syntax.SyntaxClass.Tag = 11 -> TSharpVision.CodeEditor.Syntax.SyntaxClass
+TSharpVision.CodeEditor.Syntax.SyntaxClass.Type = 7 -> TSharpVision.CodeEditor.Syntax.SyntaxClass
+TSharpVision.CodeEditor.Syntax.SyntaxClassificationRequest
+TSharpVision.CodeEditor.Syntax.SyntaxClassificationRequest.Cache.get -> TSharpVision.CodeEditor.Syntax.SyntaxHighlightCache!
+TSharpVision.CodeEditor.Syntax.SyntaxClassificationRequest.Classify(System.Threading.CancellationToken cancellationToken) -> TSharpVision.CodeEditor.Syntax.SyntaxClassificationResult!
+TSharpVision.CodeEditor.Syntax.SyntaxClassificationRequest.FirstLine.get -> int
+TSharpVision.CodeEditor.Syntax.SyntaxClassificationRequest.LineCount.get -> int
+TSharpVision.CodeEditor.Syntax.SyntaxClassificationRequest.StartState.get -> TSharpVision.CodeEditor.Syntax.SyntaxLineState!
+TSharpVision.CodeEditor.Syntax.SyntaxClassificationRequest.Version.get -> int
+TSharpVision.CodeEditor.Syntax.SyntaxClassificationResult
+TSharpVision.CodeEditor.Syntax.SyntaxClassificationResult.ClassifiedLineCount.get -> int
+TSharpVision.CodeEditor.Syntax.SyntaxClassificationResult.Converged.get -> bool
+TSharpVision.CodeEditor.Syntax.SyntaxClassificationResult.Request.get -> TSharpVision.CodeEditor.Syntax.SyntaxClassificationRequest!
+TSharpVision.CodeEditor.Syntax.SyntaxClassificationWorker
+TSharpVision.CodeEditor.Syntax.SyntaxClassificationWorker.Cache.get -> TSharpVision.CodeEditor.Syntax.SyntaxHighlightCache!
+TSharpVision.CodeEditor.Syntax.SyntaxClassificationWorker.Commit(TSharpVision.CodeEditor.Syntax.SyntaxClassificationResult! result) -> bool
+TSharpVision.CodeEditor.Syntax.SyntaxClassificationWorker.Dispose() -> void
+TSharpVision.CodeEditor.Syntax.SyntaxClassificationWorker.IsWorking.get -> bool
+TSharpVision.CodeEditor.Syntax.SyntaxClassificationWorker.LastFailure.get -> System.Exception?
+TSharpVision.CodeEditor.Syntax.SyntaxClassificationWorker.MaxLinesPerRequest.get -> int
+TSharpVision.CodeEditor.Syntax.SyntaxClassificationWorker.MaxLinesPerRequest.set -> void
+TSharpVision.CodeEditor.Syntax.SyntaxClassificationWorker.Request(int lastLine, TSharpVision.CodeEditor.Syntax.ISyntaxLineSource! source) -> void
+TSharpVision.CodeEditor.Syntax.SyntaxClassificationWorker.SyntaxClassificationWorker(TSharpVision.CodeEditor.Syntax.SyntaxHighlightCache! cache, System.Action<TSharpVision.CodeEditor.Syntax.SyntaxClassificationResult!>! deliver, System.Func<System.Func<System.Threading.Tasks.Task!>!, System.Threading.Tasks.Task!>? startBackground = null) -> void
+TSharpVision.CodeEditor.Syntax.SyntaxColorScheme
+TSharpVision.CodeEditor.Syntax.SyntaxColorScheme.Apply(TSharpVision.CodeEditor.Syntax.SyntaxClass syntaxClass, ushort normalAttribute) -> ushort
+TSharpVision.CodeEditor.Syntax.SyntaxColorScheme.GetForeground(TSharpVision.CodeEditor.Syntax.SyntaxClass syntaxClass) -> byte?
+TSharpVision.CodeEditor.Syntax.SyntaxColorScheme.SyntaxColorScheme(System.Collections.Generic.IReadOnlyDictionary<TSharpVision.CodeEditor.Syntax.SyntaxClass, byte>! foregrounds) -> void
+TSharpVision.CodeEditor.Syntax.SyntaxHighlightCache
+TSharpVision.CodeEditor.Syntax.SyntaxHighlightCache.ApplyEdit(int firstLine, int removedLineCount, int insertedLineCount) -> void
+TSharpVision.CodeEditor.Syntax.SyntaxHighlightCache.ClassifiedLineCount.get -> long
+TSharpVision.CodeEditor.Syntax.SyntaxHighlightCache.Classifier.get -> TSharpVision.CodeEditor.Syntax.ISyntaxClassifier!
+TSharpVision.CodeEditor.Syntax.SyntaxHighlightCache.Clear() -> void
+TSharpVision.CodeEditor.Syntax.SyntaxHighlightCache.Commit(TSharpVision.CodeEditor.Syntax.SyntaxClassificationResult! result) -> bool
+TSharpVision.CodeEditor.Syntax.SyntaxHighlightCache.CreateRequest(int lastLine, TSharpVision.CodeEditor.Syntax.ISyntaxLineSource! source, int maxLines) -> TSharpVision.CodeEditor.Syntax.SyntaxClassificationRequest?
+TSharpVision.CodeEditor.Syntax.SyntaxHighlightCache.Invalidate(int firstLine) -> void
+TSharpVision.CodeEditor.Syntax.SyntaxHighlightCache.MaxLinesPerRequest.get -> int
+TSharpVision.CodeEditor.Syntax.SyntaxHighlightCache.MaxLinesPerRequest.set -> void
+TSharpVision.CodeEditor.Syntax.SyntaxHighlightCache.SyntaxHighlightCache(TSharpVision.CodeEditor.Syntax.ISyntaxClassifier! classifier) -> void
+TSharpVision.CodeEditor.Syntax.SyntaxHighlightCache.TryGetSpans(int lineIndex, TSharpVision.CodeEditor.Syntax.ISyntaxLineSource! source, out System.Collections.Generic.IReadOnlyList<TSharpVision.CodeEditor.Syntax.SyntaxSpan>! spans) -> bool
+TSharpVision.CodeEditor.Syntax.SyntaxHighlightCache.TryGetValidSpans(int lineIndex, out System.Collections.Generic.IReadOnlyList<TSharpVision.CodeEditor.Syntax.SyntaxSpan>! spans) -> bool
+TSharpVision.CodeEditor.Syntax.SyntaxHighlightCache.ValidLineCount.get -> int
+TSharpVision.CodeEditor.Syntax.SyntaxHighlightCache.Version.get -> int
+TSharpVision.CodeEditor.Syntax.SyntaxLanguage
+TSharpVision.CodeEditor.Syntax.SyntaxLanguage.DisplayName.get -> string!
+TSharpVision.CodeEditor.Syntax.SyntaxLanguage.Equals(TSharpVision.CodeEditor.Syntax.SyntaxLanguage? other) -> bool
+TSharpVision.CodeEditor.Syntax.SyntaxLanguage.Id.get -> string!
+TSharpVision.CodeEditor.Syntax.SyntaxLanguage.IsPlainText.get -> bool
+TSharpVision.CodeEditor.Syntax.SyntaxLanguage.SyntaxLanguage(string! id, string! displayName) -> void
+TSharpVision.CodeEditor.Syntax.SyntaxLineResult
+TSharpVision.CodeEditor.Syntax.SyntaxLineResult.EndState.get -> TSharpVision.CodeEditor.Syntax.SyntaxLineState!
+TSharpVision.CodeEditor.Syntax.SyntaxLineResult.Spans.get -> System.Collections.Generic.IReadOnlyList<TSharpVision.CodeEditor.Syntax.SyntaxSpan>!
+TSharpVision.CodeEditor.Syntax.SyntaxLineResult.SyntaxLineResult() -> void
+TSharpVision.CodeEditor.Syntax.SyntaxLineResult.SyntaxLineResult(System.Collections.Generic.IReadOnlyList<TSharpVision.CodeEditor.Syntax.SyntaxSpan>! spans, TSharpVision.CodeEditor.Syntax.SyntaxLineState! endState) -> void
+TSharpVision.CodeEditor.Syntax.SyntaxLineState
+TSharpVision.CodeEditor.Syntax.SyntaxLineState.SyntaxLineState() -> void
+TSharpVision.CodeEditor.Syntax.SyntaxSpan
+TSharpVision.CodeEditor.Syntax.SyntaxSpan.Class.get -> TSharpVision.CodeEditor.Syntax.SyntaxClass
+TSharpVision.CodeEditor.Syntax.SyntaxSpan.Class.init -> void
+TSharpVision.CodeEditor.Syntax.SyntaxSpan.Deconstruct(out int Start, out int Length, out TSharpVision.CodeEditor.Syntax.SyntaxClass Class) -> void
+TSharpVision.CodeEditor.Syntax.SyntaxSpan.End.get -> int
+TSharpVision.CodeEditor.Syntax.SyntaxSpan.Equals(TSharpVision.CodeEditor.Syntax.SyntaxSpan other) -> bool
+TSharpVision.CodeEditor.Syntax.SyntaxSpan.Length.get -> int
+TSharpVision.CodeEditor.Syntax.SyntaxSpan.Length.init -> void
+TSharpVision.CodeEditor.Syntax.SyntaxSpan.Start.get -> int
+TSharpVision.CodeEditor.Syntax.SyntaxSpan.Start.init -> void
+TSharpVision.CodeEditor.Syntax.SyntaxSpan.SyntaxSpan() -> void
+TSharpVision.CodeEditor.Syntax.SyntaxSpan.SyntaxSpan(int Start, int Length, TSharpVision.CodeEditor.Syntax.SyntaxClass Class) -> void
+TSharpVision.CodeEditor.Syntax.TextMate.TextMateSyntaxService
+TSharpVision.CodeEditor.Syntax.TextMate.TextMateSyntaxService.CreateClassifier(TSharpVision.CodeEditor.Syntax.SyntaxLanguage! language) -> TSharpVision.CodeEditor.Syntax.ISyntaxClassifier?
+TSharpVision.CodeEditor.Syntax.TextMate.TextMateSyntaxService.DetectLanguage(string? fileName, string? contentSample) -> TSharpVision.CodeEditor.Syntax.SyntaxLanguage!
+TSharpVision.CodeEditor.Syntax.TextMate.TextMateSyntaxService.TextMateSyntaxService() -> void
+TSharpVision.CodeEditor.TCodeEditor.SyntaxHighlighter.get -> TSharpVision.CodeEditor.Syntax.EditorSyntaxHighlighter!
+const TSharpVision.CodeEditor.Syntax.EditorSyntaxHighlighter.DefaultMaxHighlightedCharacters = 4194304 -> int
+const TSharpVision.CodeEditor.Syntax.SyntaxClassificationWorker.DefaultMaxLinesPerRequest = 500 -> int
+const TSharpVision.CodeEditor.Syntax.SyntaxHighlightCache.DefaultMaxLinesPerRequest = 2000 -> int
+const TSharpVision.CodeEditor.Syntax.SyntaxLanguage.PlainTextId = "plaintext" -> string!
+override TSharpVision.CodeEditor.Syntax.SyntaxLanguage.Equals(object? obj) -> bool
+override TSharpVision.CodeEditor.Syntax.SyntaxLanguage.GetHashCode() -> int
+override TSharpVision.CodeEditor.Syntax.SyntaxLanguage.ToString() -> string!
+override TSharpVision.CodeEditor.Syntax.SyntaxSpan.GetHashCode() -> int
+override TSharpVision.CodeEditor.TCodeEditor.HandleEvent(ref TSharpVision.TEvent ev) -> void
+override TSharpVision.CodeEditor.TCodeEditor.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.CodeEditor.TCodeEditor.ShutDown() -> void
+static TSharpVision.CodeEditor.Syntax.SyntaxColorScheme.Default.get -> TSharpVision.CodeEditor.Syntax.SyntaxColorScheme!
+static TSharpVision.CodeEditor.Syntax.SyntaxColorScheme.Monochrome.get -> TSharpVision.CodeEditor.Syntax.SyntaxColorScheme!
+static TSharpVision.CodeEditor.Syntax.SyntaxLanguage.PlainText.get -> TSharpVision.CodeEditor.Syntax.SyntaxLanguage!
+static TSharpVision.CodeEditor.Syntax.SyntaxSpan.operator !=(TSharpVision.CodeEditor.Syntax.SyntaxSpan left, TSharpVision.CodeEditor.Syntax.SyntaxSpan right) -> bool
+static TSharpVision.CodeEditor.Syntax.SyntaxSpan.operator ==(TSharpVision.CodeEditor.Syntax.SyntaxSpan left, TSharpVision.CodeEditor.Syntax.SyntaxSpan right) -> bool
+static TSharpVision.CodeEditor.Syntax.TextMate.TextMateSyntaxService.Default.get -> TSharpVision.CodeEditor.Syntax.TextMate.TextMateSyntaxService!
+~override TSharpVision.CodeEditor.Syntax.SyntaxSpan.Equals(object obj) -> bool
+~override TSharpVision.CodeEditor.Syntax.SyntaxSpan.ToString() -> string

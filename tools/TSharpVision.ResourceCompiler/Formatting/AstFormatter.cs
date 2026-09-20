@@ -81,7 +81,7 @@ public sealed class AstFormatter
 
     // ── Dialog ────────────────────────────────────────────────────────────
 
-    private static void WriteDialog(StringBuilder sb, DialogBody d)
+    private static void WriteDialog(StringBuilder sb, DialogBody? d)
     {
         if (d == null) return;
 
@@ -158,7 +158,7 @@ public sealed class AstFormatter
 
     // ── Menu ──────────────────────────────────────────────────────────────
 
-    private static void WriteMenu(StringBuilder sb, MenuBody m)
+    private static void WriteMenu(StringBuilder sb, MenuBody? m)
     {
         if (m == null) return;
 
@@ -202,7 +202,7 @@ public sealed class AstFormatter
 
     // ── StatusBar ─────────────────────────────────────────────────────────
 
-    private static void WriteStatusBar(StringBuilder sb, StatusBarBody s)
+    private static void WriteStatusBar(StringBuilder sb, StatusBarBody? s)
     {
         if (s == null) return;
 
@@ -228,7 +228,7 @@ public sealed class AstFormatter
         }
     }
 
-    private static void WriteStrings(StringBuilder sb, StringsBody s)
+    private static void WriteStrings(StringBuilder sb, StringsBody? s)
     {
         if (s == null) return;
 
@@ -251,7 +251,7 @@ public sealed class AstFormatter
     /// <summary>
     /// Wraps <paramref name="s"/> in double quotes and escapes special characters.
     /// </summary>
-    internal static string QuoteString(string s)
+    internal static string QuoteString(string? s)
     {
         if (s == null) return "\"\"";
         var sb = new StringBuilder(s.Length + 2);

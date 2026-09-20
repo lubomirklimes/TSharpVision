@@ -5,9 +5,9 @@ namespace TSharpVision;
 public class TMenuItem
 {
     /// <summary>Next entry in the same menu, or null at the end of the chain.</summary>
-    public TMenuItem Next { get; set; }
+    public TMenuItem? Next { get; set; }
     /// <summary>Display label with optional tilde-marked mnemonic; null or empty denotes a separator.</summary>
-    public string Name { get; set; }
+    public string? Name { get; set; }
     /// <summary>Command identifier dispatched on activation; zero identifies a submenu or separator.</summary>
     public ushort Command { get; set; }
     /// <summary>Whether this entry is unavailable for command activation and mnemonic lookup.</summary>
@@ -17,12 +17,24 @@ public class TMenuItem
     /// <summary>Help context identifier associated with this entry.</summary>
     public ushort HelpCtx { get; set; }
     /// <summary>Optional right-aligned text beside a command label, typically its shortcut description.</summary>
-    public string Param { get; set; }
+    public string? Param { get; set; }
     /// <summary>Referenced child menu for an entry whose command is zero.</summary>
     public TMenu SubMenu { get; set; }
 
-    /// <summary>Creates an enabled command entry with a label, accelerator, help context, optional right-hand text, and next node.</summary>
-    public TMenuItem(string aName, ushort aCommand, ushort aKeyCode, ushort aHelpCtx = Views.hcNoContext, string p = null, TMenuItem aNext = null)
+    /// <summary>Creates an enabled command entry with a label and accelerator.</summary>
+    public TMenuItem(string? aName, ushort aCommand, ushort aKeyCode)
+        : this(aName, aCommand, aKeyCode, Views.hcNoContext, null, null) { }
+
+    /// <summary>Creates an enabled command entry with a label, accelerator, and help context.</summary>
+    public TMenuItem(string? aName, ushort aCommand, ushort aKeyCode, ushort aHelpCtx)
+        : this(aName, aCommand, aKeyCode, aHelpCtx, null, null) { }
+
+    /// <summary>Creates an enabled command entry with a label, accelerator, help context, and right-hand text.</summary>
+    public TMenuItem(string? aName, ushort aCommand, ushort aKeyCode, ushort aHelpCtx, string? p)
+        : this(aName, aCommand, aKeyCode, aHelpCtx, p, null) { }
+
+    /// <summary>Creates an enabled command entry with a label, accelerator, help context, right-hand text, and next node.</summary>
+    public TMenuItem(string? aName, ushort aCommand, ushort aKeyCode, ushort aHelpCtx, string? p, TMenuItem? aNext)
     {
         Name = aName;
         Command = aCommand;
@@ -34,8 +46,16 @@ public class TMenuItem
         SubMenu = new TMenu();
     }
 
-    /// <summary>Creates an enabled submenu entry referencing the supplied child menu and optional next node.</summary>
-    public TMenuItem(string aName, ushort aKeyCode, TMenu aSubMenu, ushort aHelpCtx = Views.hcNoContext, TMenuItem aNext = null)
+    /// <summary>Creates an enabled submenu entry referencing the supplied child menu.</summary>
+    public TMenuItem(string aName, ushort aKeyCode, TMenu aSubMenu)
+        : this(aName, aKeyCode, aSubMenu, Views.hcNoContext, null) { }
+
+    /// <summary>Creates an enabled submenu entry referencing the supplied child menu and help context.</summary>
+    public TMenuItem(string aName, ushort aKeyCode, TMenu aSubMenu, ushort aHelpCtx)
+        : this(aName, aKeyCode, aSubMenu, aHelpCtx, null) { }
+
+    /// <summary>Creates an enabled submenu entry referencing the supplied child menu, help context, and next node.</summary>
+    public TMenuItem(string aName, ushort aKeyCode, TMenu aSubMenu, ushort aHelpCtx, TMenuItem? aNext)
     {
         Name = aName;
         KeyCode = aKeyCode;

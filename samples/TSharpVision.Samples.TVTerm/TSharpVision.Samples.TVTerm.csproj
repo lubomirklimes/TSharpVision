@@ -9,6 +9,7 @@
     <ProjectReference Include="..\..\src\TSharpVision.Drivers.Console\TSharpVision.Drivers.Console.csproj" />
     <ProjectReference Include="..\..\src\TSharpVision.Drivers.SDL\TSharpVision.Drivers.SDL.csproj" />
     <ProjectReference Include="..\..\src\TSharpVision\TSharpVision.csproj" />
+    <ProjectReference Include="..\..\tools\TSharpVision.HelpCompiler\TSharpVision.HelpCompiler.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>
@@ -26,7 +27,7 @@
   <Target Name="CompileTVTermHelp" BeforeTargets="Build">
     <MakeDir Directories="$(OutDir)Assets\Help" />
     <MakeDir Directories="$(IntermediateOutputPath)Help" />
-    <Exec Command="dotnet run --project &quot;$(MSBuildProjectDirectory)\..\..\tools\TSharpVision.HelpCompiler\TSharpVision.HelpCompiler.csproj&quot; -- --format v2 &quot;%(TVTermHelp.FullPath)&quot; &quot;$(OutDir)%(TVTermHelp.OutputName)&quot; &quot;$(IntermediateOutputPath)%(TVTermHelp.SymbolName)&quot;" />
+    <Exec Command="dotnet &quot;$(MSBuildProjectDirectory)\..\..\tools\TSharpVision.HelpCompiler\bin\$(Configuration)\$(TargetFramework)\svhc.dll&quot; --format v2 &quot;%(TVTermHelp.FullPath)&quot; &quot;$(OutDir)%(TVTermHelp.OutputName)&quot; &quot;$(IntermediateOutputPath)%(TVTermHelp.SymbolName)&quot;" />
   </Target>
 
 </Project>

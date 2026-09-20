@@ -1,8 +1,9 @@
 namespace TSharpVision.Constants;
 
 /// <summary>
-/// Event codes and masks. Bit values must match upstream Turbo Vision so that
-/// driver-emitted events stay binary-compatible with C++ event consumers.
+/// Event codes and masks. Historical bit values match upstream Turbo Vision so
+/// driver-emitted events preserve logical event-kind compatibility. Managed event
+/// storage is not binary-compatible with the original C++ layout.
 /// </summary>
 public static class Events
 {
@@ -16,11 +17,16 @@ public static class Events
     /// <summary>Repeated mouse action while a button remains held.</summary>
     public const ushort evMouseAuto  = 0x0008;
     
-    // mouse.buttons: mbButton4 = wheel up, mbButton5 = wheel down.
-    /// <summary>Mouse-wheel motion; direction is carried in the wheel pseudo-button bits.</summary>
+    /// <summary>Mouse-wheel motion; direction is carried by a <c>meWheel*</c> flag in the mouse payload.</summary>
     public const ushort evMouseWheel = 0x0020;
-    /// <summary>A keyboard key was pressed.</summary>
+    /// <summary>An ordinary keyboard key press or native repeat, including the control state at that moment.</summary>
     public const ushort evKeyDown    = 0x0010;
+    /// <summary>The complete logical Shift, Ctrl, and Alt state changed independently of an ordinary key press.</summary>
+    /// <remarks>The new state is available through <see cref="TEvent.Modifiers"/>.</remarks>
+    public const ushort evModifierChanged = 0x0040;
+    /// <summary>Release of an ordinary non-modifier key on drivers that support key-release reporting.</summary>
+    /// <remarks>Modifier-key releases are represented only by <see cref="evModifierChanged"/>.</remarks>
+    public const ushort evKeyUp = 0x0080;
     /// <summary>A command message routed through the focused view chain.</summary>
     public const ushort evCommand    = 0x0100;
     /// <summary>A message offered to child views that accept broadcast events.</summary>
@@ -29,24 +35,40 @@ public static class Events
     // Event masks
     /// <summary>No event, also used to mark an event consumed.</summary>
     public const ushort evNothing  = 0x0000;
-    // evMouse includes evMouseWheel (0x0020) so positional dispatch routes
-    // wheel events to the view under the cursor, matching the behaviour of
-    // evMouseDown/evMouseMove.
-    /// <summary>Mask of mouse events dispatched by screen position, including wheel motion.</summary>
-    public const ushort evMouse    = 0x002f;
-    /// <summary>Mask of keyboard events dispatched through focus.</summary>
+    // Historical Turbo Vision aggregate: the four classic mouse event bits.
+    // Extensions such as evMouseWheel require explicit opt-in.
+    /// <summary>Mask of the four historical mouse event kinds.</summary>
+    public const ushort evMouse    = 0x000f;
+    /// <summary>Historical mask selecting ordinary key-down events dispatched through focus.</summary>
+    // Deliberately remains the historical evKeyDown-only mask. Modifier transitions
+    // are additive and explicit so existing views do not start receiving new events.
     public const ushort evKeyboard = 0x0010;
     /// <summary>Mask selecting command and broadcast message kinds.</summary>
     public const ushort evMessage  = 0xff00;
 
-    // Mouse button state masks
-    /// <summary>Mouse-button state bit for the left button.</summary>
+    // Physical mouse-button state masks.
+    /// <summary>Historical mouse-button state bit for the left button.</summary>
     public const ushort mbLeftButton  = 0x01;
-    /// <summary>Mouse-button state bit for the right button.</summary>
+    /// <summary>Historical mouse-button state bit for the right button.</summary>
     public const ushort mbRightButton = 0x02;
-    // Wheel direction pseudo-buttons (never set for real clicks).
-    /// <summary>Wheel-up pseudo-button, directed toward the screen top.</summary>
-    public const ushort mbButton4 = 0x04;   // wheel up   (toward screen top)
-    /// <summary>Wheel-down pseudo-button, directed toward the screen bottom.</summary>
-    public const ushort mbButton5 = 0x08;   // wheel down (toward screen bottom)
+    /// <summary>TSharpVision extension for the physical middle mouse button.</summary>
+    public const ushort mbMiddleButton = 0x04;
+    /// <summary>TSharpVision extension for the first physical side button.</summary>
+    public const ushort mbButton4 = 0x08;
+    /// <summary>TSharpVision extension for the second physical side button.</summary>
+    public const ushort mbButton5 = 0x10;
+
+    // Mouse eventFlags.
+    /// <summary>Historical Turbo Vision flag indicating that the pointer position changed.</summary>
+    public const uint meMouseMoved = 0x01;
+    /// <summary>Historical Turbo Vision flag indicating a classified double-click button-down.</summary>
+    public const uint meDoubleClick = 0x02;
+    /// <summary>TSharpVision extension indicating upward vertical wheel motion.</summary>
+    public const uint meWheelUp = 0x04;
+    /// <summary>TSharpVision extension indicating downward vertical wheel motion.</summary>
+    public const uint meWheelDown = 0x08;
+    /// <summary>TSharpVision extension indicating horizontal wheel motion to the left.</summary>
+    public const uint meWheelLeft = 0x10;
+    /// <summary>TSharpVision extension indicating horizontal wheel motion to the right.</summary>
+    public const uint meWheelRight = 0x20;
 }

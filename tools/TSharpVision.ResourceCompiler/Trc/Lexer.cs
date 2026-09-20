@@ -83,7 +83,7 @@ public sealed class Lexer
                 break;
             }
             char c = _src[_pos];
-            Token t = ReadToken(c);
+            Token? t = ReadToken(c);
             if (t != null) tokens.Add(t);
         }
         return tokens;
@@ -149,7 +149,7 @@ public sealed class Lexer
 
     // ── Token dispatch ────────────────────────────────────────────────────────
 
-    private Token ReadToken(char c)
+    private Token? ReadToken(char c)
     {
         int startLine = _line, startCol = _col;
 

@@ -20,12 +20,12 @@ public class Opstream : Pstream
     public Opstream(Stream sb) : base(sb) { }
 
     /// <summary>Writes one byte at the current stream position.</summary>
-    public void WriteByte(byte ch) { bp.WriteByte(ch); }
+    public void WriteByte(byte ch) { Buffer.WriteByte(ch); }
 
     /// <summary>Writes the first sz bytes of the supplied array.</summary>
-    public void WriteBytes(byte[] data, int sz) { bp.Write(data, 0, sz); }
+    public void WriteBytes(byte[] data, int sz) { Buffer.Write(data, 0, sz); }
     /// <summary>Writes sz bytes starting at the supplied array offset.</summary>
-    public void WriteBytes(byte[] data, int offset, int sz) { bp.Write(data, offset, sz); }
+    public void WriteBytes(byte[] data, int offset, int sz) { Buffer.Write(data, offset, sz); }
 
     // Upstream's Short=2 / Int=4 / Long depend on host int sizes; on the
     // target Borland 16-bit they were 2/4/4 bytes respectively. We pick
@@ -43,16 +43,16 @@ public class Opstream : Pstream
     /// <summary>Writes an unsigned 16-bit value in little-endian byte order.</summary>
     public void Write16(ushort v)
     {
-        bp.WriteByte((byte)v);
-        bp.WriteByte((byte)(v >> 8));
+        Buffer.WriteByte((byte)v);
+        Buffer.WriteByte((byte)(v >> 8));
     }
     /// <summary>Writes an unsigned 32-bit value in little-endian byte order.</summary>
     public void Write32(uint v)
     {
-        bp.WriteByte((byte)v);
-        bp.WriteByte((byte)(v >> 8));
-        bp.WriteByte((byte)(v >> 16));
-        bp.WriteByte((byte)(v >> 24));
+        Buffer.WriteByte((byte)v);
+        Buffer.WriteByte((byte)(v >> 8));
+        Buffer.WriteByte((byte)(v >> 16));
+        Buffer.WriteByte((byte)(v >> 24));
     }
     /// <summary>Writes an unsigned 64-bit value in little-endian byte order.</summary>
     public void Write64(ulong v)
@@ -64,7 +64,7 @@ public class Opstream : Pstream
     // Encoding: strings are stored as UTF-16 code units in little-endian order.
     // Length is the number of UTF-16 chars, not the number of bytes.
     /// <summary>Writes a nullable, length-prefixed UTF-16 string in little-endian order; length counts code units.</summary>
-    public void WriteString(string str)
+    public void WriteString(string? str)
     {
         if (str == null)
         {
@@ -88,14 +88,14 @@ public class Opstream : Pstream
     // seek midway through a stream cannot accidentally produce a ptIndexed
     // reference to an object that is no longer at the cursor's vantage point.
     /// <summary>Returns the underlying stream position in bytes.</summary>
-    public long Tellp() => bp.Position;
+    public long Tellp() => Buffer.Position;
 
     /// <summary>Seeks to an absolute byte position and clears recorded object identities.</summary>
     public Opstream Seekp(long pos)
     {
         _objs.Clear();
         _curId = 0;
-        bp.Seek(pos, System.IO.SeekOrigin.Begin);
+        Buffer.Seek(pos, System.IO.SeekOrigin.Begin);
         return this;
     }
 
@@ -104,14 +104,14 @@ public class Opstream : Pstream
     {
         _objs.Clear();
         _curId = 0;
-        bp.Seek(off, origin);
+        Buffer.Seek(off, origin);
         return this;
     }
 
     /// <summary>Flushes the underlying stream and returns this wrapper.</summary>
     public Opstream Flush()
     {
-        bp.Flush();
+        Buffer.Flush();
         return this;
     }
 
@@ -125,7 +125,8 @@ public class Opstream : Pstream
     }
 
     /// <summary>Writes null, a reference to an already written object, or a new serialized object while preserving identity.</summary>
-    public Opstream WritePointer(TStreamable t)
+    /// <param name="t">Object to serialize; null is written using the existing null-pointer representation.</param>
+    public Opstream WritePointer(TStreamable? t)
     {
         if (t == null)
         {

@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>TSharpVision.CodeEditor</PackageId>
+    <Description>Syntax-aware code editor components for TSharpVision using TextMate grammars.</Description>
+    <PackageTags>tsharpvision;tui;editor;code-editor;syntax-highlighting;textmate</PackageTags>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <WarningsAsErrors>$(WarningsAsErrors);RS0016;RS0017;RS0022;RS0024</WarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="TextMateSharp" />
+    <PackageReference Include="TextMateSharp.Grammars" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\TSharpVision\TSharpVision.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="TSharpVision.CodeEditor.Tests" />
+  </ItemGroup>
+
+</Project>

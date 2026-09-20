@@ -42,14 +42,14 @@ internal static class NativeMethods
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     internal static extern bool CreateProcess(
-        string lpApplicationName,
+        string? lpApplicationName,
         System.Text.StringBuilder lpCommandLine,
         IntPtr lpProcessAttributes,
         IntPtr lpThreadAttributes,
         bool bInheritHandles,
         uint dwCreationFlags,
         IntPtr lpEnvironment,
-        string lpCurrentDirectory,
+        string? lpCurrentDirectory,
         ref STARTUPINFOEX lpStartupInfo,
         out PROCESS_INFORMATION lpProcessInformation);
 
@@ -94,13 +94,13 @@ internal static class NativeMethods
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     internal static extern SafeJobObjectHandle CreateJobObject(
         IntPtr lpJobAttributes,
-        string lpName);
+        string? lpName);
 
     [DllImport("kernel32.dll", SetLastError = true)]
     internal static extern bool SetInformationJobObject(
         SafeJobObjectHandle hJob,
         int JobObjectInformationClass,
-        ref JOBOBJECT_BASIC_LIMIT_INFORMATION lpJobObjectInformation,
+        ref JOBOBJECT_EXTENDED_LIMIT_INFORMATION lpJobObjectInformation,
         int cbJobObjectInformationLength);
 
     [DllImport("kernel32.dll", SetLastError = true)]
@@ -127,7 +127,7 @@ internal static class NativeMethods
     internal const uint INFINITE = 0xFFFFFFFF;
 
     /// <summary>Job object information class for basic limit information.</summary>
-    internal const int JobObjectBasicLimitInformation = 2;
+    internal const int JobObjectExtendedLimitInformation = 9;
 
     /// <summary>
     /// Job limit flag: kill all processes in the job when the last job handle is closed.
@@ -204,6 +204,28 @@ internal static class NativeMethods
         public UIntPtr Affinity;
         public uint    PriorityClass;
         public uint    SchedulingClass;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct IO_COUNTERS
+    {
+        public ulong ReadOperationCount;
+        public ulong WriteOperationCount;
+        public ulong OtherOperationCount;
+        public ulong ReadTransferCount;
+        public ulong WriteTransferCount;
+        public ulong OtherTransferCount;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct JOBOBJECT_EXTENDED_LIMIT_INFORMATION
+    {
+        public JOBOBJECT_BASIC_LIMIT_INFORMATION BasicLimitInformation;
+        public IO_COUNTERS IoInfo;
+        public UIntPtr ProcessMemoryLimit;
+        public UIntPtr JobMemoryLimit;
+        public UIntPtr PeakProcessMemoryUsed;
+        public UIntPtr PeakJobMemoryUsed;
     }
 }
 

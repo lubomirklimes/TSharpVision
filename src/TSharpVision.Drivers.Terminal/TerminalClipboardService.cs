@@ -24,11 +24,11 @@ public sealed class TerminalClipboardService : IClipboardService
     public bool IsAvailable => TryFindPair(out _);
 
     /// <inheritdoc />
-    public string GetText()
+    public string? GetText()
     {
         if (!TryFindPair(out var pair)) return null;
 
-        string text = _runner.ReadText(pair.ReadFileName, pair.ReadArgs);
+        string? text = _runner.ReadText(pair.ReadFileName, pair.ReadArgs);
         if (string.IsNullOrEmpty(text)) return null;
         return ClipboardEncoding.NormalizeFromCrLf(text);
     }
@@ -37,7 +37,7 @@ public sealed class TerminalClipboardService : IClipboardService
     public bool TryGetText(out string text)
     {
         text = string.Empty;
-        string s = GetText();
+        string? s = GetText();
         if (s == null) return false;
         text = s;
         return true;

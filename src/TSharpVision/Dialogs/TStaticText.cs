@@ -85,7 +85,7 @@ public class TStaticText : TView
         new TStreamableClass("TStaticText", () => new TStaticText(StreamableInit.streamableInit), 0);
 
     /// <summary>Creates an instance for restoration from a stream without running normal initialization.</summary>
-    protected TStaticText(StreamableInit init) : base(init) { }
+    protected TStaticText(StreamableInit init) : base(init) { Text = string.Empty; }
 
     /// <inheritdoc />
     public override void Write(Opstream os)
@@ -98,7 +98,7 @@ public class TStaticText : TView
     public override object Read(Ipstream isStream)
     {
         base.Read(isStream);
-        Text = isStream.ReadString();
+        Text = isStream.ReadString() ?? string.Empty;
         return this;
     }
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
 namespace TSharpVision;
 
@@ -36,7 +37,7 @@ public sealed class TStringResource : TStreamable
     public IReadOnlyDictionary<string, string> Strings => _strings;
 
     /// <summary>Looks up an ordinal key, returning true and its value when present, or false and null when absent.</summary>
-    public bool TryGetValue(string key, out string value)
+    public bool TryGetValue(string key, [MaybeNullWhen(false)] out string value)
         => _strings.TryGetValue(key, out value);
 
     /// <inheritdoc />

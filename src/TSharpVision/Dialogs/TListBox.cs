@@ -38,7 +38,7 @@ public class TStringCollection : TStreamable
     {
         int count = isStream.ReadShort();
         Items = new List<string>(count);
-        for (int i = 0; i < count; i++) Items.Add(isStream.ReadString());
+        for (int i = 0; i < count; i++) Items.Add(isStream.ReadString() ?? string.Empty);
         return this;
     }
 }
@@ -47,7 +47,7 @@ public class TStringCollection : TStreamable
 public class TListBoxRec
 {
     /// <summary>String collection supplied to or retrieved from the list box.</summary>
-    public TStringCollection Items;
+    public TStringCollection? Items;
     /// <summary>Zero-based focused item index transferred with the collection.</summary>
     public int Selection;
 }
@@ -59,12 +59,12 @@ public class TListBox : TListViewer
     public new static readonly string Name = "TListBox";
 
     /// <summary>Referenced string collection, or null when the list is empty or detached from data.</summary>
-    protected TStringCollection items;
+    protected TStringCollection? items;
     /// <summary>Whether retrieved labels are padded for centered display.</summary>
     protected bool center;
 
     /// <summary>Creates an empty list at owner-relative cell bounds with the requested column count and vertical scrollbar.</summary>
-    public TListBox(TRect bounds, ushort aNumCols, TScrollBar aScrollBar)
+    public TListBox(TRect bounds, ushort aNumCols, TScrollBar? aScrollBar)
         : base(bounds, aNumCols, null, aScrollBar)
     {
         items = null;
@@ -91,7 +91,7 @@ public class TListBox : TListViewer
     }
 
     /// <summary>References a new collection, resets the item range and focus, and redraws the list.</summary>
-    public virtual void NewList(TStringCollection aList)
+    public virtual void NewList(TStringCollection? aList)
     {
         items = aList;
         SetRange(aList?.Count ?? 0);
@@ -111,7 +111,7 @@ public class TListBox : TListViewer
     }
 
     /// <summary>Returns the currently referenced string collection, or null before data is assigned.</summary>
-    public TStringCollection List() => items;
+    public TStringCollection? List() => items;
 
     // Wire layout (after TListViewer base): pointer to TStringCollection items.
 

@@ -230,9 +230,8 @@ public class TEventQueue : IDisposable
                     HandleClickDetection(ref ev);
                 else if (ev.What == Events.evMouseWheel)
                 {
-                    // wheel events carry wheel direction in
-                    // mouse.buttons (mbButton4/mbButton5), NOT real button
-                    // state. Do NOT update _lastMouse or the next real
+                    // Wheel events can carry held physical buttons, but they do not
+                    // describe a button transition. Do NOT update _lastMouse or the next real
                     // evMouseDown would see non-zero buttons and fail to
                     // detect the DOWN transition correctly.
                 }
@@ -263,16 +262,17 @@ public class TEventQueue : IDisposable
             // double‑click?
             if (m.buttons == _downMouse.buttons
                 && m.where == _downMouse.where
-                && now - _downTime <= DoubleDelay)
+                && now - _downTime <= DoubleDelay
+                && (_downMouse.eventFlags & Events.meDoubleClick) == 0)
             {
-                m.doubleClick = true;
-                ev.mouse.doubleClick = true;
+                m.eventFlags |= Events.meDoubleClick;
             }
 
             _downMouse = m;
             _downTime = now;
             _autoTime = now + RepeatDelay;
             ev.What = Events.evMouseDown;
+            ev.mouse = m;
             _lastMouse = m;
             return;
         }
@@ -280,6 +280,8 @@ public class TEventQueue : IDisposable
         if (m.where != _lastMouse.where)
         {
             ev.What = Events.evMouseMove;
+            m.eventFlags |= Events.meMouseMoved;
+            ev.mouse = m;
             _lastMouse = m;
             return;
         }

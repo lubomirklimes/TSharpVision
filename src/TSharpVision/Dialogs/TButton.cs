@@ -130,8 +130,7 @@ public class TButton : TView
 
     private static ushort GetAltCode(char c)
     {
-        if (c >= 'A' && c <= 'Z') return (ushort)(Keys.kbAltA + (c - 'A'));
-        return Keys.kbNoKey;
+        return KeyboardCompatibility.AltCode(c);
     }
 
     /// <inheritdoc />
@@ -150,22 +149,26 @@ public class TButton : TView
             mouse = MakeLocal(@event.mouse.where);
             if (!clickRect.Contains(mouse)) ClearEvent(ref @event);
         }
-        base.HandleEvent(ref @event);
+        if ((Flags & ButtonConstants.bfGrabFocus) != 0)
+            base.HandleEvent(ref @event);
 
         switch (@event.What)
         {
             case Events.evMouseDown:
-                clickRect.b.x++;
-                do
+                if ((state & Views.sfDisabled) == 0)
                 {
-                    mouse = MakeLocal(@event.mouse.where);
-                    if (down != clickRect.Contains(mouse))
+                    clickRect.b.x++;
+                    do
                     {
-                        down = !down;
-                        DrawState(down);
-                    }
-                } while (MouseEvent(ref @event, Events.evMouseMove));
-                if (down) { Press(); DrawState(false); }
+                        mouse = MakeLocal(@event.mouse.where);
+                        if (down != clickRect.Contains(mouse))
+                        {
+                            down = !down;
+                            DrawState(down);
+                        }
+                    } while (MouseEvent(ref @event, Events.evMouseMove));
+                    if (down) { Press(); DrawState(false); }
+                }
                 ClearEvent(ref @event);
                 break;
 
@@ -282,7 +285,7 @@ public class TButton : TView
         new TStreamableClass("TButton", () => new TButton(StreamableInit.streamableInit), 0);
 
     /// <summary>Creates an instance for restoration from a stream without running normal initialization.</summary>
-    protected TButton(StreamableInit init) : base(init) { }
+    protected TButton(StreamableInit init) : base(init) { Title = string.Empty; }
 
     /// <inheritdoc />
     public override void Write(Opstream os)
@@ -298,7 +301,7 @@ public class TButton : TView
     public override object Read(Ipstream isStream)
     {
         base.Read(isStream);
-        Title = isStream.ReadString();
+        Title = isStream.ReadString() ?? string.Empty;
         Command = isStream.ReadShort();
         Flags = (byte)isStream.ReadByte();
         AmDefault = isStream.ReadInt() != 0;

@@ -94,7 +94,7 @@ public class TFrame : TView
 
         if (owner != null)
         {
-            string title = win?.GetTitle((short)l);
+            string? title = win?.GetTitle((short)l);
             if (!string.IsNullOrEmpty(title))
             {
                 int ls = title.Length;
@@ -124,9 +124,9 @@ public class TFrame : TView
             if ((win.flags & Views.wfZoom) != 0)
             {
                 TPoint minSize = default, maxSize = default;
-                owner.SizeLimits(ref minSize, ref maxSize);
+                win.SizeLimits(ref minSize, ref maxSize);
                 b.moveCStr(width - 5,
-                    owner.size == maxSize ? UnZoomIcon : ZoomIcon, cFrame);
+                    win.size == maxSize ? UnZoomIcon : ZoomIcon, cFrame);
             }
         }
 

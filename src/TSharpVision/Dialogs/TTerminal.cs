@@ -1,5 +1,4 @@
 using TSharpVision.Constants;
-using System.Diagnostics;
 using System.Text;
 
 namespace TSharpVision;
@@ -24,46 +23,6 @@ public class TTerminal : TView
     private const ushort SelectionColor = Colors.fgBlack | Colors.bgCyan;
     private const int WheelStep = 3;
 
-    // ── Diagnostic trace ─────────────────────────────────────────────────────
-    // Set to true to log raw I/O and parser events to Debug output (DEBUG builds only).
-    // Flip to false to silence without removing the instrumentation.
-#if DEBUG
-    private const bool TraceTerminalRawIo = false;
-#else
-    private const bool TraceTerminalRawIo = false;
-#endif
-
-    [Conditional("DEBUG")]
-    private static void TraceTerminal(string message)
-    {
-        if (TraceTerminalRawIo)
-            Debug.WriteLine(message);
-    }
-
-    /// <summary>
-    /// Renders control characters as visible escape sequences so they can be
-    /// read in the debug output without mangling the log line.
-    /// </summary>
-    private static string EscapeForLog(string text)
-    {
-        if (text == null) return "(null)";
-        var sb = new StringBuilder(text.Length * 2);
-        foreach (char ch in text)
-            sb.Append(ch switch
-            {
-                '\r'  => "\\r",
-                '\n'  => "\\n",
-                '\b'  => "\\b",
-                '\t'  => "\\t",
-                '\x1b' => "\\x1B",
-                _ when char.IsControl(ch) => $"\\x{(int)ch:X2}",
-                _ => ch.ToString()
-            });
-        return sb.ToString();
-    }
-
-    private static string EscapeForLog(char ch) => EscapeForLog(ch.ToString());
-
     // ── Output buffer ─────────────────────────────────────────────────────────
 
     private readonly List<string> _lines = new(DefaultMaxLines);
@@ -87,7 +46,7 @@ public class TTerminal : TView
 
     // ── Session ───────────────────────────────────────────────────────────────
 
-    private ITerminalSession _session;
+    private ITerminalSession? _session;
 
     // ── Selection ─────────────────────────────────────────────────────────────
 
@@ -110,7 +69,7 @@ public class TTerminal : TView
     private bool _ansiEnabled = true;
     private readonly AnsiTerminalParser _parser = new();
     private readonly List<TerminalCell[]> _cellLines = new(DefaultMaxLines);
-    private TerminalCell[][]? _visibleCellsCache;
+    private TerminalCell[]?[]? _visibleCellsCache;
     private readonly List<TerminalCell> _currentCells = new();
 
     // Column at which the next output character will be written (0-based).
@@ -308,7 +267,7 @@ public class TTerminal : TView
     /// Raised when the user presses Enter in input mode. Empty commands are
     /// allowed; the prompt line is echoed in all cases.
     /// </summary>
-    public event EventHandler<TerminalCommandEventArgs> CommandSubmitted;
+    public event EventHandler<TerminalCommandEventArgs>? CommandSubmitted;
 
     // ── Scroll API ────────────────────────────────────────────────────────────
 
@@ -530,7 +489,7 @@ public class TTerminal : TView
     /// cell data (e.g. lines written before ANSI mode was enabled).
     /// Returns null when <see cref="AnsiEnabled"/> is false.
     /// </summary>
-    public TerminalCell[][]? GetVisibleCellLines(int height)
+    public TerminalCell[]?[]? GetVisibleCellLines(int height)
     {
         if (!_ansiEnabled || height <= 0) return null;
         bool hasCurrentLine = _currentCells.Count > 0 || _lineBuilder.Length > 0;
@@ -540,7 +499,7 @@ public class TTerminal : TView
         int firstVisible = maxOffset - effectiveOffset;
 
         if (_visibleCellsCache == null || _visibleCellsCache.Length < height)
-            _visibleCellsCache = new TerminalCell[height][];
+            _visibleCellsCache = new TerminalCell[]?[height];
 
         for (int i = 0; i < height; i++)
         {
@@ -580,7 +539,7 @@ public class TTerminal : TView
     {
         if (count <= 0) return;
         var visible = GetVisibleLines(count);
-        TerminalCell[][]? visibleCells = _ansiEnabled ? GetVisibleCellLines(count) : null;
+        TerminalCell[]?[]? visibleCells = _ansiEnabled ? GetVisibleCellLines(count) : null;
 
         Span<TScreenChar> rowBuf = stackalloc TScreenChar[size.x > 0 ? size.x : 1];
         for (int row = 0; row < count; row++)
@@ -684,7 +643,9 @@ public class TTerminal : TView
 
         if (ev.What == Events.evMouseWheel)
         {
-            bool up = (ev.mouse.buttons & Events.mbButton4) != 0;
+            bool up = (ev.mouse.eventFlags & Events.meWheelUp) != 0;
+            bool down = (ev.mouse.eventFlags & Events.meWheelDown) != 0;
+            if (!up && !down) return;
             int h = OutputHeight();
             for (int i = 0; i < WheelStep; i++)
             {
@@ -925,7 +886,7 @@ public class TTerminal : TView
         // Capture the active session before the event fires so that a handler
         // that swaps the session (e.g. StartShell switching to RawSession) does
         // not cause the command text to be forwarded to the newly attached session.
-        ITerminalSession sessionAtSubmit = _session;
+        ITerminalSession? sessionAtSubmit = _session;
 
         // Echo to output.
         WriteLine(_prompt + command);
@@ -962,12 +923,13 @@ public class TTerminal : TView
     private void SendRaw(string text)
     {
         if (_session == null || !_session.IsRunning || string.IsNullOrEmpty(text)) return;
-        TraceTerminal($"TTerminal RAW IN  -> [{EscapeForLog(text)}]");
         _ = SendToSessionAsync(text, _session);
     }
 
     private System.Threading.Tasks.Task SendToSessionAsync(string text)
-        => SendToSessionAsync(text, _session);
+        => _session is ITerminalSession session
+            ? SendToSessionAsync(text, session)
+            : System.Threading.Tasks.Task.CompletedTask;
 
     private async System.Threading.Tasks.Task SendToSessionAsync(string text, ITerminalSession session)
     {
@@ -1161,8 +1123,6 @@ public class TTerminal : TView
             text,
             onChar: (ch, attr) =>
             {
-                if (TraceTerminalRawIo)
-                    TraceTerminal($"TTerminal PARSER: Char('{EscapeForLog(ch)}') at col {_cursorColumn}, lineLen={_lineBuilder.Length}");
                 if (_cursorColumn < _lineBuilder.Length)
                 {
                     // Overwrite the character at the current column.
@@ -1185,14 +1145,10 @@ public class TTerminal : TView
             },
             onNewLine: () =>
             {
-                if (TraceTerminalRawIo)
-                    TraceTerminal($"TTerminal PARSER: LF  (col={_cursorColumn}, lineLen={_lineBuilder.Length})");
                 CommitLine();
             },
             onCarriageReturn: () =>
             {
-                if (TraceTerminalRawIo)
-                    TraceTerminal($"TTerminal PARSER: CR  (col={_cursorColumn}, lineLen={_lineBuilder.Length})");
                 // CR moves the terminal cursor to the start of the current visual line.
                 // Record the absolute column before resetting so that _currentLineBaseColumn
                 // stays at the left edge of the line (which is 0 for the first write,
@@ -1202,16 +1158,12 @@ public class TTerminal : TView
             },
             onBackspace: () =>
             {
-                if (TraceTerminalRawIo)
-                    TraceTerminal($"TTerminal PARSER: BS  (col={_cursorColumn}, lineLen={_lineBuilder.Length})");
                 if (_cursorColumn > 0)
                     _cursorColumn--;
             },
             onClearScreen: Clear,
             onEraseInLine: (mode) =>
             {
-                if (TraceTerminalRawIo)
-                    TraceTerminal($"TTerminal PARSER: EraseInLine({mode}) at col {_cursorColumn}, lineLen={_lineBuilder.Length}");
                 switch (mode)
                 {
                     case 0: // erase from cursor to end of line
@@ -1240,21 +1192,15 @@ public class TTerminal : TView
             onCursorColumn: (n) =>
             {
                 int newCol = Math.Max(0, n - 1);
-                if (TraceTerminalRawIo)
-                    TraceTerminal($"TTerminal PARSER: CursorColumn({n}) -> col {newCol}, lineLen={_lineBuilder.Length}");
                 _cursorColumn = newCol;
             },
             onCursorRight: (n) =>
             {
-                if (TraceTerminalRawIo)
-                    TraceTerminal($"TTerminal PARSER: CursorRight({n}) col {_cursorColumn}->{_cursorColumn + n}, lineLen={_lineBuilder.Length}");
                 _cursorColumn += n;
             },
             onCursorLeft: (n) =>
             {
                 int newCol = Math.Max(0, _cursorColumn - n);
-                if (TraceTerminalRawIo)
-                    TraceTerminal($"TTerminal PARSER: CursorLeft({n}) col {_cursorColumn}->{newCol}, lineLen={_lineBuilder.Length}");
                 _cursorColumn = newCol;
             },
             onCursorPosition: (row, col) =>
@@ -1278,8 +1224,6 @@ public class TTerminal : TView
                 {
                     logCol = Math.Max(0, absCol - _currentLineBaseColumn);
                 }
-                if (TraceTerminalRawIo)
-                    TraceTerminal($"TTerminal PARSER: CursorPosition(row={row}, col={col}) absCol={absCol} base={_currentLineBaseColumn} known={_currentLineBaseColumnKnown} -> logCol={logCol}, lineLen={_lineBuilder.Length}");
 
                 // Before repositioning: if there is content after the new logical
                 // column and it is all spaces (i.e. the shell just overwrote typed
@@ -1519,9 +1463,8 @@ public class TTerminal : TView
         }
     }
 
-    private void OnSessionOutput(object sender, TerminalOutputEventArgs e)
+    private void OnSessionOutput(object? sender, TerminalOutputEventArgs e)
     {
-        TraceTerminal($"TTerminal RAW OUT <- [{EscapeForLog(e.Text)}]");
         Write(e.Text);
     }
 

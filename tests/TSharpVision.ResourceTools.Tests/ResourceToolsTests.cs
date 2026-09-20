@@ -275,8 +275,7 @@ public sealed class InspectionTests : IDisposable
     public void ReadRawPayload_HelloKey_ReturnsBytesStartingWithPtObject()
     {
         string tvr = CompileToTemp(Fixtures.HelloTrc, "hello.tvr");
-        byte[] raw = TvrInspector.ReadRawPayload(tvr, "dialog.hello");
-        Assert.NotNull(raw);
+        byte[] raw = Assert.IsType<byte[]>(TvrInspector.ReadRawPayload(tvr, "dialog.hello"));
         Assert.True(raw.Length > 0);
         Assert.Equal(0x02, raw[0]); // ptObject
     }
@@ -285,7 +284,7 @@ public sealed class InspectionTests : IDisposable
     public void ReadRawPayload_MissingKey_ReturnsNull()
     {
         string tvr = CompileToTemp(Fixtures.HelloTrc, "hello.tvr");
-        byte[] raw = TvrInspector.ReadRawPayload(tvr, "dialog.nonexistent");
+        byte[]? raw = TvrInspector.ReadRawPayload(tvr, "dialog.nonexistent");
         Assert.Null(raw);
     }
 

@@ -8,17 +8,17 @@ public sealed class TerminalClipboardServiceTests
     private sealed class FakeRunner : ITerminalClipboardCommandRunner
     {
         public readonly HashSet<string> Commands = new();
-        public string ClipboardText;
-        public string LastReadFileName;
-        public string[] LastReadArgs;
-        public string LastWriteFileName;
-        public string[] LastWriteArgs;
-        public string LastWrittenText;
+        public string? ClipboardText;
+        public string? LastReadFileName;
+        public string[]? LastReadArgs;
+        public string? LastWriteFileName;
+        public string[]? LastWriteArgs;
+        public string? LastWrittenText;
         public bool WriteResult = true;
 
         public bool CommandExists(string fileName) => Commands.Contains(fileName);
 
-        public string ReadText(string fileName, string[] args)
+        public string? ReadText(string fileName, string[] args)
         {
             LastReadFileName = fileName;
             LastReadArgs = args;
@@ -65,7 +65,7 @@ public sealed class TerminalClipboardServiceTests
         var svc = new TerminalClipboardService(fake, TerminalClipboardPlatform.Linux);
         Assert.Equal("hello", svc.GetText());
         Assert.Equal("wl-paste", fake.LastReadFileName);
-        Assert.Empty(fake.LastReadArgs);
+        Assert.Empty(Assert.IsType<string[]>(fake.LastReadArgs));
     }
 
     [Fact]
@@ -110,7 +110,7 @@ public sealed class TerminalClipboardServiceTests
         var svc = new TerminalClipboardService(fake, TerminalClipboardPlatform.Linux);
         Assert.True(svc.SetText("copy me"));
         Assert.Equal("wl-copy", fake.LastWriteFileName);
-        Assert.Empty(fake.LastWriteArgs);
+        Assert.Empty(Assert.IsType<string[]>(fake.LastWriteArgs));
         Assert.Equal("copy me", fake.LastWrittenText);
     }
 

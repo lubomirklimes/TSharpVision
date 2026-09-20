@@ -7,7 +7,8 @@ namespace TSharpVision;
 public class Ipstream : Pstream
 {
     // Index 0 is unused so that the upstream 1-based ids map directly.
-    private readonly List<object> _objs = new() { null };
+    private readonly List<object?> _objs = new() { null };
+    private int _objectReadDepth;
 
     /// <summary>Creates an input wrapper without an attached underlying stream.</summary>
     public Ipstream() { }
@@ -17,14 +18,14 @@ public class Ipstream : Pstream
 
     // Upstream's seekg() removes the read-objects table and clears the EOF bit
     /// <summary>Returns the underlying stream position in bytes.</summary>
-    public long Tellg() => bp.Position;
+    public long Tellg() => Buffer.Position;
 
     /// <summary>Seeks to an absolute byte position and clears stream state and recorded object identities.</summary>
     public Ipstream Seekg(long pos)
     {
         _objs.Clear();
         _objs.Add(null);
-        bp.Seek(pos, System.IO.SeekOrigin.Begin);
+        Buffer.Seek(pos, System.IO.SeekOrigin.Begin);
         Clear();
         return this;
     }
@@ -34,7 +35,7 @@ public class Ipstream : Pstream
     {
         _objs.Clear();
         _objs.Add(null);
-        bp.Seek(off, origin);
+        Buffer.Seek(off, origin);
         Clear();
         return this;
     }
@@ -42,7 +43,7 @@ public class Ipstream : Pstream
     /// <summary>Reads one byte; at end of stream returns zero and sets the EOF state bit.</summary>
     public byte ReadByte()
     {
-        int r = bp.ReadByte();
+        int r = Buffer.ReadByte();
         if (r < 0)
         {
             SetState(IOSEOFBit);
@@ -90,7 +91,7 @@ public class Ipstream : Pstream
     /// <summary>Reads into the first sz array positions, zero-filling an unread suffix and setting EOF on a short read.</summary>
     public void ReadBytes(byte[] data, int sz)
     {
-        int got = bp.Read(data, 0, sz);
+        int got = Buffer.Read(data, 0, sz);
         if (got < sz)
         {
             SetState(IOSEOFBit);
@@ -101,7 +102,7 @@ public class Ipstream : Pstream
     /// <summary>Reads sz bytes into the array at offset, zero-filling an unread suffix and setting EOF on a short read.</summary>
     public void ReadBytes(byte[] data, int offset, int sz)
     {
-        int got = bp.Read(data, offset, sz);
+        int got = Buffer.Read(data, offset, sz);
         if (got < sz)
         {
             SetState(IOSEOFBit);
@@ -110,7 +111,7 @@ public class Ipstream : Pstream
     }
 
     /// <summary>Reads a nullable, length-prefixed UTF-16 string in little-endian order.</summary>
-    public string ReadString()
+    public string? ReadString()
     {
         byte len0 = ReadByte();
         if (len0 == 0xFF) return null;
@@ -132,7 +133,7 @@ public class Ipstream : Pstream
     }
 
     /// <summary>Reads a null, an existing object reference, or a newly constructed registered object.</summary>
-    public object ReadPointer()
+    public object? ReadPointer()
     {
         byte ch = ReadByte();
         switch (ch)
@@ -158,7 +159,7 @@ public class Ipstream : Pstream
     }
 
     /// <summary>Reads the object opening marker and resolves the following type name in the stream registry.</summary>
-    protected TStreamableClass ReadPrefix()
+    protected TStreamableClass? ReadPrefix()
     {
         byte ch = ReadByte();
         if (ch != (byte)'[')
@@ -167,13 +168,13 @@ public class Ipstream : Pstream
             return null;
         }
         var name = ReadString();
-        var ret = types.Lookup(name);
+        var ret = name == null ? null : types.Lookup(name);
         if (ret == null) Error(StreamableError.peNotRegistered);
         return ret;
     }
 
     /// <summary>Restores the supplied instance, or constructs one using the descriptor when null, recording its identity before reading.</summary>
-    protected object ReadData(TStreamableClass c, TStreamable mem)
+    protected object? ReadData(TStreamableClass? c, TStreamable? mem)
     {
         if (c == null) return null;
         if (mem == null) mem = c.build();
@@ -181,7 +182,24 @@ public class Ipstream : Pstream
         // multiple-inheritance offset; in C# delta is always 0 so we can pass
         // the object directly.
         RegisterObject(mem);
-        return mem.Read(this);
+        bool isRootObject = _objectReadDepth == 0;
+        _objectReadDepth++;
+        object restored;
+        try
+        {
+            restored = mem.Read(this);
+        }
+        finally
+        {
+            _objectReadDepth--;
+        }
+
+        // Borland TGroup::read awakens a completed top-level view graph. Doing
+        // this at the graph boundary avoids awakening nested groups once while
+        // incomplete and again when their parent finishes reconstruction.
+        if (isRootObject && restored is TGroup group)
+            group.Awaken();
+        return restored;
     }
 
     /// <summary>Reads and validates the closing object marker, recording a stream error on mismatch.</summary>
@@ -192,7 +210,7 @@ public class Ipstream : Pstream
     }
 
     /// <summary>Returns the object with the recorded one-based identifier, or null for an unknown identifier.</summary>
-    protected object Find(uint id)
+    protected object? Find(uint id)
     {
         if (id == 0 || id >= _objs.Count) return null;
         return _objs[(int)id];

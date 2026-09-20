@@ -66,8 +66,8 @@ public sealed class EditorAppDialogHelperTests : IDisposable
 
     private sealed class DictProvider(Dictionary<string, string> values) : ITSharpVisionStringProvider
     {
-        public string Get(string key, string fallback)
-            => values.TryGetValue(key, out string value) ? value : fallback;
+        public string? Get(string key, string? fallback)
+            => values.TryGetValue(key, out string? value) ? value : fallback;
     }
 
     // ── Group A — TEditorApp construction ─────────────────────────────────────
@@ -75,7 +75,7 @@ public sealed class EditorAppDialogHelperTests : IDisposable
     [Fact]
     public void TEditorApp_Ctor_NoException()
     {
-        TEditorApp app = null;
+        TEditorApp? app = null;
         var ex = Record.Exception(() => app = new TEditorApp());
         Assert.Null(ex);
         app?.ShutDown();
@@ -120,7 +120,9 @@ public sealed class EditorAppDialogHelperTests : IDisposable
         try
         {
             var commands = new List<ushort>();
-            CollectMenuCommands(app.MenuBar?.Menu, commands);
+            var menuBar = Assert.IsType<TMenuBar>(app.MenuBar);
+            var menu = Assert.IsType<TMenu>(menuBar.Menu);
+            CollectMenuCommands(menu, commands);
             Assert.Contains(Views.cmNew,  commands);
             Assert.Contains(Views.cmOpen, commands);
             Assert.Contains(Views.cmSave, commands);
@@ -137,7 +139,8 @@ public sealed class EditorAppDialogHelperTests : IDisposable
         var app = new TEditorApp();
         try
         {
-            var commands = CollectStatusCommands(app.StatusLine);
+            var statusLine = Assert.IsType<TStatusLine>(app.StatusLine);
+            var commands = CollectStatusCommands(statusLine);
             Assert.Contains(Views.cmSave, commands);
             Assert.Contains(Views.cmOpen, commands);
             Assert.Contains(Views.cmQuit, commands);
@@ -155,7 +158,13 @@ public sealed class EditorAppDialogHelperTests : IDisposable
         }));
 
         var app = new TEditorApp();
-        try { Assert.Equal("~S~oubor", app.MenuBar.Menu.Items.Name); }
+        try
+        {
+            var menuBar = Assert.IsType<TMenuBar>(app.MenuBar);
+            var menu = Assert.IsType<TMenu>(menuBar.Menu);
+            var item = Assert.IsAssignableFrom<TMenuItem>(menu.Items);
+            Assert.Equal("~S~oubor", item.Name);
+        }
         finally { app.ShutDown(); }
     }
 
@@ -168,7 +177,13 @@ public sealed class EditorAppDialogHelperTests : IDisposable
         }));
 
         var app = new TEditorApp();
-        try { Assert.Equal("~F10~ Nabídka", app.StatusLine.Defs.Items.Text); }
+        try
+        {
+            var statusLine = Assert.IsType<TStatusLine>(app.StatusLine);
+            var defs = Assert.IsType<TStatusDef>(statusLine.Defs);
+            var item = Assert.IsType<TStatusItem>(defs.Items);
+            Assert.Equal("~F10~ Nabídka", item.Text);
+        }
         finally { app.ShutDown(); }
     }
 

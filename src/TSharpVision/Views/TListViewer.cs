@@ -13,9 +13,9 @@ public class TListViewer : TView
     public static char ColumnSeparator = '│';
 
     /// <summary>Optional associated horizontal scrollbar controlling the text offset.</summary>
-    public TScrollBar hScrollBar;
+    public TScrollBar? hScrollBar;
     /// <summary>Optional associated scrollbar tracking the focused item and list navigation.</summary>
-    public TScrollBar vScrollBar;
+    public TScrollBar? vScrollBar;
     /// <summary>Number of displayed item columns; callers should use SetNumCols with a positive value.</summary>
     public int numCols;
     /// <summary>Zero-based item index at the beginning of the visible page.</summary>
@@ -26,7 +26,7 @@ public class TListViewer : TView
     public int range;
 
     /// <summary>Creates an empty selectable list in owner-relative cell bounds with a positive column count and optional referenced scrollbars.</summary>
-    public TListViewer(TRect bounds, ushort aNumCols, TScrollBar aHScrollBar, TScrollBar aVScrollBar)
+    public TListViewer(TRect bounds, ushort aNumCols, TScrollBar? aHScrollBar, TScrollBar? aVScrollBar)
         : base(bounds)
     {
         topItem = 0;
@@ -286,7 +286,9 @@ public class TListViewer : TView
         else if (@event.What == Events.evMouseWheel)
         {
             // Vertical wheel scrolls the focused item.
-            bool up = (@event.mouse.buttons & Events.mbButton4) != 0;
+            bool up = (@event.mouse.eventFlags & Events.meWheelUp) != 0;
+            bool down = (@event.mouse.eventFlags & Events.meWheelDown) != 0;
+            if (!up && !down) return;
             FocusItemNum(focused + (up ? -WheelStep : WheelStep));
             ClearEvent(ref @event);
         }
@@ -302,7 +304,7 @@ public class TListViewer : TView
                 }
                 else if (@event.message.command == Views.cmScrollBarChanged)
                 {
-                    if (ReferenceEquals(vScrollBar, @event.message.infoPtr))
+                    if (vScrollBar != null && ReferenceEquals(vScrollBar, @event.message.infoPtr))
                     {
                         FocusItemNum(vScrollBar.value);
                         DrawView();

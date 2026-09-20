@@ -45,14 +45,15 @@ public sealed class TEditorEncodingDialogTests : IDisposable
         var dlg = CreateEncodingDialog();
         try
         {
-            Assert.Contains("Auto", dlg.encodingSelector.Strings);
-            Assert.Contains("UTF-8", dlg.encodingSelector.Strings);
-            Assert.Contains("Latin-1", dlg.encodingSelector.Strings);
-            Assert.Contains("CP437", dlg.encodingSelector.Strings);
-            Assert.Contains("CP852", dlg.encodingSelector.Strings);
-            Assert.Contains("Windows-1250", dlg.encodingSelector.Strings);
-            Assert.Contains("ISO-8859-2", dlg.encodingSelector.Strings);
-            Assert.Contains("Kamenicky / KEYBCS2", dlg.encodingSelector.Strings);
+            var selector = Assert.IsType<TRadioButtons>(dlg.encodingSelector);
+            Assert.Contains("Auto", selector.Strings);
+            Assert.Contains("UTF-8", selector.Strings);
+            Assert.Contains("Latin-1", selector.Strings);
+            Assert.Contains("CP437", selector.Strings);
+            Assert.Contains("CP852", selector.Strings);
+            Assert.Contains("Windows-1250", selector.Strings);
+            Assert.Contains("ISO-8859-2", selector.Strings);
+            Assert.Contains("Kamenicky / KEYBCS2", selector.Strings);
         }
         finally
         {
@@ -66,7 +67,8 @@ public sealed class TEditorEncodingDialogTests : IDisposable
         var dlg = CreateEncodingDialog();
         try
         {
-            dlg.encodingSelector.SetData((ushort)4);
+            var selector = Assert.IsType<TRadioButtons>(dlg.encodingSelector);
+            selector.SetData((ushort)4);
 
             Assert.Equal(EditorTextEncodingMode.Legacy, dlg.SelectedEncoding.Mode);
             Assert.Same(LegacyTextEncodings.Cp852, dlg.SelectedEncoding.LegacyEncoding);
@@ -83,7 +85,8 @@ public sealed class TEditorEncodingDialogTests : IDisposable
         var dlg = CreateEncodingDialog();
         try
         {
-            dlg.encodingSelector.SetData((ushort)7);
+            var selector = Assert.IsType<TRadioButtons>(dlg.encodingSelector);
+            selector.SetData((ushort)7);
 
             Assert.Equal(EditorTextEncodingMode.Legacy, dlg.SelectedEncoding.Mode);
             Assert.Same(LegacyTextEncodings.Kamenicky, dlg.SelectedEncoding.LegacyEncoding);
@@ -126,7 +129,8 @@ public sealed class TEditorEncodingDialogTests : IDisposable
             app.FileOpen();
 
             Assert.Equal(path, app.OpenedFileName);
-            Assert.Equal(EditorTextEncodingMode.Legacy, app.OpenedOptions.Encoding.Mode);
+            var openedOptions = Assert.IsType<TFileEditorOpenOptions>(app.OpenedOptions);
+            Assert.Equal(EditorTextEncodingMode.Legacy, openedOptions.Encoding.Mode);
             Assert.Same(LegacyTextEncodings.Cp852, app.OpenedOptions.Encoding.LegacyEncoding);
             Assert.Equal("Příliš žluťoučký kůň\n", app.OpenedText);
         }
@@ -147,7 +151,8 @@ public sealed class TEditorEncodingDialogTests : IDisposable
         {
             app.FileOpen();
 
-            Assert.Equal(EditorTextEncodingMode.Auto, app.OpenedOptions.Encoding.Mode);
+            var openedOptions = Assert.IsType<TFileEditorOpenOptions>(app.OpenedOptions);
+            Assert.Equal(EditorTextEncodingMode.Auto, openedOptions.Encoding.Mode);
             Assert.Equal("Příliš žluťoučký kůň\n", app.OpenedText);
         }
         finally
@@ -207,24 +212,24 @@ public sealed class TEditorEncodingDialogTests : IDisposable
             DeskTop = new StubDeskTop(_path, _encodingIndex);
         }
 
-        public string OpenedFileName { get; private set; }
-        public TFileEditorOpenOptions OpenedOptions { get; private set; }
-        public string OpenedText { get; private set; }
+        public string? OpenedFileName { get; private set; }
+        public TFileEditorOpenOptions? OpenedOptions { get; private set; }
+        public string? OpenedText { get; private set; }
 
-        public override TEditWindow OpenEditor(
-            string fileName,
+        public override TEditWindow? OpenEditor(
+            string? fileName,
             bool visible,
-            TFileEditorOpenOptions openOptions)
+            TFileEditorOpenOptions? openOptions)
         {
-            OpenedFileName = fileName;
-            OpenedOptions = openOptions;
+            OpenedFileName = fileName ?? string.Empty;
+            OpenedOptions = openOptions ?? new TFileEditorOpenOptions();
             var editor = new TFileEditor(
                 new TRect(0, 0, 80, 25),
                 null,
                 null,
                 null,
                 fileName,
-                openOptions);
+                Assert.IsType<TFileEditorOpenOptions>(OpenedOptions));
             OpenedText = ReadAll(editor);
             return null;
         }

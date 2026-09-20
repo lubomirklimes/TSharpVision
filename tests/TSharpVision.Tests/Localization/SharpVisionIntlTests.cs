@@ -16,27 +16,27 @@ namespace TSharpVision.Tests.Localization;
 // Returns "prefix + key" for every key — exercises swap behaviour.
 file sealed class IntlPrefixTestProvider(string prefix) : ITSharpVisionStringProvider
 {
-    public string Get(string key, string fallback) => prefix + key;
+    public string? Get(string key, string? fallback) => prefix + key;
 }
 
 // Returns a fixed value for every key — exercises property forwarding.
 file sealed class IntlFixedTestProvider(string value) : ITSharpVisionStringProvider
 {
-    public string Get(string key, string fallback) => value;
+    public string? Get(string key, string? fallback) => value;
 }
 
 // Returns values from a supplied dictionary, falling back to the literal.
 file sealed class IntlDictTestProvider(Dictionary<string, string> dict)
     : ITSharpVisionStringProvider
 {
-    public string Get(string key, string fallback)
+    public string? Get(string key, string? fallback)
         => dict.TryGetValue(key, out var v) ? v : fallback;
 }
 
 // Legacy provider: intentionally does not implement ITSharpVisionStringLookupProvider.
 file sealed class IntlFallbackOnlyTestProvider : ITSharpVisionStringProvider
 {
-    public string Get(string key, string fallback) => fallback;
+    public string? Get(string key, string? fallback) => fallback;
 }
 
 // ---------------------------------------------------------------------------
@@ -333,7 +333,7 @@ public sealed class TSharpVisionIntlTests
                 ["Menu_File"] = "~S~oubor",
             }));
 
-        Assert.True(provider.TryGet("Menu_File", out string value));
+        Assert.True(provider.TryGet("Menu_File", out string? value));
         Assert.Equal("~S~oubor", value);
 
         Assert.False(provider.TryGet("Missing", out value));
@@ -350,7 +350,7 @@ public sealed class TSharpVisionIntlTests
                 ["Same_As_Fallback"] = "Same",
             }));
 
-        Assert.True(provider.TryGet("Same_As_Fallback", out string value));
+        Assert.True(provider.TryGet("Same_As_Fallback", out string? value));
         Assert.Equal("Same", value);
         Assert.Equal("Same", provider.Get("Same_As_Fallback", "Same"));
 
@@ -416,7 +416,7 @@ public sealed class TSharpVisionIntlTests
 
         var provider = TResourceStringProvider.Load(path);
 
-        Assert.False(provider.TryGet("Other", out string value));
+        Assert.False(provider.TryGet("Other", out string? value));
         Assert.Null(value);
         Assert.Equal("fallback", provider.Get("Other", "fallback"));
     }
@@ -467,7 +467,7 @@ public sealed class TSharpVisionIntlTests
     private static List<MissingLocalizationKeyEventArgs> CaptureMissingKeys(System.Action action)
     {
         var events = new List<MissingLocalizationKeyEventArgs>();
-        void Handler(object sender, MissingLocalizationKeyEventArgs e) => events.Add(e);
+        void Handler(object? sender, MissingLocalizationKeyEventArgs e) => events.Add(e);
 
         TSharpVisionIntl.MissingKey += Handler;
         try

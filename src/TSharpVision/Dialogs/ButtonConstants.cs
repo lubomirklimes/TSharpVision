@@ -11,6 +11,8 @@ public static class ButtonConstants
     public const byte bfLeftJust = 0x02;
     /// <summary>Broadcasts the button command to its owner instead of queuing a command event.</summary>
     public const byte bfBroadcast = 0x04;
+    /// <summary>Allows mouse-down handling to move focus to this button before it is pressed.</summary>
+    public const byte bfGrabFocus = 0x08;
 
     /// <summary>Requests that linked history controls record their current input.</summary>
     public const ushort cmRecordHistory = 60;

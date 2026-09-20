@@ -8,12 +8,12 @@ public class TLabel : TStaticText
     public new static readonly string Name = "TLabel";
 
     /// <summary>Associated control to select; ownership remains with its containing group.</summary>
-    public TView Link;
+    public TView? Link;
     /// <summary>Whether the label uses its highlighted appearance for the linked control's state.</summary>
     public bool Light;
 
     /// <summary>Creates a label at owner-relative cell bounds and links its mnemonic to the supplied control.</summary>
-    public TLabel(TRect bounds, string aText, TView aLink)
+    public TLabel(TRect bounds, string aText, TView? aLink)
         : base(bounds, aText)
     {
         Link = aLink;
@@ -52,8 +52,7 @@ public class TLabel : TStaticText
 
     private static ushort GetAltCode(char c)
     {
-        if (c >= 'A' && c <= 'Z') return (ushort)(Keys.kbAltA + (c - 'A'));
-        return Keys.kbNoKey;
+        return KeyboardCompatibility.AltCode(c);
     }
 
     private bool ValidLink() =>
@@ -67,7 +66,7 @@ public class TLabel : TStaticText
         base.HandleEvent(ref @event);
         if (@event.What == Events.evMouseDown)
         {
-            if (ValidLink()) Link.Select();
+            if (ValidLink() && Link is TView target) target.Select();
             ClearEvent(ref @event);
         }
         else if (@event.What == Events.evKeyDown)
@@ -79,7 +78,7 @@ public class TLabel : TStaticText
                 && char.ToUpperInvariant((char)@event.keyDown.charScan.charCode) == c;
             if (altMatch || asciiMatch)
             {
-                if (ValidLink()) Link.Select();
+                if (ValidLink() && Link is TView target) target.Select();
                 ClearEvent(ref @event);
             }
         }

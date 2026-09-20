@@ -26,8 +26,8 @@ public class THelpViewer : TScroller
     private readonly System.Collections.Generic.Stack<int> _backStack = new();
 
     /// <summary>Creates a viewer in owner-relative character-cell bounds, references the scrollbars and help store, and loads the initial context.</summary>
-    public THelpViewer(TRect bounds, TScrollBar aHScrollBar,
-        TScrollBar aVScrollBar, THelpFile aHelpFile, ushort context)
+    public THelpViewer(TRect bounds, TScrollBar? aHScrollBar,
+        TScrollBar? aVScrollBar, THelpFile aHelpFile, ushort context)
         : base(bounds, aHScrollBar, aVScrollBar)
     {
         options |= Views.ofSelectable;

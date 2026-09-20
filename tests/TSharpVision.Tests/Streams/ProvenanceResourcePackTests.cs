@@ -10,7 +10,12 @@ public sealed class ProvenanceResourcePackTests
         public string Text = "";
         public override string streamableName => "Phase25cPayload";
         public override void Write(Opstream stream) => stream.WriteString(Text);
-        public override object Read(Ipstream stream) { Text = stream.ReadString(); return this; }
+        public override object Read(Ipstream stream)
+        {
+            Text = stream.ReadString()
+                ?? throw new InvalidDataException("Payload text is missing from the stream.");
+            return this;
+        }
     }
     [Theory]
     [InlineData(false)] [InlineData(true)]
@@ -28,7 +33,8 @@ public sealed class ProvenanceResourcePackTests
             resources.Put(new Payload { Text = "z-last-key-first-in-file" }, "z");
             resources.Put(new Payload { Text = "a-first-key-last-in-file" }, "a");
             resources.Flush(); long before = stream.Filelength();
-            byte[] a = resources.GetRawBytes("a"), z = resources.GetRawBytes("z");
+            byte[] a = Assert.IsType<byte[]>(resources.GetRawBytes("a"));
+            byte[] z = Assert.IsType<byte[]>(resources.GetRawBytes("z"));
             resources.Remove("deleted"); if (empty) { resources.Remove("a"); resources.Remove("z"); }
             resources.Pack(); long packed = stream.Filelength(); Assert.True(packed < before);
             if (!empty)

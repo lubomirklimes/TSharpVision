@@ -9,10 +9,10 @@ public class TColorItem : IInfo
     /// <summary>1-based index into the owning TPalette.Data array.</summary>
     public byte Index;
     /// <summary>Next palette-entry descriptor, or null at the end of the chain.</summary>
-    public TColorItem Next;
+    public TColorItem? Next;
 
     /// <summary>Creates a labeled one-based palette-entry reference with an optional next descriptor.</summary>
-    public TColorItem(string name, byte index, TColorItem next = null)
+    public TColorItem(string name, byte index, TColorItem? next = null)
     {
         Name  = name;
         Index = index;
@@ -34,15 +34,18 @@ public class TColorGroup : IInfo
 {
     /// <summary>Label displayed for this group of palette entries.</summary>
     public string Name;
+    /// <summary>Zero-based focused item remembered for this group.</summary>
+    public byte Index;
     /// <summary>First palette-entry descriptor, or null for an empty group.</summary>
-    public TColorItem Items;
+    public TColorItem? Items;
     /// <summary>Next color group, or null at the end of the chain.</summary>
-    public TColorGroup Next;
+    public TColorGroup? Next;
 
     /// <summary>Creates a named group referencing an optional item chain and following group.</summary>
-    public TColorGroup(string name, TColorItem items = null, TColorGroup next = null)
+    public TColorGroup(string name, TColorItem? items = null, TColorGroup? next = null)
     {
         Name  = name;
+        Index = 0;
         Items = items;
         Next  = next;
     }
@@ -79,7 +82,7 @@ public class TColorGroupList : TListViewer
     /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public new static readonly string Name = "TColorGroupList";
 
-    private TColorGroup _groups;
+    private TColorGroup? _groups;
 
     /// <summary>Creates a single-column group list at owner-relative cell bounds, referencing the supplied groups and vertical scrollbar.</summary>
     public TColorGroupList(TRect bounds, TScrollBar aScrollBar, TColorGroup aGroups)
@@ -87,32 +90,53 @@ public class TColorGroupList : TListViewer
     {
         _groups = aGroups;
         int count = 0;
-        for (TColorGroup g = aGroups; g != null; g = g.Next) count++;
+        for (TColorGroup? g = aGroups; g != null; g = g.Next) count++;
         SetRange(count);
     }
 
     /// <inheritdoc />
-    /// <remarks>Broadcasts cmNewColorItem with the focused group's item list.</remarks>
+    /// <remarks>Broadcasts cmNewColorItem with the focused group and its remembered item index.</remarks>
     public override void FocusItem(int item)
     {
         base.FocusItem(item);
-        TColorGroup cur = _groups;
+        TColorGroup? cur = _groups;
         int n = item;
         while (n-- > 0 && cur != null) cur = cur.Next;
         if (cur == null) return;
 
-        // Broadcast cmNewColorItem with the group's item list as IInfo payload.
+        // Broadcast the group itself so the item list can restore its remembered index.
         TEvent ev = default;
         ev.What = Events.evBroadcast;
         ev.message.command = Views.cmNewColorItem;
-        ev.message.infoPtr  = cur.Items;   // TColorItem : IInfo
+        ev.message.infoPtr  = cur;
         owner?.HandleEvent(ref ev);
+    }
+
+    /// <inheritdoc />
+    public override void HandleEvent(ref TEvent @event)
+    {
+        base.HandleEvent(ref @event);
+        if (@event.What == Events.evBroadcast
+            && @event.message.command == Views.cmSaveColorIndex)
+        {
+            TColorGroup? group = GroupAt(focused);
+            if (group != null)
+                group.Index = @event.message.infoByte;
+        }
+    }
+
+    private TColorGroup? GroupAt(int item)
+    {
+        TColorGroup? group = _groups;
+        while (item-- > 0 && group != null)
+            group = group.Next;
+        return group;
     }
 
     /// <inheritdoc />
     public override string GetText(int item, int maxLen)
     {
-        TColorGroup cur = _groups;
+        TColorGroup? cur = _groups;
         int n = item;
         while (n-- > 0 && cur != null) cur = cur.Next;
         if (cur == null) return string.Empty;
@@ -139,16 +163,16 @@ public class TColorGroupList : TListViewer
         base.Write(os);   // TListViewer.Write
 
         int gc = 0;
-        for (TColorGroup g = _groups; g != null; g = g.Next) gc++;
+        for (TColorGroup? g = _groups; g != null; g = g.Next) gc++;
         os.WriteShort((ushort)gc);
 
-        for (TColorGroup g = _groups; g != null; g = g.Next)
+        for (TColorGroup? g = _groups; g != null; g = g.Next)
         {
             os.WriteString(g.Name);
             int ic = 0;
-            for (TColorItem it = g.Items; it != null; it = it.Next) ic++;
+            for (TColorItem? it = g.Items; it != null; it = it.Next) ic++;
             os.WriteShort((ushort)ic);
-            for (TColorItem it = g.Items; it != null; it = it.Next)
+            for (TColorItem? it = g.Items; it != null; it = it.Next)
             {
                 os.WriteString(it.Name);
                 os.WriteByte(it.Index);
@@ -162,15 +186,15 @@ public class TColorGroupList : TListViewer
         base.Read(isStream);   // TListViewer.Read
 
         int gc = isStream.ReadShort();
-        TColorGroup groupsHead = null, groupsTail = null;
+        TColorGroup? groupsHead = null, groupsTail = null;
         for (int i = 0; i < gc; i++)
         {
-            string gName = isStream.ReadString();
+            string gName = isStream.ReadString() ?? string.Empty;
             int ic = isStream.ReadShort();
-            TColorItem itemsHead = null, itemsTail = null;
+            TColorItem? itemsHead = null, itemsTail = null;
             for (int j = 0; j < ic; j++)
             {
-                string iName = isStream.ReadString();
+                string iName = isStream.ReadString() ?? string.Empty;
                 byte idx = (byte)isStream.ReadByte();
                 var item = new TColorItem(iName, idx);
                 if (itemsTail == null) { itemsHead = item; itemsTail = item; }
@@ -195,17 +219,17 @@ public class TColorItemList : TListViewer
     /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public new static readonly string Name = "TColorItemList";
 
-    private TColorItem _items;
+    private TColorItem? _items;
 
     /// <summary>Creates a palette-entry list at owner-relative cell bounds with the supplied item chain and optional scrollbars.</summary>
-    public TColorItemList(TRect bounds, TScrollBar aVScrollBar,
-                          TColorItem aItems, TScrollBar aHScrollBar = null)
+    public TColorItemList(TRect bounds, TScrollBar? aVScrollBar,
+                          TColorItem? aItems, TScrollBar? aHScrollBar = null)
         : base(bounds, 1, aHScrollBar, aVScrollBar)
     {
         eventMask |= Events.evBroadcast;
         _items = aItems;
         int count = 0;
-        for (TColorItem it = aItems; it != null; it = it.Next) count++;
+        for (TColorItem? it = aItems; it != null; it = it.Next) count++;
         SetRange(count);
     }
 
@@ -214,10 +238,16 @@ public class TColorItemList : TListViewer
     public override void FocusItem(int item)
     {
         base.FocusItem(item);
-        TColorItem cur = _items;
+        TColorItem? cur = _items;
         int n = item;
         while (n-- > 0 && cur != null) cur = cur.Next;
         if (cur == null) return;
+
+        TEvent save = default;
+        save.What = Events.evBroadcast;
+        save.message.command = Views.cmSaveColorIndex;
+        save.message.infoByte = checked((byte)item);
+        owner?.HandleEvent(ref save);
 
         // Broadcast cmNewColorIndex with the palette entry index as infoLong.
         TEvent ev = default;
@@ -230,7 +260,7 @@ public class TColorItemList : TListViewer
     /// <inheritdoc />
     public override string GetText(int item, int maxLen)
     {
-        TColorItem cur = _items;
+        TColorItem? cur = _items;
         int n = item;
         while (n-- > 0 && cur != null) cur = cur.Next;
         if (cur == null) return string.Empty;
@@ -246,13 +276,13 @@ public class TColorItemList : TListViewer
         base.HandleEvent(ref @event);
         if (@event.What == Events.evBroadcast
             && @event.message.command == Views.cmNewColorItem
-            && @event.message.infoPtr is TColorItem newItems)
+            && @event.message.infoPtr is TColorGroup group)
         {
-            _items = newItems;
+            _items = group.Items;
             int count = 0;
-            for (TColorItem it = _items; it != null; it = it.Next) count++;
+            for (TColorItem? it = _items; it != null; it = it.Next) count++;
             SetRange(count);
-            if (count > 0) FocusItem(0);
+            if (count > 0) FocusItem(Math.Min(group.Index, count - 1));
             DrawView();
         }
     }

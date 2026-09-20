@@ -12,7 +12,7 @@ public class TApplication : TProgram
 {
     // Upstream stores `teq` as a file-static singleton; we mirror that with
     // a private static field guarded by a null-check in the constructor.
-    private static TEventQueue _teq;
+    private static TEventQueue? _teq;
 
     // TScreen mirrors a static singleton too (statics live on the type),
     // but we keep an instance field so the GC pins it for the application's

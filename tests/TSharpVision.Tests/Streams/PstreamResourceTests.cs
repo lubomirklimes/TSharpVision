@@ -9,7 +9,7 @@ namespace TSharpVision.Tests.Streams;
 file sealed class Foo9a : TStreamable
 {
     public ushort value;
-    public string label;
+    public string? label;
     public override string streamableName => "Foo9a";
     public override void Write(Opstream s) { s.Write16(value); s.WriteString(label); }
     public override object Read(Ipstream s) { value = s.Read16(); label = s.ReadString(); return this; }

@@ -14,7 +14,7 @@ namespace TSharpVision;
 public static class TEditorFindDialog
 {
     /// <summary>Decodes ASCII bytes up to the first zero byte; null returns empty text.</summary>
-    public static string BytesToString(byte[] b)
+    public static string BytesToString(byte[]? b)
     {
         if (b == null || b.Length == 0) return string.Empty;
         int n = Array.IndexOf(b, (byte)0);
@@ -23,7 +23,7 @@ public static class TEditorFindDialog
     }
 
     /// <summary>Returns UTF-16 text up to the first null code unit; null returns empty text.</summary>
-    public static string BytesToString(char[] b)
+    public static string BytesToString(char[]? b)
     {
         if (b == null || b.Length == 0) return string.Empty;
         int n = Array.IndexOf(b, '\0');
@@ -32,7 +32,7 @@ public static class TEditorFindDialog
     }
 
     /// <summary>Clears the destination and copies ASCII text, truncating to leave a zero terminator.</summary>
-    public static void StringToBytes(string s, byte[] dest)
+    public static void StringToBytes(string? s, byte[] dest)
     {
         Array.Clear(dest, 0, dest.Length);
         if (string.IsNullOrEmpty(s)) return;
@@ -42,7 +42,7 @@ public static class TEditorFindDialog
     }
 
     /// <summary>Clears the destination and copies UTF-16 text, truncating to leave a null terminator.</summary>
-    public static void StringToBytes(string s, char[] dest)
+    public static void StringToBytes(string? s, char[] dest)
     {
         Array.Clear(dest, 0, dest.Length);
         if (string.IsNullOrEmpty(s)) return;
@@ -98,9 +98,9 @@ public static class TEditorFindDialog
         if (rec == null) return;
         StringToBytes(findInput?.Data ?? string.Empty, rec.Find);
         const ushort mask = Views.efCaseSensitive | Views.efWholeWordsOnly;
-        rec.Options = (ushort)(
-            (rec.Options & ~mask)
-            | ((checkBoxes?.value ?? 0) & mask));
+        const ushort preservedMask = ushort.MaxValue ^ mask;
+        ushort selectedOptions = (ushort)((checkBoxes?.value ?? 0u) & mask);
+        rec.Options = (ushort)((rec.Options & preservedMask) | selectedOptions);
     }
 
     /// <summary>

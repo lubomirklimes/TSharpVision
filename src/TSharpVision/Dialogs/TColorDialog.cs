@@ -8,16 +8,16 @@ public class TColorDialog : TDialog
     public new static readonly string Name = "TColorDialog";
 
     /// <summary>The palette being edited (mutable — changes are in-place).</summary>
-    public TPalette Pal { get; private set; }
+    public TPalette? Pal { get; private set; }
 
-    private TColorDisplay    _display;
-    private TColorGroupList  _groups;
-    private TLabel           _forLabel;
-    private TColorSelector   _forSel;
-    private TLabel           _bakLabel;
-    private TColorSelector   _bakSel;
-    private TLabel           _monoLabel;
-    private TMonoSelector    _monoSel;
+    private TColorDisplay?    _display;
+    private TColorGroupList?  _groups;
+    private TLabel?           _forLabel;
+    private TColorSelector?   _forSel;
+    private TLabel?           _bakLabel;
+    private TColorSelector?   _bakSel;
+    private TLabel?           _monoLabel;
+    private TMonoSelector?    _monoSel;
 
     /// <summary>Creates a centered 77-by-18 cell editor that modifies the supplied palette in place using the supplied group descriptions.</summary>
     public TColorDialog(TPalette aPalette, TColorGroup aGroups)
@@ -85,7 +85,7 @@ public class TColorDialog : TDialog
         if (aGroups?.Items != null && aPalette != null
             && aGroups.Items.Index <= aPalette.Size)
         {
-            _display.SetColor(aPalette.Data, aGroups.Items.Index);
+            _display?.SetColor(aPalette.Data, aGroups.Items.Index);
         }
 
         // ── Buttons ──────────────────────────────────────────────────────
@@ -111,7 +111,7 @@ public class TColorDialog : TDialog
         {
             int idx = (int)@event.message.infoLong;
             if (Pal != null && idx >= 1 && idx <= Pal.Size)
-                _display.SetColor(Pal.Data, idx);
+                _display?.SetColor(Pal.Data, idx);
         }
         else if (@event.What == Events.evCommand
                  && @event.message.command == Views.cmTryColors)
@@ -134,14 +134,14 @@ public class TColorDialog : TDialog
     }
 
     /// <summary>Copies a length-prefixed palette record into the attached palette and resets the selected group and preview.</summary>
-    public virtual void SetData(byte[] rec)
+    public virtual void SetData(byte[]? rec)
     {
         if (Pal == null || rec == null || rec.Length < 1) return;
         int count = System.Math.Min(rec[0], Pal.Data[0]);
         System.Array.Copy(rec, 0, Pal.Data, 0, count + 1);
         if (Pal.Size >= 1)
-            _display.SetColor(Pal.Data, 1);
-        _groups.FocusItem(0);
+            _display?.SetColor(Pal.Data, 1);
+        _groups?.FocusItem(0);
     }
 
     // ── Streaming ────────────────────────────────────────────────────────────
@@ -191,7 +191,7 @@ public class TColorDialog : TDialog
 
     // Test-only accessors for smoke-check pointer identity verification.
     /// <summary>Returns the actual owned group-list control for identity inspection.</summary>
-    public TColorGroupList GroupsForTest  => _groups;
+    public TColorGroupList? GroupsForTest  => _groups;
     /// <summary>Returns the actual owned preview control for identity inspection.</summary>
-    public TColorDisplay   DisplayForTest => _display;
+    public TColorDisplay? DisplayForTest => _display;
 }

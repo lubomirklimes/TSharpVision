@@ -67,8 +67,8 @@ public partial class TVDemoApp
             case ShowcaseCmd.SaveDesktop: SaveDesktopState(); break;
             case ShowcaseCmd.LoadDesktop: LoadDesktopState(); break;
             case ShowcaseCmd.Tetris: OpenTetris(); break;
-            case Views.cmTile: DeskTop.Tile(DeskTop.GetExtent()); break;
-            case Views.cmCascade: DeskTop.Cascade(DeskTop.GetExtent()); break;
+            case Views.cmTile when DeskTop is TDeskTop tileDesktop: tileDesktop.Tile(tileDesktop.GetExtent()); break;
+            case Views.cmCascade when DeskTop is TDeskTop cascadeDesktop: cascadeDesktop.Cascade(cascadeDesktop.GetExtent()); break;
             default: return false;
         }
         return true;

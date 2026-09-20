@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
 namespace TSharpVision;
 
@@ -27,7 +28,8 @@ public interface ITSharpVisionStringProvider
     /// Returns the localized string for <paramref name="key"/>.
     /// If the key is unknown, returns <paramref name="fallback"/> unchanged.
     /// </summary>
-    string Get(string key, string fallback);
+    [return: NotNullIfNotNull(nameof(fallback))]
+    string? Get(string key, string? fallback);
 }
 
 /// <summary>
@@ -39,7 +41,7 @@ public interface ITSharpVisionStringLookupProvider : ITSharpVisionStringProvider
     /// Returns true when <paramref name="key"/> is present and provides the
     /// localized value without consulting a caller fallback.
     /// </summary>
-    bool TryGet(string key, out string value);
+    bool TryGet(string key, [NotNullWhen(true)] out string? value);
 }
 
 /// <summary>
@@ -207,11 +209,12 @@ public sealed class DefaultEnglishStringProvider : ITSharpVisionStringLookupProv
     };
 
     /// <inheritdoc/>
-    public string Get(string key, string fallback)
+    [return: NotNullIfNotNull(nameof(fallback))]
+    public string? Get(string key, string? fallback)
         => TryGet(key, out var v) ? v : fallback;
 
     /// <inheritdoc/>
-    public bool TryGet(string key, out string value)
+    public bool TryGet(string key, [NotNullWhen(true)] out string? value)
         => _strings.TryGetValue(key, out value);
 }
 
@@ -234,7 +237,7 @@ public static class TSharpVisionIntl
         = new DefaultEnglishStringProvider();
 
     /// <summary>Raised synchronously when a lookup-capable current provider lacks a key, before its fallback is returned.</summary>
-    public static event System.EventHandler<MissingLocalizationKeyEventArgs> MissingKey;
+    public static event System.EventHandler<MissingLocalizationKeyEventArgs>? MissingKey;
 
     /// <summary>
     /// Translate <paramref name="key"/>, falling back to
@@ -245,7 +248,7 @@ public static class TSharpVisionIntl
         var provider = Current;
         if (provider is ITSharpVisionStringLookupProvider lookupProvider)
         {
-            if (lookupProvider.TryGet(key, out string value))
+            if (lookupProvider.TryGet(key, out string? value))
                 return value;
 
             MissingKey?.Invoke(
@@ -276,6 +279,6 @@ public static class TSharpVisionIntl
 public static class TInternationalizationExtensions
 {
     /// <summary>Resolves a localization key, using the supplied fallback or the key itself when fallback is null.</summary>
-    public static string Loc(string key, string fallback = null)
+    public static string Loc(string key, string? fallback = null)
         => TSharpVisionIntl.Get(key, fallback ?? key);
 }

@@ -37,6 +37,8 @@ public class SDLGpuDriver : IDisposable, IDriver
     private SDLGpuRenderer? _gpuRenderer;
     private ScreenBuffer? _screenBuffer;
     private readonly Queue<TEvent> _pendingKeys = new();
+    private readonly SdlModifierTranslator _modifierTranslator = new();
+    private readonly SdlHeldKeyTracker _heldKeys = new();
 
     // Mouse state
     private byte   _heldButtons;
@@ -49,6 +51,9 @@ public class SDLGpuDriver : IDisposable, IDriver
     public bool SupportsTrueColor => false;
     /// <inheritdoc />
     public bool SupportsGraphics  => true;
+    /// <inheritdoc />
+    public KeyboardCapabilities KeyboardCapabilities =>
+        KeyboardCapabilities.KeyReleaseEvents | KeyboardCapabilities.StandaloneModifierTransitions;
 
     /// <summary>Optional rendering callback invoked while pumping messages; initialization installs a callback that renders the screen buffer.</summary>
     public Action<IRenderer>? MessageLoop { get; set; }
@@ -204,25 +209,31 @@ public class SDLGpuDriver : IDisposable, IDriver
                 break;
 
             case SDL3.SDL.EventType.KeyDown:
+            case SDL3.SDL.EventType.KeyUp:
             {
                 uint   kc  = (uint)e.Key.Key;
                 ushort mod = (ushort)e.Key.Mod;
                 _lastModState = mod;
 
-                // Printable keys without Ctrl/LAlt: let SDL_TEXTINPUT deliver
-                // the layout-correct character instead.
-                bool hasCtrl         = (mod & SdlKeyTranslator.SDL_KMOD_CTRL) != 0;
-                bool hasLAlt         = (mod & SdlKeyTranslator.SDL_KMOD_LALT) != 0;
-                bool isPrintableRange = (kc >= 0x20 && kc <= 0x7E) || (kc >= 'a' && kc <= 'z');
-                if (isPrintableRange && !hasCtrl && !hasLAlt)
+                bool keyDown = type == SDL3.SDL.EventType.KeyDown;
+                if (SdlModifierTranslator.IsModifierKey(kc))
+                {
+                    ProcessModifierKey(kc, keyDown);
                     break;
-
-                FlushPendingMotion();
-                if (SdlKeyTranslator.TryTranslate(kc, mod, '\0', out var kev))
-                    _pendingKeys.Enqueue(kev);
-                _dirty = true;
+                }
+                if (!keyDown)
+                {
+                    ProcessOrdinaryKeyUp(kc, mod);
+                    break;
+                }
+                ProcessOrdinaryKeyDown(kc, mod);
                 break;
             }
+
+            case SDL3.SDL.EventType.WindowFocusLost:
+                _lastModState = 0;
+                ProcessModifierFocusLost();
+                break;
 
             case SDL3.SDL.EventType.TextInput:
             {
@@ -232,12 +243,12 @@ public class SDLGpuDriver : IDisposable, IDriver
                 Rune rune = Rune.GetRuneAt(text, 0);
                 char ch   = rune.Value <= 0xFFFF ? (char)rune.Value : text[0];
 
-                ushort shift = SdlKeyTranslator.ToShiftState(_lastModState);
+                uint shift = SdlKeyTranslator.ToShiftState(_lastModState);
                 TEvent kev = default;
                 kev.What                      = Events.evKeyDown;
                 kev.keyDown.keyCode           = (ushort)ch;
                 kev.keyDown.charScan.charCode = rune.Value <= 0x7F ? (byte)rune.Value : (byte)0;
-                kev.keyDown.shiftState        = shift;
+                kev.keyDown.controlKeyState   = shift;
                 kev.keyDown.text              = text;
 
                 FlushPendingMotion();
@@ -254,11 +265,13 @@ public class SDLGpuDriver : IDisposable, IDriver
                 var cell = SdlMouseTranslator.PixelToCell(
                     (int)e.Button.X, (int)e.Button.Y, _cellWidth, _cellHeight);
                 var mev = SdlMouseTranslator.MakeEvent(
-                    kind, e.Button.Button, cell.x, cell.y, e.Button.Clicks);
+                    kind, e.Button.Button, cell.x, cell.y, e.Button.Clicks,
+                    controlKeyState: _modifierTranslator.LogicalState);
+                byte changedButton = SdlMouseTranslator.TranslateButton(e.Button.Button);
                 if (kind == SdlMouseEventKind.Down)
-                    _heldButtons |= mev.mouse.buttons;
+                    _heldButtons |= changedButton;
                 else
-                    _heldButtons = 0;
+                    _heldButtons &= (byte)~changedButton;
 
                 // Flush any pending motion before the button event so that
                 // the TEventQueue ordering is: ...motion → button.
@@ -277,7 +290,8 @@ public class SDLGpuDriver : IDisposable, IDriver
                 // content. The framework will call WriteBuf after processing the motion
                 // event, which sets _dirty and triggers the correct render.
                 _coalescer.Accumulate(
-                    (int)e.Motion.X, (int)e.Motion.Y, _heldButtons);
+                    (int)e.Motion.X, (int)e.Motion.Y, _heldButtons,
+                    _modifierTranslator.LogicalState);
                 break;
 
             case SDL3.SDL.EventType.MouseWheel:
@@ -285,7 +299,10 @@ public class SDLGpuDriver : IDisposable, IDriver
                 var cell = SdlMouseTranslator.PixelToCell(
                     (int)e.Wheel.MouseX, (int)e.Wheel.MouseY, _cellWidth, _cellHeight);
                 FlushPendingMotion();
-                if (SdlMouseTranslator.MakeWheelEvent(e.Wheel.Y, cell.x, cell.y, out var wev))
+                foreach (TEvent wev in SdlMouseTranslator.MakeWheelEvents(
+                    e.Wheel.X, e.Wheel.Y,
+                    e.Wheel.Direction == SDL3.SDL.MouseWheelDirection.Flipped,
+                    cell.x, cell.y, _heldButtons, _modifierTranslator.LogicalState))
                     TEventQueue.Enqueue(wev);
                 _dirty = true;
                 break;
@@ -333,11 +350,13 @@ public class SDLGpuDriver : IDisposable, IDriver
 
     private void FlushPendingMotion()
     {
-        if (!_coalescer.TryFlush(out int px, out int py, out byte held))
+        if (!_coalescer.TryFlush(
+                out int px, out int py, out byte held, out uint controlKeyState))
             return;
         var cell = SdlMouseTranslator.PixelToCell(px, py, _cellWidth, _cellHeight);
         var mev  = SdlMouseTranslator.MakeEvent(
-            SdlMouseEventKind.Move, 0, cell.x, cell.y, heldButtons: held);
+            SdlMouseEventKind.Move, 0, cell.x, cell.y,
+            heldButtons: held, controlKeyState: controlKeyState);
         TEventQueue.Enqueue(mev);
     }
 
@@ -447,6 +466,61 @@ public class SDLGpuDriver : IDisposable, IDriver
         if (_pendingKeys.Count > 0) { ev = _pendingKeys.Dequeue(); return true; }
         ev = default;
         return false;
+    }
+
+    internal bool ProcessModifierKey(uint keycode, bool down)
+    {
+        if (!_modifierTranslator.TryTranslate(keycode, down, out TEvent ev)) return false;
+        FlushPendingMotion();
+        _pendingKeys.Enqueue(ev);
+        _dirty = true;
+        return true;
+    }
+
+    internal bool ProcessModifierFocusLost()
+    {
+        bool changed = false;
+        foreach (TEvent release in _heldKeys.ReleaseAll(_modifierTranslator.LogicalState))
+        {
+            FlushPendingMotion();
+            _pendingKeys.Enqueue(release);
+            changed = true;
+        }
+        if (_modifierTranslator.TryReset(out TEvent modifierReset))
+        {
+            FlushPendingMotion();
+            _pendingKeys.Enqueue(modifierReset);
+            changed = true;
+        }
+        if (changed) _dirty = true;
+        return changed;
+    }
+
+    internal bool ProcessOrdinaryKeyUp(uint keycode, ushort modifierState)
+    {
+        if (!_heldKeys.TryKeyUp(keycode, modifierState, out TEvent ev)) return false;
+        FlushPendingMotion();
+        _pendingKeys.Enqueue(ev);
+        _dirty = true;
+        return true;
+    }
+
+    internal bool ProcessOrdinaryKeyDown(uint keycode, ushort modifierState)
+    {
+        _heldKeys.KeyDown(keycode, modifierState);
+
+        bool hasCtrl = (modifierState & SdlKeyTranslator.SDL_KMOD_CTRL) != 0;
+        bool hasLAlt = (modifierState & SdlKeyTranslator.SDL_KMOD_LALT) != 0;
+        bool printable = (keycode >= 0x20 && keycode <= 0x7E)
+            || (keycode >= 'a' && keycode <= 'z');
+        if (printable && !hasCtrl && !hasLAlt) return false;
+
+        if (!SdlKeyTranslator.TryTranslate(keycode, modifierState, '\0', out TEvent ev))
+            return false;
+        FlushPendingMotion();
+        _pendingKeys.Enqueue(ev);
+        _dirty = true;
+        return true;
     }
 
     /// <summary>Shuts down the backend during resource disposal.</summary>

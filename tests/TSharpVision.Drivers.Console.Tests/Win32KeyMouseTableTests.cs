@@ -130,8 +130,8 @@ public sealed class Win32KeyMouseTableTests
         bool ok = _w32.TryTranslateKey(true, 0x70, '\0',
             Win32KeyTranslator.SHIFT_PRESSED | Win32KeyTranslator.LEFT_ALT_PRESSED, out var kev);
         Assert.True(ok);
-        Assert.NotEqual(0, kev.keyDown.shiftState & Keys.kbShift);
-        Assert.NotEqual(0, kev.keyDown.shiftState & Keys.kbAltShift);
+        Assert.NotEqual(0u, kev.keyDown.controlKeyState & Keys.kbShift);
+        Assert.NotEqual(0u, kev.keyDown.controlKeyState & Keys.kbAltShift);
     }
 
     // ── Mouse translator ─────────────────────────────────────────────────
@@ -155,11 +155,30 @@ public sealed class Win32KeyMouseTableTests
     }
 
     [Fact]
+    public void Win32Mouse_MiddleClickExtensionIsPreserved()
+    {
+        var mev = Win32ConsoleDriver.TranslateMouse(0x0004, 0, 0, 0);
+        Assert.Equal(Events.evMouseDown, mev.What);
+        Assert.Equal(Events.mbMiddleButton, mev.mouse.buttons);
+    }
+
+    [Theory]
+    [InlineData(0x0008u, 0x08)]
+    [InlineData(0x0010u, 0x10)]
+    public void Win32Mouse_SideButtonsArePhysical(uint native, int expected)
+    {
+        var mev = Win32ConsoleDriver.TranslateMouse(native, 0, 0, 0);
+        Assert.Equal(Events.evMouseDown, mev.What);
+        Assert.Equal(expected, mev.mouse.buttons);
+    }
+
+    [Fact]
     public void Win32Mouse_Move()
     {
         var mev = Win32ConsoleDriver.TranslateMouse(0x0000, 0x0001 /*MOUSE_MOVED*/, 7, 3);
         Assert.Equal(Events.evMouseMove, mev.What);
         Assert.Equal(7, mev.mouse.where.x);
+        Assert.Equal(Events.meMouseMoved, mev.mouse.eventFlags);
     }
 
     [Fact]
@@ -176,6 +195,40 @@ public sealed class Win32KeyMouseTableTests
         var mev = Win32ConsoleDriver.TranslateMouse(0x0001, 0x0002 /*DOUBLE_CLICK*/, 1, 1);
         Assert.Equal(Events.evMouseDown, mev.What);
         Assert.True(mev.mouse.doubleClick);
+        Assert.Equal(Events.meDoubleClick, mev.mouse.eventFlags);
+    }
+
+    [Theory]
+    [InlineData(0x0010u, Keys.kbShift)]
+    [InlineData(0x0008u, Keys.kbCtrlShift)]
+    [InlineData(0x0002u, Keys.kbAltShift)]
+    [InlineData(0x0018u, Keys.kbShift | Keys.kbCtrlShift)]
+    [InlineData(0x001Au, Keys.kbShift | Keys.kbCtrlShift | Keys.kbAltShift)]
+    public void Win32Mouse_TranslatesNativeControlState(uint native, uint expected)
+    {
+        var mev = Win32ConsoleDriver.TranslateMouse(0x0001, 0, 1, 2, native);
+        Assert.Equal(expected, mev.mouse.controlKeyState);
+    }
+
+    [Fact]
+    public void Win32Mouse_WheelCarriesTranslatedControlState()
+    {
+        var mev = Win32ConsoleDriver.TranslateMouse(120u << 16, 0x0004, 1, 2, 0x0018);
+        Assert.Equal(Events.evMouseWheel, mev.What);
+        Assert.Equal(Events.meWheelUp, mev.mouse.eventFlags);
+        Assert.Equal(0, mev.mouse.buttons);
+        Assert.Equal(Keys.kbShift | Keys.kbCtrlShift, mev.mouse.controlKeyState);
+    }
+
+    [Fact]
+    public void Win32Mouse_PreservesReportedLockStates()
+    {
+        uint native = Win32KeyTranslator.CAPSLOCK_ON
+            | Win32KeyTranslator.NUMLOCK_ON | Win32KeyTranslator.SCROLLLOCK_ON;
+        var mev = Win32ConsoleDriver.TranslateMouse(0x0001, 0, 1, 2, native);
+        Assert.Equal(
+            Keys.kbCapsState | Keys.kbNumState | Keys.kbScrollState,
+            mev.mouse.controlKeyState);
     }
 
     // ── Driver lifecycle ──────────────────────────────────────────────────

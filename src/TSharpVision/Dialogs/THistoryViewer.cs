@@ -12,8 +12,8 @@ public class THistoryViewer : TListViewer
 
     /// <summary>Creates a history list at owner-relative cell bounds with scrollbars, initially focusing the second entry when available.</summary>
     public THistoryViewer(TRect bounds,
-                          TScrollBar aHScrollBar,
-                          TScrollBar aVScrollBar,
+                          TScrollBar? aHScrollBar,
+                          TScrollBar? aVScrollBar,
                           ushort aHistoryId)
         : base(bounds, 1, aHScrollBar, aVScrollBar)
     {

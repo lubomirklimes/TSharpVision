@@ -23,14 +23,14 @@ public sealed class ProcessTerminalSession : ITerminalSession, IResizableTermina
 {
     private readonly string _fileName;
     private readonly string _arguments;
-    private readonly string _workingDirectory;
-    private Process _process;
+    private readonly string? _workingDirectory;
+    private Process? _process;
     private volatile bool _isRunning;
     private int _exitedFired;   // 0 = not fired, 1 = fired; compare-exchange guards single fire
     private bool _disposed;
 
     /// <summary>Stores an executable, argument string, and optional working directory for later StartAsync; construction does not launch the process.</summary>
-    public ProcessTerminalSession(string fileName, string arguments = "", string workingDirectory = null)
+    public ProcessTerminalSession(string fileName, string arguments = "", string? workingDirectory = null)
     {
         _fileName = fileName;
         _arguments = arguments ?? string.Empty;
@@ -38,9 +38,9 @@ public sealed class ProcessTerminalSession : ITerminalSession, IResizableTermina
     }
 
     /// <inheritdoc />
-    public event EventHandler<TerminalOutputEventArgs> OutputReceived;
+    public event EventHandler<TerminalOutputEventArgs>? OutputReceived;
     /// <inheritdoc />
-    public event EventHandler Exited;
+    public event EventHandler? Exited;
 
     /// <inheritdoc />
     public bool IsRunning => _isRunning;
@@ -81,14 +81,14 @@ public sealed class ProcessTerminalSession : ITerminalSession, IResizableTermina
         _process = process;
         _isRunning = true;
 
-        var stdoutDone = ReadStreamAsync(_process.StandardOutput, false, cancellationToken);
-        var stderrDone = ReadStreamAsync(_process.StandardError, true, cancellationToken);
+        var stdoutDone = ReadStreamAsync(process.StandardOutput, false, cancellationToken);
+        var stderrDone = ReadStreamAsync(process.StandardError, true, cancellationToken);
 
         // Fire Exited after both streams are fully consumed so no output is lost.
         _ = Task.WhenAll(stdoutDone, stderrDone).ContinueWith(_ =>
         {
-            try { _process.WaitForExit(); } catch { }
-            ExitCode = _process.HasExited ? _process.ExitCode : (int?)null;
+            try { process.WaitForExit(); } catch { }
+            ExitCode = process.HasExited ? process.ExitCode : (int?)null;
             _isRunning = false;
             FireExited();
         }, TaskScheduler.Default);
@@ -122,30 +122,32 @@ public sealed class ProcessTerminalSession : ITerminalSession, IResizableTermina
     /// <inheritdoc /><remarks>Writes to a live process's standard input without appending a newline; does nothing when no live process exists.</remarks>
     public async Task SendInputAsync(string input, CancellationToken cancellationToken = default)
     {
-        if (_process != null && !_process.HasExited)
-            await _process.StandardInput.WriteAsync(input).ConfigureAwait(false);
+        Process? process = _process;
+        if (process != null && !process.HasExited)
+            await process.StandardInput.WriteAsync(input).ConfigureAwait(false);
     }
 
     /// <inheritdoc /><remarks>Requests termination of the child process when still running, then waits for exit.</remarks>
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
-        if (_process == null)
+        Process? process = _process;
+        if (process == null)
         {
             _isRunning = false;
             return;
         }
 
-        if (!_process.HasExited)
+        if (!process.HasExited)
         {
-            try { _process.Kill(); }
+            try { process.Kill(); }
             catch (InvalidOperationException) { }
             catch (Exception) { }
         }
 
-        try { await _process.WaitForExitAsync(cancellationToken).ConfigureAwait(false); }
+        try { await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false); }
         catch (Exception) { }
 
-        ExitCode = _process.HasExited ? _process.ExitCode : (int?)null;
+        ExitCode = process.HasExited ? process.ExitCode : (int?)null;
         _isRunning = false;
     }
 

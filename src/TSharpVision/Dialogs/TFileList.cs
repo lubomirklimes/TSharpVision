@@ -20,7 +20,7 @@ public class TFileList : TSortedListBox
     public bool ShiftSearchAsDir;
 
     /// <summary>Creates a one-column file list at owner-relative cell bounds and connects its vertical scrollbar.</summary>
-    public TFileList(TRect bounds, TScrollBar aScrollBar)
+    public TFileList(TRect bounds, TScrollBar? aScrollBar)
         : base(bounds, 2, aScrollBar)
     {
         // Upstream switches to 1 column when LFNs are available — that's

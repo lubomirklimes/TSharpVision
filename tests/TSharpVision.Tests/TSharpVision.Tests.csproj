@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\TSharpVision\TSharpVision.csproj" />
+    <ProjectReference Include="..\..\extensions\TSharpVision.CodeEditor\TSharpVision.CodeEditor.csproj" />
     <ProjectReference Include="..\TSharpVision.TestSupport\TSharpVision.TestSupport.csproj" />
   </ItemGroup>
   <ItemGroup>

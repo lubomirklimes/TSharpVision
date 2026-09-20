@@ -100,7 +100,7 @@ public class ScreenDriverFactory
                 }
                 catch (ReflectionTypeLoadException ex)
                 {
-                    return ex.Types.Where(t => t != null)!;
+                    return ex.Types.OfType<Type>();
                 }
             })
             .Where(type => typeof(IDriver).IsAssignableFrom(type) && !type.IsInterface && !type.IsAbstract)
@@ -173,11 +173,14 @@ public class ScreenDriverFactory
     public static IDriver CreateScreenDriver()
     {
         Platform platform = GetCurrentPlatform();
-        Type driverType = GetDriverTypeForPlatform(platform);
+        Type? driverType = GetDriverTypeForPlatform(platform);
 
         if (driverType != null)
         {
-            return (IDriver)Activator.CreateInstance(driverType);
+            object instance = Activator.CreateInstance(driverType)
+                ?? throw new InvalidOperationException($"Driver type '{driverType.FullName}' could not be constructed.");
+            return instance as IDriver
+                ?? throw new InvalidOperationException($"Driver type '{driverType.FullName}' does not implement IDriver.");
         }
 
         throw new InvalidOperationException($"No screen driver found for platform {platform}.");

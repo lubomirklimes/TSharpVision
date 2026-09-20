@@ -12,9 +12,9 @@ public sealed class InMemoryTerminalSession : ITerminalSession, IResizableTermin
     private int _interruptCount;
 
     /// <inheritdoc />
-    public event EventHandler<TerminalOutputEventArgs> OutputReceived;
+    public event EventHandler<TerminalOutputEventArgs>? OutputReceived;
     /// <inheritdoc />
-    public event EventHandler Exited;
+    public event EventHandler? Exited;
 
     /// <inheritdoc />
     public bool IsRunning => _isRunning;

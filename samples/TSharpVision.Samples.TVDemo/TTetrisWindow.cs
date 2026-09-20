@@ -135,7 +135,7 @@ internal sealed class TTetrisView : TView
     private readonly Random _rng = new Random();
 
     // ── Timer (background thread posts CmdTick broadcasts) ─────────────────
-    private Thread _timerThread;
+    private Thread? _timerThread;
     private volatile bool _timerRunning;
 
     // Level-based tick interval in ms (level 1 = 800 ms, max level = 100 ms)

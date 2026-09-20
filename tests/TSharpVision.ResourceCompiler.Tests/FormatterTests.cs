@@ -458,7 +458,8 @@ public sealed class FormatterSemanticTests : IDisposable
         var ast = new Parser(tokens, diag).ParseFile();
         Assert.Empty(diag);
         var dlg = ast.Resources.First(r => r.Key == "dialog.about");
-        Assert.Equal("wpGrayDialog", dlg.Dialog.Palette);
+        var dialog = Assert.IsType<DialogBody>(dlg.Dialog);
+        Assert.Equal("wpGrayDialog", dialog.Palette);
     }
 
     // ── FormatFile ────────────────────────────────────────────────────────

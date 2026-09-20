@@ -27,7 +27,8 @@ public sealed class TVDemoIntegrationTests
                 Assert.Equal(Events.evNothing, ev.What);
             }
             int count = 0;
-            app.DeskTop.ForEachView(v =>
+            var deskTop = Assert.IsType<TDeskTop>(app.DeskTop);
+            deskTop.ForEachView(v =>
             {
                 if (v is TWindow) count++;
             });

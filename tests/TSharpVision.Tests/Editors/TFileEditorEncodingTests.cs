@@ -138,7 +138,7 @@ public sealed class TFileEditorEncodingTests
         string path = WriteBytes(temp, "unsupported-cp852.txt", LegacyTextEncodings.Cp852.Encode("start\n"));
         var savedDialog = TEditor.editorDialog;
         int dialog = -1;
-        object info = null;
+        object? info = null;
         var ed = new TFileEditor(
             new TRect(0, 0, 40, 10),
             null,

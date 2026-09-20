@@ -18,10 +18,10 @@ public class TEditWindow : TWindow
     public static readonly TPoint MinEditWinSize = new TPoint(24, 6);
 
     /// <summary>Owned file editor displaying the document.</summary>
-    public TFileEditor editor;
+    public TFileEditor? editor;
 
     /// <summary>Creates an editor window at owner-relative cell bounds with default decoding and a window-selection number.</summary>
-    public TEditWindow(TRect bounds, string fileName, int aNumber)
+    public TEditWindow(TRect bounds, string? fileName, int aNumber)
         : this(bounds, fileName, aNumber, null)
     {
     }
@@ -29,9 +29,9 @@ public class TEditWindow : TWindow
     /// <summary>Creates an editor window and its controls using the supplied bounds, path, window number, and optional decoding policy.</summary>
     public TEditWindow(
         TRect bounds,
-        string fileName,
+        string? fileName,
         int aNumber,
-        TFileEditorOpenOptions openOptions)
+        TFileEditorOpenOptions? openOptions)
         : base(bounds, null, (ushort)aNumber)
     {
         options |= Views.ofTileable;
@@ -117,7 +117,7 @@ public class TEditWindow : TWindow
     public override object Read(Ipstream isStream)
     {
         base.Read(isStream);
-        editor = (TFileEditor)isStream.ReadPointer();
+        editor = isStream.ReadPointer() as TFileEditor;
         return this;
     }
 

@@ -37,7 +37,7 @@ public sealed class ProvenanceRemediationTests : IDisposable
     public void Frame_QueuesTargetedCommandOnlyAtActivation(int x, int y, bool twice, int expected)
     {
         var queue = new QueueGroup(); var window = new TWindow(new TRect(0, 0, 30, 10), "", 0);
-        queue.InsertView(window, null); var frame = window.frame; frame.state |= Views.sfActive;
+        queue.InsertView(window, null); var frame = Assert.IsType<TFrame>(window.frame); frame.state |= Views.sfActive;
         var down = Mouse(Events.evMouseDown, x, y, twice); frame.HandleEvent(ref down);
         Assert.Equal(Events.evNothing, down.What);
         if (!twice) { Assert.Empty(queue.EventsReceived); var up = Mouse(Events.evMouseUp, x, y); frame.HandleEvent(ref up); Assert.Equal(Events.evNothing, up.What); }
@@ -50,8 +50,8 @@ public sealed class ProvenanceRemediationTests : IDisposable
     public void Frame_ReleaseOutsideControlsDoesNothing(int x, int y)
     {
         var queue = new QueueGroup(); var window = new TWindow(new TRect(0, 0, 30, 10), "", 0);
-        queue.InsertView(window, null); window.frame.state |= Views.sfActive;
-        var ev = Mouse(Events.evMouseUp, x, y); window.frame.HandleEvent(ref ev); Assert.Empty(queue.EventsReceived);
+        queue.InsertView(window, null); var frame = Assert.IsType<TFrame>(window.frame); frame.state |= Views.sfActive;
+        var ev = Mouse(Events.evMouseUp, x, y); frame.HandleEvent(ref ev); Assert.Empty(queue.EventsReceived);
     }
 
     [Theory]
@@ -59,12 +59,12 @@ public sealed class ProvenanceRemediationTests : IDisposable
     public void Frame_DisabledOrUnavailableZoomDoesNotQueue(int reason)
     {
         var queue = new QueueGroup(); var window = new TWindow(new TRect(0, 0, 30, 10), "", 0);
-        queue.InsertView(window, null); window.frame.state |= Views.sfActive;
+        queue.InsertView(window, null); var frame = Assert.IsType<TFrame>(window.frame); frame.state |= Views.sfActive;
         if (reason == 0) window.flags = 0;
         if (reason == 1) window.state |= Views.sfDisabled;
-        if (reason == 2) window.frame.state |= Views.sfDisabled;
+        if (reason == 2) frame.state |= Views.sfDisabled;
         if (reason == 3) TView.DisableCommand(Views.cmZoom);
-        var ev = Mouse(Events.evMouseDown, 15, 0, true); window.frame.HandleEvent(ref ev); Assert.Empty(queue.EventsReceived);
+        var ev = Mouse(Events.evMouseDown, 15, 0, true); frame.HandleEvent(ref ev); Assert.Empty(queue.EventsReceived);
     }
 
     [Theory]
@@ -88,8 +88,9 @@ public sealed class ProvenanceRemediationTests : IDisposable
         Assert.True((children[removed].state & Views.sfFocused) != 0); Assert.Same(group, children[removed].owner); Assert.Same(oldNext, children[removed].Next); Assert.Same(children[removed], group.current);
         var expected = children.Where((_, i) => i != removed).ToArray();
         if (expected.Length == 0) { Assert.Null(group.last); return; }
-        var cursor = group.last.Next;
-        foreach (var child in expected) { Assert.Same(child, cursor); cursor = cursor.Next; }
+        var last = Assert.IsType<TView>(group.last);
+        var cursor = Assert.IsType<TView>(last.Next);
+        foreach (var child in expected) { Assert.Same(child, cursor); cursor = Assert.IsType<TView>(cursor.Next); }
         Assert.Same(expected[0], cursor); Assert.Same(expected[^1], group.last);
         group.RemoveView(null); group.RemoveView(new TView(new TRect(0, 0, 1, 1))); Assert.Same(expected[^1], group.last);
     }
@@ -157,9 +158,9 @@ public sealed class ProvenanceRemediationTests : IDisposable
     public void FrameClose_CommandThenNotificationOrModalCancel(bool modal)
     {
         var queue = new QueueGroup(); var window = new TWindow(new TRect(0, 0, 30, 10), "", 0);
-        queue.InsertView(window, null); window.frame.state |= Views.sfActive;
+        queue.InsertView(window, null); var frame = Assert.IsType<TFrame>(window.frame); frame.state |= Views.sfActive;
         if (modal) window.state |= Views.sfModal;
-        var down = Mouse(Events.evMouseDown, 3, 0); window.frame.HandleEvent(ref down);
+        var down = Mouse(Events.evMouseDown, 3, 0); frame.HandleEvent(ref down);
         Assert.Empty(queue.EventsReceived);
         var up = Mouse(Events.evMouseUp, 3, 0); window.frame.HandleEvent(ref up);
         var close = Assert.Single(queue.EventsReceived); Assert.Equal(Views.cmClose, close.message.command);
@@ -180,8 +181,9 @@ public sealed class ProvenanceRemediationTests : IDisposable
         bar.state |= Views.sfFocused | Views.sfCursorVis;
         bar.maxVal = disabled ? 10 : 0;
         if (disabled) bar.state |= Views.sfDisabled;
-        TScreen.driver.SetCursorType(100); bar.DrawPos(3);
-        Assert.Equal(0, TScreen.driver.GetCursorType());
+        var screenDriver = Assert.IsAssignableFrom<TSharpVision.Drivers.IDriver>(TScreen.driver);
+        screenDriver.SetCursorType(100); bar.DrawPos(3);
+        Assert.Equal(0, screenDriver.GetCursorType());
     }
 
     sealed class SmallDesktop : TDeskTop

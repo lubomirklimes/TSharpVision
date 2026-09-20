@@ -106,7 +106,7 @@ public sealed class TResourceCollection : TStreamable
         {
             pos  = s.Read32(),
             size = s.Read32(),
-            key  = s.ReadString(),
+            key  = s.ReadString() ?? string.Empty,
         };
         return obj;
     }

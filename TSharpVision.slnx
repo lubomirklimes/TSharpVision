@@ -11,8 +11,13 @@
     <Project Path="tests/TSharpVision.Drivers.Terminal.Tests/TSharpVision.Drivers.Terminal.Tests.csproj" />
   </Folder>
   <Folder Name="/Extensions/">
-    <Project Path="extensions/TSharpVision.TCodeEditor/TSharpVision.TCodeEditor.csproj" />
+    <Project Path="extensions/TSharpVision.HexView/TSharpVision.HexView.csproj" />
+    <Project Path="extensions/TSharpVision.TableView/TSharpVision.TableView.csproj" />
+    <Project Path="extensions/TSharpVision.CodeEditor/TSharpVision.CodeEditor.csproj" />
     <Project Path="extensions/TSharpVision.Terminal/TSharpVision.Terminal.csproj" />
+    <Project Path="tests/TSharpVision.HexView.Tests/TSharpVision.HexView.Tests.csproj" />
+    <Project Path="tests/TSharpVision.TableView.Tests/TSharpVision.TableView.Tests.csproj" />
+    <Project Path="tests/TSharpVision.CodeEditor.Tests/TSharpVision.CodeEditor.Tests.csproj" />
     <Project Path="tests/TSharpVision.Terminal.Tests/TSharpVision.Terminal.Tests.csproj" />
   </Folder>
   <Folder Name="/Samples/">

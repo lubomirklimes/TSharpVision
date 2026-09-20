@@ -8,6 +8,29 @@ namespace TSharpVision.Tests.Core;
 [Collection("NonParallel")]
 public sealed class GroupEventFlowTests
 {
+    [Fact]
+    public void PositionalRoutingKeepsWheelAsAnExplicitExtension()
+    {
+        using var driver = new DriverScope();
+        var group = new TestGroup(new TRect(0, 0, 20, 10));
+        var view = new ProbeView(new TRect(0, 0, 10, 10)) { eventMask = Events.evMouse };
+        group.Insert(view);
+
+        var wheel = new TEvent { What = Events.evMouseWheel };
+        wheel.mouse.where = new TPoint(2, 2);
+        group.HandleEvent(ref wheel);
+        Assert.Equal(0, view.Hits);
+
+        view.eventMask = (ushort)(Events.evMouse | Events.evMouseWheel);
+        group.HandleEvent(ref wheel);
+        Assert.Equal(1, view.Hits);
+
+        var down = new TEvent { What = Events.evMouseDown };
+        down.mouse.where = new TPoint(2, 2);
+        group.HandleEvent(ref down);
+        Assert.Equal(2, view.Hits);
+    }
+
     // ── linked-list shape ────────────────────────────────────────────────────
 
     [Fact]

@@ -1,4 +1,5 @@
 using System.Text;
+using System.Diagnostics.CodeAnalysis;
 
 namespace TSharpVision.Text;
 
@@ -58,7 +59,7 @@ public static class LegacyTextEncodings
     }
 
     /// <summary>Finds a registered encoding by trimmed case-insensitive name; returns false and null for blank or unknown names.</summary>
-    public static bool TryGet(string name, out ILegacyTextEncoding encoding)
+    public static bool TryGet(string name, [NotNullWhen(true)] out ILegacyTextEncoding? encoding)
     {
         if (string.IsNullOrWhiteSpace(name))
         {

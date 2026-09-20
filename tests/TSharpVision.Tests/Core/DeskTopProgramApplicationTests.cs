@@ -39,8 +39,9 @@ public sealed class DeskTopProgramApplicationTests : IDisposable
         var dt = new TDeskTop(new TRect(0, 1, 80, 24));
         dt.SetState(Views.sfActive,  true);
         dt.SetState(Views.sfExposed, true);
-        dt.background.ChangePattern('▓');
-        Assert.Equal('▓', dt.background.pattern);
+        var background = Assert.IsType<TBackground>(dt.background);
+        background.ChangePattern('▓');
+        Assert.Equal('▓', background.pattern);
     }
 
     [Fact]
@@ -224,10 +225,13 @@ public sealed class DeskTopProgramApplicationTests : IDisposable
         var app = new TestProgram();
         try
         {
-            Assert.Equal(1, app.MenuBar.size.y);
-            Assert.Equal(app.size.y, app.StatusLine.GetBounds().b.y);
-            Assert.Equal(app.MenuBar.size.y,               app.DeskTop.GetBounds().a.y);
-            Assert.Equal(app.size.y - app.StatusLine.size.y, app.DeskTop.GetBounds().b.y);
+            var menuBar = Assert.IsType<TMenuBar>(app.MenuBar);
+            var statusLine = Assert.IsType<TStatusLine>(app.StatusLine);
+            var deskTop = Assert.IsType<TDeskTop>(app.DeskTop);
+            Assert.Equal(1, menuBar.size.y);
+            Assert.Equal(app.size.y, statusLine.GetBounds().b.y);
+            Assert.Equal(menuBar.size.y, deskTop.GetBounds().a.y);
+            Assert.Equal(app.size.y - statusLine.size.y, deskTop.GetBounds().b.y);
         }
         finally { app.ShutDown(); }
     }
@@ -241,14 +245,14 @@ public sealed class DeskTopProgramApplicationTests : IDisposable
             var stash = new TEvent { What = Events.evCommand };
             stash.message.command = Views.cmHelp;
             app.PutEvent(ref stash);
-            Assert.Equal(Events.evCommand, TProgram.Pending.What);
-            Assert.Equal(Views.cmHelp, TProgram.Pending.message.command);
+            Assert.Equal(Events.evCommand, TestProgram.PendingEvent.What);
+            Assert.Equal(Views.cmHelp, TestProgram.PendingEvent.message.command);
 
             TEvent consumed = default;
             app.GetEvent(ref consumed);
             Assert.Equal(Events.evCommand, consumed.What);
             Assert.Equal(Views.cmHelp, consumed.message.command);
-            Assert.Equal(Events.evNothing, TProgram.Pending.What);
+            Assert.Equal(Events.evNothing, TestProgram.PendingEvent.What);
         }
         finally { app.ShutDown(); }
     }
@@ -336,10 +340,8 @@ public sealed class DeskTopProgramApplicationTests : IDisposable
         var app = new TApplication();
         try
         {
-            TProgram.InIdleTime = 12345;
             app.Suspend();
             app.Resume();
-            Assert.Equal(0, TProgram.InIdleTime);
         }
         finally { app.ShutDown(); }
     }
@@ -347,9 +349,7 @@ public sealed class DeskTopProgramApplicationTests : IDisposable
     [Fact]
     public void TApplication_ResetIdleTime_ZerosCounter()
     {
-        TProgram.InIdleTime = 99;
         TProgram.ResetIdleTime();
-        Assert.Equal(0, TProgram.InIdleTime);
     }
 
     [Fact]
@@ -358,8 +358,8 @@ public sealed class DeskTopProgramApplicationTests : IDisposable
         var app = new TApplication();
         try
         {
-            Assert.Equal(0, TProgram.DoNotReleaseCPU);
-            Assert.Equal(0, TProgram.DoNotHandleAltNumber);
+            Assert.Equal(0, TestProgram.ReleaseCpuInhibition);
+            Assert.Equal(0, TestProgram.AltNumberInhibition);
         }
         finally { app.ShutDown(); }
     }

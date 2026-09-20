@@ -119,7 +119,7 @@ public sealed class Win32DriverHardeningTests : IDisposable
 
         TEvent wheel = default;
         wheel.What          = Events.evMouseWheel;
-        wheel.mouse.buttons = (byte)Events.mbButton4;
+        wheel.mouse.eventFlags = Events.meWheelUp;
         wheel.mouse.where   = new TPoint(10, 5);
         TEventQueue.Enqueue(wheel);
 
@@ -129,17 +129,17 @@ public sealed class Win32DriverHardeningTests : IDisposable
     }
 
     [Fact]
-    public void Interleave_WheelMbButton4_Preserved()
+    public void Interleave_WheelUpFlag_Preserved()
     {
         TEvent wheel = default;
         wheel.What          = Events.evMouseWheel;
-        wheel.mouse.buttons = (byte)Events.mbButton4;
+        wheel.mouse.eventFlags = Events.meWheelUp;
         wheel.mouse.where   = new TPoint(10, 5);
         TEventQueue.Enqueue(wheel);
 
         TEvent got = default;
         TEventQueue.GetNextEvent(ref got);
-        Assert.True((got.mouse.buttons & Events.mbButton4) != 0);
+        Assert.True((got.mouse.eventFlags & Events.meWheelUp) != 0);
     }
 
     [Fact]
@@ -163,7 +163,7 @@ public sealed class Win32DriverHardeningTests : IDisposable
 
         TEvent wheel = default;
         wheel.What          = Events.evMouseWheel;
-        wheel.mouse.buttons = (byte)Events.mbButton4;
+        wheel.mouse.eventFlags = Events.meWheelUp;
         wheel.mouse.where   = new TPoint(10, 5);
         TEventQueue.Enqueue(wheel);
         TEvent gW = default; TEventQueue.GetNextEvent(ref gW);
@@ -266,13 +266,13 @@ public sealed class Win32DriverHardeningTests : IDisposable
     }
 
     [Fact]
-    public void TranslateMouse_WheeledAndMoved_PositiveDelta_IsMbButton4()
+    public void TranslateMouse_WheeledAndMoved_PositiveDelta_HasWheelUpFlag()
     {
         uint posDelta = (uint)((short)120 << 16);
         const uint MOUSE_WHEELED = 0x0004;
         const uint MOUSE_MOVED   = 0x0001;
         var ev = Win32ConsoleDriver.TranslateMouse(posDelta, MOUSE_WHEELED | MOUSE_MOVED, 5, 3);
-        Assert.True((ev.mouse.buttons & Events.mbButton4) != 0);
+        Assert.True((ev.mouse.eventFlags & Events.meWheelUp) != 0);
     }
 
     [Fact]
@@ -296,13 +296,13 @@ public sealed class Win32DriverHardeningTests : IDisposable
     }
 
     [Fact]
-    public void TranslateMouse_WheeledAndMoved_NegativeDelta_IsMbButton5()
+    public void TranslateMouse_WheeledAndMoved_NegativeDelta_HasWheelDownFlag()
     {
         uint negDelta = unchecked((uint)((short)(-120) << 16));
         const uint MOUSE_WHEELED = 0x0004;
         const uint MOUSE_MOVED   = 0x0001;
         var ev = Win32ConsoleDriver.TranslateMouse(negDelta, MOUSE_WHEELED | MOUSE_MOVED, 5, 3);
-        Assert.True((ev.mouse.buttons & Events.mbButton5) != 0);
+        Assert.True((ev.mouse.eventFlags & Events.meWheelDown) != 0);
     }
 
     // ── §6 — Win32KeyTranslator key-coverage gaps ─────────────────────────

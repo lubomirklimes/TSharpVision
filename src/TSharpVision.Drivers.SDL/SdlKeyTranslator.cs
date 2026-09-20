@@ -10,8 +10,28 @@ using TSharpVision.Constants;
 namespace TSharpVision.Drivers.SDL;
 
 /// <summary>Converts SDL key codes and modifier masks to framework keyboard events without requiring an SDL window.</summary>
-public static class SdlKeyTranslator
+internal static class SdlKeyTranslator
 {
+    private static readonly ushort[] ControlLetters =
+    [
+        Keys.kbCtrlA, Keys.kbCtrlB, Keys.kbCtrlC, Keys.kbCtrlD, Keys.kbCtrlE, Keys.kbCtrlF,
+        Keys.kbCtrlG, Keys.kbCtrlH, Keys.kbCtrlI, Keys.kbCtrlJ, Keys.kbCtrlK, Keys.kbCtrlL,
+        Keys.kbCtrlM, Keys.kbCtrlN, Keys.kbCtrlO, Keys.kbCtrlP, Keys.kbCtrlQ, Keys.kbCtrlR,
+        Keys.kbCtrlS, Keys.kbCtrlT, Keys.kbCtrlU, Keys.kbCtrlV, Keys.kbCtrlW, Keys.kbCtrlX,
+        Keys.kbCtrlY, Keys.kbCtrlZ
+    ];
+    private static readonly ushort[] AltLetters =
+    [
+        Keys.kbAltA, Keys.kbAltB, Keys.kbAltC, Keys.kbAltD, Keys.kbAltE, Keys.kbAltF,
+        Keys.kbAltG, Keys.kbAltH, Keys.kbAltI, Keys.kbAltJ, Keys.kbAltK, Keys.kbAltL,
+        Keys.kbAltM, Keys.kbAltN, Keys.kbAltO, Keys.kbAltP, Keys.kbAltQ, Keys.kbAltR,
+        Keys.kbAltS, Keys.kbAltT, Keys.kbAltU, Keys.kbAltV, Keys.kbAltW, Keys.kbAltX,
+        Keys.kbAltY, Keys.kbAltZ
+    ];
+    private static readonly ushort[] AltDigits =
+        [Keys.kbAlt0, Keys.kbAlt1, Keys.kbAlt2, Keys.kbAlt3, Keys.kbAlt4,
+         Keys.kbAlt5, Keys.kbAlt6, Keys.kbAlt7, Keys.kbAlt8, Keys.kbAlt9];
+
     // SDL3 modifier flags (subset).
     /// <summary>SDL modifier mask for left Shift being pressed.</summary>
     public const ushort SDL_KMOD_LSHIFT = 0x0001;
@@ -125,7 +145,7 @@ public static class SdlKeyTranslator
             keycode == SDLK_LALT || keycode == SDLK_RALT)
             return false;
 
-        ushort shift = ToShiftState(modState);
+        uint shift = ToShiftState(modState);
         bool ctrl  = (shift & Keys.kbCtrlShift) != 0;
         bool alt   = (shift & Keys.kbAltShift)  != 0;
         bool shf   = (shift & Keys.kbShift)     != 0;
@@ -137,8 +157,8 @@ public static class SdlKeyTranslator
             SDLK_TAB       => shf ? Keys.kbShiftTab : Keys.kbTab,
             SDLK_RETURN    => Keys.kbEnter,
             SDLK_ESCAPE    => Keys.kbEsc,
-            SDLK_DELETE    => ctrl ? Keys.kbCtrlDel : (shf ? Keys.kbShiftDel : Keys.kbDel),
-            SDLK_INSERT    => ctrl ? Keys.kbCtrlIns : (shf ? Keys.kbShiftIns : Keys.kbIns),
+            SDLK_DELETE    => ctrl && shf ? Keys.kbCtrlShiftDel : ctrl ? Keys.kbCtrlDel : (shf ? Keys.kbShiftDel : Keys.kbDel),
+            SDLK_INSERT    => ctrl && shf ? Keys.kbCtrlShiftIns : ctrl ? Keys.kbCtrlIns : (shf ? Keys.kbShiftIns : Keys.kbIns),
             SDLK_HOME      => ctrl ? Keys.kbCtrlHome : Keys.kbHome,
             SDLK_END       => ctrl ? Keys.kbCtrlEnd  : Keys.kbEnd,
             SDLK_PAGEUP    => ctrl ? Keys.kbCtrlPgUp : Keys.kbPgUp,
@@ -174,12 +194,12 @@ public static class SdlKeyTranslator
             int letter = (int)keycode - 'a';
             if (alt)
             {
-                ev = MakeKey((ushort)(Keys.kbAltA + letter), shift);
+                ev = MakeKey(AltLetters[letter], shift);
                 return true;
             }
             if (ctrl)
             {
-                ev = MakeKey((ushort)(Keys.kbCtrlA + letter), shift);
+                ev = MakeKey(ControlLetters[letter], shift);
                 ev.keyDown.charScan.charCode = (byte)(letter + 1); // 0x01..0x1A
                 return true;
             }
@@ -198,8 +218,7 @@ public static class SdlKeyTranslator
             int digit = (int)keycode - '0';
             if (alt)
             {
-                ushort altKc = digit == 0 ? Keys.kbAlt0 : (ushort)(Keys.kbAlt1 + digit - 1);
-                ev = MakeKey(altKc, shift);
+                ev = MakeKey(AltDigits[digit], shift);
                 return true;
             }
             char ch = textChar != 0 ? textChar : (char)keycode;
@@ -223,9 +242,9 @@ public static class SdlKeyTranslator
     }
 
     /// <summary>Maps SDL Shift, Control, and Alt modifier bits to framework keyboard-state masks.</summary>
-    public static ushort ToShiftState(ushort modState)
+    public static uint ToShiftState(ushort modState)
     {
-        ushort s = 0;
+        uint s = 0;
         if ((modState & SDL_KMOD_SHIFT) != 0) s |= Keys.kbShift;
         if ((modState & SDL_KMOD_CTRL)  != 0) s |= Keys.kbCtrlShift;
         if ((modState & SDL_KMOD_ALT)   != 0) s |= Keys.kbAltShift;
@@ -241,12 +260,13 @@ public static class SdlKeyTranslator
         return plain;
     }
 
-    private static TEvent MakeKey(ushort kc, ushort shift)
+    private static TEvent MakeKey(ushort kc, uint shift)
     {
         TEvent ev = default;
         ev.What = Events.evKeyDown;
         ev.keyDown.keyCode = kc;
-        ev.keyDown.shiftState = shift;
+        ev.keyDown.charScan = new CharScanType(kc);
+        ev.keyDown.controlKeyState = shift;
         return ev;
     }
 }

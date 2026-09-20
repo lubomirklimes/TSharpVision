@@ -42,9 +42,12 @@ public sealed class Win32ConsoleDriver : IDriver, IDisposable
     private const uint MOUSE_MOVED        = 0x0001;
     private const uint DOUBLE_CLICK       = 0x0002;
     private const uint MOUSE_WHEELED      = 0x0004;
+    private const uint MOUSE_HWHEELED     = 0x0008;
     private const uint FROM_LEFT_1ST_BUTTON_PRESSED = 0x0001;
     private const uint RIGHTMOST_BUTTON_PRESSED     = 0x0002;
     private const uint FROM_LEFT_2ND_BUTTON_PRESSED = 0x0004;
+    private const uint FROM_LEFT_3RD_BUTTON_PRESSED = 0x0008;
+    private const uint FROM_LEFT_4TH_BUTTON_PRESSED = 0x0010;
 
     [StructLayout(LayoutKind.Sequential)]
     private struct COORD { public short X; public short Y; }
@@ -171,6 +174,7 @@ public sealed class Win32ConsoleDriver : IDriver, IDisposable
     private ushort _rows  = 25;
     private ushort _cursorType;
     private readonly Queue<TEvent> _pendingKeys = new();
+    private readonly Win32InputTranslator _inputTranslator = new();
     private CHAR_INFO[] _writeLine = Array.Empty<CHAR_INFO>();
     private readonly INPUT_RECORD[] _inputRecords = new INPUT_RECORD[32];
 
@@ -180,6 +184,9 @@ public sealed class Win32ConsoleDriver : IDriver, IDisposable
     public bool SupportsTrueColor => false;
     /// <inheritdoc />
     public bool SupportsGraphics  => false;
+    /// <inheritdoc />
+    public KeyboardCapabilities KeyboardCapabilities =>
+        KeyboardCapabilities.KeyReleaseEvents | KeyboardCapabilities.StandaloneModifierTransitions;
 
     /// <summary>
     /// Exposed for smoke tests: returns the P/Invoke marshaled size of CHAR_INFO.
@@ -187,14 +194,14 @@ public sealed class Win32ConsoleDriver : IDriver, IDisposable
     /// With CharSet.Ansi  (wrong), char = 1 byte + 1 pad = 4 bytes but
     ///   high byte of UnicodeChar is lost, corrupting all non-ASCII glyphs.
     /// </summary>
-    public static int CharInfoMarshaledSize =>
+    internal static int CharInfoMarshaledSize =>
         System.Runtime.InteropServices.Marshal.SizeOf<CHAR_INFO>();
 
     /// <summary>
     /// Exposed for tests: feeds a synthetic key event through the same
     /// translation pipeline the real console uses.
     /// </summary>
-    public bool TryTranslateKey(bool keyDown, ushort vk, char ch, uint ctrl, out TEvent ev)
+    internal bool TryTranslateKey(bool keyDown, ushort vk, char ch, uint ctrl, out TEvent ev)
         => Win32KeyTranslator.TryTranslate(keyDown, vk, ch, ctrl, out ev);
 
     /// <inheritdoc />
@@ -407,20 +414,16 @@ public sealed class Win32ConsoleDriver : IDriver, IDisposable
                     if (InputTrace.Enabled)
                         InputTrace.Log("Stage1-NativeKey",
                             $"keyDown={r.KeyEvent.bKeyDown != 0} vk=0x{r.KeyEvent.wVirtualKeyCode:X2} scan=0x{r.KeyEvent.wVirtualScanCode:X2} ch=U+{(int)r.KeyEvent.UnicodeChar:X4} ctrl=0x{r.KeyEvent.dwControlKeyState:X4}");
-                    if (Win32KeyTranslator.TryTranslate(
-                            r.KeyEvent.bKeyDown != 0,
-                            r.KeyEvent.wVirtualKeyCode,
-                            r.KeyEvent.UnicodeChar,
-                            r.KeyEvent.dwControlKeyState,
-                            out var kev))
+                    if (ProcessKeyRecord(
+                            r.KeyEvent.bKeyDown != 0, r.KeyEvent.wVirtualKeyCode,
+                            r.KeyEvent.wVirtualScanCode, r.KeyEvent.UnicodeChar,
+                            r.KeyEvent.dwControlKeyState, r.KeyEvent.wRepeatCount))
                     {
-                        kev.keyDown.raw_scanCode = (byte)r.KeyEvent.wVirtualScanCode;
-                        _pendingKeys.Enqueue(kev);
                         if (InputTrace.Enabled)
-                            InputTrace.LogEvent("Stage2-TranslatedKey", kev);
+                            InputTrace.LogEvent("Stage2-TranslatedKey", _pendingKeys.Last());
                     }
                     else if (InputTrace.Enabled)
-                        InputTrace.Log("Stage2-TranslatedKey", "skipped (key-up or dead modifier)");
+                        InputTrace.Log("Stage2-TranslatedKey", "skipped (duplicate modifier transition or unmapped key)");
                     break;
 
                 case MOUSE_EVENT:
@@ -487,43 +490,72 @@ public sealed class Win32ConsoleDriver : IDriver, IDisposable
     /// Translate a Windows mouse record into a tvision mouse event.
     /// Public for unit tests; the driver itself only uses it internally.
     /// </summary>
-    public static TEvent TranslateMouse(uint buttonState, uint eventFlags, short x, short y)
+    internal static TEvent TranslateMouse(
+        uint buttonState, uint eventFlags, short x, short y, uint controlKeyState = 0)
     {
         TEvent ev = default;
         ev.mouse.where = new TPoint(x, y);
-        ev.mouse.doubleClick = false;
+        ev.mouse.controlKeyState = Win32KeyTranslator.ToControlKeyState(controlKeyState);
+        if ((eventFlags & MOUSE_MOVED) != 0)
+            ev.mouse.eventFlags |= Events.meMouseMoved;
+        if ((eventFlags & DOUBLE_CLICK) != 0)
+            ev.mouse.eventFlags |= Events.meDoubleClick;
 
-        // Handle vertical wheel before the regular button logic.
+        byte buttons = TranslatePhysicalButtons(buttonState);
+        ev.mouse.buttons = buttons;
+
         // Win32 places the signed wheel delta in the high 16 bits of
-        // dwButtonState when MOUSE_WHEELED is set.
-        // Positive delta = wheel rotated away from user = scroll up (mbButton4).
-        // Negative delta = wheel rotated toward user  = scroll down (mbButton5).
-        if ((eventFlags & MOUSE_WHEELED) != 0)
+        // dwButtonState. Positive vertical is away/up; positive horizontal is right.
+        if ((eventFlags & (MOUSE_WHEELED | MOUSE_HWHEELED)) != 0)
         {
             short wheelDelta = (short)((int)buttonState >> 16);
             ev.What = Events.evMouseWheel;
-            ev.mouse.buttons = (byte)(wheelDelta > 0 ? Events.mbButton4 : Events.mbButton5);
+            if ((eventFlags & MOUSE_HWHEELED) != 0)
+                ev.mouse.eventFlags |= wheelDelta > 0 ? Events.meWheelRight : Events.meWheelLeft;
+            else
+                ev.mouse.eventFlags |= wheelDelta > 0 ? Events.meWheelUp : Events.meWheelDown;
             return ev;
         }
 
-        // tvision button bitmask: 0x01 left, 0x02 right.
-        byte buttons = 0;
-        if ((buttonState & FROM_LEFT_1ST_BUTTON_PRESSED) != 0) buttons |= 0x01;
-        if ((buttonState & RIGHTMOST_BUTTON_PRESSED)     != 0) buttons |= 0x02;
-        ev.mouse.buttons = buttons;
-        ev.mouse.doubleClick = (eventFlags & DOUBLE_CLICK) != 0;
-
         if ((eventFlags & MOUSE_MOVED) != 0)
             ev.What = Events.evMouseMove;
-        else if (buttonState != 0)
+        else if (buttons != 0)
             ev.What = Events.evMouseDown;
         else
             ev.What = Events.evMouseUp;
         return ev;
     }
 
+    private static byte TranslatePhysicalButtons(uint buttonState)
+    {
+        byte buttons = 0;
+        if ((buttonState & FROM_LEFT_1ST_BUTTON_PRESSED) != 0) buttons |= (byte)Events.mbLeftButton;
+        if ((buttonState & RIGHTMOST_BUTTON_PRESSED) != 0) buttons |= (byte)Events.mbRightButton;
+        if ((buttonState & FROM_LEFT_2ND_BUTTON_PRESSED) != 0) buttons |= (byte)Events.mbMiddleButton;
+        if ((buttonState & FROM_LEFT_3RD_BUTTON_PRESSED) != 0) buttons |= (byte)Events.mbButton4;
+        if ((buttonState & FROM_LEFT_4TH_BUTTON_PRESSED) != 0) buttons |= (byte)Events.mbButton5;
+        return buttons;
+    }
+
     private static TEvent TranslateMouse(MOUSE_EVENT_RECORD m)
-        => TranslateMouse(m.dwButtonState, m.dwEventFlags, m.dwMousePosition.X, m.dwMousePosition.Y);
+        => TranslateMouse(
+            m.dwButtonState, m.dwEventFlags, m.dwMousePosition.X, m.dwMousePosition.Y,
+            m.dwControlKeyState);
+
+    internal bool ProcessKeyRecord(
+        bool keyDown, ushort virtualKey, ushort scanCode, char character,
+        uint controlKeyState, ushort repeatCount = 1)
+    {
+        // Preserve the established Console behavior: one native record produces one
+        // public event. wRepeatCount is intentionally not expanded by this driver.
+        _ = repeatCount;
+        if (!_inputTranslator.TryTranslate(
+                keyDown, virtualKey, scanCode, character, controlKeyState, out TEvent ev))
+            return false;
+        ev.keyDown.raw_scanCode = (byte)scanCode;
+        _pendingKeys.Enqueue(ev);
+        return true;
+    }
 
     /// <inheritdoc />
     public bool ReadKeyEvent(out TEvent ev)

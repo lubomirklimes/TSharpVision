@@ -9,7 +9,7 @@ namespace TSharpVision.ResourceTools;
 public sealed class ResourceEntry
 {
     /// <summary>Resource key (e.g. "dialog.hello").</summary>
-    public string Key { get; init; }
+    public string Key { get; init; } = string.Empty;
 
     /// <summary>Byte offset of the payload within the <c>.tvr</c> file (relative to the FBPR header).</summary>
     public long Position { get; init; }
@@ -21,5 +21,5 @@ public sealed class ResourceEntry
     /// Streamable type name extracted from the first few bytes of the payload,
     /// e.g. "TDialog". <c>null</c> if the prefix cannot be parsed.
     /// </summary>
-    public string TypeName { get; init; }
+    public string? TypeName { get; init; }
 }

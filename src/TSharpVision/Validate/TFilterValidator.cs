@@ -26,10 +26,10 @@ public class TFilterValidator : TValidator
     }
 
     /// <summary>Creates a filter validator for restoration; Read must supply its valid-character set before use.</summary>
-    protected TFilterValidator(StreamableInit _) : base(_) { }
+    protected TFilterValidator(StreamableInit _) : base(_) { ValidChars = string.Empty; }
 
     /// <inheritdoc />
-    public override bool IsValid(string s)
+    public override bool IsValid(string? s)
     {
         if (s == null) return true;
         foreach (char c in s)
@@ -38,7 +38,7 @@ public class TFilterValidator : TValidator
     }
 
     /// <inheritdoc />
-    public override bool IsValidInput(string s, bool suppressFill) => IsValid(s);
+    public override bool IsValidInput(string? s, bool suppressFill) => IsValid(s);
 
     /// <inheritdoc />
     public override void Error() { }

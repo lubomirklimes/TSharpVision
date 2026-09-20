@@ -77,8 +77,8 @@ public sealed class TResourceFile
             _stream.In.Seekg(basePos + 8);
             _indexPos = _stream.In.Read32();
             _stream.In.Seekg(basePos + _indexPos);
-            _index = (TResourceCollection)_stream.In.ReadPointer();
-            if (_index == null) _index = new TResourceCollection(0, 8);
+            _index = _stream.In.ReadPointer() as TResourceCollection
+                ?? new TResourceCollection(0, 8);
         }
         else
         {
@@ -115,7 +115,7 @@ public sealed class TResourceFile
     }
 
     /// <summary>Deserializes the resource with the ordinal key, or returns null if the key is absent.</summary>
-    public object Get(string key)
+    public object? Get(string key)
     {
         if (!_index.Search(key, out int i)) return null;
         var it = _index.At(i);
@@ -124,7 +124,7 @@ public sealed class TResourceFile
     }
 
     /// <summary>Returns a new array containing the serialized payload for an ordinal key, or null if absent.</summary>
-    public byte[] GetRawBytes(string key)
+    public byte[]? GetRawBytes(string key)
     {
         if (!_index.Search(key, out int i)) return null;
         var it = _index.At(i);

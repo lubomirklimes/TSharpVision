@@ -35,7 +35,7 @@ internal sealed class AnsiTerminalParser
     /// The last OSC title received (ESC]0;...BEL or ESC]0;...ESC\).
     /// Null until the first title sequence is received.
     /// </summary>
-    public string LastWindowTitle { get; private set; }
+    public string? LastWindowTitle { get; private set; }
 
     /// <summary>
     /// Tracks cursor visibility from ESC[?25h (true) / ESC[?25l (false).
@@ -80,11 +80,11 @@ internal sealed class AnsiTerminalParser
         Action onCarriageReturn,
         Action onBackspace,
         Action onClearScreen,
-        Action<int> onEraseInLine        = null,
-        Action<int> onCursorColumn       = null,
-        Action<int> onCursorRight        = null,
-        Action<int> onCursorLeft         = null,
-        Action<int, int> onCursorPosition = null)
+        Action<int>? onEraseInLine        = null,
+        Action<int>? onCursorColumn       = null,
+        Action<int>? onCursorRight        = null,
+        Action<int>? onCursorLeft         = null,
+        Action<int, int>? onCursorPosition = null)
     {
         int i = 0;
         while (i < text.Length)
@@ -193,11 +193,11 @@ internal sealed class AnsiTerminalParser
     private void DispatchCsi(
         char command, string paramStr, bool isPrivate,
         Action onClearScreen,
-        Action<int> onEraseInLine,
-        Action<int> onCursorColumn,
-        Action<int> onCursorRight,
-        Action<int> onCursorLeft,
-        Action<int, int> onCursorPosition)
+        Action<int>? onEraseInLine,
+        Action<int>? onCursorColumn,
+        Action<int>? onCursorRight,
+        Action<int>? onCursorLeft,
+        Action<int, int>? onCursorPosition)
     {
         if (isPrivate)
         {

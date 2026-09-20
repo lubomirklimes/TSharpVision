@@ -590,8 +590,10 @@ public sealed class TVTermApp : TApplication
         if (DeskTop.ExecView(dlg) == Views.cmOK)
         {
             var live = GetPalette();
-            System.Array.Copy(dlg.Pal.Data, live.Data,
-                System.Math.Min(dlg.Pal.Data.Length, live.Data.Length));
+            TPalette? editedPalette = dlg.Pal;
+            if (editedPalette == null) return;
+            System.Array.Copy(editedPalette.Data, live.Data,
+                System.Math.Min(editedPalette.Data.Length, live.Data.Length));
             DrawView();
         }
     }

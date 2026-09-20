@@ -11,9 +11,9 @@ public sealed class SdlClipboardServiceTests
 
     private sealed class FakeSdlClipboard : ISdlClipboard
     {
-        public string ClipboardText { get; set; }
+        public string? ClipboardText { get; set; }
         public bool HasClipboardText() => !string.IsNullOrEmpty(ClipboardText);
-        public string GetClipboardText() => ClipboardText;
+        public string? GetClipboardText() => ClipboardText;
         public bool SetClipboardText(string text) { ClipboardText = text; return true; }
     }
 

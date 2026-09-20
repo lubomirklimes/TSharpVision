@@ -17,7 +17,7 @@ namespace TSharpVision.Tests.ResourceCompiler;
 
 public sealed class MenuParserTests
 {
-    private static TrcFile Parse(string src, List<Diagnostic> diag = null)
+    private static TrcFile Parse(string src, List<Diagnostic>? diag = null)
     {
         diag ??= new List<Diagnostic>();
         var tokens = new Lexer(src, diag).Tokenize();
@@ -42,8 +42,7 @@ public sealed class MenuParserTests
     separator;
   }
 }");
-        var body = ast.Resources[0].Menu;
-        Assert.NotNull(body);
+        var body = Assert.IsType<MenuBody>(ast.Resources[0].Menu);
         Assert.Single(body.Items);
         var sm = body.Items[0];
         Assert.Equal(MenuItemKind.Submenu, sm.Kind);
@@ -63,7 +62,8 @@ public sealed class MenuParserTests
     }
   }
 }");
-        var top    = ast.Resources[0].Menu.Items[0];
+        var body = Assert.IsType<MenuBody>(ast.Resources[0].Menu);
+        var top = body.Items[0];
         var nested = top.Children[0];
         Assert.Equal(MenuItemKind.Submenu, nested.Kind);
         Assert.Equal("Nested", nested.Title);
@@ -78,7 +78,8 @@ public sealed class MenuParserTests
     item ""About"" command=cmAbout;
   }
 }");
-        var item = ast.Resources[0].Menu.Items[0].Children[0];
+        var body = Assert.IsType<MenuBody>(ast.Resources[0].Menu);
+        var item = body.Items[0].Children[0];
         Assert.Equal(MenuItemKind.Item, item.Kind);
         Assert.Equal("cmAbout", item.Command);
         Assert.Null(item.Key);
@@ -90,12 +91,12 @@ public sealed class MenuParserTests
         var ast = Parse(@"resource menu ""m"" {
   bounds (0, 0, 80, 1);
 }");
-        var body = ast.Resources[0].Menu;
-        Assert.NotNull(body.Bounds);
-        Assert.Equal(0, body.Bounds.X1);
-        Assert.Equal(0, body.Bounds.Y1);
-        Assert.Equal(80, body.Bounds.X2);
-        Assert.Equal(1, body.Bounds.Y2);
+        var body = Assert.IsType<MenuBody>(ast.Resources[0].Menu);
+        var bounds = Assert.IsType<BoundsNode>(body.Bounds);
+        Assert.Equal(0, bounds.X1);
+        Assert.Equal(0, bounds.Y1);
+        Assert.Equal(80, bounds.X2);
+        Assert.Equal(1, bounds.Y2);
     }
 
     [Fact]
@@ -104,7 +105,8 @@ public sealed class MenuParserTests
         var diag = new List<Diagnostic>();
         var ast = Parse(@"resource menu ""m"" { }", diag);
         Assert.Empty(diag);
-        Assert.Empty(ast.Resources[0].Menu.Items);
+        var body = Assert.IsType<MenuBody>(ast.Resources[0].Menu);
+        Assert.Empty(body.Items);
     }
 }
 
@@ -114,7 +116,7 @@ public sealed class MenuParserTests
 
 public sealed class StatusBarParserTests
 {
-    private static TrcFile Parse(string src, List<Diagnostic> diag = null)
+    private static TrcFile Parse(string src, List<Diagnostic>? diag = null)
     {
         diag ??= new List<Diagnostic>();
         var tokens = new Lexer(src, diag).Tokenize();
@@ -137,8 +139,7 @@ public sealed class StatusBarParserTests
     item ""~F1~ Help"" command=cmHelp key=""F1"";
   }
 }");
-        var body = ast.Resources[0].StatusBar;
-        Assert.NotNull(body);
+        var body = Assert.IsType<StatusBarBody>(ast.Resources[0].StatusBar);
         Assert.Single(body.Ranges);
         var rng = body.Ranges[0];
         Assert.Equal(0, rng.Min);
@@ -160,7 +161,7 @@ public sealed class StatusBarParserTests
     item ""B"" command=cmCancel key=""F2"";
   }
 }");
-        var body = ast.Resources[0].StatusBar;
+        var body = Assert.IsType<StatusBarBody>(ast.Resources[0].StatusBar);
         Assert.Equal(2, body.Ranges.Count);
         Assert.Equal(0,   body.Ranges[0].Min);
         Assert.Equal(100, body.Ranges[0].Max);
@@ -174,10 +175,10 @@ public sealed class StatusBarParserTests
         var ast = Parse(@"resource statusbar ""s"" {
   bounds (0, 24, 80, 25);
 }");
-        var body = ast.Resources[0].StatusBar;
-        Assert.NotNull(body.Bounds);
-        Assert.Equal(24, body.Bounds.Y1);
-        Assert.Equal(25, body.Bounds.Y2);
+        var body = Assert.IsType<StatusBarBody>(ast.Resources[0].StatusBar);
+        var bounds = Assert.IsType<BoundsNode>(body.Bounds);
+        Assert.Equal(24, bounds.Y1);
+        Assert.Equal(25, bounds.Y2);
     }
 
     [Fact]
@@ -186,7 +187,8 @@ public sealed class StatusBarParserTests
         var diag = new List<Diagnostic>();
         var ast = Parse(@"resource statusbar ""s"" { }", diag);
         Assert.Empty(diag);
-        Assert.Empty(ast.Resources[0].StatusBar.Ranges);
+        var body = Assert.IsType<StatusBarBody>(ast.Resources[0].StatusBar);
+        Assert.Empty(body.Ranges);
     }
 }
 
@@ -205,10 +207,10 @@ public sealed class CommandIdsExtensionTests
     [InlineData("cmCut",     Views.cmCut)]
     [InlineData("cmCopy",    Views.cmCopy)]
     [InlineData("cmPaste",   Views.cmPaste)]
-    [InlineData("cmSave",    80)]
-    [InlineData("cmSaveAs",  81)]
-    [InlineData("cmOpen",    100)]
-    [InlineData("cmNew",     101)]
+    [InlineData("cmSave",    Views.cmSave)]
+    [InlineData("cmSaveAs",  Views.cmSaveAs)]
+    [InlineData("cmOpen",    Views.cmOpen)]
+    [InlineData("cmNew",     Views.cmNew)]
     public void BuiltinCommand_Resolves(string name, int expectedCode)
     {
         bool ok = CommandIds.TryResolve(name, new Dictionary<string, int>(), out ushort code);
@@ -275,7 +277,7 @@ public sealed class MenuBuilderTests : IDisposable
         StreamableRegistration.RegisterAll();
     }
 
-    private static List<(string key, TStreamable obj)> Build(string src, List<Diagnostic> diag = null)
+    private static List<(string key, TStreamable obj)> Build(string src, List<Diagnostic>? diag = null)
     {
         diag ??= new List<Diagnostic>();
         var tokens = new Lexer(src, diag).Tokenize();
@@ -293,12 +295,11 @@ public sealed class MenuBuilderTests : IDisposable
   }
 }");
         Assert.Single(result);
-        var mb = result[0].obj as TMenuBar;
-        Assert.NotNull(mb);
-        Assert.NotNull(mb.Menu);
+        var mb = Assert.IsType<TMenuBar>(result[0].obj);
+        var menu = Assert.IsType<TMenu>(mb.Menu);
         // Top-level: one submenu named ~F~ile
-        Assert.NotNull(mb.Menu.Items);
-        Assert.Equal("~F~ile", mb.Menu.Items.Name);
+        var item = Assert.IsType<TMenuItem>(menu.Items);
+        Assert.Equal("~F~ile", item.Name);
         mb.ShutDown();
     }
 
@@ -306,7 +307,7 @@ public sealed class MenuBuilderTests : IDisposable
     public void Builder_MenuBar_DefaultBounds()
     {
         var result = Build(@"resource menu ""m"" { }");
-        var mb = result[0].obj as TMenuBar;
+        var mb = Assert.IsType<TMenuBar>(result[0].obj);
         Assert.Equal(0, mb.origin.x);
         Assert.Equal(0, mb.origin.y);
         Assert.Equal(80, mb.size.x);
@@ -318,7 +319,7 @@ public sealed class MenuBuilderTests : IDisposable
     public void Builder_MenuBar_ExplicitBounds()
     {
         var result = Build(@"resource menu ""m"" { bounds(10, 2, 70, 3); }");
-        var mb = result[0].obj as TMenuBar;
+        var mb = Assert.IsType<TMenuBar>(result[0].obj);
         Assert.Equal(10, mb.origin.x);
         Assert.Equal(2, mb.origin.y);
         Assert.Equal(60, mb.size.x);
@@ -336,12 +337,15 @@ public sealed class MenuBuilderTests : IDisposable
     item ""Quit"" command=cmQuit;
   }
 }");
-        var mb  = (TMenuBar)result[0].obj;
-        var sm  = mb.Menu.Items;              // first top-level = submenu
-        var sub = sm.SubMenu.Items;           // Open
-        Assert.Null(sub.Next.Name);           // separator has Name=null
-        Assert.Equal(0, sub.Next.Command);    // separator Command=0
-        Assert.NotNull(sub.Next.Next);        // Quit
+        var mb = Assert.IsType<TMenuBar>(result[0].obj);
+        var menu = Assert.IsType<TMenu>(mb.Menu);
+        var sm = Assert.IsType<TMenuItem>(menu.Items);
+        var subMenu = Assert.IsType<TMenu>(sm.SubMenu);
+        var sub = Assert.IsType<TMenuItem>(subMenu.Items);
+        var separator = Assert.IsType<TMenuItem>(sub.Next);
+        Assert.Null(separator.Name);           // separator has Name=null
+        Assert.Equal(0, separator.Command);    // separator Command=0
+        Assert.NotNull(separator.Next);        // Quit
         mb.ShutDown();
     }
 
@@ -355,12 +359,14 @@ public sealed class MenuBuilderTests : IDisposable
     }
   }
 }");
-        var mb     = (TMenuBar)result[0].obj;
-        var top    = mb.Menu.Items;
-        var sub    = top.SubMenu.Items;
+        var mb = Assert.IsType<TMenuBar>(result[0].obj);
+        var menu = Assert.IsType<TMenu>(mb.Menu);
+        var top = Assert.IsType<TMenuItem>(menu.Items);
+        var topSubMenu = Assert.IsType<TMenu>(top.SubMenu);
+        var sub = Assert.IsType<TMenuItem>(topSubMenu.Items);
         Assert.Equal(0, sub.Command);         // sub is a submenu (Command=0)
-        Assert.NotNull(sub.SubMenu);
-        var leaf   = sub.SubMenu.Items;
+        var nestedMenu = Assert.IsType<TMenu>(sub.SubMenu);
+        var leaf = Assert.IsType<TMenuItem>(nestedMenu.Items);
         Assert.Equal(Views.cmOK, leaf.Command);
         mb.ShutDown();
     }
@@ -411,7 +417,7 @@ public sealed class StatusBarBuilderTests : IDisposable
         StreamableRegistration.RegisterAll();
     }
 
-    private static List<(string key, TStreamable obj)> Build(string src, List<Diagnostic> diag = null)
+    private static List<(string key, TStreamable obj)> Build(string src, List<Diagnostic>? diag = null)
     {
         diag ??= new List<Diagnostic>();
         var tokens = new Lexer(src, diag).Tokenize();
@@ -627,13 +633,13 @@ public sealed class MenuStatusBarEndToEndTests : IDisposable
 
         var fp = new Fpstream(tvr);
         var rf = new TResourceFile(fp);
-        var mb = rf.Get("menu.main") as TMenuBar;
+        var mb = Assert.IsType<TMenuBar>(rf.Get("menu.main"));
         fp.Close();
 
-        Assert.NotNull(mb);
+        var menu = Assert.IsType<TMenu>(mb.Menu);
         // Three top-level submenus: File, Edit, Help.
         int topCount = 0;
-        for (var m = mb.Menu.Items; m != null; m = m.Next) topCount++;
+        for (var m = menu.Items; m != null; m = m.Next) topCount++;
         Assert.Equal(3, topCount);
         mb.ShutDown();
     }
@@ -647,12 +653,13 @@ public sealed class MenuStatusBarEndToEndTests : IDisposable
         StreamableRegistration.RegisterAll();
 
         var fp = new Fpstream(tvr);
-        var mb = (TMenuBar)new TResourceFile(fp).Get("menu.main");
+        var mb = Assert.IsType<TMenuBar>(new TResourceFile(fp).Get("menu.main"));
         fp.Close();
 
         // File submenu = first top-level item
-        var fileSubMenu = mb.Menu.Items.SubMenu;
-        Assert.NotNull(fileSubMenu);
+        var menu = Assert.IsType<TMenu>(mb.Menu);
+        var fileItem = Assert.IsType<TMenuItem>(menu.Items);
+        var fileSubMenu = Assert.IsType<TMenu>(fileItem.SubMenu);
         int count = 0;
         for (var m = fileSubMenu.Items; m != null; m = m.Next) count++;
         Assert.Equal(4, count); // Open, Save, separator, Exit
@@ -670,14 +677,13 @@ public sealed class MenuStatusBarEndToEndTests : IDisposable
         StreamableRegistration.RegisterAll();
 
         var fp = new Fpstream(tvr);
-        var sl = (TStatusLine)new TResourceFile(fp).Get("status.main");
+        var sl = Assert.IsType<TStatusLine>(new TResourceFile(fp).Get("status.main"));
         fp.Close();
 
-        Assert.NotNull(sl);
-        Assert.NotNull(sl.Defs);
+        var defs = Assert.IsType<TStatusDef>(sl.Defs);
         // Single range 0..65535 with four items.
         int itemCount = 0;
-        for (var i = sl.Defs.Items; i != null; i = i.Next) itemCount++;
+        for (var i = defs.Items; i != null; i = i.Next) itemCount++;
         Assert.Equal(4, itemCount);
         sl.ShutDown();
     }
@@ -691,13 +697,14 @@ public sealed class MenuStatusBarEndToEndTests : IDisposable
         StreamableRegistration.RegisterAll();
 
         var fp = new Fpstream(tvr);
-        var sl = (TStatusLine)new TResourceFile(fp).Get("status.main");
+        var sl = Assert.IsType<TStatusLine>(new TResourceFile(fp).Get("status.main"));
         fp.Close();
 
-        var items = sl.Defs.Items;
+        var defs = Assert.IsType<TStatusDef>(sl.Defs);
+        var items = Assert.IsType<TStatusItem>(defs.Items);
         Assert.Equal(Views.cmHelp, items.Command);    // F1 Help
-        items = items.Next;
-        Assert.Equal(80, items.Command);               // F2 Save = cmSave=80
+        items = Assert.IsType<TStatusItem>(items.Next);
+        Assert.Equal(Views.cmSave, items.Command);    // F2 Save
         sl.ShutDown();
     }
 
@@ -900,17 +907,17 @@ resource dialog ""d"" {
 }", diag);
         Assert.Empty(diag);
         var dlg = (TDialog)result[0].obj;
-        TButton btn = null;
+        TButton? btn = null;
         dlg.ForEachView(v => { if (v is TButton b) btn = b; });
-        Assert.NotNull(btn);
-        Assert.Equal((ushort)999, btn.Command);
+        var actualButton = Assert.IsType<TButton>(btn);
+        Assert.Equal((ushort)999, actualButton.Command);
         dlg.ShutDown();
     }
 
     [Fact]
     public void MenuCommand_UserConstOverridesBuiltin()
     {
-        // Redefine cmSave as 999; menu item should get command 999, not 80.
+        // Redefine cmSave as 999; the user value must override the built-in command.
         var diag   = new List<Diagnostic>();
         var result = BuildAll(@"
 const cmSave = 999;
@@ -920,8 +927,11 @@ resource menu ""m"" {
   }
 }", diag);
         Assert.Empty(diag);
-        var mb   = (TMenuBar)result[0].obj;
-        var item = mb.Menu.Items.SubMenu.Items;   // first item in File submenu
+        var mb = Assert.IsType<TMenuBar>(result[0].obj);
+        var menu = Assert.IsType<TMenu>(mb.Menu);
+        var topItem = Assert.IsType<TMenuItem>(menu.Items);
+        var subMenu = Assert.IsType<TMenu>(topItem.SubMenu);
+        var item = Assert.IsType<TMenuItem>(subMenu.Items);
         Assert.Equal((ushort)999, item.Command);
         mb.ShutDown();
     }
@@ -939,8 +949,10 @@ resource statusbar ""s"" {
   }
 }", diag);
         Assert.Empty(diag);
-        var sl = (TStatusLine)result[0].obj;
-        Assert.Equal((ushort)999, sl.Defs.Items.Command);
+        var sl = Assert.IsType<TStatusLine>(result[0].obj);
+        var defs = Assert.IsType<TStatusDef>(sl.Defs);
+        var item = Assert.IsType<TStatusItem>(defs.Items);
+        Assert.Equal((ushort)999, item.Command);
         sl.ShutDown();
     }
 

@@ -46,7 +46,7 @@ public sealed class ProbeStatusLine : TStatusLine
 {
     public int PublicDrawCount;
     public ProbeStatusLine(TRect b, TStatusDef d) : base(b, d) { }
-    public TStatusItem PublicItems => Items;
+    public TStatusItem? PublicItems => Items;
     public override void DrawView() { PublicDrawCount++; /* skip base — no buffer */ }
 }
 
@@ -76,7 +76,7 @@ public sealed class TestGroup : TGroup
 // Concrete TListViewer with no abstract overrides (GetText returns "").
 public sealed class ProbeListViewer : TListViewer
 {
-    public ProbeListViewer(TRect bounds, ushort cols, TScrollBar h, TScrollBar v)
+    public ProbeListViewer(TRect bounds, ushort cols, TScrollBar? h, TScrollBar? v)
         : base(bounds, cols, h, v) { }
 }
 
@@ -101,6 +101,10 @@ public sealed class BroadcastProbe : TView
 public sealed class TestProgram : TProgram
 {
     public TestProgram() : base() { }
+
+    public static TEvent PendingEvent => Pending;
+    public static byte ReleaseCpuInhibition => DoNotReleaseCPU;
+    public static byte AltNumberInhibition => DoNotHandleAltNumber;
 }
 
 // TDeskTop subclass that fires a callback on TileError().
@@ -139,16 +143,17 @@ public static class ViewTreeHelpers
 {
     public static bool ViewContainsText(TGroup g, string text)
     {
-        if (g?.last == null) return false;
-        TView p = g.last.Next;
+        if (g.last is not TView last || last.Next is not TView first) return false;
+        TView p = first;
         do
         {
             if (p is TButton btn && btn.Title?.Contains(text) == true) return true;
             // TLabel/TStaticText.Text is protected — use GetText() API instead.
             if (p is TStaticText st) { st.GetText(out string t); if (t?.Contains(text) == true) return true; }
             if (p is TGroup sub && ViewContainsText(sub, text)) return true;
-            p = p.Next;
-        } while (p != g.last.Next);
+            if (p.Next is not TView next) return false;
+            p = next;
+        } while (p != first);
         return false;
     }
 }

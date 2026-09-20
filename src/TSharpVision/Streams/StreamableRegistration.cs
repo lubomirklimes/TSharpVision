@@ -39,6 +39,7 @@ public static class StreamableRegistration
         Pstream.RegisterType(TWindow.StreamableClassTWindow);
         Pstream.RegisterType(TScrollBar.StreamableClassTScrollBar);
         Pstream.RegisterType(TScroller.StreamableClassTScroller);
+        Pstream.RegisterType(TOutline.StreamableClassTOutline);
         Pstream.RegisterType(TListViewer.StreamableClassTListViewer);
 
         // ── App ──────────────────────────────────────────────────────────
@@ -56,6 +57,7 @@ public static class StreamableRegistration
         Pstream.RegisterType(TLabel.StreamableClassTLabel);
         Pstream.RegisterType(TInputLine.StreamableClassTInputLine);
         Pstream.RegisterType(TCluster.StreamableClassTCluster);
+        Pstream.RegisterType(TMultiCheckBoxes.StreamableClassTMultiCheckBoxes);
         Pstream.RegisterType(TCheckBoxes.StreamableClassTCheckBoxes);
         Pstream.RegisterType(TRadioButtons.StreamableClassTRadioButtons);
         Pstream.RegisterType(THistory.StreamableClassTHistory);
@@ -78,6 +80,7 @@ public static class StreamableRegistration
 
         // ── Menus ────────────────────────────────────────────────────────
         Pstream.RegisterType(TMenuView.StreamableClassTMenuView);
+        Pstream.RegisterType(TMenuPopup.StreamableClassTMenuPopup);
         Pstream.RegisterType(TMenuBar.StreamableClassTMenuBar);
         Pstream.RegisterType(TStatusLine.StreamableClassTStatusLine);
 

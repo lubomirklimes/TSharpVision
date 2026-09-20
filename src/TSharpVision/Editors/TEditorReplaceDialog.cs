@@ -41,7 +41,6 @@ public static class TEditorReplaceDialog
         const ushort replaceOptionsMask =
             Views.efCaseSensitive | Views.efWholeWordsOnly
             | Views.efPromptOnReplace | Views.efReplaceAll;
-
         checkBoxes = new TCheckBoxes(new TRect(3, 8, 37, 12),
             new TSItem(TSharpVisionIntl.Get("Edit_Chk_CaseSensitive",   "~C~ase sensitive"),
             new TSItem(TSharpVisionIntl.Get("Edit_Chk_WholeWords",      "~W~hole words only"),
@@ -72,12 +71,12 @@ public static class TEditorReplaceDialog
         const ushort replaceOptionsMask =
             Views.efCaseSensitive | Views.efWholeWordsOnly
             | Views.efPromptOnReplace | Views.efReplaceAll;
+        const ushort preservedOptionsMask = ushort.MaxValue ^ replaceOptionsMask;
 
         TEditorFindDialog.StringToBytes(findInput?.Data ?? string.Empty, rec.Find);
         TEditorFindDialog.StringToBytes(replaceInput?.Data ?? string.Empty, rec.Replace);
-        rec.Options = (ushort)(
-            (rec.Options & ~replaceOptionsMask)
-            | ((checkBoxes?.value ?? 0) & replaceOptionsMask));
+        ushort selectedOptions = (ushort)((checkBoxes?.value ?? 0u) & replaceOptionsMask);
+        rec.Options = (ushort)((rec.Options & preservedOptionsMask) | selectedOptions);
     }
 
     /// <summary>

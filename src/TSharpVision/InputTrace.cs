@@ -53,7 +53,10 @@ public static class InputTrace
             Events.evMouseUp   => "evMouseUp",
             Events.evMouseMove => "evMouseMove",
             Events.evMouseAuto => "evMouseAuto",
+            Events.evMouseWheel => "evMouseWheel",
             Events.evKeyDown   => "evKeyDown",
+            Events.evModifierChanged => "evModifierChanged",
+            Events.evKeyUp     => "evKeyUp",
             Events.evCommand   => "evCommand",
             Events.evBroadcast => "evBroadcast",
             _                  => $"0x{ev.What:X4}",
@@ -62,10 +65,13 @@ public static class InputTrace
         var sb = new StringBuilder();
         sb.Append($"what=0x{ev.What:X4}({whatName})");
 
-        if ((ev.What & Events.evKeyboard) != 0)
+        if ((ev.What & Events.evKeyboard) != 0
+            || ev.What is Events.evKeyUp or Events.evModifierChanged)
         {
             sb.Append($" kc=0x{ev.keyDown.keyCode:X4} ch=0x{ev.keyDown.charScan.charCode:X2}");
-            sb.Append($" sh=0x{ev.keyDown.shiftState:X4}");
+            sb.Append($" scan=0x{ev.keyDown.charScan.scanCode:X2} rawScan=0x{ev.keyDown.raw_scanCode:X2}");
+            sb.Append($" control=0x{ev.keyDown.controlKeyState:X8}");
+            if (!string.IsNullOrEmpty(ev.keyDown.text)) sb.Append($" text={Escape(ev.keyDown.text)}");
         }
         else if ((ev.What & Events.evMessage) != 0)
         {
@@ -83,19 +89,34 @@ public static class InputTrace
             };
             sb.Append($" cmd={ev.message.command}({cmdName})");
         }
-        else if ((ev.What & Events.evMouse) != 0)
+        else if ((ev.What & Events.evMouse) != 0 || ev.What == Events.evMouseWheel)
         {
             sb.Append($" btn=0x{ev.mouse.buttons:X2}");
             sb.Append($" at=({ev.mouse.where.x},{ev.mouse.where.y})");
+            sb.Append($" flags=0x{ev.mouse.eventFlags:X8}");
+            sb.Append($" control=0x{ev.mouse.controlKeyState:X8}");
+            if (ev.What == Events.evMouseWheel)
+            {
+                if ((ev.mouse.eventFlags & Events.meWheelUp) != 0) sb.Append(" wheel=Up");
+                else if ((ev.mouse.eventFlags & Events.meWheelDown) != 0) sb.Append(" wheel=Down");
+                else if ((ev.mouse.eventFlags & Events.meWheelLeft) != 0) sb.Append(" wheel=Left");
+                else if ((ev.mouse.eventFlags & Events.meWheelRight) != 0) sb.Append(" wheel=Right");
+            }
             if (ev.mouse.doubleClick) sb.Append(" dbl");
         }
 
         return sb.ToString();
     }
 
+    private static string Escape(string text)
+        => '"' + text.Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("\r", "\\r", StringComparison.Ordinal)
+            .Replace("\n", "\\n", StringComparison.Ordinal)
+            .Replace("\"", "\\\"", StringComparison.Ordinal) + '"';
+
     // ---- internal ---------------------------------------------------------
 
-    private static readonly StreamWriter _writer;
+    private static readonly StreamWriter? _writer;
     private static readonly object _lock = new object();
 
     static InputTrace()

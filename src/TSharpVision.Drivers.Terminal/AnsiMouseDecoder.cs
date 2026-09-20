@@ -14,7 +14,7 @@ using TSharpVision.Constants;
 namespace TSharpVision.Drivers.Terminal;
 
 /// <summary>Decodes xterm SGR mouse sequences into framework mouse events.</summary>
-public static class AnsiMouseDecoder
+internal static class AnsiMouseDecoder
 {
     /// <summary>
     /// Try to decode an SGR mouse event. Returns the bytes consumed (0 when
@@ -68,18 +68,33 @@ public static class AnsiMouseDecoder
         // Coordinates are 1-based.
         ev.mouse.where = new TPoint(x - 1, y - 1);
 
-        bool wheel     = (b & 0x40) != 0;  // bit 6: SGR 1006 wheel event
+        bool wheel     = (b & 0x40) != 0;  // buttons 4-7: vertical wheel / horizontal tilt
+        bool extraButton = (b & 0x80) != 0; // xterm buttons 8-11
         bool motion    = (b & 0x20) != 0;  // bit 5: mouse motion (move or drag)
         int  buttonIdx = b & 0x03;
 
         byte buttons;
         if (wheel)
         {
-            // b=64 (0x40, buttonIdx=0) → wheel up  → mbButton4
-            // b=65 (0x41, buttonIdx=1) → wheel down → mbButton5
-            buttons = (buttonIdx == 0)
-                ? (byte)Events.mbButton4   // 0x04 — scroll up
-                : (byte)Events.mbButton5;  // 0x08 — scroll down
+            // Wheel/tilt sequences do not truthfully report simultaneously held buttons.
+            buttons = 0;
+            ev.mouse.eventFlags |= buttonIdx switch
+            {
+                0 => Events.meWheelUp,
+                1 => Events.meWheelDown,
+                2 => Events.meWheelRight,
+                _ => Events.meWheelLeft,
+            };
+        }
+        else if (extraButton && term == (byte)'M')
+        {
+            // xterm's first two additional physical buttons (8 and 9).
+            buttons = buttonIdx switch
+            {
+                0 => (byte)Events.mbButton4,
+                1 => (byte)Events.mbButton5,
+                _ => 0,
+            };
         }
         else if (motion)
         {
@@ -89,7 +104,7 @@ public static class AnsiMouseDecoder
             {
                 0 => (byte)Events.mbLeftButton,   // 0x01 — left drag
                 2 => (byte)Events.mbRightButton,  // 0x02 — right drag
-                1 => 0x04,                        // middle drag
+                1 => (byte)Events.mbMiddleButton, // middle drag
                 _ => 0,                           // pure move (buttonIdx == 3)
             };
         }
@@ -100,7 +115,7 @@ public static class AnsiMouseDecoder
             {
                 0 => (byte)Events.mbLeftButton,   // 0x01 — left
                 2 => (byte)Events.mbRightButton,  // 0x02 — right
-                1 => 0x04,                        // middle
+                1 => (byte)Events.mbMiddleButton, // middle
                 _ => 0,
             };
         }
@@ -111,7 +126,10 @@ public static class AnsiMouseDecoder
         }
 
         ev.mouse.buttons    = buttons;
-        ev.mouse.doubleClick = false;
+        if ((b & 0x04) != 0) ev.mouse.controlKeyState |= Keys.kbShift;
+        if ((b & 0x08) != 0) ev.mouse.controlKeyState |= Keys.kbAltShift;
+        if ((b & 0x10) != 0) ev.mouse.controlKeyState |= Keys.kbCtrlShift;
+        if (motion) ev.mouse.eventFlags |= Events.meMouseMoved;
 
         if (wheel)                  ev.What = Events.evMouseWheel;
         else if (motion)            ev.What = Events.evMouseMove;

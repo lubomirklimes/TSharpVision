@@ -144,9 +144,17 @@ public sealed class LegacyTextEncodingTests
 
         Assert.Throws<ArgumentException>(() => LegacyTextEncodings.Register("", encoding));
         Assert.Throws<ArgumentException>(() => LegacyTextEncodings.Register("   ", encoding));
-        Assert.Throws<ArgumentNullException>(() => LegacyTextEncodings.Register("null-encoding", null));
+        var register = typeof(LegacyTextEncodings).GetMethod(nameof(LegacyTextEncodings.Register),
+            [typeof(string), typeof(ILegacyTextEncoding)]);
+        var registerError = Assert.Throws<System.Reflection.TargetInvocationException>(
+            () => Assert.IsAssignableFrom<System.Reflection.MethodInfo>(register).Invoke(null, ["null-encoding", null]));
+        Assert.IsType<ArgumentNullException>(registerError.InnerException);
         Assert.Throws<ArgumentException>(() => LegacyTextEncodings.TryRegister("", encoding));
-        Assert.Throws<ArgumentNullException>(() => LegacyTextEncodings.TryRegister("null-encoding-2", null));
+        var tryRegister = typeof(LegacyTextEncodings).GetMethod(nameof(LegacyTextEncodings.TryRegister),
+            [typeof(string), typeof(ILegacyTextEncoding)]);
+        var tryRegisterError = Assert.Throws<System.Reflection.TargetInvocationException>(
+            () => Assert.IsAssignableFrom<System.Reflection.MethodInfo>(tryRegister).Invoke(null, ["null-encoding-2", null]));
+        Assert.IsType<ArgumentNullException>(tryRegisterError.InnerException);
     }
 
     [Fact]

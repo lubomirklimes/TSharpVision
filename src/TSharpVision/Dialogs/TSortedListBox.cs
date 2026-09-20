@@ -4,7 +4,7 @@ namespace TSharpVision;
 // Stream Read/Write/Build deferred. The shift-state-driven dual-mode
 // search (incremental vs. directory-skip with Shift held) is preserved
 // modulo Keys.cs not yet defining a kbShiftCode bit; we treat
-// shiftKeys as 0 since TEvent.keyDown.shiftState is not surfaced yet.
+// shiftKeys as 0 since TEvent.keyDown.controlKeyState is not surfaced yet.
 /// <summary>List box supporting incremental text search over a sorted collection of objects.</summary>
 public class TSortedListBox : TListBox
 {
@@ -12,15 +12,15 @@ public class TSortedListBox : TListBox
     public new static readonly string Name = "TSortedListBox";
 
     /// <summary>Keyboard modifier state retained by the incremental-search handler.</summary>
-    public byte shiftState;
+    public byte controlKeyState;
     /// <summary>Last matched character position in the search prefix; 0xFFFF means no active prefix.</summary>
     public ushort searchPos = 0xFFFF; // USHRT_MAX
 
     /// <summary>Referenced sorted object collection used instead of the base string collection when present.</summary>
-    protected TSortedCollection sortedItems;
+    protected TSortedCollection? sortedItems;
 
     /// <summary>Creates an empty searchable list at owner-relative cell bounds with the requested columns and vertical scrollbar.</summary>
-    public TSortedListBox(TRect bounds, ushort aNumCols, TScrollBar aScrollBar)
+    public TSortedListBox(TRect bounds, ushort aNumCols, TScrollBar? aScrollBar)
         : base(bounds, aNumCols, aScrollBar)
     {
         ShowCursor();

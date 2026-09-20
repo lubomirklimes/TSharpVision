@@ -34,7 +34,9 @@ public abstract class Pstream
     public const int IOSBadBit = 0x04;
 
     /// <summary>Underlying byte stream used by concrete readers or writers; may be null before initialization.</summary>
-    protected Stream bp;
+    protected Stream? bp;
+    internal Stream Buffer =>
+        bp ?? throw new InvalidOperationException("The serialization stream is not initialized.");
     /// <summary>Combined stream status bits; zero means no status flags are set.</summary>
     public int state;
     /// <summary>Help-topic serialization version; defaults to version 2 UTF-16.</summary>

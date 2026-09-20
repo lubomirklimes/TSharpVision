@@ -33,6 +33,24 @@ public sealed class SdlMouseTranslatorTests
     }
 
     [Fact]
+    public void MakeEvent_MiddleDownExtensionIsPreserved()
+    {
+        var ev = SdlMouseTranslator.MakeEvent(
+            SdlMouseEventKind.Down, SdlMouseTranslator.SDL_BUTTON_MIDDLE, 1, 1);
+        Assert.Equal(Events.evMouseDown, ev.What);
+        Assert.Equal(Events.mbMiddleButton, ev.mouse.buttons);
+    }
+
+    [Theory]
+    [InlineData(SdlMouseTranslator.SDL_BUTTON_X1, 0x08)]
+    [InlineData(SdlMouseTranslator.SDL_BUTTON_X2, 0x10)]
+    public void MakeEvent_SideButtonsArePhysical(byte button, int expected)
+    {
+        var ev = SdlMouseTranslator.MakeEvent(SdlMouseEventKind.Down, button, 1, 1);
+        Assert.Equal(expected, ev.mouse.buttons);
+    }
+
+    [Fact]
     public void MakeEvent_LeftUp()
     {
         var ev = SdlMouseTranslator.MakeEvent(
@@ -47,6 +65,7 @@ public sealed class SdlMouseTranslatorTests
         var ev = SdlMouseTranslator.MakeEvent(SdlMouseEventKind.Move, 0, 9, 9);
         Assert.Equal(Events.evMouseMove, ev.What);
         Assert.Equal(0, ev.mouse.buttons);
+        Assert.Equal(Events.meMouseMoved, ev.mouse.eventFlags);
     }
 
     [Fact]
@@ -56,6 +75,7 @@ public sealed class SdlMouseTranslatorTests
             SdlMouseEventKind.Down, SdlMouseTranslator.SDL_BUTTON_LEFT, 0, 0, clicks: 2);
         Assert.Equal(Events.evMouseDown, ev.What);
         Assert.True(ev.mouse.doubleClick);
+        Assert.Equal(Events.meDoubleClick, ev.mouse.eventFlags);
     }
 
     // ── Move with held button ─────────────────────────────────────────────
@@ -83,23 +103,25 @@ public sealed class SdlMouseTranslatorTests
     // ── MakeWheelEvent ────────────────────────────────────────────────────
 
     [Fact]
-    public void MakeWheelEvent_PositiveDelta_Button4()
+    public void MakeWheelEvent_PositiveDelta_WheelUp()
     {
         bool ok = SdlMouseTranslator.MakeWheelEvent(3f, 10, 5, out var ev);
         Assert.True(ok);
         Assert.Equal(Events.evMouseWheel, ev.What);
-        Assert.NotEqual(0, ev.mouse.buttons & Events.mbButton4);
+        Assert.Equal(Events.meWheelUp, ev.mouse.eventFlags);
+        Assert.Equal(0, ev.mouse.buttons);
         Assert.Equal(10, ev.mouse.where.x);
         Assert.Equal(5, ev.mouse.where.y);
     }
 
     [Fact]
-    public void MakeWheelEvent_NegativeDelta_Button5()
+    public void MakeWheelEvent_NegativeDelta_WheelDown()
     {
         bool ok = SdlMouseTranslator.MakeWheelEvent(-2f, 3, 7, out var ev);
         Assert.True(ok);
         Assert.Equal(Events.evMouseWheel, ev.What);
-        Assert.NotEqual(0, ev.mouse.buttons & Events.mbButton5);
+        Assert.Equal(Events.meWheelDown, ev.mouse.eventFlags);
+        Assert.Equal(0, ev.mouse.buttons);
     }
 
     [Fact]
@@ -107,6 +129,57 @@ public sealed class SdlMouseTranslatorTests
     {
         bool ok = SdlMouseTranslator.MakeWheelEvent(0f, 0, 0, out _);
         Assert.False(ok);
+    }
+
+    [Fact]
+    public void MakeEvent_ClickCarriesLogicalModifierSnapshot()
+    {
+        uint modifiers = Keys.kbShift | Keys.kbCtrlShift | Keys.kbAltShift;
+        var ev = SdlMouseTranslator.MakeEvent(
+            SdlMouseEventKind.Down, SdlMouseTranslator.SDL_BUTTON_LEFT, 1, 2,
+            controlKeyState: modifiers);
+        Assert.Equal(modifiers, ev.mouse.controlKeyState);
+    }
+
+    [Fact]
+    public void MakeWheelEvent_CarriesLogicalModifierSnapshot()
+    {
+        Assert.True(SdlMouseTranslator.MakeWheelEvent(
+            1, 1, 2, out var ev, Keys.kbCtrlShift));
+        Assert.Equal(Keys.kbCtrlShift, ev.mouse.controlKeyState);
+    }
+
+    [Theory]
+    [InlineData(1f, 0f, false, 0x20u)]
+    [InlineData(-1f, 0f, false, 0x10u)]
+    [InlineData(0f, 1f, false, 0x04u)]
+    [InlineData(0f, -1f, false, 0x08u)]
+    [InlineData(1f, 0f, true, 0x10u)]
+    [InlineData(0f, 1f, true, 0x08u)]
+    public void MakeWheelEvents_MapsAxesAndFlippedDirection(
+        float x, float y, bool flipped, uint expected)
+    {
+        TEvent ev = Assert.Single(SdlMouseTranslator.MakeWheelEvents(
+            x, y, flipped, 4, 5));
+        Assert.Equal(expected, ev.mouse.eventFlags);
+        Assert.Equal(0, ev.mouse.buttons);
+    }
+
+    [Fact]
+    public void MakeWheelEvents_DualAxisIsVerticalThenHorizontal()
+    {
+        TEvent[] events = SdlMouseTranslator.MakeWheelEvents(
+            2, -3, flipped: false, 4, 5,
+            heldButtons: (byte)(Events.mbLeftButton | Events.mbButton4),
+            controlKeyState: Keys.kbShift);
+        Assert.Equal(2, events.Length);
+        Assert.Equal(Events.meWheelDown, events[0].mouse.eventFlags);
+        Assert.Equal(Events.meWheelRight, events[1].mouse.eventFlags);
+        Assert.All(events, ev =>
+        {
+            Assert.Equal((byte)(Events.mbLeftButton | Events.mbButton4), ev.mouse.buttons);
+            Assert.Equal(Keys.kbShift, ev.mouse.controlKeyState);
+        });
     }
 
     // ── PixelToCell ────────────────────────────────────────────────────────

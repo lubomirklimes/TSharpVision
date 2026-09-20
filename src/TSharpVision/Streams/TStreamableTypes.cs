@@ -16,7 +16,7 @@ public sealed class TStreamableTypes
     }
 
     /// <summary>Returns the descriptor registered under the case-sensitive name, or null when absent.</summary>
-    public TStreamableClass Lookup(string name)
+    public TStreamableClass? Lookup(string name)
     {
         return _byName.TryGetValue(name, out var c) ? c : null;
     }

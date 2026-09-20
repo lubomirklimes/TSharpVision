@@ -417,6 +417,6 @@ public sealed class HelpPaletteTests : IDisposable
 file sealed class DictStringProvider(System.Collections.Generic.Dictionary<string, string> dict)
     : ITSharpVisionStringProvider
 {
-    public string Get(string key, string fallback)
+    public string? Get(string key, string? fallback)
         => dict.TryGetValue(key, out var v) ? v : fallback;
 }

@@ -1,0 +1,70 @@
+#nullable enable
+TSharpVision.Drivers.SDL.Config.SdlDriverConfiguration
+TSharpVision.Drivers.SDL.Config.SdlDriverConfiguration.AllowedFrames.get -> string?
+TSharpVision.Drivers.SDL.Config.SdlDriverConfiguration.Backend.get -> string?
+TSharpVision.Drivers.SDL.Config.SdlDriverConfiguration.Bind(System.Collections.Generic.IReadOnlyDictionary<string!, string!>! rawValues) -> void
+TSharpVision.Drivers.SDL.Config.SdlDriverConfiguration.Continuous.get -> string?
+TSharpVision.Drivers.SDL.Config.SdlDriverConfiguration.Diagnostics.get -> string?
+TSharpVision.Drivers.SDL.Config.SdlDriverConfiguration.PresentMode.get -> string?
+TSharpVision.Drivers.SDL.Config.SdlDriverConfiguration.SdlDriverConfiguration() -> void
+TSharpVision.Drivers.SDL.Config.SdlDriverConfiguration.SectionName.get -> string!
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.AllocateScreenBuffer() -> TSharpVision.ScreenBuffer!
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.ClearScreen(ushort cols, ushort rows) -> void
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.Dispose() -> void
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.GetCols() -> ushort
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.GetCursorType() -> ushort
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.GetRows() -> ushort
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.GetScreenMode() -> TSharpVision.TDisplay.SM
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.Initialize() -> void
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.KeyboardCapabilities.get -> TSharpVision.Drivers.KeyboardCapabilities
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.MakeBeep() -> void
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.MessageLoop.get -> System.Action<TSharpVision.Drivers.IRenderer!>?
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.MessageLoop.set -> void
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.PumpMessages() -> void
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.ReadKeyEvent(out TSharpVision.TEvent ev) -> bool
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.Resume() -> void
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.SDLGpuDriver() -> void
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.SetCaretPosition(int x, int y) -> void
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.SetCursorType(ushort cursorType) -> void
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.SetScreenMode(TSharpVision.TDisplay.SM mode) -> void
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.Shutdown() -> void
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.SupportsGraphics.get -> bool
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.SupportsMouse.get -> bool
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.SupportsTrueColor.get -> bool
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.Suspend() -> void
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.WriteBuf(int x, int y, int w, int h, System.Span<TSharpVision.TScreenChar> buf) -> void
+TSharpVision.Drivers.SDL.SdlClipboardService
+TSharpVision.Drivers.SDL.SdlClipboardService.GetText() -> string?
+TSharpVision.Drivers.SDL.SdlClipboardService.IsAvailable.get -> bool
+TSharpVision.Drivers.SDL.SdlClipboardService.SdlClipboardService() -> void
+TSharpVision.Drivers.SDL.SdlClipboardService.SetText(string! text) -> bool
+TSharpVision.Drivers.SDL.SdlClipboardService.TryGetText(out string! text) -> bool
+TSharpVision.Drivers.SDL.SDLDriver
+TSharpVision.Drivers.SDL.SDLDriver.AllocateScreenBuffer() -> TSharpVision.ScreenBuffer!
+TSharpVision.Drivers.SDL.SDLDriver.ClearScreen(ushort cols, ushort rows) -> void
+TSharpVision.Drivers.SDL.SDLDriver.Dispose() -> void
+TSharpVision.Drivers.SDL.SDLDriver.GetCols() -> ushort
+TSharpVision.Drivers.SDL.SDLDriver.GetCursorType() -> ushort
+TSharpVision.Drivers.SDL.SDLDriver.GetRows() -> ushort
+TSharpVision.Drivers.SDL.SDLDriver.GetScreenMode() -> TSharpVision.TDisplay.SM
+TSharpVision.Drivers.SDL.SDLDriver.Initialize() -> void
+TSharpVision.Drivers.SDL.SDLDriver.KeyboardCapabilities.get -> TSharpVision.Drivers.KeyboardCapabilities
+TSharpVision.Drivers.SDL.SDLDriver.MakeBeep() -> void
+TSharpVision.Drivers.SDL.SDLDriver.MessageLoop.get -> System.Action<TSharpVision.Drivers.IRenderer!>?
+TSharpVision.Drivers.SDL.SDLDriver.MessageLoop.set -> void
+TSharpVision.Drivers.SDL.SDLDriver.PumpMessages() -> void
+TSharpVision.Drivers.SDL.SDLDriver.ReadKeyEvent(out TSharpVision.TEvent ev) -> bool
+TSharpVision.Drivers.SDL.SDLDriver.Resume() -> void
+TSharpVision.Drivers.SDL.SDLDriver.SDLDriver() -> void
+TSharpVision.Drivers.SDL.SDLDriver.SetCaretPosition(int x, int y) -> void
+TSharpVision.Drivers.SDL.SDLDriver.SetCursorType(ushort cursorType) -> void
+TSharpVision.Drivers.SDL.SDLDriver.SetScreenMode(TSharpVision.TDisplay.SM mode) -> void
+TSharpVision.Drivers.SDL.SDLDriver.Shutdown() -> void
+TSharpVision.Drivers.SDL.SDLDriver.SupportsGraphics.get -> bool
+TSharpVision.Drivers.SDL.SDLDriver.SupportsMouse.get -> bool
+TSharpVision.Drivers.SDL.SDLDriver.SupportsTrueColor.get -> bool
+TSharpVision.Drivers.SDL.SDLDriver.Suspend() -> void
+TSharpVision.Drivers.SDL.SDLDriver.WriteBuf(int x, int y, int w, int h, System.Span<TSharpVision.TScreenChar> buf) -> void
+virtual TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.Dispose(bool disposing) -> void
+virtual TSharpVision.Drivers.SDL.SDLDriver.Dispose(bool disposing) -> void

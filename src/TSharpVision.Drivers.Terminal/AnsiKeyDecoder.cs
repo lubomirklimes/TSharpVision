@@ -17,8 +17,20 @@ namespace TSharpVision.Drivers.Terminal;
 /// optional <see cref="TEvent"/> and the number of bytes consumed.
 /// Returning (false, 0) means "need more data".
 /// </summary>
-public static class AnsiKeyDecoder
+internal static class AnsiKeyDecoder
 {
+    private static readonly ushort[] AltLetters =
+    [
+        Keys.kbAltA, Keys.kbAltB, Keys.kbAltC, Keys.kbAltD, Keys.kbAltE, Keys.kbAltF,
+        Keys.kbAltG, Keys.kbAltH, Keys.kbAltI, Keys.kbAltJ, Keys.kbAltK, Keys.kbAltL,
+        Keys.kbAltM, Keys.kbAltN, Keys.kbAltO, Keys.kbAltP, Keys.kbAltQ, Keys.kbAltR,
+        Keys.kbAltS, Keys.kbAltT, Keys.kbAltU, Keys.kbAltV, Keys.kbAltW, Keys.kbAltX,
+        Keys.kbAltY, Keys.kbAltZ
+    ];
+    private static readonly ushort[] AltDigits =
+        [Keys.kbAlt0, Keys.kbAlt1, Keys.kbAlt2, Keys.kbAlt3, Keys.kbAlt4,
+         Keys.kbAlt5, Keys.kbAlt6, Keys.kbAlt7, Keys.kbAlt8, Keys.kbAlt9];
+
     /// <summary>
     /// Try to decode one keyboard event from the head of <paramref name="buf"/>.
     /// </summary>
@@ -64,20 +76,17 @@ public static class AnsiKeyDecoder
             // ESC + letter / digit → Alt-<letter>/Alt-<digit>.
             if (b1 >= 'a' && b1 <= 'z')
             {
-                ev = MakeKey((ushort)(Keys.kbAltA + (b1 - 'a')), Keys.kbAltShift);
+                ev = MakeKey(AltLetters[b1 - 'a'], Keys.kbAltShift);
                 return 2;
             }
             if (b1 >= 'A' && b1 <= 'Z')
             {
-                ev = MakeKey((ushort)(Keys.kbAltA + (b1 - 'A')), Keys.kbAltShift | Keys.kbShift);
+                ev = MakeKey(AltLetters[b1 - 'A'], Keys.kbAltShift | Keys.kbShift);
                 return 2;
             }
             if (b1 >= '0' && b1 <= '9')
             {
-                ushort kc = (b1 == '0')
-                    ? Keys.kbAlt0
-                    : (ushort)(Keys.kbAlt1 + (b1 - '1'));
-                ev = MakeKey(kc, Keys.kbAltShift);
+                ev = MakeKey(AltDigits[b1 - '0'], Keys.kbAltShift);
                 return 2;
             }
 
@@ -93,8 +102,8 @@ public static class AnsiKeyDecoder
         if (b0 == 0x08 || b0 == 0x7F) { ev = MakeKey(Keys.kbBack); return 1; }
         if (b0 >= 0x01 && b0 <= 0x1A)
         {
-            // Ctrl-A..Ctrl-Z share the upstream layout 0x0101..0x011A.
-            ushort kc = (ushort)(0x0100 | b0);
+            // Ctrl-A..Ctrl-Z are the historical C0 values 0x0001..0x001A.
+            ushort kc = b0;
             ev = MakeKey(kc, Keys.kbCtrlShift);
             ev.keyDown.charScan.charCode = b0;
             return 1;
@@ -242,7 +251,7 @@ public static class AnsiKeyDecoder
         };
         if (baseCode != 0)
         {
-            ushort sh = ModToShift(seenP2 ? p2 : (seenP1 ? p1 : 1));
+            uint sh = ModToShift(seenP2 ? p2 : (seenP1 ? p1 : 1));
             ev = MakeKey(WithCtrlPrefix(baseCode, sh), sh);
             return i + 1;
         }
@@ -275,7 +284,7 @@ public static class AnsiKeyDecoder
                 _  => 0,
             };
             if (kc == 0) return i + 1; // recognized framing, unknown payload
-            ushort sh = ModToShift(seenP2 ? p2 : 1);
+            uint sh = ModToShift(seenP2 ? p2 : 1);
             ev = MakeKey(WithModifierFn(kc, sh), sh);
             return i + 1;
         }
@@ -286,11 +295,11 @@ public static class AnsiKeyDecoder
 
     // xterm modifier parameter: 1 = none, 2 = Shift, 3 = Alt, 4 = Shift+Alt,
     // 5 = Ctrl, 6 = Ctrl+Shift, 7 = Ctrl+Alt, 8 = Ctrl+Alt+Shift.
-    private static ushort ModToShift(int mod)
+    private static uint ModToShift(int mod)
     {
         if (mod < 2) return 0;
         int m = mod - 1;
-        ushort s = 0;
+        uint s = 0;
         if ((m & 0x01) != 0) s |= Keys.kbShift;
         if ((m & 0x02) != 0) s |= Keys.kbAltShift;
         if ((m & 0x04) != 0) s |= Keys.kbCtrlShift;
@@ -300,7 +309,7 @@ public static class AnsiKeyDecoder
     // Promote a function key (F1..F12) to its modified sibling based on the
     // modifier bitmask. Ctrl takes precedence over Alt which takes precedence
     // over Shift, matching xterm modifier convention.
-    private static ushort WithModifierFn(ushort baseCode, ushort sh)
+    private static ushort WithModifierFn(ushort baseCode, uint sh)
     {
         bool ctrl  = (sh & Keys.kbCtrlShift) != 0;
         bool alt   = (sh & Keys.kbAltShift)  != 0;
@@ -337,7 +346,7 @@ public static class AnsiKeyDecoder
 
     // Promote a plain key to its Ctrl-prefixed sibling when the modifier
     // bitmask carries Ctrl, using the named TSharpVision key constants.
-    private static ushort WithCtrlPrefix(ushort baseCode, ushort sh)
+    private static ushort WithCtrlPrefix(ushort baseCode, uint sh)
     {
         bool ctrl = (sh & Keys.kbCtrlShift) != 0;
         if (!ctrl) return baseCode;
@@ -349,8 +358,8 @@ public static class AnsiKeyDecoder
             Keys.kbEnd   => Keys.kbCtrlEnd,
             Keys.kbPgUp  => Keys.kbCtrlPgUp,
             Keys.kbPgDn  => Keys.kbCtrlPgDn,
-            Keys.kbIns   => Keys.kbCtrlIns,
-            Keys.kbDel   => Keys.kbCtrlDel,
+            Keys.kbIns   => (sh & Keys.kbShift) != 0 ? Keys.kbCtrlShiftIns : Keys.kbCtrlIns,
+            Keys.kbDel   => (sh & Keys.kbShift) != 0 ? Keys.kbCtrlShiftDel : Keys.kbCtrlDel,
             Keys.kbF1    => Keys.kbCtrlF1,
             Keys.kbF2    => Keys.kbCtrlF2,
             Keys.kbF3    => Keys.kbCtrlF3,
@@ -367,12 +376,13 @@ public static class AnsiKeyDecoder
         };
     }
 
-    private static TEvent MakeKey(ushort kc, ushort shiftState = 0)
+    private static TEvent MakeKey(ushort kc, uint controlKeyState = 0)
     {
         TEvent ev = default;
         ev.What = Events.evKeyDown;
         ev.keyDown.keyCode = kc;
-        ev.keyDown.shiftState = shiftState;
+        ev.keyDown.charScan = new CharScanType(kc);
+        ev.keyDown.controlKeyState = controlKeyState;
         return ev;
     }
 }

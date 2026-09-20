@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Diagnostics.CodeAnalysis;
 
 namespace TSharpVision;
 
@@ -15,7 +16,7 @@ public sealed class TResourceStringProvider : ITSharpVisionStringLookupProvider
     private readonly Dictionary<string, string> _strings;
 
     /// <summary>Copies a resource's strings into an ordinal lookup table; null creates an empty provider.</summary>
-    public TResourceStringProvider(TStringResource resource)
+    public TResourceStringProvider(TStringResource? resource)
     {
         _strings = new Dictionary<string, string>(StringComparer.Ordinal);
         if (resource == null) return;
@@ -45,7 +46,7 @@ public sealed class TResourceStringProvider : ITSharpVisionStringLookupProvider
     }
 
     /// <summary>Attempts to load a resource string provider; returns null for missing files, unrecognized containers, or load failures.</summary>
-    public static TResourceStringProvider TryLoad(string path, string resourceKey = DefaultResourceKey)
+    public static TResourceStringProvider? TryLoad(string? path, string resourceKey = DefaultResourceKey)
     {
         if (string.IsNullOrEmpty(path) || !File.Exists(path))
             return null;
@@ -79,11 +80,12 @@ public sealed class TResourceStringProvider : ITSharpVisionStringLookupProvider
     }
 
     /// <inheritdoc />
-    public string Get(string key, string fallback)
+    [return: NotNullIfNotNull(nameof(fallback))]
+    public string? Get(string key, string? fallback)
         => TryGet(key, out var value) ? value : fallback;
 
     /// <inheritdoc />
-    public bool TryGet(string key, out string value)
+    public bool TryGet(string key, [NotNullWhen(true)] out string? value)
         => _strings.TryGetValue(key, out value);
 }
 
@@ -95,7 +97,7 @@ public sealed class TSharpVisionStringProviderChain : ITSharpVisionStringLookupP
     private readonly List<ITSharpVisionStringProvider> _providers = new();
 
     /// <summary>References providers in lookup order, ignoring null entries; a null array creates an empty chain.</summary>
-    public TSharpVisionStringProviderChain(params ITSharpVisionStringProvider[] providers)
+    public TSharpVisionStringProviderChain(params ITSharpVisionStringProvider?[]? providers)
     {
         if (providers == null) return;
         foreach (var provider in providers)
@@ -104,11 +106,12 @@ public sealed class TSharpVisionStringProviderChain : ITSharpVisionStringLookupP
     }
 
     /// <inheritdoc />
-    public string Get(string key, string fallback)
-        => TryGet(key, out string value) ? value : fallback;
+    [return: NotNullIfNotNull(nameof(fallback))]
+    public string? Get(string key, string? fallback)
+        => TryGet(key, out string? value) ? value : fallback;
 
     /// <inheritdoc />
-    public bool TryGet(string key, out string value)
+    public bool TryGet(string key, [NotNullWhen(true)] out string? value)
     {
         foreach (var provider in _providers)
         {

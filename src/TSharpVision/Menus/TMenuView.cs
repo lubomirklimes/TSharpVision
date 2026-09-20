@@ -7,19 +7,19 @@ public class TMenuView : TView
     /// <summary>Palette mapping for normal, disabled, mnemonic, and selected menu text.</summary>
     public const string cpMenuView = "\x02\x03\x04\x05\x06\x07";
 
-    static TPalette palette = new TPalette(cpMenuView, (ushort)(cpMenuView.Length - 1));
+    static TPalette palette = new TPalette(cpMenuView, cpMenuView.Length);
 
     /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public new static readonly string Name = "TMenuView";
     /// <summary>Parent menu view used for navigation, or null at the top level.</summary>
-    public TMenuView ParentMenu { get; protected set; }
+    public TMenuView? ParentMenu { get; protected set; }
     /// <summary>Referenced menu model, or null when the view has no menu.</summary>
-    public TMenu Menu { get; protected set; }
+    public TMenu? Menu { get; protected set; }
     /// <summary>Currently highlighted entry, or null when no entry is selected.</summary>
-    public TMenuItem Current { get; protected set; }
+    public TMenuItem? Current { get; protected set; }
 
     /// <summary>Creates an unselected menu view in owner-relative character-cell bounds with a referenced menu and optional navigation parent.</summary>
-    public TMenuView(TRect bounds, TMenu aMenu, TMenuView aParent)
+    public TMenuView(TRect bounds, TMenu? aMenu, TMenuView? aParent)
         : base(bounds)
     {
         ParentMenu = aParent;
@@ -49,7 +49,7 @@ public class TMenuView : TView
 
         bool autoSelect = false;
         ushort result = 0;
-        TMenuItem itemShown = null;
+        TMenuItem? itemShown = null;
         TMenuView target;
         TRect r;
         TEvent e = default;
@@ -120,11 +120,11 @@ public class TMenuView : TView
                         default:
                         {
                             target = this;
-                            char altCh = GetAltChar(e.keyDown.keyCode, e.keyDown.charScan.charCode, e.keyDown.shiftState);
+                            char altCh = GetAltChar(e.keyDown.keyCode, e.keyDown.charScan.charCode, e.keyDown.controlKeyState);
                             bool isAlt = altCh != '\0';
                             if (isAlt && ParentMenu != null) target = TopMenu();
                             char ch = isAlt ? altCh : (char)e.keyDown.charScan.charCode;
-                            TMenuItem found = (ch != '\0') ? target.FindItem(ch) : null;
+                            TMenuItem? found = (ch != '\0') ? target.FindItem(ch) : null;
                             if (found == null)
                             {
                                 if (!isAlt && (e.keyDown.charScan.charCode < 32 || e.keyDown.charScan.charCode >= 127))
@@ -159,22 +159,26 @@ public class TMenuView : TView
             if (itemShown != Current) { itemShown = Current; DrawView(); }
 
             if ((doSelect || (!doReturn && autoSelect))
-                && Current != null && !string.IsNullOrEmpty(Current.Name))
+                && Current is TMenuItem currentItem && !string.IsNullOrEmpty(currentItem.Name))
             {
-                if (Current.Command == 0)
+                if (currentItem.Command == 0)
                 {
-                    // Submenu
-                    if ((e.What & (Events.evMouseDown | Events.evMouseMove)) != 0)
-                        PutEvent(ref e);
-                    r = GetItemRect(Current);
-                    r.a.x += origin.x;
-                    r.a.y = r.b.y + origin.y;
-                    r.b = owner.size;
-                    target = TopMenu().NewSubView(r, Current.SubMenu, this);
-                    result = owner.ExecView(target);
+                    // Submenu: a modal menu is always inserted in an owning group,
+                    // so the popup is only opened when that owner is present.
+                    if (owner is TGroup ownerGroup)
+                    {
+                        if ((e.What & (Events.evMouseDown | Events.evMouseMove)) != 0)
+                            PutEvent(ref e);
+                        r = GetItemRect(currentItem);
+                        r.a.x += origin.x;
+                        r.a.y = r.b.y + origin.y;
+                        r.b = ownerGroup.size;
+                        target = TopMenu().NewSubView(r, currentItem.SubMenu, this);
+                        result = ownerGroup.ExecView(target);
+                    }
                 }
                 else if (doSelect)
-                    result = Current.Command;
+                    result = currentItem.Command;
             }
 
             if (result != 0 && CommandEnabled(result))
@@ -198,11 +202,11 @@ public class TMenuView : TView
     }
 
     /// <summary>Finds an enabled named entry by case-insensitive tilde-marked mnemonic, or returns null.</summary>
-    public virtual TMenuItem FindItem(char ch)
+    public virtual TMenuItem? FindItem(char ch)
     {
         if (ch == '\0') return null;
         ch = char.ToUpperInvariant(ch);
-        for (TMenuItem p = Menu?.Items; p != null; p = p.Next)
+        for (TMenuItem? p = Menu?.Items; p != null; p = p.Next)
         {
             if (string.IsNullOrEmpty(p.Name) || p.Disabled) continue;
             if (p.HotChar() == ch) return p;
@@ -211,7 +215,7 @@ public class TMenuView : TView
     }
 
     /// <summary>Recursively searches the item chain and submenus for an enabled command with the accelerator, returning null if absent.</summary>
-    public static TMenuItem FindHotKey(TMenuItem p, ushort keyCode)
+    public static TMenuItem? FindHotKey(TMenuItem? p, ushort keyCode)
     {
         while (p != null)
         {
@@ -237,7 +241,7 @@ public class TMenuView : TView
     }
 
     /// <summary>Searches this menu tree for an enabled command accelerator, returning null if absent.</summary>
-    public virtual TMenuItem HotKey(ushort keyCode)
+    public virtual TMenuItem? HotKey(ushort keyCode)
     {
         if (Menu == null) return null;
         return FindHotKey(Menu.Items, keyCode);
@@ -271,7 +275,7 @@ public class TMenuView : TView
     public bool KeyToItem(ref TEvent ev)
     {
         char ch = GetAltChar(ev.keyDown.keyCode, ev.keyDown.charScan.charCode,
-                              ev.keyDown.shiftState);
+                              ev.keyDown.controlKeyState);
         if (ch == '\0') return false;
         if (FindItem(ch) == null) return false;
         PutEvent(ref ev);
@@ -290,15 +294,9 @@ public class TMenuView : TView
     // loop, which already handles it independently:
     //   char ch = isAlt ? altCh : (char)e.keyDown.charScan.charCode;
     /// <summary>Returns the letter or digit encoded by an Alt key code, or a null character; character and shift-state arguments are currently unused.</summary>
-    public static char GetAltChar(ushort keyCode, byte charCode, ushort shiftState)
+    public static char GetAltChar(ushort keyCode, byte charCode, uint controlKeyState)
     {
-        if (keyCode >= Keys.kbAltA && keyCode <= Keys.kbAltZ)
-            return (char)('A' + (keyCode - Keys.kbAltA));
-        if (keyCode >= Keys.kbAlt1 && keyCode <= Keys.kbAlt9)
-            return (char)('1' + (keyCode - Keys.kbAlt1));
-        if (keyCode == Keys.kbAlt0)
-            return '0';
-        return '\0';
+        return KeyboardCompatibility.AltCharacter(keyCode);
     }
 
     /// <summary>Returns an entry's local character-cell rectangle; the base implementation returns an empty rectangle.</summary>
@@ -309,7 +307,7 @@ public class TMenuView : TView
     {
         TPoint mouse = MakeLocal(e.mouse.where);
         Current = null;
-        for (TMenuItem p = Menu?.Items; p != null; p = p.Next)
+        for (TMenuItem? p = Menu?.Items; p != null; p = p.Next)
             if (GetItemRect(p).Contains(mouse)) { Current = p; return; }
     }
 
@@ -324,7 +322,7 @@ public class TMenuView : TView
     protected void PrevItem()
     {
         if (Menu == null) return;
-        TMenuItem p = Current;
+        TMenuItem? p = Current;
         if (p == Menu.Items) p = null;
         do { NextItem(); } while (Current?.Next != p);
     }
@@ -344,14 +342,14 @@ public class TMenuView : TView
     {
         if (ParentMenu == null || ParentMenu.size.y != 1) return false;
         TPoint mouse = ParentMenu.MakeLocal(e.mouse.where);
-        TMenuItem cur = ParentMenu.Current;
+        TMenuItem? cur = ParentMenu.Current;
         return cur != null && ParentMenu.GetItemRect(cur).Contains(mouse);
     }
 
     /// <summary>Tests whether the event's screen-coordinate mouse position lies inside any ancestor menu view.</summary>
     protected bool MouseInMenus(TEvent e)
     {
-        TMenuView p = ParentMenu;
+        TMenuView? p = ParentMenu;
         while (p != null && !p.MouseInView(e.mouse.where)) p = p.ParentMenu;
         return p != null;
     }
@@ -386,13 +384,13 @@ public class TMenuView : TView
     /// <inheritdoc />
     public override ushort GetHelpCtx()
     {
-        var c = this;
+        TMenuView? c = this;
         while (c != null
             && (c.Current == null
                 || c.Current.HelpCtx == Views.hcNoContext
                 || string.IsNullOrEmpty(c.Current.Name)))
             c = c.ParentMenu;
-        return c != null ? c.Current.HelpCtx : Views.hcNoContext;
+        return c?.Current is TMenuItem item ? item.HelpCtx : Views.hcNoContext;
     }
 
     /// <inheritdoc />
@@ -443,7 +441,7 @@ public class TMenuView : TView
     {
         if (menu == null) return false;
         bool res = false;
-        for (TMenuItem p = menu.Items; p != null; p = p.Next)
+        for (TMenuItem? p = menu.Items; p != null; p = p.Next)
         {
             if (string.IsNullOrEmpty(p.Name)) continue;
             if (p.Command == 0)
@@ -464,7 +462,10 @@ public class TMenuView : TView
     }
 
     /// <summary>Creates a popup for the referenced submenu, using owner-relative cell bounds and the supplied navigation parent.</summary>
-    public virtual TMenuView NewSubView(TRect bounds, TMenu aMenu, TMenuView aParentMenu)
+    /// <param name="bounds">Owner-relative character-cell bounds for the popup.</param>
+    /// <param name="aMenu">Menu model shown by the popup.</param>
+    /// <param name="aParentMenu">Navigation parent; null creates a menu with no parent, as used by a top-level menu.</param>
+    public virtual TMenuView NewSubView(TRect bounds, TMenu aMenu, TMenuView? aParentMenu)
     {
         return new TMenuBox(bounds, aMenu, aParentMenu);
     }
@@ -482,10 +483,10 @@ public class TMenuView : TView
     // If name != null && command == 0: recurse into subMenu.
     // If name != null && command != 0: WriteString(param).
     // After all items: 0x00 sentinel.
-    private static void WriteMenu(Opstream os, TMenu menu)
+    private static void WriteMenu(Opstream os, TMenu? menu)
     {
         if (menu == null) { os.WriteByte(0x00); return; }
-        for (TMenuItem item = menu.Items; item != null; item = item.Next)
+        for (TMenuItem? item = menu.Items; item != null; item = item.Next)
         {
             os.WriteByte(0xFF);
             os.WriteString(item.Name);
@@ -515,23 +516,26 @@ public class TMenuView : TView
     private static TMenu ReadMenu(Ipstream isStream)
     {
         var menu = new TMenu();
-        TMenuItem last = null;
+        TMenuItem? last = null;
         byte tok = (byte)isStream.ReadByte();
         while (tok != 0)
         {
-            var item = new TMenuItem((string)null, (ushort)0, (ushort)0);
+            var item = new TMenuItem(string.Empty, (ushort)0, (ushort)0);
             // Append to the end of the linked list (preserve order).
             if (last == null) { menu.Items = item; }
             else              { last.Next  = item; }
             last = item;
 
-            item.Name    = isStream.ReadString();
+            // A null name on the wire denotes a separator and gates the trailing
+            // submenu/param field, so the raw nullable value must drive the format.
+            string? name = isStream.ReadString();
+            item.Name    = name ?? string.Empty;
             item.Command = isStream.ReadShort();
             item.Disabled = isStream.ReadShort() != 0;
             item.KeyCode  = isStream.ReadShort();
             item.HelpCtx  = isStream.ReadShort();
 
-            if (item.Name != null)
+            if (name != null)
             {
                 if (item.Command == 0)
                     item.SubMenu = ReadMenu(isStream);

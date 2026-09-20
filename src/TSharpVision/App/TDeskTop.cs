@@ -7,7 +7,7 @@ namespace TSharpVision;
 public class TDeskTop : TGroup
 {
     /// <summary>Background child inserted beneath desktop windows, or null when no background was created.</summary>
-    public TBackground background;
+    public TBackground? background;
 
     // CP437 0xB0 = light shade '░'. See TSharpVisionGlyphs.BackgroundFillLight.
     /// <summary>Fill character used by the default background factory for newly created desktops.</summary>
@@ -50,7 +50,7 @@ public class TDeskTop : TGroup
         => new TBackground(r, defaultBkgrnd);
 
     /// <summary>Creates the desktop background in local cell bounds; override to customize it or return null to omit it.</summary>
-    public virtual TBackground InitBackground(TRect r) => InitBackgroundDefault(r);
+    public virtual TBackground? InitBackground(TRect r) => InitBackgroundDefault(r);
 
     private static bool Tileable(TView p)
         => (p.options & Views.ofTileable) != 0
@@ -60,12 +60,12 @@ public class TDeskTop : TGroup
     public void Cascade(TRect r)
     {
         int cascadeNum = 0;
-        TView lastView = null;
+        TView? lastView = null;
         ForEachView(p =>
         {
             if (Tileable(p)) { cascadeNum++; lastView = p; }
         });
-        if (cascadeNum > 0)
+        if (cascadeNum > 0 && lastView != null)
         {
             TPoint min = default, max = default;
             lastView.SizeLimits(ref min, ref max);

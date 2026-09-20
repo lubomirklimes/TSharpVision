@@ -126,9 +126,10 @@ public sealed class AppShellCompileTests
         var diag = new List<Diagnostic>();
         var tokens = new Lexer(AppShellFixture.Trc, diag).Tokenize();
         var ast = new Parser(tokens, diag).ParseFile();
-        var dlg = ast.Resources.First(r => r.Key == "dialog.about");
-        Assert.Equal("wpGrayDialog", dlg.Dialog.Palette);
-        Assert.True(CommandIds.IsKnownPaletteName(dlg.Dialog.Palette));
+        var resource = ast.Resources.First(r => r.Key == "dialog.about");
+        var dlg = Assert.IsType<DialogBody>(resource.Dialog);
+        Assert.Equal("wpGrayDialog", dlg.Palette);
+        Assert.True(CommandIds.IsKnownPaletteName(Assert.IsType<string>(dlg.Palette)));
     }
 
     [Fact]
@@ -137,7 +138,7 @@ public sealed class AppShellCompileTests
         var diag = new List<Diagnostic>();
         var tokens = new Lexer(AppShellFixture.Trc, diag).Tokenize();
         var ast = new Parser(tokens, diag).ParseFile();
-        var menu = ast.Resources.First(r => r.Key == "menu.main").Menu;
+        var menu = Assert.IsType<MenuBody>(ast.Resources.First(r => r.Key == "menu.main").Menu);
         Assert.Equal(2, menu.Items.Count);
         Assert.Equal("~F~ile", menu.Items[0].Title);
         Assert.Equal("~H~elp", menu.Items[1].Title);
@@ -149,7 +150,7 @@ public sealed class AppShellCompileTests
         var diag = new List<Diagnostic>();
         var tokens = new Lexer(AppShellFixture.Trc, diag).Tokenize();
         var ast = new Parser(tokens, diag).ParseFile();
-        var sb = ast.Resources.First(r => r.Key == "status.main").StatusBar;
+        var sb = Assert.IsType<StatusBarBody>(ast.Resources.First(r => r.Key == "status.main").StatusBar);
         Assert.Single(sb.Ranges);
         Assert.Equal(0,     sb.Ranges[0].Min);
         Assert.Equal(65535, sb.Ranges[0].Max);
@@ -162,7 +163,7 @@ public sealed class AppShellCompileTests
         var diag = new List<Diagnostic>();
         var tokens = new Lexer(AppShellFixture.Trc, diag).Tokenize();
         var ast = new Parser(tokens, diag).ParseFile();
-        var dlg = ast.Resources.First(r => r.Key == "dialog.about").Dialog;
+        var dlg = Assert.IsType<DialogBody>(ast.Resources.First(r => r.Key == "dialog.about").Dialog);
         Assert.Equal(2, dlg.Controls.Count);   // static + button
     }
 }
@@ -252,15 +253,16 @@ public sealed class AppShellRuntimeTests : IDisposable
 
         var fp = new Fpstream(path);
         var rf = new TResourceFile(fp);
-        var mb = (TMenuBar)rf.Get("menu.main");
+        var mb = Assert.IsType<TMenuBar>(rf.Get("menu.main"));
         fp.Close();
 
-        Assert.NotNull(mb?.Menu?.Items);
+        var menu = Assert.IsType<TMenu>(mb.Menu);
+        var first = Assert.IsType<TMenuItem>(menu.Items);
         // Count top-level menu items
         int count = 0;
-        for (var it = mb.Menu.Items; it != null; it = it.Next) count++;
+        for (var it = first; it != null; it = it.Next) count++;
         Assert.Equal(2, count);
-        Assert.Equal("~F~ile", mb.Menu.Items.Name);
+        Assert.Equal("~F~ile", first.Name);
         mb.ShutDown();
     }
 
@@ -292,12 +294,12 @@ public sealed class AppShellRuntimeTests : IDisposable
 
         var fp = new Fpstream(path);
         var rf = new TResourceFile(fp);
-        var sl = (TStatusLine)rf.Get("status.main");
+        var sl = Assert.IsType<TStatusLine>(rf.Get("status.main"));
         fp.Close();
 
-        Assert.NotNull(sl.Defs);
-        Assert.Equal(0,     sl.Defs.Min);
-        Assert.Equal(65535, sl.Defs.Max);
+        var defs = Assert.IsType<TStatusDef>(sl.Defs);
+        Assert.Equal(0,     defs.Min);
+        Assert.Equal(65535, defs.Max);
         sl.ShutDown();
     }
 
@@ -329,7 +331,7 @@ public sealed class AppShellRuntimeTests : IDisposable
 
         var fp = new Fpstream(path);
         var rf = new TResourceFile(fp);
-        var dlg = (TDialog)rf.Get("dialog.about");
+        var dlg = Assert.IsType<TDialog>(rf.Get("dialog.about"));
         fp.Close();
 
         Assert.Equal("About", dlg.title);
@@ -345,7 +347,7 @@ public sealed class AppShellRuntimeTests : IDisposable
 
         var fp = new Fpstream(path);
         var rf = new TResourceFile(fp);
-        var dlg = (TDialog)rf.Get("dialog.about");
+        var dlg = Assert.IsType<TDialog>(rf.Get("dialog.about"));
         fp.Close();
 
         // source: bounds (20, 7, 60, 15) → size 40×8
@@ -363,7 +365,7 @@ public sealed class AppShellRuntimeTests : IDisposable
 
         var fp = new Fpstream(path);
         var rf = new TResourceFile(fp);
-        var dlg = (TDialog)rf.Get("dialog.about");
+        var dlg = Assert.IsType<TDialog>(rf.Get("dialog.about"));
         fp.Close();
 
         // Dialog should have at least two children: TStaticText + TButton.

@@ -6,7 +6,7 @@ namespace TSharpVision.Drivers.Terminal;
 internal interface ITerminalClipboardCommandRunner
 {
     bool CommandExists(string fileName);
-    string ReadText(string fileName, string[] args);
+    string? ReadText(string fileName, string[] args);
     bool WriteText(string fileName, string[] args, string text);
 }
 
@@ -23,7 +23,7 @@ internal sealed class TerminalClipboardCommandRunner : ITerminalClipboardCommand
         if (string.IsNullOrWhiteSpace(fileName)) return false;
         if (Path.IsPathRooted(fileName)) return File.Exists(fileName);
 
-        string path = Environment.GetEnvironmentVariable("PATH");
+        string? path = Environment.GetEnvironmentVariable("PATH");
         if (string.IsNullOrEmpty(path)) return false;
 
         foreach (string dir in path.Split(Path.PathSeparator))
@@ -42,7 +42,7 @@ internal sealed class TerminalClipboardCommandRunner : ITerminalClipboardCommand
         return false;
     }
 
-    public string ReadText(string fileName, string[] args)
+    public string? ReadText(string fileName, string[] args)
     {
         try
         {

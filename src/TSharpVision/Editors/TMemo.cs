@@ -34,8 +34,8 @@ public class TMemo : TEditor
     private static readonly TPalette Palette = new TPalette(CpMemo, CpMemo.Length);
 
     /// <summary>Creates an empty memo at owner-relative cell bounds with code-unit capacity and associated scroll/status controls.</summary>
-    public TMemo(TRect bounds, TScrollBar aHScrollBar, TScrollBar aVScrollBar,
-                 TIndicator aIndicator, uint aBufSize)
+    public TMemo(TRect bounds, TScrollBar? aHScrollBar, TScrollBar? aVScrollBar,
+                 TIndicator? aIndicator, uint aBufSize)
         : base(bounds, aHScrollBar, aVScrollBar, aIndicator, aBufSize)
     {
     }
@@ -48,10 +48,10 @@ public class TMemo : TEditor
     {
         data.length = bufLen;
         if (curPtr > 0)
-            Array.Copy(buffer, 0, data.buffer, 0, (int)curPtr);
+            Array.Copy(Buf, 0, data.buffer, 0, (int)curPtr);
         uint right = bufLen - curPtr;
         if (right > 0)
-            Array.Copy(buffer, (int)(curPtr + gapLen),
+            Array.Copy(Buf, (int)(curPtr + gapLen),
                        data.buffer, (int)curPtr, (int)right);
         if (bufLen < (uint)data.buffer.Length)
             Array.Clear(data.buffer, (int)bufLen,
@@ -63,7 +63,7 @@ public class TMemo : TEditor
     {
         if (data.length > 0)
             Array.Copy(data.buffer, 0,
-                       buffer, (int)(bufSize - data.length),
+                       Buf, (int)(bufSize - data.length),
                        (int)data.length);
         SetBufLen(data.length);
     }
@@ -96,10 +96,10 @@ public class TMemo : TEditor
     {
         var sb = new StringBuilder((int)bufLen);
         for (uint p = 0; p < curPtr; p++)
-            sb.Append(buffer[p]);
+            sb.Append(Buf[p]);
         uint right = bufLen - curPtr;
         for (uint p = 0; p < right; p++)
-            sb.Append(buffer[curPtr + gapLen + p]);
+            sb.Append(Buf[curPtr + gapLen + p]);
         return sb.ToString();
     }
 
@@ -112,7 +112,7 @@ public class TMemo : TEditor
         if (isValid && length > 0)
         {
             // Upstream places live data at the end: buffer + bufSize - length.
-            text.CopyTo(0, buffer, (int)(bufSize - length), (int)length);
+            text.CopyTo(0, Buf, (int)(bufSize - length), (int)length);
             SetBufLen(length);
         }
         return this;

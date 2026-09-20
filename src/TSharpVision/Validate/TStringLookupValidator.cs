@@ -4,7 +4,7 @@ namespace TSharpVision;
 public class TStringLookupValidator : TLookupValidator
 {
     /// <summary>Referenced allowed-string collection; null causes every lookup to fail.</summary>
-    protected TStringCollection Strings;
+    protected TStringCollection? Strings;
 
     /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public new static readonly string Name = "TStringLookupValidator";
@@ -26,7 +26,7 @@ public class TStringLookupValidator : TLookupValidator
     protected TStringLookupValidator(StreamableInit _) : base(_) { }
 
     /// <inheritdoc />
-    public override bool Lookup(string s)
+    public override bool Lookup(string? s)
     {
         if (Strings == null || s == null) return false;
         for (int i = 0; i < Strings.Count; i++)

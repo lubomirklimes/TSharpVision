@@ -18,18 +18,15 @@ public sealed class MouseState
     public void Update(ref TEvent ev)
     {
         // Update position and buttons from any mouse event.
-        if ((ev.What & Events.evMouse) != 0)
+        if ((ev.What & Events.evMouse) != 0 || ev.What == Events.evMouseWheel)
         {
             Position = ev.mouse.where;
-            // Wheel events carry direction in buttons pseudo-bits rather than real button state.
+            Buttons = ev.mouse.buttons;
+            // Wheel direction is an event detail; buttons remain physical state only.
             if (ev.What == Events.evMouseWheel)
             {
-                if ((ev.mouse.buttons & Events.mbButton4) != 0) WheelDelta++;
-                if ((ev.mouse.buttons & Events.mbButton5) != 0) WheelDelta--;
-            }
-            else
-            {
-                Buttons = ev.mouse.buttons;
+                if ((ev.mouse.eventFlags & Events.meWheelUp) != 0) WheelDelta++;
+                if ((ev.mouse.eventFlags & Events.meWheelDown) != 0) WheelDelta--;
             }
         }
     }

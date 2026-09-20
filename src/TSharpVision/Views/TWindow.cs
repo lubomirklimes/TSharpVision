@@ -19,14 +19,15 @@ public class TWindow : TGroup
     /// <summary>wp-prefixed selector for the window's blue, cyan, or gray palette mapping.</summary>
     public short palette;
     /// <summary>Frame child owned by this window, or null after shutdown.</summary>
-    public TFrame frame;
+    public TFrame? frame;
     /// <summary>Text displayed in the window frame.</summary>
-    public string title;
+    public string? title;
     private bool _closeInProgress;
     private bool _closeCompleted;
+    private bool _shutDownCompleted;
 
     /// <summary>Creates a framed window at owner-relative cell bounds with a title and selection number; move, grow, close, and zoom are initially enabled.</summary>
-    public TWindow(TRect bounds, string aTitle, ushort aNumber) : base(bounds)
+    public TWindow(TRect bounds, string? aTitle, ushort aNumber) : base(bounds)
     {
         flags = (byte)(Views.wfMove | Views.wfGrow | Views.wfClose | Views.wfZoom);
         zoomRect = GetBounds();
@@ -46,10 +47,9 @@ public class TWindow : TGroup
     /// <summary>Finalizer hook; window detachment and child shutdown require deterministic lifecycle calls.</summary>
     ~TWindow() { }
 
-    /// <summary>Validates the close command, queues a closing notification, and detaches the window without shutting down its children; repeated completed closes are ignored.</summary>
+    /// <summary>Validates the close command, queues a closing notification, and shuts down the window and its owned children exactly once.</summary>
     public virtual void Close()
     {
-        // Managed queue-before-detach contract.
         if (_closeInProgress || _closeCompleted) return;
         _closeInProgress = true;
         try
@@ -60,9 +60,7 @@ public class TWindow : TGroup
             notification.message.command = Views.cmClosingWindow;
             notification.message.infoPtr = this;
             PutEvent(ref notification);
-            frame = null;
-            owner?.Remove(this);
-            _closeCompleted = true;
+            ShutDown();
         }
         finally { _closeInProgress = false; }
     }
@@ -71,13 +69,11 @@ public class TWindow : TGroup
     /// <remarks>Shuts down owned children and clears the frame reference before detaching the window.</remarks>
     public override void ShutDown()
     {
+        if (_shutDownCompleted) return;
+        _shutDownCompleted = true;
         frame = null;
-        // Call TGroup.ShutDown() so that child views (incl. the
-        // TFrame slot) are shut down and this window removes itself from its
-        // owner's circular list.  Previously this was a no-op ("not yet
-        // ported"), which caused TGroup.ShutDown() to loop forever when the
-        // group contained open windows.
         base.ShutDown();
+        _closeCompleted = true;
     }
 
     private static readonly TPalette _blue = new TPalette("\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F", 8);
@@ -95,7 +91,7 @@ public class TWindow : TGroup
     }
 
     /// <summary>Returns the current title; the base implementation does not truncate it to maxSize.</summary>
-    public virtual string GetTitle(short maxSize) => title;
+    public virtual string? GetTitle(short maxSize) => title;
 
     /// <inheritdoc />
     public override void HandleEvent(ref TEvent @event)

@@ -72,17 +72,18 @@ public class TPXPictureValidator : TValidator
     }
 
     /// <summary>Creates a picture validator for restoration; Read supplies the mask and options.</summary>
-    protected TPXPictureValidator(StreamableInit _) : base(_) { }
+    protected TPXPictureValidator(StreamableInit _) : base(_) { Pic = string.Empty; }
 
     /// <inheritdoc />
-    public override bool IsValidInput(string s, bool suppressFill)
+    public override bool IsValidInput(string? s, bool suppressFill)
     {
         bool doFill = !suppressFill && (Options & VoFill) != 0;
-        return Picture(ref s, doFill) != TPicResult.prError;
+        string value = s ?? string.Empty;
+        return Picture(ref value, doFill) != TPicResult.prError;
     }
 
     /// <inheritdoc />
-    public override bool IsValid(string s)
+    public override bool IsValid(string? s)
     {
         string copy = s ?? string.Empty;
         return Picture(ref copy, false) == TPicResult.prComplete;

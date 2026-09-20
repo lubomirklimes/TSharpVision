@@ -1,7 +1,7 @@
 namespace TSharpVision.Drivers.SDL;
 
 /// <summary>Renders character-cell content and a caret using SDL with pixel-based font metrics.</summary>
-public interface ISDLRenderer : IRenderer, IDisposable
+internal interface ISDLRenderer : IRenderer, IDisposable
 {
     /// <summary>Width of one character cell in pixels.</summary>
     public int CellWidth  { get; }

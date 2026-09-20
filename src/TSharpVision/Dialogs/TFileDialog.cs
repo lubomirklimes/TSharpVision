@@ -34,15 +34,15 @@ public class TFileDialog : TDialog, IFileDialogContext
     public new static readonly string Name = "TFileDialog";
 
     /// <summary>Current filename wildcard used to filter directory entries.</summary>
-    public string wildCard;
+    public string? wildCard;
     /// <summary>Owned filename input control.</summary>
-    public TFileInputLine fileName;
+    public TFileInputLine? fileName;
     /// <summary>Owned list of matching files and navigable directories.</summary>
-    public TFileList      fileList;
+    public TFileList? fileList;
     /// <summary>Optional owned encoding-choice control; null when omitted by dialog options.</summary>
-    public TRadioButtons  encodingSelector;
+    public TRadioButtons?  encodingSelector;
     /// <summary>Current directory used to resolve relative input paths.</summary>
-    public string         directory;
+    public string? directory;
 
     /// <summary>Most recent directory or filename error message; empty when none is recorded.</summary>
     public string LastError = string.Empty;
@@ -167,8 +167,8 @@ public class TFileDialog : TDialog, IFileDialogContext
 
     private static TSItem EncodingChoiceItems()
     {
-        TSItem head = null;
-        TSItem tail = null;
+        TSItem? head = null;
+        TSItem? tail = null;
         foreach (var choice in EditorEncodingChoices.BuiltIn)
         {
             var item = new TSItem(choice.Label, null);
@@ -179,11 +179,13 @@ public class TFileDialog : TDialog, IFileDialogContext
             }
             else
             {
+                if (tail == null)
+                    throw new InvalidOperationException("The encoding choice chain is incomplete.");
                 tail.Next = item;
                 tail = item;
             }
         }
-        return head;
+        return head ?? throw new InvalidOperationException("No editor encoding choices are configured.");
     }
 
     /// <inheritdoc />
@@ -247,7 +249,7 @@ public class TFileDialog : TDialog, IFileDialogContext
     /// <summary>Reloads matching file entries, records any enumeration error, and refreshes the current-directory field.</summary>
     public virtual void ReadDirectory()
     {
-        fileList?.ReadDirectory(wildCard);
+        fileList?.ReadDirectory(wildCard ?? string.Empty);
         LastError = fileList?.LastError ?? string.Empty;
         SetUpCurDir();
     }
@@ -329,7 +331,7 @@ public class TFileDialog : TDialog, IFileDialogContext
                 directory = dir;
                 wildCard  = name;
                 if (command != Views.cmFileInit) fileList?.Select();
-                fileList?.ReadDirectory(directory, wildCard);
+                fileList?.ReadDirectory(fName, wildCard ?? string.Empty);
                 LastError = fileList?.LastError ?? string.Empty;
             }
             return false;
@@ -344,7 +346,7 @@ public class TFileDialog : TDialog, IFileDialogContext
                     fName += System.IO.Path.DirectorySeparatorChar;
                 directory = fName;
                 if (command != Views.cmFileInit) fileList?.Select();
-                fileList?.ReadDirectory(directory, wildCard);
+                fileList?.ReadDirectory(fName, wildCard ?? string.Empty);
             }
             return false;
         }
@@ -358,7 +360,7 @@ public class TFileDialog : TDialog, IFileDialogContext
     }
 
     /// <summary>Returns whether the string contains an asterisk or question-mark wildcard.</summary>
-    public static bool IsWild(string s)
+    public static bool IsWild(string? s)
         => !string.IsNullOrEmpty(s)
            && (s.IndexOf('*') >= 0 || s.IndexOf('?') >= 0);
 
@@ -420,8 +422,8 @@ public class TFileDialog : TDialog, IFileDialogContext
     {
         base.Read(isStream);
         wildCard = isStream.ReadString() ?? string.Empty;
-        fileName = (TFileInputLine)isStream.ReadPointer();
-        fileList = (TFileList)isStream.ReadPointer();
+        fileName = isStream.ReadPointer() as TFileInputLine;
+        fileList = isStream.ReadPointer() as TFileList;
         ReadDirectory();
         return this;
     }

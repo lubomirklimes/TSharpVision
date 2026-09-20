@@ -36,7 +36,7 @@ public sealed class TScreenDisposeTests : IDisposable
     [Fact]
     public void TDisplay_SetCursorType_WhenDriverNull_DoesNotThrow()
     {
-        IDriver saved = TDisplay.driver;
+        IDriver? saved = TDisplay.driver;
         try
         {
             TDisplay.driver = null;
@@ -49,7 +49,7 @@ public sealed class TScreenDisposeTests : IDisposable
     [Fact]
     public void TDisplay_GetCursorType_WhenDriverNull_ReturnsZero()
     {
-        IDriver saved = TDisplay.driver;
+        IDriver? saved = TDisplay.driver;
         try
         {
             TDisplay.driver = null;
@@ -64,7 +64,7 @@ public sealed class TScreenDisposeTests : IDisposable
     [Fact]
     public void TScreen_Suspend_WhenDriverNull_DoesNotThrow()
     {
-        IDriver saved = TDisplay.driver;
+        IDriver? saved = TDisplay.driver;
         try
         {
             TDisplay.driver = null;
@@ -81,7 +81,7 @@ public sealed class TScreenDisposeTests : IDisposable
     {
         // Arrange: initialize a TScreen while driver is live.
         var tsc = new TScreen();
-        IDriver saved = TDisplay.driver;
+        IDriver? saved = TDisplay.driver;
         try
         {
             // Simulate post-DriverScope teardown: driver is reset to null.
@@ -114,7 +114,7 @@ public sealed class TScreenDisposeTests : IDisposable
         //   2. Driver reset to null (DriverScope torn down).
         //   3. Dispose/finalizer runs — must not crash.
         var tsc = new TScreen();
-        IDriver saved = TDisplay.driver;
+        IDriver? saved = TDisplay.driver;
         try
         {
             TDisplay.driver = null;

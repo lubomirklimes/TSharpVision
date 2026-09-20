@@ -12,7 +12,7 @@ public class TDirCollection
     public TDirEntry this[int index] => Items[index];
 
     /// <summary>Appends the supplied entry reference; null is ignored.</summary>
-    public void Insert(TDirEntry item)
+    public void Insert(TDirEntry? item)
     {
         if (item != null) Items.Add(item);
     }

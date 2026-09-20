@@ -29,13 +29,13 @@ public class TChDirDialog : TDialog
     public new static readonly string Name = "TChDirDialog";
 
     /// <summary>Owned input control displaying the directory path.</summary>
-    public TInputLine  dirInput;
+    public TInputLine? dirInput;
     /// <summary>Owned directory-tree list used to choose a path.</summary>
-    public TDirListBox dirList;
+    public TDirListBox? dirList;
     /// <summary>Owned button that accepts the current directory choice.</summary>
-    public TButton     okButton;
+    public TButton? okButton;
     /// <summary>Owned button that changes to the selected directory while browsing.</summary>
-    public TButton     chDirButton;
+    public TButton? chDirButton;
 
     /// <summary>Most recent directory-operation error message, or an empty string when no error is recorded.</summary>
     public string LastError = string.Empty;
@@ -119,10 +119,11 @@ public class TChDirDialog : TDialog
                 break;
             case Views.cmChangeDir:
             {
-                if (dirList == null || dirList.List() == null) return;
-                if (dirList.focused < 0 || dirList.focused >= dirList.List().Count)
+                TDirCollection? directories = dirList?.List();
+                if (dirList == null || directories == null) return;
+                if (dirList.focused < 0 || dirList.focused >= directories.Count)
                     return;
-                var entry = dirList.List().At(dirList.focused);
+                var entry = directories.At(dirList.focused);
                 curDir = entry.Dir() ?? string.Empty;
                 if (string.Equals(curDir, "Drives", System.StringComparison.Ordinal))
                     break;  // upstream: fall through to NewDirectory("Drives")
@@ -231,10 +232,10 @@ public class TChDirDialog : TDialog
     public override object Read(Ipstream isStream)
     {
         base.Read(isStream);
-        dirList     = (TDirListBox)isStream.ReadPointer();
-        dirInput    = (TInputLine)isStream.ReadPointer();
-        okButton    = (TButton)isStream.ReadPointer();
-        chDirButton = (TButton)isStream.ReadPointer();
+        dirList     = isStream.ReadPointer() as TDirListBox;
+        dirInput    = isStream.ReadPointer() as TInputLine;
+        okButton    = isStream.ReadPointer() as TButton;
+        chDirButton = isStream.ReadPointer() as TButton;
         SetUpDialog();
         return this;
     }

@@ -28,7 +28,8 @@ public class TEditorApp : TApplication
         DisableCommand(Views.cmSearchAgain);
 
         // Install the standard editor-dialog dispatcher.
-        TEditorDialogHelper.Install(DeskTop);
+        if (DeskTop is TDeskTop deskTop)
+            TEditorDialogHelper.Install(deskTop);
     }
 
 
@@ -126,14 +127,14 @@ public class TEditorApp : TApplication
 
 
     /// <summary>Creates and inserts an editor window using default file-decoding options; null filename creates an unnamed document.</summary>
-    public virtual TEditWindow OpenEditor(string fileName, bool visible)
+    public virtual TEditWindow? OpenEditor(string? fileName, bool visible)
         => OpenEditor(fileName, visible, null);
 
     /// <summary>Creates, validates, and inserts an editor window with the requested visibility and decoding policy; returns null without a desktop or when validation fails.</summary>
-    public virtual TEditWindow OpenEditor(
-        string fileName,
+    public virtual TEditWindow? OpenEditor(
+        string? fileName,
         bool visible,
-        TFileEditorOpenOptions openOptions)
+        TFileEditorOpenOptions? openOptions)
     {
         if (DeskTop == null) return null;
 
@@ -165,12 +166,8 @@ public class TEditorApp : TApplication
             return null;
         }
 
-        var validated = (TEditWindow)ValidView(ew);
-        if (validated == null) return null;
-
-        if (!visible) validated.Hide();
-        DeskTop.Insert(validated);
-        return validated;
+        if (!visible) ew.Hide();
+        return InsertWindow(ew) as TEditWindow;
     }
 
     /// <summary>Opens a visible editor for a new unnamed document.</summary>

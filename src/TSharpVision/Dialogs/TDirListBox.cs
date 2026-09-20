@@ -36,7 +36,7 @@ public class TDirListBox : TListBox
 
     // The actual TDirCollection lives here (the base TListBox.items field
     // remains null — we override every accessor that touches it).
-    private TDirCollection _dirs;
+    private TDirCollection? _dirs;
 
     /// <summary>Creates a directory tree at owner-relative cell bounds with separate vertical and horizontal scrollbars.</summary>
     public TDirListBox(TRect bounds, TScrollBar aVScrollBar, TScrollBar aHScrollBar)
@@ -64,7 +64,7 @@ public class TDirListBox : TListBox
     public override bool IsSelected(int item) => item == cur;
 
     /// <summary>Returns the current directory-entry collection, which may be null before loading.</summary>
-    public new TDirCollection List() => _dirs;
+    public new TDirCollection? List() => _dirs;
 
     /// <summary>Positions or hides the search caret according to the focused entry, indentation, and horizontal scroll offset.</summary>
     public void UpdateCursorPos()
@@ -313,7 +313,7 @@ public class TDirListBox : TListBox
     /// <inheritdoc />
     public override ushort DataSize() => 0;
     /// <inheritdoc />
-    public override void GetData(ref object rec) { rec = null; }
+    public override void GetData(ref object rec) { }
     /// <inheritdoc />
     public override void SetData(object rec) { }
 

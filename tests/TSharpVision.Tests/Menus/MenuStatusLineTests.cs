@@ -181,7 +181,9 @@ public sealed class MenuStatusLineTests
     {
         using var driver = new DriverScope();
         var bar = MakeBar();
-        var fileRect = bar.GetItemRect(bar.Menu.Items);
+        var menu = Assert.IsType<TMenu>(bar.Menu);
+        var file = Assert.IsType<TMenuItem>(menu.Items);
+        var fileRect = bar.GetItemRect(file);
         Assert.Equal(1, fileRect.a.x);
     }
 
@@ -190,8 +192,11 @@ public sealed class MenuStatusLineTests
     {
         using var driver = new DriverScope();
         var bar = MakeBar();
-        var fileRect = bar.GetItemRect(bar.Menu.Items);
-        var editRect = bar.GetItemRect(bar.Menu.Items.Next);
+        var menu = Assert.IsType<TMenu>(bar.Menu);
+        var file = Assert.IsType<TMenuItem>(menu.Items);
+        var edit = Assert.IsType<TMenuItem>(file.Next);
+        var fileRect = bar.GetItemRect(file);
+        var editRect = bar.GetItemRect(edit);
         Assert.Equal(fileRect.b.x, editRect.a.x);
     }
 
@@ -229,7 +234,7 @@ public sealed class MenuStatusLineTests
         var bar = MakeBar();
         var ev = new TEvent { What = Events.evKeyDown };
         ev.keyDown.keyCode = Keys.kbAltF;
-        ev.keyDown.shiftState = Keys.kbAltShift;
+        ev.keyDown.controlKeyState = Keys.kbAltShift;
         bool routed = bar.KeyToItem(ref ev);
         Assert.True(routed);
     }

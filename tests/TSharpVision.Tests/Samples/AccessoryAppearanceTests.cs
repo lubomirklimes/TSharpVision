@@ -19,8 +19,10 @@ public sealed class AccessoryAppearanceTests
         return root;
     }
 
+    private static ScreenBuffer Buffer(TGroup root) => Assert.IsType<ScreenBuffer>(root.buffer);
+
     private static string Row(TGroup root, int y, int width) =>
-        new(root.buffer.Data.Slice(y * 80, width).ToArray().Select(c => c.Character).ToArray());
+        new(Buffer(root).Data.Slice(y * 80, width).ToArray().Select(c => c.Character).ToArray());
 
     [Fact]
     public void ChartRendersDosGlyphsAndUpdatesSelectionReadout()
@@ -31,8 +33,8 @@ public sealed class AccessoryAppearanceTests
         try
         {
             Assert.Contains("ASCII Chart", Row(root, 0, chart.size.x));
-            Assert.Equal('☺', root.buffer.Data[80 + 2].Character);
-            Assert.Equal('█', root.buffer.Data[(1 + 219 / 32) * 80 + 1 + 219 % 32].Character);
+            Assert.Equal('☺', Buffer(root).Data[80 + 2].Character);
+            Assert.Equal('█', Buffer(root).Data[(1 + 219 / 32) * 80 + 1 + 219 % 32].Character);
             AsciiTableBody? body = null;
             chart.ForEachView(v => { if (v is AsciiTableBody b) body = b; });
             Assert.NotNull(body);
@@ -55,9 +57,9 @@ public sealed class AccessoryAppearanceTests
         try
         {
             Assert.Contains("Calendar", Row(root, 0, calendar.size.x));
-            Assert.Equal('▲', root.buffer.Data[80 + 2 + 17].Character);
-            Assert.Equal('▼', root.buffer.Data[80 + 2 + 20].Character);
-            Assert.Equal((byte)0x3E, (byte)root.buffer.Data[80 + 2].Attr);
+            Assert.Equal('▲', Buffer(root).Data[80 + 2 + 17].Character);
+            Assert.Equal('▼', Buffer(root).Data[80 + 2 + 20].Character);
+            Assert.Equal((byte)0x3E, (byte)Buffer(root).Data[80 + 2].Attr);
         }
         finally { root.ShutDown(); }
         var calculator = new CalculatorDialog();
@@ -65,9 +67,9 @@ public sealed class AccessoryAppearanceTests
         try
         {
             Assert.Contains("Calculator", Row(root, 0, calculator.size.x));
-            Assert.Equal((byte)0x1F, (byte)root.buffer.Data[2 * 80 + 3].Attr);
-            Assert.Equal((byte)0x20, (byte)root.buffer.Data[4 * 80 + 5].Attr);
-            Assert.Equal((byte)0x70, (byte)root.buffer.Data[80 + 1].Attr);
+            Assert.Equal((byte)0x1F, (byte)Buffer(root).Data[2 * 80 + 3].Attr);
+            Assert.Equal((byte)0x20, (byte)Buffer(root).Data[4 * 80 + 5].Attr);
+            Assert.Equal((byte)0x70, (byte)Buffer(root).Data[80 + 1].Attr);
         }
         finally { root.ShutDown(); }
     }
@@ -81,14 +83,14 @@ public sealed class AccessoryAppearanceTests
         var root = Render(puzzle);
         try
         {
-            Assert.Equal((byte)0x1E, (byte)root.buffer.Data[80 + 2].Attr); // A
-            Assert.Equal((byte)0x71, (byte)root.buffer.Data[80 + 5].Attr); // B
-            Assert.Equal((byte)0x71, (byte)root.buffer.Data[2 * 80 + 2].Attr); // E
+            Assert.Equal((byte)0x1E, (byte)Buffer(root).Data[80 + 2].Attr); // A
+            Assert.Equal((byte)0x71, (byte)Buffer(root).Data[80 + 5].Attr); // B
+            Assert.Equal((byte)0x71, (byte)Buffer(root).Data[2 * 80 + 2].Attr); // E
             Assert.True(puzzle.Model.TryMove(3, 2)); // O slides into the blank.
             puzzle.View.DrawView();
-            Assert.Equal('O', root.buffer.Data[4 * 80 + 11].Character);
-            Assert.Equal((byte)0x71, (byte)root.buffer.Data[4 * 80 + 11].Attr);
-            Assert.Equal('1', root.buffer.Data[3 * 80 + 16].Character);
+            Assert.Equal('O', Buffer(root).Data[4 * 80 + 11].Character);
+            Assert.Equal((byte)0x71, (byte)Buffer(root).Data[4 * 80 + 11].Attr);
+            Assert.Equal('1', Buffer(root).Data[3 * 80 + 16].Character);
             var close = new TEvent { What = Events.evCommand };
             close.message.command = Views.cmClose;
             puzzle.HandleEvent(ref close);

@@ -54,7 +54,7 @@ public class TParamText : TStaticText
         new TStreamableClass("TParamText", () => new TParamText(StreamableInit.streamableInit), 0);
 
     /// <summary>Creates an instance for restoration from a stream without running normal initialization.</summary>
-    protected TParamText(StreamableInit init) : base(init) { }
+    protected TParamText(StreamableInit init) : base(init) { ParamList = System.Array.Empty<object>(); }
 
     /// <summary>Creates an instance for stream restoration; its stored state must be read before use.</summary>
     public new static TStreamable Build() => new TParamText(StreamableInit.streamableInit);

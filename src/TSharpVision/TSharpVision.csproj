@@ -4,4 +4,8 @@
     <Description>Turbo Vision-style terminal UI framework for .NET, with windows, dialogs, menus, editors and pluggable display drivers.</Description>
     <PackageTags>tui;terminal;console;turbo-vision;ui</PackageTags>
   </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="TSharpVision.Drivers.Console" />
+    <InternalsVisibleTo Include="TSharpVision.Drivers.SDL" />
+  </ItemGroup>
 </Project>

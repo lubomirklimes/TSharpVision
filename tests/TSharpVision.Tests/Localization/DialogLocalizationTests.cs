@@ -39,11 +39,16 @@ public sealed class DialogLocalizationTests : IDisposable
             if (v is TWindow tw && tw.title == text) return true;
             if (v is TButton btn && btn.Title == text) return true;
             if (v is TStaticText st) { st.GetText(out string t); if (t == text) return true; }
-            if (v is TGroup grp && grp.last != null)
+            if (v is TGroup grp && grp.last is TView last && last.Next is TView first)
             {
-                TView p = grp.last.Next, start = p;
-                do { if (Walk(p)) return true; p = p.Next; }
-                while (p != null && p != start);
+                TView p = first;
+                do
+                {
+                    if (Walk(p)) return true;
+                    if (p.Next is not TView next) break;
+                    p = next;
+                }
+                while (p != first);
             }
             return false;
         }
@@ -749,6 +754,6 @@ public sealed class DialogLocalizationTests : IDisposable
 file sealed class DictStringProvider(Dictionary<string, string> dict)
     : ITSharpVisionStringProvider
 {
-    public string Get(string key, string fallback)
+    public string? Get(string key, string? fallback)
         => dict.TryGetValue(key, out var v) ? v : fallback;
 }

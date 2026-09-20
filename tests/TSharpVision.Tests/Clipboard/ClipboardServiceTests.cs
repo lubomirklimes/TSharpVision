@@ -32,7 +32,8 @@ public sealed class ClipboardServiceTests : IDisposable
         char[] chars = (text ?? string.Empty).ToCharArray();
         ed.bufLen = (uint)chars.Length;
         ed.gapLen = ed.bufSize - ed.bufLen;
-        Array.Copy(chars, 0, ed.buffer, (int)ed.gapLen, chars.Length);
+        char[] buffer = Assert.IsType<char[]>(ed.buffer);
+        Array.Copy(chars, 0, buffer, (int)ed.gapLen, chars.Length);
         ed.curPtr = 0;
         ed.curPos = default;
         ed.delta  = default;

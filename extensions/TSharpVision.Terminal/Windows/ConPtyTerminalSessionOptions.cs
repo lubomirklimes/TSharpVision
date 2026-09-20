@@ -9,10 +9,10 @@ public sealed class ConPtyTerminalSessionOptions
     public string FileName { get; init; } = string.Empty;
 
     /// <summary>Command-line arguments passed after the executable name.</summary>
-    public string Arguments { get; init; } = string.Empty;
+    public string? Arguments { get; init; } = string.Empty;
 
     /// <summary>Working directory for the child process. <see langword="null"/> inherits the parent directory.</summary>
-    public string WorkingDirectory { get; init; }
+    public string? WorkingDirectory { get; init; }
 
     /// <summary>
     /// Terminal size used when creating the pseudo console.

@@ -6,10 +6,10 @@ public class TSItem
     /// <summary>Label stored in this node, including any mnemonic markers.</summary>
     public string Value { get; set; }
     /// <summary>Next label node, or null at the end of the chain.</summary>
-    public TSItem Next { get; set; }
+    public TSItem? Next { get; set; }
 
     /// <summary>Creates a label node referencing the supplied next node, which may be null.</summary>
-    public TSItem(string aValue, TSItem aNext)
+    public TSItem(string aValue, TSItem? aNext)
     {
         Value = aValue;
         Next = aNext;

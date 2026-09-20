@@ -1,0 +1,31 @@
+#nullable enable
+TSharpVision.Drivers.Console.Win32ClipboardService
+TSharpVision.Drivers.Console.Win32ClipboardService.GetText() -> string?
+TSharpVision.Drivers.Console.Win32ClipboardService.IsAvailable.get -> bool
+TSharpVision.Drivers.Console.Win32ClipboardService.SetText(string! text) -> bool
+TSharpVision.Drivers.Console.Win32ClipboardService.TryGetText(out string! text) -> bool
+TSharpVision.Drivers.Console.Win32ClipboardService.Win32ClipboardService() -> void
+TSharpVision.Drivers.Console.Win32ConsoleDriver
+TSharpVision.Drivers.Console.Win32ConsoleDriver.AllocateScreenBuffer() -> TSharpVision.ScreenBuffer!
+TSharpVision.Drivers.Console.Win32ConsoleDriver.ClearScreen(ushort cols, ushort rows) -> void
+TSharpVision.Drivers.Console.Win32ConsoleDriver.Dispose() -> void
+TSharpVision.Drivers.Console.Win32ConsoleDriver.GetCols() -> ushort
+TSharpVision.Drivers.Console.Win32ConsoleDriver.GetCursorType() -> ushort
+TSharpVision.Drivers.Console.Win32ConsoleDriver.GetRows() -> ushort
+TSharpVision.Drivers.Console.Win32ConsoleDriver.GetScreenMode() -> TSharpVision.TDisplay.SM
+TSharpVision.Drivers.Console.Win32ConsoleDriver.Initialize() -> void
+TSharpVision.Drivers.Console.Win32ConsoleDriver.KeyboardCapabilities.get -> TSharpVision.Drivers.KeyboardCapabilities
+TSharpVision.Drivers.Console.Win32ConsoleDriver.MakeBeep() -> void
+TSharpVision.Drivers.Console.Win32ConsoleDriver.PumpMessages() -> void
+TSharpVision.Drivers.Console.Win32ConsoleDriver.ReadKeyEvent(out TSharpVision.TEvent ev) -> bool
+TSharpVision.Drivers.Console.Win32ConsoleDriver.Resume() -> void
+TSharpVision.Drivers.Console.Win32ConsoleDriver.SetCaretPosition(int x, int y) -> void
+TSharpVision.Drivers.Console.Win32ConsoleDriver.SetCursorType(ushort cursorType) -> void
+TSharpVision.Drivers.Console.Win32ConsoleDriver.SetScreenMode(TSharpVision.TDisplay.SM mode) -> void
+TSharpVision.Drivers.Console.Win32ConsoleDriver.Shutdown() -> void
+TSharpVision.Drivers.Console.Win32ConsoleDriver.SupportsGraphics.get -> bool
+TSharpVision.Drivers.Console.Win32ConsoleDriver.SupportsMouse.get -> bool
+TSharpVision.Drivers.Console.Win32ConsoleDriver.SupportsTrueColor.get -> bool
+TSharpVision.Drivers.Console.Win32ConsoleDriver.Suspend() -> void
+TSharpVision.Drivers.Console.Win32ConsoleDriver.Win32ConsoleDriver() -> void
+TSharpVision.Drivers.Console.Win32ConsoleDriver.WriteBuf(int x, int y, int w, int h, System.Span<TSharpVision.TScreenChar> buf) -> void

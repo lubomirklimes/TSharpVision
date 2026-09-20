@@ -1,6 +1,6 @@
 // ANSI/xterm driver hardening tests.
 // Covers headless checks:
-//   §1 ANSI SGR mouse wheel (b=64/65) → evMouseWheel + correct button
+//   §1 ANSI SGR mouse wheel (b=64/65) → evMouseWheel + direction flag
 //   §2 ANSI SGR drag with held-button mask (b=32 left, b=34 right, b=35 none)
 //   §3 ANSI CSI param;modifier~ — Shift/Alt/Ctrl F-key decode + no-regression F5
 //   §4 AttrToSgr canonical SGR string mappings (0x07, 0x0F, 0x1F, 0xF7)
@@ -28,11 +28,12 @@ public sealed class AnsiDriverHardeningTests
     }
 
     [Fact]
-    public void AnsiMouse_WheelUp_IsMbButton4()
+    public void AnsiMouse_WheelUp_UsesFlagAndNoPseudoButton()
     {
         var buf = Encoding.ASCII.GetBytes("\x1b[<64;5;5M");
         AnsiMouseDecoder.TryDecode(buf, out var ev, out _);
-        Assert.Equal(0x04, ev.mouse.buttons);
+        Assert.Equal(Events.meWheelUp, ev.mouse.eventFlags);
+        Assert.Equal(0, ev.mouse.buttons);
     }
 
     [Fact]
@@ -56,11 +57,12 @@ public sealed class AnsiDriverHardeningTests
     }
 
     [Fact]
-    public void AnsiMouse_WheelDown_IsMbButton5()
+    public void AnsiMouse_WheelDown_UsesFlagAndNoPseudoButton()
     {
         var buf = Encoding.ASCII.GetBytes("\x1b[<65;3;7M");
         AnsiMouseDecoder.TryDecode(buf, out var ev, out _);
-        Assert.Equal(0x08, ev.mouse.buttons);
+        Assert.Equal(Events.meWheelDown, ev.mouse.eventFlags);
+        Assert.Equal(0, ev.mouse.buttons);
     }
 
     [Fact]
@@ -146,7 +148,7 @@ public sealed class AnsiDriverHardeningTests
     {
         var buf = new byte[] { 0x1B, (byte)'[', (byte)'1', (byte)'5', (byte)';', (byte)'2', (byte)'~' };
         AnsiKeyDecoder.TryDecode(buf, out var ev, out _);
-        Assert.NotEqual(0, ev.keyDown.shiftState & Keys.kbShift);
+        Assert.NotEqual(0u, ev.keyDown.controlKeyState & Keys.kbShift);
     }
 
     [Fact]
@@ -164,7 +166,7 @@ public sealed class AnsiDriverHardeningTests
     {
         var buf = new byte[] { 0x1B, (byte)'[', (byte)'1', (byte)'5', (byte)';', (byte)'3', (byte)'~' };
         AnsiKeyDecoder.TryDecode(buf, out var ev, out _);
-        Assert.NotEqual(0, ev.keyDown.shiftState & Keys.kbAltShift);
+        Assert.NotEqual(0u, ev.keyDown.controlKeyState & Keys.kbAltShift);
     }
 
     [Fact]
@@ -182,7 +184,7 @@ public sealed class AnsiDriverHardeningTests
     {
         var buf = new byte[] { 0x1B, (byte)'[', (byte)'1', (byte)'5', (byte)';', (byte)'5', (byte)'~' };
         AnsiKeyDecoder.TryDecode(buf, out var ev, out _);
-        Assert.NotEqual(0, ev.keyDown.shiftState & Keys.kbCtrlShift);
+        Assert.NotEqual(0u, ev.keyDown.controlKeyState & Keys.kbCtrlShift);
     }
 
     [Fact]

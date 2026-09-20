@@ -76,13 +76,28 @@ public sealed class Win32MappingSpecificationTests
     [Fact]
     public void EveryLetterSupportsControlAndAltWithoutRequiringText()
     {
+        ushort[] controls =
+        [
+            Keys.kbCtrlA, Keys.kbCtrlB, Keys.kbCtrlC, Keys.kbCtrlD, Keys.kbCtrlE, Keys.kbCtrlF,
+            Keys.kbCtrlG, Keys.kbCtrlH, Keys.kbCtrlI, Keys.kbCtrlJ, Keys.kbCtrlK, Keys.kbCtrlL,
+            Keys.kbCtrlM, Keys.kbCtrlN, Keys.kbCtrlO, Keys.kbCtrlP, Keys.kbCtrlQ, Keys.kbCtrlR,
+            Keys.kbCtrlS, Keys.kbCtrlT, Keys.kbCtrlU, Keys.kbCtrlV, Keys.kbCtrlW, Keys.kbCtrlX,
+            Keys.kbCtrlY, Keys.kbCtrlZ
+        ];
+        ushort[] alts =
+        [
+            Keys.kbAltA, Keys.kbAltB, Keys.kbAltC, Keys.kbAltD, Keys.kbAltE, Keys.kbAltF,
+            Keys.kbAltG, Keys.kbAltH, Keys.kbAltI, Keys.kbAltJ, Keys.kbAltK, Keys.kbAltL,
+            Keys.kbAltM, Keys.kbAltN, Keys.kbAltO, Keys.kbAltP, Keys.kbAltQ, Keys.kbAltR,
+            Keys.kbAltS, Keys.kbAltT, Keys.kbAltU, Keys.kbAltV, Keys.kbAltW, Keys.kbAltX,
+            Keys.kbAltY, Keys.kbAltZ
+        ];
         for (int index = 0; index < 26; index++)
         {
             ushort vk = (ushort)('A' + index);
-            // The public A-Z contracts are contiguous families, independent of the old translator.
             foreach (char payload in new[] { '\0', (char)(index + 1) })
-                AssertCommand(vk, payload, Ctrl, (ushort)(Keys.kbCtrlA + index));
-            AssertCommand(vk, '\0', Alt | Shift, (ushort)(Keys.kbAltA + index));
+                AssertCommand(vk, payload, Ctrl, controls[index]);
+            AssertCommand(vk, '\0', Alt | Shift, alts[index]);
         }
     }
     [Theory]
@@ -108,7 +123,7 @@ public sealed class Win32MappingSpecificationTests
             {
                 uint flags = control | alt | Shift | Win32KeyTranslator.CAPSLOCK_ON | Win32KeyTranslator.NUMLOCK_ON | Win32KeyTranslator.SCROLLLOCK_ON;
                 Assert.True(Win32KeyTranslator.TryTranslate(true, 0x45, '€', flags, out var ev));
-                Assert.Equal(Keys.kbShift | Keys.kbCtrlShift | Keys.kbAltShift | Keys.kbCapsState | Keys.kbNumState | Keys.kbScrollState, ev.keyDown.shiftState);
+                Assert.Equal(Keys.kbShift | Keys.kbCtrlShift | Keys.kbAltShift | Keys.kbCapsState | Keys.kbNumState | Keys.kbScrollState, ev.keyDown.controlKeyState);
                 Assert.Equal("€", ev.keyDown.text);
             }
     }
@@ -123,12 +138,15 @@ public sealed class Win32MappingSpecificationTests
     public void RawControlUnitsAreNotMarkedAsPrintable(char character)
     {
         Assert.True(Win32KeyTranslator.TryTranslate(true, 0, character, 0, out var ev));
-        Assert.Null(ev.keyDown.text); Assert.Equal((ushort)character, ev.keyDown.keyCode);
+        Assert.Same(string.Empty, ev.keyDown.text); Assert.Equal((ushort)character, ev.keyDown.keyCode);
     }
     static void AssertCommand(int vk, char character, uint state, ushort expected)
     {
         Assert.True(Win32KeyTranslator.TryTranslate(true, (ushort)vk, character, state, out var ev));
         Assert.Equal(Events.evKeyDown, ev.What); Assert.Equal(expected, ev.keyDown.keyCode);
-        Assert.Null(ev.keyDown.text); Assert.Equal(0, ev.keyDown.charScan.charCode);
+        Assert.Same(string.Empty, ev.keyDown.text);
+        var packed = new CharScanType(expected);
+        Assert.Equal(packed.charCode, ev.keyDown.charScan.charCode);
+        Assert.Equal(packed.scanCode, ev.keyDown.charScan.scanCode);
     }
 }

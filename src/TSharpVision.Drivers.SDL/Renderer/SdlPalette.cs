@@ -5,7 +5,7 @@
 namespace TSharpVision.Drivers.SDL;
 
 /// <summary>Maps packed text attributes to the SDL backend's 16-color RGB palette.</summary>
-public static class SdlPalette
+internal static class SdlPalette
 {
     /// <summary>16-color VGA palette as 0xAARRGGBB.</summary>
     public static readonly uint[] Vga16 = new uint[]

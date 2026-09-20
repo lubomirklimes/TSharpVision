@@ -56,19 +56,19 @@ public class TValidator : TStreamable
 
     /// Returns true if every character in <paramref name="s"/> would be
     /// acceptable input so far (partial-input check). Default: always true.
-    public virtual bool IsValidInput(string s, bool suppressFill) => true;
+    public virtual bool IsValidInput(string? s, bool suppressFill) => true;
 
     /// Returns true when the complete string <paramref name="s"/> is valid.
     /// Default: always true.
-    public virtual bool IsValid(string s) => true;
+    public virtual bool IsValid(string? s) => true;
 
     /// Data transfer for voTransfer-capable validators.
     /// Default: returns 0 (no-op for vtDataSize, vtGetData, vtSetData).
-    public virtual ushort Transfer(string s, object buffer, TVTransfer flag) => 0;
+    public virtual ushort Transfer(string? s, object buffer, TVTransfer flag) => 0;
 
     /// Validates <paramref name="s"/>: calls <see cref="IsValid"/>; if that
     /// returns false, calls <see cref="Error"/> and returns false.
-    public bool Validate(string s)
+    public bool Validate(string? s)
     {
         if (IsValid(s)) return true;
         Error();

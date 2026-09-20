@@ -25,8 +25,8 @@ public class Ofpstream : Opstream
     {
         if (bp != null)
         {
-            bp.Flush();
-            if (_ownsStream) bp.Close();
+            Buffer.Flush();
+            if (_ownsStream) Buffer.Close();
         }
     }
 }

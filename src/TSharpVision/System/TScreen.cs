@@ -18,9 +18,11 @@ public class TScreen : TDisplay
     /// <summary>Legacy display-snow compatibility flag; not used by the current screen implementation.</summary>
     public static bool CheckSnow { get; set; }
     /// <summary>Shared screen-cell buffer allocated by the active driver.</summary>
-    public static /*byte[]*/ ScreenBuffer ScreenBuffer { get; set; }
+    public static /*byte[]*/ ScreenBuffer? ScreenBuffer { get; set; }
     /// <summary>Cursor-shape value captured when refreshing CRT data, before hiding the cursor.</summary>
     public static ushort CursorLines { get; set; }
+
+    internal static TPoint ShadowSize { get; set; } = new TPoint(2, 1);
 
     /// <summary>Initializes or reuses the shared driver, captures startup display state, and allocates its screen buffer.</summary>
     public TScreen() 
@@ -29,7 +31,7 @@ public class TScreen : TDisplay
         StartupMode = GetCrtMode();
         StartupCursor = GetCursorType();
         SetCrtData();
-        ScreenBuffer = driver.AllocateScreenBuffer();
+        ScreenBuffer = ActiveDriver.AllocateScreenBuffer();
     }
 
     // No finalizer: TScreen owns no unmanaged resource, and Suspend() drives the shared
@@ -108,7 +110,7 @@ public class TScreen : TDisplay
     /// <summary>Writes len cells from the supplied span as one row at the specified screen character-cell coordinates.</summary>
     public static void ScreenWrite(int x, int y, Span<TScreenChar> span, int len)
     {
-        driver.WriteBuf(x, y, len, 1, span);
+        ActiveDriver.WriteBuf(x, y, len, 1, span);
     }
 
     /// <summary>

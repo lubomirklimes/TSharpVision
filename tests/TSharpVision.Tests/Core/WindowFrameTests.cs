@@ -336,7 +336,8 @@ public sealed class WindowFrameTests
         var win = new TWindow(new TRect(0, 0, 40, 10), "W4", 4);
         host.Insert(win);
         win.SetState(Views.sfSelected, true);
-        Assert.NotEqual(0, win.frame.state & Views.sfActive);
+        var frame = Assert.IsType<TFrame>(win.frame);
+        Assert.NotEqual(0, frame.state & Views.sfActive);
     }
 
     [Fact]
@@ -348,7 +349,8 @@ public sealed class WindowFrameTests
         host.Insert(win);
         win.SetState(Views.sfSelected, true);
         win.SetState(Views.sfSelected, false);
-        Assert.Equal(0, win.frame.state & Views.sfActive);
+        var frame = Assert.IsType<TFrame>(win.frame);
+        Assert.Equal(0, frame.state & Views.sfActive);
     }
 
     [Fact]

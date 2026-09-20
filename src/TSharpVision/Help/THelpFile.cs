@@ -101,7 +101,7 @@ public class THelpFile
             s.In.Seekg(indexPos);
             s.In.HelpFormatVersion = formatVersion;
             s.In.HelpLegacyEncoding = LegacyEncoding;
-            index = (THelpIndex)s.In.ReadPointer() ?? new THelpIndex();
+            index = s.In.ReadPointer() as THelpIndex ?? new THelpIndex();
             modified = false;
         }
     }
@@ -115,7 +115,8 @@ public class THelpFile
             stream.In.Seekg(pos);
             stream.In.HelpFormatVersion = formatVersion;
             stream.In.HelpLegacyEncoding = LegacyEncoding;
-            return (THelpTopic)stream.In.ReadPointer();
+            if (stream.In.ReadPointer() is THelpTopic topic)
+                return topic;
         }
         return InvalidTopic();
     }

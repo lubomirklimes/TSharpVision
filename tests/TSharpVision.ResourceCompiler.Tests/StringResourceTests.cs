@@ -23,8 +23,9 @@ public sealed class StringResourceParserTests
         Assert.Single(ast.Resources);
         Assert.Equal(ResourceKind.Strings, ast.Resources[0].Kind);
         Assert.Equal("sharpvision.intl", ast.Resources[0].Key);
-        Assert.Single(ast.Resources[0].Strings.Entries);
-        Assert.Equal("Menu_File", ast.Resources[0].Strings.Entries[0].Key);
+        var strings = Assert.IsType<StringsBody>(ast.Resources[0].Strings);
+        Assert.Single(strings.Entries);
+        Assert.Equal("Menu_File", strings.Entries[0].Key);
     }
 
     [Fact]
@@ -38,7 +39,8 @@ public sealed class StringResourceParserTests
             """, diag);
 
         Assert.Empty(diag);
-        Assert.Equal("menu.file", ast.Resources[0].Strings.Entries[0].Key);
+        var strings = Assert.IsType<StringsBody>(ast.Resources[0].Strings);
+        Assert.Equal("menu.file", strings.Entries[0].Key);
     }
 
     private static TrcFile Parse(string src, List<Diagnostic> diag)
@@ -82,10 +84,10 @@ public sealed class StringResourceEndToEndTests : IDisposable
         var strings = Assert.IsType<TStringResource>(rf.Get("sharpvision.intl"));
         fp.Close();
 
-        Assert.True(strings.TryGetValue("Btn_OK", out string ok));
-        Assert.Equal("~B~udiž", ok);
-        Assert.True(strings.TryGetValue("Menu_File", out string menu));
-        Assert.Equal("~S~oubor", menu);
+        Assert.True(strings.TryGetValue("Btn_OK", out string? ok));
+        Assert.Equal("~B~udiž", Assert.IsType<string>(ok));
+        Assert.True(strings.TryGetValue("Menu_File", out string? menu));
+        Assert.Equal("~S~oubor", Assert.IsType<string>(menu));
     }
 
     [Fact]
@@ -107,12 +109,12 @@ public sealed class StringResourceEndToEndTests : IDisposable
 
         var provider = TResourceStringProvider.Load(path);
 
-        Assert.True(provider.TryGet("Czech_Test", out string czech));
-        Assert.Equal("Příliš žluťoučký kůň", czech);
+        Assert.True(provider.TryGet("Czech_Test", out string? czech));
+        Assert.Equal("Příliš žluťoučký kůň", Assert.IsType<string>(czech));
         Assert.Equal("Příliš žluťoučký kůň", provider.Get("Czech_Test", "fallback"));
 
-        Assert.True(provider.TryGet("Same_As_Fallback", out string same));
-        Assert.Equal("Same", same);
+        Assert.True(provider.TryGet("Same_As_Fallback", out string? same));
+        Assert.Equal("Same", Assert.IsType<string>(same));
         Assert.Equal("Same", provider.Get("Same_As_Fallback", "Same"));
     }
 

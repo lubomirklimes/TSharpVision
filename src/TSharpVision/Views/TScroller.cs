@@ -11,9 +11,9 @@ public class TScroller : TView
     private static readonly TPalette _palette = new TPalette("\x06\x07", 2);
 
     /// <summary>Optional horizontal scrollbar associated with the viewport.</summary>
-    public TScrollBar hScrollBar;
+    public TScrollBar? hScrollBar;
     /// <summary>Optional vertical scrollbar associated with the viewport.</summary>
-    public TScrollBar vScrollBar;
+    public TScrollBar? vScrollBar;
     /// <summary>Current content offset in character cells.</summary>
     public TPoint delta;
     /// <summary>Total scrollable content width and height in character cells.</summary>
@@ -24,7 +24,7 @@ public class TScroller : TView
     protected bool drawFlag;
 
     /// <summary>Creates a selectable viewport with zero content size and optional horizontal and vertical scrollbars.</summary>
-    public TScroller(TRect bounds, TScrollBar aHScrollBar, TScrollBar aVScrollBar)
+    public TScroller(TRect bounds, TScrollBar? aHScrollBar, TScrollBar? aVScrollBar)
         : base(bounds)
     {
         drawLock = 0;
@@ -88,7 +88,9 @@ public class TScroller : TView
             // We update delta.y directly (no owner needed) and also sync the
             // vertical scrollbar thumb if present so the visual position stays
             // consistent.
-            bool up = (@event.mouse.buttons & Events.mbButton4) != 0;
+            bool up = (@event.mouse.eventFlags & Events.meWheelUp) != 0;
+            bool down = (@event.mouse.eventFlags & Events.meWheelDown) != 0;
+            if (!up && !down) return;
             int newY = delta.y + (up ? -WheelStep : WheelStep);
             newY = Math.Max(0, Math.Min(newY, limit.y - size.y));
             if (newY != delta.y)
@@ -145,7 +147,7 @@ public class TScroller : TView
         CheckDraw();
     }
 
-    private void ShowSBar(TScrollBar sBar)
+    private void ShowSBar(TScrollBar? sBar)
     {
         if (sBar != null)
         {

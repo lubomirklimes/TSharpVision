@@ -44,7 +44,7 @@ public sealed class Parser
     // ── Const directive ───────────────────────────────────────────────────────
 
     // const NAME = INTEGER ;
-    private ConstDirective ParseConst()
+    private ConstDirective? ParseConst()
     {
         var kw = Consume(); // 'const'
         var name = Expect(TokenKind.Identifier, "identifier after 'const'");
@@ -66,7 +66,7 @@ public sealed class Parser
     // ── Resource declaration ──────────────────────────────────────────────────
 
     // resource dialog|menu|statusbar|strings "key" { body }
-    private ResourceDecl ParseResource()
+    private ResourceDecl? ParseResource()
     {
         var kw = Consume(); // 'resource'
         var kindTok = Expect(TokenKind.Identifier, "resource kind (e.g. 'dialog', 'menu', 'statusbar')");
@@ -190,7 +190,7 @@ public sealed class Parser
     // ── Control declaration ───────────────────────────────────────────────────
 
     // control-kind "title" { attr* } ;
-    private ControlDecl ParseControl()
+    private ControlDecl? ParseControl()
     {
         var kindTok = Consume();
         ControlKind kind = kindTok.Value switch
@@ -273,7 +273,7 @@ public sealed class Parser
 
     // ── Bounds: ( X1 , Y1 , X2 , Y2 ) ───────────────────────────────────────
 
-    private BoundsNode ParseBoundsArgs(Token contextTok)
+    private BoundsNode? ParseBoundsArgs(Token contextTok)
     {
         if (!ExpectPunct(TokenKind.OpenParen, "'(' in bounds")) return null;
         var x1 = ParseInt("x1"); if (x1 == null) { SkipToCloseParen(); return null; }
@@ -313,7 +313,7 @@ public sealed class Parser
     // ── Validator ─────────────────────────────────────────────────────────────
 
     // filter("chars") | range(min, max) | picture("mask")
-    private ValidatorNode ParseValidator()
+    private ValidatorNode? ParseValidator()
     {
         var nameTok = Expect(TokenKind.Identifier, "validator kind");
         if (nameTok == null) return null;
@@ -401,7 +401,7 @@ public sealed class Parser
 
     private Token Advance() => Consume();
 
-    private Token Expect(TokenKind kind, string what)
+    private Token? Expect(TokenKind kind, string what)
     {
         var t = Peek();
         if (t.Kind == kind) { Consume(); return t; }
@@ -557,7 +557,7 @@ public sealed class Parser
     }
 
     // submenu "Title" { ( item | separator | submenu )* }
-    private MenuItemDecl ParseSubmenu()
+    private MenuItemDecl? ParseSubmenu()
     {
         var kw = Consume(); // 'submenu'
         var titleTok = Expect(TokenKind.StringLiteral, "submenu title string");
@@ -614,7 +614,7 @@ public sealed class Parser
     }
 
     // item "Title" command=ID key="F3" ;
-    private MenuItemDecl ParseMenuItem()
+    private MenuItemDecl? ParseMenuItem()
     {
         var kw = Consume(); // 'item'
         var titleTok = Expect(TokenKind.StringLiteral, "menu item title string");
@@ -708,7 +708,7 @@ public sealed class Parser
     }
 
     // range MIN MAX { status-item* }
-    private StatusRangeDecl ParseStatusRange()
+    private StatusRangeDecl? ParseStatusRange()
     {
         var kw = Consume(); // 'range'
         var minTok = ParseInt("range min");
@@ -743,7 +743,7 @@ public sealed class Parser
     }
 
     // item "text" command=ID key="F1" ;
-    private StatusItemDecl ParseStatusItem()
+    private StatusItemDecl? ParseStatusItem()
     {
         var kw = Consume(); // 'item'
         var textTok = Expect(TokenKind.StringLiteral, "status item text string");

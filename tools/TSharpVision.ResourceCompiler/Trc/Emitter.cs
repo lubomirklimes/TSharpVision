@@ -22,7 +22,7 @@ public static class Emitter
         IEnumerable<(string key, TStreamable obj)> resources)
     {
         // Ensure the directory exists.
-        string dir = Path.GetDirectoryName(tvrPath);
+        string? dir = Path.GetDirectoryName(tvrPath);
         if (!string.IsNullOrEmpty(dir))
             Directory.CreateDirectory(dir);
 

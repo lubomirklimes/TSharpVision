@@ -34,7 +34,7 @@ public readonly struct TerminalSize : IEquatable<TerminalSize>
     /// <inheritdoc />
     public bool Equals(TerminalSize other) => Columns == other.Columns && Rows == other.Rows;
     /// <inheritdoc />
-    public override bool Equals(object obj) => obj is TerminalSize other && Equals(other);
+    public override bool Equals(object? obj) => obj is TerminalSize other && Equals(other);
     /// <inheritdoc />
     public override int GetHashCode() => HashCode.Combine(Columns, Rows);
     /// <summary>Returns true when both column and row counts match.</summary>

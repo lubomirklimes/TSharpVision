@@ -12,6 +12,12 @@ namespace TSharpVision.Drivers.Console.Tests;
 file sealed class TestProgram25b : TProgram
 {
     public TestProgram25b() { }
+
+    public static byte ReleaseCpuInhibition
+    {
+        get => DoNotReleaseCPU;
+        set => DoNotReleaseCPU = value;
+    }
 }
 
 /// <summary>TApplication that throws InvalidOperationException in Run().</summary>
@@ -125,15 +131,15 @@ public sealed class AppLifecycleGuardTests
     public void Idle_DoNotReleaseCPU_Zero_NoException()
     {
         using var driver = new DriverScope();
-        byte saved = TProgram.DoNotReleaseCPU;
+        byte saved = TestProgram25b.ReleaseCpuInhibition;
         try
         {
-            TProgram.DoNotReleaseCPU = 0;
+            TestProgram25b.ReleaseCpuInhibition = 0;
             var app = new TestProgram25b();
             var ex = Record.Exception(() => { app.Idle(); app.ShutDown(); });
             Assert.Null(ex);
         }
-        finally { TProgram.DoNotReleaseCPU = saved; }
+        finally { TestProgram25b.ReleaseCpuInhibition = saved; }
     }
 
     // ── Idle with DoNotReleaseCPU == 1 ──────────────────────────────────────
@@ -142,15 +148,15 @@ public sealed class AppLifecycleGuardTests
     public void Idle_DoNotReleaseCPU_One_NoException()
     {
         using var driver = new DriverScope();
-        byte saved = TProgram.DoNotReleaseCPU;
+        byte saved = TestProgram25b.ReleaseCpuInhibition;
         try
         {
-            TProgram.DoNotReleaseCPU = 1;
+            TestProgram25b.ReleaseCpuInhibition = 1;
             var app = new TestProgram25b();
             var ex = Record.Exception(() => { app.Idle(); app.ShutDown(); });
             Assert.Null(ex);
         }
-        finally { TProgram.DoNotReleaseCPU = saved; }
+        finally { TestProgram25b.ReleaseCpuInhibition = saved; }
     }
 
     // ── Win32ConsoleDriver.Shutdown is idempotent ─────────────────────────────
@@ -170,8 +176,8 @@ public sealed class AppLifecycleGuardTests
     [Fact]
     public void DoNotReleaseCPU_DefaultIsZero()
     {
-        byte saved = TProgram.DoNotReleaseCPU;
-        try { Assert.Equal(0, TProgram.DoNotReleaseCPU); }
-        finally { TProgram.DoNotReleaseCPU = saved; }
+        byte saved = TestProgram25b.ReleaseCpuInhibition;
+        try { Assert.Equal(0, TestProgram25b.ReleaseCpuInhibition); }
+        finally { TestProgram25b.ReleaseCpuInhibition = saved; }
     }
 }

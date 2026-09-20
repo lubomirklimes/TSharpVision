@@ -21,11 +21,11 @@ public class TLookupValidator : TValidator
     protected TLookupValidator(StreamableInit _) : base(_) { }
 
     /// <inheritdoc />
-    public override bool IsValid(string s) => Lookup(s);
+    public override bool IsValid(string? s) => Lookup(s);
 
     /// Lookup the input in whatever collection the subclass provides.
     /// Default: returns false (always invalid).
-    public virtual bool Lookup(string s) => false;
+    public virtual bool Lookup(string? s) => false;
 
     /// <inheritdoc />
     public override void Write(Opstream os) => base.Write(os);

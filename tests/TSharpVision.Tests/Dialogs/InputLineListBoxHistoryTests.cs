@@ -32,7 +32,7 @@ public sealed class InputLineListBoxHistoryTests : IDisposable
     {
         var il = new TInputLine(new TRect(0, 0, 12, 1), 8);
         il.SetData("hello");
-        object got = null;
+        object got = il.Data;
         il.GetData(ref got);
         Assert.True(got is string g && g == "hello");
         Assert.Equal("hello", il.Data);
@@ -170,7 +170,7 @@ public sealed class InputLineListBoxHistoryTests : IDisposable
         col.Insert("alpha"); col.Insert("bravo");
         var lb = new TListBox(new TRect(0, 0, 20, 5), 1, null);
         lb.NewList(col);
-        object data = null;
+        object data = Assert.IsType<TStringCollection>(lb.List());
         lb.GetData(ref data);
         Assert.IsType<TListBoxRec>(data);
         var rec = (TListBoxRec)data;
@@ -331,15 +331,15 @@ public sealed class InputLineListBoxHistoryTests : IDisposable
             "Hello", MsgBox.mfInformation | MsgBox.mfOKButton);
         Assert.NotNull(dlg);
         int btnCount = 0, txtCount = 0;
-        if (dlg.last != null)
+        if (dlg.last is TView last && last.Next is TView first)
         {
-            TView p = dlg.last.Next;
+            TView p = first;
             do
             {
                 if (p is TButton) btnCount++;
                 else if (p is TStaticText) txtCount++;
-                p = p.Next;
-            } while (p != dlg.last.Next);
+                p = Assert.IsAssignableFrom<TView>(p.Next);
+            } while (p != first);
         }
         Assert.Equal(1, btnCount);
         Assert.True(txtCount >= 1);
@@ -351,22 +351,22 @@ public sealed class InputLineListBoxHistoryTests : IDisposable
         var dlg = MsgBox.BuildInputBox(new TRect(0, 0, 40, 7),
             "Title", "Name:", "John", 16);
         int btnCount = 0, ilCount = 0, labCount = 0;
-        TInputLine input = null;
-        if (dlg.last != null)
+        TInputLine? input = null;
+        if (dlg.last is TView last && last.Next is TView first)
         {
-            TView p = dlg.last.Next;
+            TView p = first;
             do
             {
                 if (p is TButton) btnCount++;
                 else if (p is TInputLine il) { ilCount++; input = il; }
                 else if (p is TLabel) labCount++;
-                p = p.Next;
-            } while (p != dlg.last.Next);
+                p = Assert.IsAssignableFrom<TView>(p.Next);
+            } while (p != first);
         }
         Assert.Equal(2, btnCount);
         Assert.Equal(1, ilCount);
         Assert.Equal(1, labCount);
-        Assert.NotNull(input);
-        Assert.Equal("John", input.Data);
+        var actualInput = Assert.IsType<TInputLine>(input);
+        Assert.Equal("John", actualInput.Data);
     }
 }

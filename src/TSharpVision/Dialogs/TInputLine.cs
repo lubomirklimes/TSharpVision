@@ -21,7 +21,7 @@ public class TInputLine : TView
     public int SelEnd;
 
     /// Optional validator. When non-null, Valid() consults it.
-    public TValidator Validator;
+    public TValidator? Validator;
 
     private char? _passwordChar;
 
@@ -404,7 +404,7 @@ public class TInputLine : TView
         new TStreamableClass("TInputLine", () => new TInputLine(StreamableInit.streamableInit), 0);
 
     /// <summary>Creates an instance for restoration from a stream without running normal initialization.</summary>
-    protected TInputLine(StreamableInit init) : base(init) { }
+    protected TInputLine(StreamableInit init) : base(init) { Data = string.Empty; }
 
     /// <inheritdoc />
     public override void Write(Opstream os)

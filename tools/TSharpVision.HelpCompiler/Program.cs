@@ -543,7 +543,7 @@ internal static class Program
 
     private enum WrapState { Undefined, Wrapping, NotWrapping }
 
-    private static TParagraph ReadParagraph(
+    private static TParagraph? ReadParagraph(
         string[] lines, ref int idx, ref int byteOffset,
         List<(string Target, int Offset, byte Length, int LineNo)> refs,
         string sourceName,

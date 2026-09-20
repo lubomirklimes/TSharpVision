@@ -13,9 +13,9 @@ public class TStatusLine : TView
     public new static readonly string Name = "TStatusLine";
 
     /// <summary>Shortcut chain selected for the current help context, or null when no definition matches.</summary>
-    public TStatusItem Items { get; set; }
+    public TStatusItem? Items { get; set; }
     /// <summary>Head of the help-context range definitions used to select active shortcuts.</summary>
-    public TStatusDef Defs { get; set; }
+    public TStatusDef? Defs { get; set; }
 
     /// <summary>Creates a status line in owner-relative character-cell bounds and selects shortcuts from the referenced definitions.</summary>
     public TStatusLine(TRect bounds, TStatusDef aDefs)
@@ -76,7 +76,7 @@ public class TStatusLine : TView
                 // with a special-key constant (e.g. 'B' == kbF10 -> cmMenu).
                 if (@event.keyDown.charScan.charCode < 32 || @event.keyDown.charScan.charCode >= 127)
                 {
-                    for (TStatusItem t = Items; t != null; t = t.Next)
+                    for (TStatusItem? t = Items; t != null; t = t.Next)
                     {
                         if (@event.keyDown.keyCode == t.KeyCode &&
                             CommandEnabled(t.Command))
@@ -106,7 +106,7 @@ public class TStatusLine : TView
     /// <summary>Checks the modal top view's help context and refreshes shortcuts and drawing when it changes.</summary>
     public void Update()
     {
-        TView p = TopView();
+        TView? p = TopView();
         ushort h = (p != null) ? p.GetHelpCtx() : Views.hcNoContext;
         if (helpCtx != h)
         {
@@ -117,7 +117,7 @@ public class TStatusLine : TView
     }
 
     // Count visible chars, excluding the ~ delimiters used by moveCStr for hotkey markup.
-    private static int CStrLen(string s)
+    private static int CStrLen(string? s)
     {
         if (s == null) return 0;
         int n = 0;
@@ -126,7 +126,7 @@ public class TStatusLine : TView
         return n;
     }
 
-    private void DrawSelect(TStatusItem selected) 
+    private void DrawSelect(TStatusItem? selected)
     {
         Span<TScreenChar> row = stackalloc TScreenChar[size.x > 0 ? size.x : 1];
         TDrawBuffer b = new TDrawBuffer(row);
@@ -137,7 +137,7 @@ public class TStatusLine : TView
         ushort cNormDisabled = GetColor(0x0202);
         ushort cSelDisabled = GetColor(0x0505);
         b.moveChar(0, ' ', cNormal, size.x);
-        TStatusItem T = Items;
+        TStatusItem? T = Items;
         int i = 0;
 
         while (T != null)
@@ -185,14 +185,14 @@ public class TStatusLine : TView
 
     private void FindItems() 
     {
-        TStatusDef p = Defs;
+        TStatusDef? p = Defs;
         while (p != null && (helpCtx < p.Min || helpCtx > p.Max))
         {
             p = p.Next;
         }
         Items = (p == null) ? null : p.Items;
     }
-    private TStatusItem ItemMouseIsIn(TPoint p)
+    private TStatusItem? ItemMouseIsIn(TPoint p)
     {
         // Convert the absolute screen position to local view coordinates first,
         // exactly as the C++ port does with makeLocal(mouse). Without this,
@@ -202,7 +202,7 @@ public class TStatusLine : TView
         p = MakeLocal(p);
         if (p.y != 0) return null;
         int i = 0;
-        for (TStatusItem t = Items; t != null; t = t.Next)
+        for (TStatusItem? t = Items; t != null; t = t.Next)
         {
             if (string.IsNullOrEmpty(t.Text)) continue;
             int len = CStrLen(t.Text);
@@ -211,7 +211,7 @@ public class TStatusLine : TView
         }
         return null;
     }
-    private void DisposeItems(TStatusItem item) { /* GC handles cleanup */ }
+    private void DisposeItems(TStatusItem? item) { /* GC handles cleanup */ }
 
     // "\xB3 " (CP437 vertical bar followed by a space).
     // Latin-1 0xB3 is mapped at the driver
@@ -226,10 +226,10 @@ public class TStatusLine : TView
     protected TStatusLine(StreamableInit init) : base(init) { }
 
     // Upstream writeItems: WriteInt(count) + foreach item: WriteString(text) + WriteShort(keyCode) + WriteShort(command).
-    private static void WriteItems(Opstream os, TStatusItem ts)
+    private static void WriteItems(Opstream os, TStatusItem? ts)
     {
         int count = 0;
-        for (TStatusItem t = ts; t != null; t = t.Next) count++;
+        for (TStatusItem? t = ts; t != null; t = t.Next) count++;
         os.WriteInt((uint)count);
         for (; ts != null; ts = ts.Next)
         {
@@ -240,10 +240,10 @@ public class TStatusLine : TView
     }
 
     // Upstream writeDefs: WriteInt(count) + foreach def: WriteShort(min) + WriteShort(max) + WriteItems(items).
-    private static void WriteDefs(Opstream os, TStatusDef td)
+    private static void WriteDefs(Opstream os, TStatusDef? td)
     {
         int count = 0;
-        for (TStatusDef t = td; t != null; t = t.Next) count++;
+        for (TStatusDef? t = td; t != null; t = t.Next) count++;
         os.WriteInt((uint)count);
         for (; td != null; td = td.Next)
         {
@@ -260,13 +260,13 @@ public class TStatusLine : TView
         WriteDefs(os, Defs);
     }
 
-    private static TStatusItem ReadItems(Ipstream isStream)
+    private static TStatusItem? ReadItems(Ipstream isStream)
     {
-        TStatusItem first = null, last = null;
+        TStatusItem? first = null, last = null;
         int count = (int)isStream.ReadInt();
         while (count-- > 0)
         {
-            string text   = isStream.ReadString();
+            string text   = isStream.ReadString() ?? string.Empty;
             ushort key    = isStream.ReadShort();
             ushort cmd    = isStream.ReadShort();
             var item = new TStatusItem(text, key, cmd);
@@ -276,9 +276,9 @@ public class TStatusLine : TView
         return first;
     }
 
-    private static TStatusDef ReadDefs(Ipstream isStream)
+    private static TStatusDef? ReadDefs(Ipstream isStream)
     {
-        TStatusDef first = null, last = null;
+        TStatusDef? first = null, last = null;
         int count = (int)isStream.ReadInt();
         while (count-- > 0)
         {

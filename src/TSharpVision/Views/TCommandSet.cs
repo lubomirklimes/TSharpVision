@@ -138,7 +138,7 @@ public class TCommandSet
     }
 
     /// <inheritdoc />
-    public override bool Equals(object obj)
+    public override bool Equals(object? obj)
     {
         if (obj is TCommandSet other)
         {
@@ -160,15 +160,15 @@ public class TCommandSet
     }
 
     /// <summary>Tests equality of command membership, treating two null references as equal.</summary>
-    public static bool operator ==(TCommandSet a, TCommandSet b)
+    public static bool operator ==(TCommandSet? a, TCommandSet? b)
     {
         if (ReferenceEquals(a, b)) return true;
-        if ((object)a == null || (object)b == null) return false;
+        if (a is null || b is null) return false;
         return a.Equals(b);
     }
 
     /// <summary>Tests whether command membership differs, including when exactly one operand is null.</summary>
-    public static bool operator !=(TCommandSet a, TCommandSet b)
+    public static bool operator !=(TCommandSet? a, TCommandSet? b)
     {
         return !(a == b);
     }

@@ -73,7 +73,7 @@ public class TMenuBox : TMenuView
     }
 
     /// <summary>Creates a shadowed popup sized for the referenced menu and linked to its parent for navigation.</summary>
-    public TMenuBox(TRect bounds, TMenu aMenu, TMenuView aParentMenu)
+    public TMenuBox(TRect bounds, TMenu aMenu, TMenuView? aParentMenu)
         : base(ComputeRect(bounds, aMenu), aMenu, aParentMenu)
     {
         state |= Views.sfShadow;

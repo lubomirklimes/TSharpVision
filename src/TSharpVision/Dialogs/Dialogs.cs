@@ -110,7 +110,7 @@ public static class MsgBox
     }
 
     /// <summary>Runs a message dialog at host-relative cell bounds and returns its response command, or zero for a null host.</summary>
-    public static ushort MessageBoxRect(TGroup host, TRect r, string msg, ushort options)
+    public static ushort MessageBoxRect(TGroup? host, TRect r, string msg, ushort options)
     {
         var dialog = BuildMessageBox(r, msg, options);
         if (host == null) return 0;
@@ -118,7 +118,7 @@ public static class MsgBox
     }
 
     /// <summary>Returns centered 40-by-9 cell dialog bounds using the host size, or an 80-by-25 reference area for a null host.</summary>
-    public static TRect DefaultRect(TGroup host)
+    public static TRect DefaultRect(TGroup? host)
     {
         var r = new TRect(0, 0, 40, 9);
         var ds = host?.size ?? new TPoint { x = 80, y = 25 };
@@ -127,7 +127,7 @@ public static class MsgBox
     }
 
     /// <summary>Runs a centered message dialog and returns its response command, or zero for a null host.</summary>
-    public static ushort MessageBox(TGroup host, string msg, ushort options)
+    public static ushort MessageBox(TGroup? host, string msg, ushort options)
         => MessageBoxRect(host, DefaultRect(host), msg, options);
 
     /// <summary>Creates a dialog with labeled input, initial text, and a character limit at owner-relative cell bounds; does not execute it.</summary>
@@ -158,7 +158,7 @@ public static class MsgBox
     }
 
     /// <summary>Runs a text-input dialog at host-relative cell bounds and returns its command and text; cancellation preserves the original text.</summary>
-    public static (ushort code, string value) InputBoxRect(TGroup host,
+    public static (ushort code, string value) InputBoxRect(TGroup? host,
         TRect bounds, string title, string aLabel, string s, int limit)
     {
         var dialog = BuildInputBox(bounds, title, aLabel, s, limit);
@@ -171,7 +171,7 @@ public static class MsgBox
     }
 
     /// <summary>Runs a centered text-input dialog and returns its command and text; cancellation preserves the original text.</summary>
-    public static (ushort code, string value) InputBox(TGroup host,
+    public static (ushort code, string value) InputBox(TGroup? host,
         string title, string aLabel, string s, int limit)
     {
         int len = Math.Max(aLabel.Length + 8 + limit, title.Length + 11);
@@ -183,15 +183,15 @@ public static class MsgBox
         return InputBoxRect(host, r, title, aLabel, s, limit);
     }
 
-    private static string FindInputLineValue(TGroup group)
+    private static string? FindInputLineValue(TGroup group)
     {
-        TView v = group.last;
+        TView? v = group.last;
         if (v == null) return null;
-        TView p = v.Next;
+        TView? p = v.Next;
         do
         {
             if (p is TInputLine il) return il.Data;
-            p = p.Next;
+            p = p?.Next;
         } while (p != null && p != v.Next);
         return null;
     }

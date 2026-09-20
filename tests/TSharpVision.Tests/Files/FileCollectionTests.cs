@@ -11,7 +11,7 @@ namespace TSharpVision.Tests.Files;
 // Exposes the text formatter used by TSortedListBox.GetText().
 file sealed class MyTextSortedListBox : TSortedListBox
 {
-    public MyTextSortedListBox(TRect b, ushort n, TScrollBar s) : base(b, n, s) { }
+    public MyTextSortedListBox(TRect b, ushort n, TScrollBar? s) : base(b, n, s) { }
     protected override string GetItemText(object item)
         => item is TSearchRec r ? r.name : (item?.ToString() ?? string.Empty);
 }

@@ -93,7 +93,7 @@ public static class InspectorCommands
         // We initialize a NullDriver and call RegisterAll() internally so the CLI tool
         // does not need to configure these externally.
         var prevDriver = TDisplay.driver;
-        NullDriver drv = null;
+        NullDriver? drv = null;
         if (TDisplay.driver == null)
         {
             drv = new NullDriver(80, 25);
@@ -107,7 +107,7 @@ public static class InspectorCommands
             StreamableRegistration.RegisterAll();
 
             var fp = new Fpstream(tvrPath);
-            TDialog dlg = null;
+            TDialog? dlg = null;
             try
             {
                 var rf  = new TResourceFile(fp);
@@ -155,7 +155,7 @@ public static class InspectorCommands
     private static void AppendMenuBarSummary(StringBuilder sb, string tvrPath, string key)
     {
         var prevDriver = TDisplay.driver;
-        NullDriver drv = null;
+        NullDriver? drv = null;
         if (TDisplay.driver == null)
         {
             drv = new NullDriver(80, 25);
@@ -168,7 +168,7 @@ public static class InspectorCommands
         {
             StreamableRegistration.RegisterAll();
             var fp = new Fpstream(tvrPath);
-            TMenuBar mb = null;
+            TMenuBar? mb = null;
             try
             {
                 var rf = new TResourceFile(fp);
@@ -181,7 +181,7 @@ public static class InspectorCommands
             // Count top-level items.
             int count = 0;
             var names = new List<string>();
-            for (TMenuItem m = mb.Menu?.Items; m != null; m = m.Next)
+            for (TMenuItem? m = mb.Menu?.Items; m != null; m = m.Next)
             {
                 count++;
                 if (m.Name != null) names.Add(m.Name);
@@ -205,7 +205,7 @@ public static class InspectorCommands
     private static void AppendStatusLineSummary(StringBuilder sb, string tvrPath, string key)
     {
         var prevDriver = TDisplay.driver;
-        NullDriver drv = null;
+        NullDriver? drv = null;
         if (TDisplay.driver == null)
         {
             drv = new NullDriver(80, 25);
@@ -218,7 +218,7 @@ public static class InspectorCommands
         {
             StreamableRegistration.RegisterAll();
             var fp = new Fpstream(tvrPath);
-            TStatusLine sl = null;
+            TStatusLine? sl = null;
             try
             {
                 var rf = new TResourceFile(fp);
@@ -229,18 +229,18 @@ public static class InspectorCommands
             if (sl == null) { sb.AppendLine("Interpretation: (could not deserialise)"); return; }
 
             int defCount = 0, itemCount = 0;
-            for (TStatusDef d = sl.Defs; d != null; d = d.Next)
+            for (TStatusDef? d = sl.Defs; d != null; d = d.Next)
             {
                 defCount++;
-                for (TStatusItem i = d.Items; i != null; i = i.Next)
+                for (TStatusItem? i = d.Items; i != null; i = i.Next)
                     itemCount++;
             }
             sb.AppendLine($"Ranges: {defCount}");
             sb.AppendLine($"Items:  {itemCount}");
-            for (TStatusDef d = sl.Defs; d != null; d = d.Next)
+            for (TStatusDef? d = sl.Defs; d != null; d = d.Next)
             {
                 sb.AppendLine($"  range {d.Min}..{d.Max}");
-                for (TStatusItem i = d.Items; i != null; i = i.Next)
+                for (TStatusItem? i = d.Items; i != null; i = i.Next)
                     sb.AppendLine($"    {i.Text}");
             }
 
@@ -264,7 +264,7 @@ public static class InspectorCommands
     /// </summary>
     public static CommandResult Dump(string tvrPath, string key, bool hex = false)
     {
-        byte[] raw;
+        byte[]? raw;
         try { raw = TvrInspector.ReadRawPayload(tvrPath, key); }
         catch (FileNotFoundException ex) { return CommandResult.Fail(ex.Message); }
         catch (Exception ex)             { return CommandResult.Fail($"Cannot open file: {ex.Message}"); }
@@ -321,20 +321,20 @@ public static class InspectorCommands
             {
                 case "TDialog":
                     dialogs++;
-                    string dlgErr = TryDeserializeDialogForValidation(tvrPath, entry.Key);
+                    string? dlgErr = TryDeserializeDialogForValidation(tvrPath, entry.Key);
                     if (dlgErr != null)
                         errors.Add($"TRV0004: Resource '{entry.Key}' could not be deserialized as TDialog: {dlgErr}");
                     break;
                 case "TMenuBar":
                 case "TMenuView":
                     menus++;
-                    string mbErr = TryDeserializeMenuBarForValidation(tvrPath, entry.Key);
+                    string? mbErr = TryDeserializeMenuBarForValidation(tvrPath, entry.Key);
                     if (mbErr != null)
                         errors.Add($"TRV0004: Resource '{entry.Key}' could not be deserialized as TMenuBar: {mbErr}");
                     break;
                 case "TStatusLine":
                     statusLines++;
-                    string slErr = TryDeserializeStatusLineForValidation(tvrPath, entry.Key);
+                    string? slErr = TryDeserializeStatusLineForValidation(tvrPath, entry.Key);
                     if (slErr != null)
                         errors.Add($"TRV0004: Resource '{entry.Key}' could not be deserialized as TStatusLine: {slErr}");
                     break;
@@ -368,10 +368,10 @@ public static class InspectorCommands
     /// Tries to fully deserialize a <c>TDialog</c> from the given file/key.
     /// Returns <c>null</c> on success, or an error message string on failure.
     /// </summary>
-    private static string TryDeserializeDialogForValidation(string tvrPath, string key)
+    private static string? TryDeserializeDialogForValidation(string tvrPath, string key)
     {
         var prevDriver = TDisplay.driver;
-        NullDriver drv = null;
+        NullDriver? drv = null;
         if (TDisplay.driver == null)
         {
             drv = new NullDriver(80, 25);
@@ -385,7 +385,7 @@ public static class InspectorCommands
             StreamableRegistration.RegisterAll();
 
             var fp = new Fpstream(tvrPath);
-            TDialog dlg = null;
+            TDialog? dlg = null;
             try
             {
                 var rf = new TResourceFile(fp);
@@ -419,10 +419,10 @@ public static class InspectorCommands
         }
     }
 
-    private static string TryDeserializeMenuBarForValidation(string tvrPath, string key)
+    private static string? TryDeserializeMenuBarForValidation(string tvrPath, string key)
     {
         var prevDriver = TDisplay.driver;
-        NullDriver drv = null;
+        NullDriver? drv = null;
         if (TDisplay.driver == null)
         {
             drv = new NullDriver(80, 25);
@@ -434,7 +434,7 @@ public static class InspectorCommands
         {
             StreamableRegistration.RegisterAll();
             var fp = new Fpstream(tvrPath);
-            TMenuBar mb = null;
+            TMenuBar? mb = null;
             try { var rf = new TResourceFile(fp); mb = rf.Get(key) as TMenuBar; }
             finally { fp.Close(); }
 
@@ -446,10 +446,10 @@ public static class InspectorCommands
         finally { if (drv != null) TDisplay.driver = prevDriver; }
     }
 
-    private static string TryDeserializeStatusLineForValidation(string tvrPath, string key)
+    private static string? TryDeserializeStatusLineForValidation(string tvrPath, string key)
     {
         var prevDriver = TDisplay.driver;
-        NullDriver drv = null;
+        NullDriver? drv = null;
         if (TDisplay.driver == null)
         {
             drv = new NullDriver(80, 25);
@@ -461,7 +461,7 @@ public static class InspectorCommands
         {
             StreamableRegistration.RegisterAll();
             var fp = new Fpstream(tvrPath);
-            TStatusLine sl = null;
+            TStatusLine? sl = null;
             try { var rf = new TResourceFile(fp); sl = rf.Get(key) as TStatusLine; }
             finally { fp.Close(); }
 

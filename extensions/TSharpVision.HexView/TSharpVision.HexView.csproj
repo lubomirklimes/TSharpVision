@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>TSharpVision.HexView</PackageId>
+    <Description>Read-only, paged hexadecimal view for TSharpVision over any random-access byte source.</Description>
+    <PackageTags>tsharpvision;tui;hex;hex-view;binary</PackageTags>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <WarningsAsErrors>$(WarningsAsErrors);RS0016;RS0017;RS0022;RS0024</WarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="TSharpVision.HexView.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\TSharpVision\TSharpVision.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -165,8 +165,9 @@ public sealed class HelpRuntimeTests : IDisposable
         t.AddParagraph(new TParagraph { text = bytes, size = (ushort)bytes.Length, wrap = false });
         t.AddCrossRef(new TCrossRef { @ref = 7, offset = 6, length = 5 });
         t.AddCrossRef(new TCrossRef { @ref = 9, offset = 19, length = 4 });
-        Assert.Equal(7, t.crossRefs[0].@ref);
-        Assert.Equal(19, t.crossRefs[1].offset);
+        var refs = Assert.IsType<TCrossRef?[]>(t.crossRefs);
+        Assert.Equal(7, Assert.IsType<TCrossRef>(refs[0]).@ref);
+        Assert.Equal(19, Assert.IsType<TCrossRef>(refs[1]).offset);
     }
 
     [Fact]
@@ -203,7 +204,8 @@ public sealed class HelpRuntimeTests : IDisposable
         t.AddCrossRef(new TCrossRef { @ref = 9, offset = 19, length = 4 });
         t.SetNumCrossRefs(1);
         Assert.Equal(1, t.GetNumCrossRefs());
-        Assert.Equal(7, t.crossRefs[0].@ref);
+        var refs = Assert.IsType<TCrossRef?[]>(t.crossRefs);
+        Assert.Equal(7, Assert.IsType<TCrossRef>(refs[0]).@ref);
     }
 
     [Fact]
@@ -234,7 +236,7 @@ public sealed class HelpRuntimeTests : IDisposable
         oo.Flush();
         ms.Position = 0;
         var ii = new Ipstream(ms);
-        var rt = (THelpTopic)ii.ReadPointer();
+        var rt = Assert.IsType<THelpTopic>(ii.ReadPointer());
         Assert.NotNull(rt);
     }
 
@@ -252,9 +254,9 @@ public sealed class HelpRuntimeTests : IDisposable
         oo.Flush();
         ms.Position = 0;
         var ii = new Ipstream(ms);
-        var rt = (THelpTopic)ii.ReadPointer();
+        var rt = Assert.IsType<THelpTopic>(ii.ReadPointer());
         int paraCount = 0;
-        for (var pp = rt!.paragraphs; pp != null; pp = pp.next) paraCount++;
+        for (var pp = rt.paragraphs; pp != null; pp = pp.next) paraCount++;
         Assert.Equal(2, paraCount);
     }
 
@@ -271,11 +273,13 @@ public sealed class HelpRuntimeTests : IDisposable
         oo.Flush();
         ms.Position = 0;
         var ii = new Ipstream(ms);
-        var rt = (THelpTopic)ii.ReadPointer();
-        Assert.Equal(1, rt!.numRefs);
-        Assert.Equal(42, rt.crossRefs[0].@ref);
-        Assert.Equal(5, rt.crossRefs[0].offset);
-        Assert.Equal(3, rt.crossRefs[0].length);
+        var rt = Assert.IsType<THelpTopic>(ii.ReadPointer());
+        Assert.Equal(1, rt.numRefs);
+        var refs = Assert.IsType<TCrossRef?[]>(rt.crossRefs);
+        var crossRef = Assert.IsType<TCrossRef>(refs[0]);
+        Assert.Equal(42, crossRef.@ref);
+        Assert.Equal(5, crossRef.offset);
+        Assert.Equal(3, crossRef.length);
     }
 
     // ── THelpIndex streaming roundtrip ────────────────────────────────────────
@@ -292,8 +296,8 @@ public sealed class HelpRuntimeTests : IDisposable
         oo.Flush();
         ms.Position = 0;
         var ii = new Ipstream(ms);
-        var idx2 = (THelpIndex)ii.ReadPointer();
-        Assert.Equal(10, idx2!.size);
+        var idx2 = Assert.IsType<THelpIndex>(ii.ReadPointer());
+        Assert.Equal(10, idx2.size);
     }
 
     [Fact]
@@ -308,8 +312,8 @@ public sealed class HelpRuntimeTests : IDisposable
         oo.Flush();
         ms.Position = 0;
         var ii = new Ipstream(ms);
-        var idx2 = (THelpIndex)ii.ReadPointer();
-        Assert.Equal(12, idx2!.Position(0));
+        var idx2 = Assert.IsType<THelpIndex>(ii.ReadPointer());
+        Assert.Equal(12, idx2.Position(0));
         Assert.Equal(256, idx2.Position(3));
         Assert.Equal(-1, idx2.Position(1));
     }
@@ -389,10 +393,11 @@ public sealed class HelpRuntimeTests : IDisposable
         var fp = new Fpstream(path);
         var hf = new THelpFile(fp);
         var t2 = hf.GetTopic(2);
-        Assert.NotNull(t2);
-        Assert.Equal(1, t2!.numRefs);
-        Assert.Equal(1, t2.crossRefs[0].@ref);
-        Assert.Equal(5, t2.crossRefs[0].length);
+        Assert.Equal(1, t2.numRefs);
+        var refs = Assert.IsType<TCrossRef?[]>(t2.crossRefs);
+        var crossRef = Assert.IsType<TCrossRef>(refs[0]);
+        Assert.Equal(1, crossRef.@ref);
+        Assert.Equal(5, crossRef.length);
         fp.Close();
     }
 

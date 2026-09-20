@@ -8,9 +8,11 @@ public partial class TVDemoApp
     {
         try
         {
+            TDeskTop? desktop = DeskTop;
+            if (desktop == null) return;
             var windows = new List<TWindow>();
             int skipped = 0;
-            DeskTop.ForEachView(v => { if (v is TWindow w) { if (DesktopState.Supports(w)) windows.Add(w); else skipped++; } });
+            desktop.ForEachView(v => { if (v is TWindow w) { if (DesktopState.Supports(w)) windows.Add(w); else skipped++; } });
             DesktopState.Save(DesktopPath, windows, GetPalette().Data);
             MsgBox.MessageBox(DeskTop, $"Saved {windows.Count} demonstration windows and palette.\nSkipped {skipped} unsupported windows (games/accessories/viewers).",
                 MsgBox.mfInformation | MsgBox.mfOKButton);
@@ -22,11 +24,13 @@ public partial class TVDemoApp
     {
         try
         {
+            TDeskTop? desktop = DeskTop;
+            if (desktop == null) return;
             var snapshot = DesktopState.Load(DesktopPath, GetPalette().Data.Length);
             var existing = new List<TWindow>();
-            DeskTop.ForEachView(v => { if (v is TWindow w && DesktopState.Supports(w)) existing.Add(w); });
+            desktop.ForEachView(v => { if (v is TWindow w && DesktopState.Supports(w)) existing.Add(w); });
             foreach (var window in existing) window.ShutDown();
-            for (int i = snapshot.Windows.Count - 1; i >= 0; i--) DeskTop.Insert(snapshot.Windows[i]);
+            for (int i = snapshot.Windows.Count - 1; i >= 0; i--) desktop.Insert(snapshot.Windows[i]);
             Array.Copy(snapshot.Palette, GetPalette().Data, snapshot.Palette.Length);
             _nextWinNum = (ushort)(snapshot.Windows.Select(w => (int)w.number).DefaultIfEmpty(0).Max() + 1);
             DrawView();
@@ -41,6 +45,8 @@ public partial class TVDemoApp
         if (!File.Exists(DesktopPath)) return;
         try
         {
+            TDeskTop? desktop = DeskTop;
+            if (desktop == null) return;
             var snapshot = DesktopState.Load(DesktopPath, GetPalette().Data.Length);
             foreach (var window in snapshot.Windows) window.ShutDown();
             Array.Copy(snapshot.Palette, GetPalette().Data, snapshot.Palette.Length);
@@ -56,6 +62,8 @@ public partial class TVDemoApp
     {
         try
         {
+            TDeskTop? desktop = DeskTop;
+            if (desktop == null) return;
             StreamableRegistration.RegisterAll();
             string path = Path.Combine(AppContext.BaseDirectory, "tvdemo-dialog.tvr");
             TDialog dialog;
@@ -73,9 +81,9 @@ public partial class TVDemoApp
                 dialog = resources.Get("dialog") as TDialog ?? throw new InvalidDataException("Resource dialog is missing.");
                 if (stream.In.Fail() != 0 || stream.Out.Fail() != 0) throw new InvalidDataException("Resource stream failed.");
             }
-            dialog.MoveTo((DeskTop.size.x - dialog.size.x) / 2, (DeskTop.size.y - dialog.size.y) / 2);
+            dialog.MoveTo((desktop.size.x - dialog.size.x) / 2, (desktop.size.y - dialog.size.y) / 2);
             dialog.helpCtx = DemoHelpCtx.ResourceDialog;
-            DeskTop.ExecView(dialog);
+            desktop.ExecView(dialog);
         }
         catch (Exception ex) { PersistenceError(ex); }
     }

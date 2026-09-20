@@ -5,7 +5,7 @@ namespace TSharpVision.Samples.TVTerm;
 
 /// <summary>
 /// Window that intercepts every key press and pretty-prints the raw event
-/// fields (keyCode / charScan / scan / shiftState / text) into an embedded
+/// fields (keyCode / charScan / scan / controlKeyState / text) into an embedded
 /// read-only TTerminal. Useful for testing keyboard mapping.
 /// </summary>
 public sealed class KeyInspectorWindow : TWindow
@@ -55,7 +55,7 @@ public sealed class KeyInspectorWindow : TWindow
                 charCol,
                 ucodeCol,
                 kd.charScan.scanCode,
-                kd.shiftState,
+                kd.controlKeyState,
                 kd.charScan.charCode,
                 text);
             _session.Emit(line);

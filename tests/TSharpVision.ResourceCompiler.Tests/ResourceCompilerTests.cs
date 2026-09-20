@@ -16,7 +16,7 @@ namespace TSharpVision.Tests.ResourceCompiler;
 
 public sealed class LexerTests
 {
-    private static List<Token> Lex(string src, List<Diagnostic> diag = null)
+    private static List<Token> Lex(string src, List<Diagnostic>? diag = null)
     {
         diag ??= new List<Diagnostic>();
         return new Lexer(src, diag).Tokenize();
@@ -190,13 +190,14 @@ public sealed class ParserTests
         Assert.Empty(diag);
         Assert.Single(ast.Resources);
         var r = ast.Resources[0];
+        var dialog = Assert.IsType<DialogBody>(r.Dialog);
         Assert.Equal("dialog.test", r.Key);
         Assert.Equal(ResourceKind.Dialog, r.Kind);
-        Assert.NotNull(r.Dialog.Bounds);
-        Assert.Equal(1,  r.Dialog.Bounds.X1);
-        Assert.Equal(2,  r.Dialog.Bounds.Y1);
-        Assert.Equal(40, r.Dialog.Bounds.X2);
-        Assert.Equal(12, r.Dialog.Bounds.Y2);
+        var bounds = Assert.IsType<BoundsNode>(dialog.Bounds);
+        Assert.Equal(1,  bounds.X1);
+        Assert.Equal(2,  bounds.Y1);
+        Assert.Equal(40, bounds.X2);
+        Assert.Equal(12, bounds.Y2);
     }
 
     [Fact] public void Parser_DialogWithTitleAndPalette()
@@ -204,8 +205,9 @@ public sealed class ParserTests
         var src = @"resource dialog ""d"" { bounds(1,1,40,10); title ""Hello""; palette wpGrayDialog; }";
         var (ast, diag) = Parse(src);
         Assert.Empty(diag);
-        Assert.Equal("Hello",        ast.Resources[0].Dialog.Title);
-        Assert.Equal("wpGrayDialog", ast.Resources[0].Dialog.Palette);
+        var dialog = Assert.IsType<DialogBody>(ast.Resources[0].Dialog);
+        Assert.Equal("Hello",        dialog.Title);
+        Assert.Equal("wpGrayDialog", dialog.Palette);
     }
 
     [Fact] public void Parser_MultipleResources()
@@ -223,7 +225,8 @@ public sealed class ParserTests
         var src = @"resource dialog ""d"" { bounds(0,0,40,15); button ""~O~K"" bounds=(10,5,20,7) command=cmOK default; }";
         var (ast, diag) = Parse(src);
         Assert.Empty(diag);
-        var ctrl = ast.Resources[0].Dialog.Controls.Single();
+        var dialog = Assert.IsType<DialogBody>(ast.Resources[0].Dialog);
+        var ctrl = dialog.Controls.Single();
         Assert.Equal(ControlKind.Button, ctrl.Kind);
         Assert.Equal("~O~K",  ctrl.Title);
         Assert.Equal("cmOK",  ctrl.Command);
@@ -236,7 +239,8 @@ public sealed class ParserTests
         var src = @"resource dialog ""d"" { bounds(0,0,40,15); static ""Label:"" bounds=(1,1,20,2); }";
         var (ast, diag) = Parse(src);
         Assert.Empty(diag);
-        Assert.Equal(ControlKind.Static, ast.Resources[0].Dialog.Controls[0].Kind);
+        var dialog = Assert.IsType<DialogBody>(ast.Resources[0].Dialog);
+        Assert.Equal(ControlKind.Static, dialog.Controls[0].Kind);
     }
 
     [Fact] public void Parser_InputControl_WithFilterValidator()
@@ -244,7 +248,8 @@ public sealed class ParserTests
         var src = @"resource dialog ""d"" { bounds(0,0,40,15); input """" bounds=(1,3,30,4) validator=filter(""ABC""); }";
         var (ast, diag) = Parse(src);
         Assert.Empty(diag);
-        var ctrl = ast.Resources[0].Dialog.Controls.Single();
+        var dialog = Assert.IsType<DialogBody>(ast.Resources[0].Dialog);
+        var ctrl = dialog.Controls.Single();
         Assert.Equal(ControlKind.Input, ctrl.Kind);
         var fv = Assert.IsType<FilterValidatorNode>(ctrl.Validator);
         Assert.Equal("ABC", fv.ValidChars);
@@ -255,7 +260,8 @@ public sealed class ParserTests
         var src = @"resource dialog ""d"" { bounds(0,0,40,15); input """" bounds=(1,3,30,4) validator=range(1, 100); }";
         var (ast, diag) = Parse(src);
         Assert.Empty(diag);
-        var rv = Assert.IsType<RangeValidatorNode>(ast.Resources[0].Dialog.Controls[0].Validator);
+        var dialog = Assert.IsType<DialogBody>(ast.Resources[0].Dialog);
+        var rv = Assert.IsType<RangeValidatorNode>(dialog.Controls[0].Validator);
         Assert.Equal(1L,   rv.Min);
         Assert.Equal(100L, rv.Max);
     }
@@ -265,7 +271,8 @@ public sealed class ParserTests
         var src = @"resource dialog ""d"" { bounds(0,0,40,15); input """" bounds=(1,3,30,4) validator=picture(""##-##""); }";
         var (ast, diag) = Parse(src);
         Assert.Empty(diag);
-        var pv = Assert.IsType<PictureValidatorNode>(ast.Resources[0].Dialog.Controls[0].Validator);
+        var dialog = Assert.IsType<DialogBody>(ast.Resources[0].Dialog);
+        var pv = Assert.IsType<PictureValidatorNode>(dialog.Controls[0].Validator);
         Assert.Equal("##-##", pv.Pic);
     }
 
@@ -274,7 +281,8 @@ public sealed class ParserTests
         var src = @"resource dialog ""d"" { bounds(0,0,40,15); checkbox ""Options"" bounds=(1,1,30,8) items=(""One"",""Two"",""Three""); }";
         var (ast, diag) = Parse(src);
         Assert.Empty(diag);
-        var ctrl = ast.Resources[0].Dialog.Controls.Single();
+        var dialog = Assert.IsType<DialogBody>(ast.Resources[0].Dialog);
+        var ctrl = dialog.Controls.Single();
         Assert.Equal(ControlKind.Checkbox, ctrl.Kind);
         Assert.Equal(new[] { "One", "Two", "Three" }, ctrl.Items);
     }
@@ -284,8 +292,10 @@ public sealed class ParserTests
         var src = @"resource dialog ""d"" { bounds(0,0,40,15); radio ""Mode"" bounds=(1,1,30,6) items=(""Fast"",""Safe""); }";
         var (ast, diag) = Parse(src);
         Assert.Empty(diag);
-        Assert.Equal(ControlKind.Radio, ast.Resources[0].Dialog.Controls[0].Kind);
-        Assert.Equal(2, ast.Resources[0].Dialog.Controls[0].Items.Count);
+        var dialog = Assert.IsType<DialogBody>(ast.Resources[0].Dialog);
+        Assert.Equal(ControlKind.Radio, dialog.Controls[0].Kind);
+        var items = Assert.IsType<List<string>>(dialog.Controls[0].Items);
+        Assert.Equal(2, items.Count);
     }
 
     [Fact] public void Parser_DuplicateDialogField_EmitsDiagnostic()
@@ -349,14 +359,14 @@ public sealed class BuilderTests : IDisposable
         StreamableRegistration.RegisterAll();
     }
 
-    private static List<(string key, TDialog dlg)> Build(string src, List<Diagnostic> diag = null)
+    private static List<(string key, TDialog dlg)> Build(string src, List<Diagnostic>? diag = null)
     {
         diag ??= new List<Diagnostic>();
         var tokens = new Lexer(src, diag).Tokenize();
         var ast    = new Parser(tokens, diag).ParseFile();
         StreamableRegistration.RegisterAll();
         return new Builder(diag).Build(ast)
-            .Select(r => (r.key, r.obj as TDialog))
+            .Select(r => (r.key, Assert.IsType<TDialog>(r.obj)))
             .ToList();
     }
 
@@ -381,12 +391,12 @@ public sealed class BuilderTests : IDisposable
     {
         var result = Build(@"resource dialog ""d"" { bounds(0,0,40,15); button ""~O~K"" bounds=(10,5,20,7) command=cmOK default; }");
         var dlg = result[0].dlg;
-        TButton btn = null;
+        TButton? btn = null;
         dlg.ForEachView(v => { if (v is TButton b) btn = b; });
-        Assert.NotNull(btn);
-        Assert.Equal("~O~K", btn.Title);
-        Assert.Equal(Views.cmOK, btn.Command);
-        Assert.True(btn.AmDefault);
+        var actualButton = Assert.IsType<TButton>(btn);
+        Assert.Equal("~O~K", actualButton.Title);
+        Assert.Equal(Views.cmOK, actualButton.Command);
+        Assert.True(actualButton.AmDefault);
         dlg.ShutDown();
     }
 
@@ -394,7 +404,7 @@ public sealed class BuilderTests : IDisposable
     {
         var result = Build(@"resource dialog ""d"" { bounds(0,0,40,15); static ""Hello:"" bounds=(1,1,20,2); }");
         var dlg = result[0].dlg;
-        TStaticText st = null;
+        TStaticText? st = null;
         dlg.ForEachView(v => { if (v is TStaticText s && !(v is TLabel)) st = s; });
         Assert.NotNull(st);
         dlg.ShutDown();
@@ -404,7 +414,7 @@ public sealed class BuilderTests : IDisposable
     {
         var result = Build(@"resource dialog ""d"" { bounds(0,0,40,15); label ""Name:"" bounds=(1,1,15,2); }");
         var dlg = result[0].dlg;
-        TLabel lbl = null;
+        TLabel? lbl = null;
         dlg.ForEachView(v => { if (v is TLabel l) lbl = l; });
         Assert.NotNull(lbl);
         dlg.ShutDown();
@@ -414,7 +424,7 @@ public sealed class BuilderTests : IDisposable
     {
         var result = Build(@"resource dialog ""d"" { bounds(0,0,40,15); input """" bounds=(1,3,30,4); }");
         var dlg = result[0].dlg;
-        TInputLine inp = null;
+        TInputLine? inp = null;
         dlg.ForEachView(v => { if (v is TInputLine i) inp = i; });
         Assert.NotNull(inp);
         dlg.ShutDown();
@@ -423,37 +433,40 @@ public sealed class BuilderTests : IDisposable
     [Fact] public void Builder_AppliesFilterValidator()
     {
         var result = Build(@"resource dialog ""d"" { bounds(0,0,40,15); input """" bounds=(1,3,30,4) validator=filter(""ABC""); }");
-        TInputLine inp = null;
+        TInputLine? inp = null;
         result[0].dlg.ForEachView(v => { if (v is TInputLine i) inp = i; });
-        Assert.IsType<TFilterValidator>(inp.Validator);
+        var actualInput = Assert.IsType<TInputLine>(inp);
+        Assert.IsType<TFilterValidator>(actualInput.Validator);
         result[0].dlg.ShutDown();
     }
 
     [Fact] public void Builder_AppliesRangeValidator()
     {
         var result = Build(@"resource dialog ""d"" { bounds(0,0,40,15); input """" bounds=(1,3,30,4) validator=range(1,999); }");
-        TInputLine inp = null;
+        TInputLine? inp = null;
         result[0].dlg.ForEachView(v => { if (v is TInputLine i) inp = i; });
-        Assert.IsType<TRangeValidator>(inp.Validator);
+        var actualInput = Assert.IsType<TInputLine>(inp);
+        Assert.IsType<TRangeValidator>(actualInput.Validator);
         result[0].dlg.ShutDown();
     }
 
     [Fact] public void Builder_AppliesPictureValidator()
     {
         var result = Build(@"resource dialog ""d"" { bounds(0,0,40,15); input """" bounds=(1,3,30,4) validator=picture(""##/##""); }");
-        TInputLine inp = null;
+        TInputLine? inp = null;
         result[0].dlg.ForEachView(v => { if (v is TInputLine i) inp = i; });
-        Assert.IsType<TPXPictureValidator>(inp.Validator);
+        var actualInput = Assert.IsType<TInputLine>(inp);
+        Assert.IsType<TPXPictureValidator>(actualInput.Validator);
         result[0].dlg.ShutDown();
     }
 
     [Fact] public void Builder_AppliesUserDefinedConst()
     {
         var result = Build(@"const myCmd = 500; resource dialog ""d"" { bounds(0,0,40,15); button ""Go"" bounds=(1,1,10,3) command=myCmd; }");
-        TButton btn = null;
+        TButton? btn = null;
         result[0].dlg.ForEachView(v => { if (v is TButton b) btn = b; });
-        Assert.NotNull(btn);
-        Assert.Equal((ushort)500, btn.Command);
+        var actualButton = Assert.IsType<TButton>(btn);
+        Assert.Equal((ushort)500, actualButton.Command);
         result[0].dlg.ShutDown();
     }
 
@@ -467,22 +480,22 @@ public sealed class BuilderTests : IDisposable
     [Fact] public void Builder_BuildsCheckBoxes()
     {
         var result = Build(@"resource dialog ""d"" { bounds(0,0,40,15); checkbox ""Opts"" bounds=(1,1,30,8) items=(""A"",""B""); }");
-        TCheckBoxes cb = null;
+        TCheckBoxes? cb = null;
         result[0].dlg.ForEachView(v => { if (v is TCheckBoxes c) cb = c; });
-        Assert.NotNull(cb);
-        Assert.Equal(2, cb.Strings.Count);
-        Assert.Equal("A", cb.Strings[0]);
-        Assert.Equal("B", cb.Strings[1]);
+        var actualCheckBoxes = Assert.IsType<TCheckBoxes>(cb);
+        Assert.Equal(2, actualCheckBoxes.Strings.Count);
+        Assert.Equal("A", actualCheckBoxes.Strings[0]);
+        Assert.Equal("B", actualCheckBoxes.Strings[1]);
         result[0].dlg.ShutDown();
     }
 
     [Fact] public void Builder_BuildsRadioButtons()
     {
         var result = Build(@"resource dialog ""d"" { bounds(0,0,40,15); radio ""Mode"" bounds=(1,1,30,6) items=(""Fast"",""Safe""); }");
-        TRadioButtons rb = null;
+        TRadioButtons? rb = null;
         result[0].dlg.ForEachView(v => { if (v is TRadioButtons r) rb = r; });
-        Assert.NotNull(rb);
-        Assert.Equal(2, rb.Strings.Count);
+        var actualRadioButtons = Assert.IsType<TRadioButtons>(rb);
+        Assert.Equal(2, actualRadioButtons.Strings.Count);
         result[0].dlg.ShutDown();
     }
 
@@ -575,7 +588,7 @@ resource dialog ""dialog.options"" {
         Assert.Equal(5,  dlg.origin.y);
 
         int childCount = 0;
-        TButton okBtn  = null;
+        TButton? okBtn = null;
         dlg.ForEachView(v =>
         {
             childCount++;
@@ -584,8 +597,8 @@ resource dialog ""dialog.options"" {
 
         // TFrame + static + input + 2 buttons = 5 children.
         Assert.Equal(5, childCount);
-        Assert.NotNull(okBtn);
-        Assert.True(okBtn.AmDefault);
+        var actualOkButton = Assert.IsType<TButton>(okBtn);
+        Assert.True(actualOkButton.AmDefault);
 
         fp.Close();
         dlg.ShutDown();
@@ -607,17 +620,17 @@ resource dialog ""dialog.options"" {
         var dlg = rf.Get("dialog.options") as TDialog;
 
         Assert.NotNull(dlg);
-        TCheckBoxes cb = null;
-        TRadioButtons rb = null;
+        TCheckBoxes? cb = null;
+        TRadioButtons? rb = null;
         dlg.ForEachView(v =>
         {
             if (v is TCheckBoxes c) cb = c;
             if (v is TRadioButtons r) rb = r;
         });
-        Assert.NotNull(cb);
-        Assert.NotNull(rb);
-        Assert.Equal(3, cb.Strings.Count);
-        Assert.Equal(2, rb.Strings.Count);
+        var actualCheckBoxes = Assert.IsType<TCheckBoxes>(cb);
+        var actualRadioButtons = Assert.IsType<TRadioButtons>(rb);
+        Assert.Equal(3, actualCheckBoxes.Strings.Count);
+        Assert.Equal(2, actualRadioButtons.Strings.Count);
 
         fp.Close();
         dlg.ShutDown();
@@ -663,7 +676,7 @@ resource dialog ""dialog.options"" {
             StreamableRegistration.RegisterAll();
             var fp = new Fpstream(tvrPath);
             var rf  = new TResourceFile(fp);
-            var dlg = rf.Get("dialog.hello") as TDialog;
+            var dlg = Assert.IsType<TDialog>(rf.Get("dialog.hello"));
             Assert.Equal("Hello", dlg.title);
             fp.Close();
             dlg.ShutDown();
@@ -694,7 +707,7 @@ resource dialog ""dialog.options"" {
         {
             var fp = new Fpstream(tvrPath);
             var rf = new TResourceFile(fp);
-            dlgFirst = (TDialog)rf.Get("dialog.hello");
+            dlgFirst = Assert.IsType<TDialog>(rf.Get("dialog.hello"));
             fp.Close();
         }
 

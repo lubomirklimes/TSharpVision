@@ -7,7 +7,7 @@
 //
 // Lifecycle expectations:
 //  * Initialize/Shutdown switch the controlling TTY between cooked and
-//    raw mode via termios (libc P/Invoke). On platforms without /dev/tty
+//    raw mode via termios (libc P/Invoke). When stdin or stdout is not a TTY
 //    the driver leaves itself unattached and short-circuits every call,
 //    matching the Win32 driver's headless-CI behaviour.
 //  * Output uses xterm escape sequences emitted on stdout via Console.Out
@@ -32,63 +32,11 @@ namespace TSharpVision.Drivers.Terminal;
 [ScreenDriver(System = Platform.Windows, Driver = nameof(AnsiTerminalDriver), Priority = 10)]
 public sealed class AnsiTerminalDriver : IDriver, IDisposable
 {
-    // ---- libc P/Invoke -------------------------------------------------
-    // termios.h struct on Linux. macOS layout differs slightly but the
-    // tcgetattr/tcsetattr pair only needs the raw bytes preserved across
-    // the round-trip, so we marshal it as a 60-byte blob. (The size is
-    // chosen large enough for both glibc and macOS libc.)
+    // Opaque native termios storage: 128 bytes covers Darwin's 72-byte structure
+    // and the supported Linux layouts. Native cfmakeraw owns flag/offset details.
     private const int TermiosBytes = 128;
-
-    private const int STDIN_FILENO  = 0;
+    private const int STDIN_FILENO = 0;
     private const int STDOUT_FILENO = 1;
-    private const int TCSANOW = 0;
-
-    private const ushort TIOCGWINSZ_LINUX = 0x5413;
-    private const ulong  TIOCGWINSZ_MAC   = 0x40087468;
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct WinSize
-    {
-        public ushort ws_row;
-        public ushort ws_col;
-        public ushort ws_xpixel;
-        public ushort ws_ypixel;
-    }
-
-    [DllImport("libc", EntryPoint = "tcgetattr", SetLastError = true)]
-    private static extern int tcgetattr(int fd, IntPtr termios);
-
-    [DllImport("libc", EntryPoint = "tcsetattr", SetLastError = true)]
-    private static extern int tcsetattr(int fd, int optionalActions, IntPtr termios);
-
-    [DllImport("libc", EntryPoint = "ioctl", SetLastError = true)]
-    private static extern int ioctl(int fd, ulong req, ref WinSize ws);
-
-    [DllImport("libc", EntryPoint = "read", SetLastError = true)]
-    private static extern unsafe int read(int fd, byte* buf, int count);
-
-    [DllImport("libc", EntryPoint = "isatty", SetLastError = true)]
-    private static extern int isatty(int fd);
-
-    [DllImport("libc", EntryPoint = "cfmakeraw", SetLastError = true)]
-    private static extern void cfmakeraw(IntPtr termios);
-
-    // poll() — POSIX-standard non-blocking readability check. Used in
-    // PumpMessages to guard read() so it never blocks when no data is ready.
-    // This is simpler and more portable than patching VMIN/VTIME byte offsets
-    // in the opaque termios blob (which differ between Linux and macOS).
-    [StructLayout(LayoutKind.Sequential)]
-    private struct PollFd
-    {
-        public int fd;
-        public short events;
-        public short revents;
-    }
-
-    private const short POLLIN = 0x0001;
-
-    [DllImport("libc", EntryPoint = "poll", SetLastError = true)]
-    private static extern int poll(ref PollFd fds, uint nfds, int timeout);
 
     // ---- driver state --------------------------------------------------
     private bool   _attached;
@@ -122,7 +70,7 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
         try
         {
             // Both stdin and stdout must be a real TTY.
-            if (isatty(STDIN_FILENO) == 0 || isatty(STDOUT_FILENO) == 0) return;
+            if (TerminalNative.IsATty(STDIN_FILENO) == 0 || TerminalNative.IsATty(STDOUT_FILENO) == 0) return;
 
             // Free any previously saved termios (double-call / Resume guard).
             if (_savedTermios != IntPtr.Zero)
@@ -131,7 +79,7 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
                 _savedTermios = IntPtr.Zero;
             }
             _savedTermios = Marshal.AllocHGlobal(TermiosBytes);
-            if (tcgetattr(STDIN_FILENO, _savedTermios) != 0)
+            if (TerminalNative.GetAttributes(STDIN_FILENO, _savedTermios) != 0)
             {
                 Marshal.FreeHGlobal(_savedTermios);
                 _savedTermios = IntPtr.Zero;
@@ -148,8 +96,9 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
                         (void*)_savedTermios, (void*)raw,
                         TermiosBytes, TermiosBytes);
                 }
-                cfmakeraw(raw);
-                tcsetattr(STDIN_FILENO, TCSANOW, raw);
+                TerminalNative.MakeRaw(raw);
+                if (TerminalNative.SetAttributesNow(STDIN_FILENO, raw) != 0)
+                    throw new IOException($"tcsetattr failed (errno={Marshal.GetLastPInvokeError()}).");
             }
             finally { Marshal.FreeHGlobal(raw); }
 
@@ -159,12 +108,11 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
             Write("\x1b[?1002h\x1b[?1006h"); // mouse press/drag + SGR encoding
 
             // Query window size.
-            var ws = default(WinSize);
-            ulong req = OperatingSystem.IsMacOS() ? TIOCGWINSZ_MAC : (ulong)TIOCGWINSZ_LINUX;
-            if (ioctl(STDOUT_FILENO, req, ref ws) == 0 && ws.ws_col > 0)
+            if (TerminalNative.GetWindowSize(STDOUT_FILENO, out var ws) == 0
+                && ws.Columns > 0 && ws.Rows > 0)
             {
-                _cols = ws.ws_col;
-                _rows = ws.ws_row;
+                _cols = ws.Columns;
+                _rows = ws.Rows;
                 TScreen.ScreenWidth  = _cols;
                 TScreen.ScreenHeight = _rows;
             }
@@ -185,7 +133,7 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
             _pendingKeys.Clear();
             if (_savedTermios != IntPtr.Zero)
             {
-                tcsetattr(STDIN_FILENO, TCSANOW, _savedTermios);
+                TerminalNative.SetAttributesNow(STDIN_FILENO, _savedTermios);
                 Marshal.FreeHGlobal(_savedTermios);
                 _savedTermios = IntPtr.Zero;
             }
@@ -207,7 +155,7 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
         _pendingKeys.Clear();
         WriteControl("\x1b[?1006l\x1b[?1002l\x1b[?25h\x1b[?1049l");
         if (_savedTermios != IntPtr.Zero)
-            tcsetattr(STDIN_FILENO, TCSANOW, _savedTermios);
+            TerminalNative.SetAttributesNow(STDIN_FILENO, _savedTermios);
     }
 
     /// <inheritdoc />
@@ -229,8 +177,9 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
                         (void*)_savedTermios, (void*)raw,
                         TermiosBytes, TermiosBytes);
                 }
-                cfmakeraw(raw);
-                tcsetattr(STDIN_FILENO, TCSANOW, raw);
+                TerminalNative.MakeRaw(raw);
+                if (TerminalNative.SetAttributesNow(STDIN_FILENO, raw) != 0)
+                    throw new IOException($"tcsetattr failed (errno={Marshal.GetLastPInvokeError()}).");
             }
             finally { Marshal.FreeHGlobal(raw); }
         }
@@ -348,15 +297,14 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
         // Non-blocking input drain. poll() with timeout=0 checks whether stdin
         // has data before each read() call, preventing the blocking stall that
         // cfmakeraw VMIN=1 (its default) would otherwise cause on idle frames.
-        var pfd = new PollFd { fd = STDIN_FILENO, events = POLLIN };
         Span<byte> tmp = stackalloc byte[256];
         fixed (byte* p = tmp)
         {
-            while (poll(ref pfd, 1, 0) > 0)
+            while (TerminalNative.IsInputReady(STDIN_FILENO))
             {
-                int n = read(STDIN_FILENO, p, tmp.Length);
+                nint n = TerminalNative.Read(STDIN_FILENO, p, (nuint)tmp.Length);
                 if (n <= 0) break;
-                _input.Feed(tmp[..n], WriteControl);
+                _input.Feed(tmp[..checked((int)n)], WriteControl);
             }
         }
         PublishNextInputEvent();
@@ -371,13 +319,11 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
     private void PollResize()
     {
         if (!_attached) return;
-        var ws = default(WinSize);
-        ulong req = OperatingSystem.IsMacOS() ? TIOCGWINSZ_MAC : (ulong)TIOCGWINSZ_LINUX;
-        if (ioctl(STDOUT_FILENO, req, ref ws) != 0) return;
-        if (ws.ws_col == 0 || ws.ws_row == 0) return;
-        if (ws.ws_col == _cols && ws.ws_row == _rows) return;
-        _cols = ws.ws_col;
-        _rows = ws.ws_row;
+        if (TerminalNative.GetWindowSize(STDOUT_FILENO, out var ws) != 0) return;
+        if (ws.Columns == 0 || ws.Rows == 0) return;
+        if (ws.Columns == _cols && ws.Rows == _rows) return;
+        _cols = ws.Columns;
+        _rows = ws.Rows;
         TScreen.ScreenWidth  = _cols;
         TScreen.ScreenHeight = _rows;
         TScreen.ScreenBuffer = AllocateScreenBuffer();

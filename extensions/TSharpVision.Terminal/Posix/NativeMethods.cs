@@ -62,7 +62,21 @@ internal static class NativeMethods
     // ── Terminal window size ──────────────────────────────────────────────────
 
     [DllImport("libc", SetLastError = true, EntryPoint = "ioctl")]
-    internal static extern int Ioctl(int fd, nuint request, ref WinSize winsize);
+    private static extern int IoctlFixed(int fd, nuint request, ref WinSize winsize);
+
+    // Darwin ARM64's unnamed varargs live on the stack, unlike a fixed third
+    // argument in x2. Occupy x2-x7 so the winsize pointer lands in the first stack
+    // slot. Strictly for Darwin ARM64 ioctl with one pointer, not general varargs.
+    // https://developer.apple.com/documentation/xcode/writing-arm64-code-for-apple-platforms
+    [DllImport("libc", SetLastError = true, EntryPoint = "ioctl")]
+    private static extern int IoctlDarwinArm64(int fd, nuint request,
+        nuint pad2, nuint pad3, nuint pad4, nuint pad5, nuint pad6, nuint pad7,
+        ref WinSize winsize);
+
+    internal static int Ioctl(int fd, nuint request, ref WinSize winsize)
+        => OperatingSystem.IsMacOS() && RuntimeInformation.ProcessArchitecture == Architecture.Arm64
+            ? IoctlDarwinArm64(fd, request, 0, 0, 0, 0, 0, 0, ref winsize)
+            : IoctlFixed(fd, request, ref winsize);
 
     // ── Process management ────────────────────────────────────────────────────
 

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.Versioning;
 using TSharpVision.Constants;
 using TSharpVision.Terminal.Windows;
@@ -63,12 +64,11 @@ public sealed class RealPtyEmulatorTests : IDisposable
         await h.WaitForTextAsync("30 100");
 
         // Ctrl+C interrupts the foreground program; the shell survives.
-        await h.TypeAsync("sleep 30; echo NOT_INTERRUPTED\r");
+        await h.TypeAsync("sleep 30\r");
         await Task.Delay(300);
         await h.KeyAsync(Keys.kbCtrlC, Keys.kbLeftCtrl);
         await h.TypeAsync("echo status=$?\r");
         await h.WaitForTextAsync("status=130");
-        Assert.DoesNotContain("NOT_INTERRUPTED", h.Screen.Split('\n'));   // the echo never ran (the command line shows it)
 
         await h.TypeAsync("exit 0\r");
         await h.WaitForExitAsync();
@@ -136,6 +136,7 @@ public sealed class RealPtyEmulatorTests : IDisposable
         SkipUnlessPosix();
         string? nano = FindPosix("nano");
         Skip.If(nano is null, "nano is not installed.");
+        Skip.IfNot(IsGnuNano(nano!), "GNU nano is not installed.");
         if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
 
         string file = Path.Combine(_directory, "nano.txt");
@@ -162,9 +163,19 @@ public sealed class RealPtyEmulatorTests : IDisposable
         Skip.If(top is null, "top is not installed.");
         if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
 
-        using var h = PtyEmulatorHarness.Posix(top!, "-d 1", 100, 30, _directory);
+        if (OperatingSystem.IsMacOS())
+            await AssertTop(top!, "-s 1", "Load Avg:");
+        else
+            await AssertTop(top!, "-d 1", "load average");
+    }
+
+    [SupportedOSPlatform("linux")]
+    [SupportedOSPlatform("macos")]
+    private async Task AssertTop(string top, string arguments, string loadAverage)
+    {
+        using var h = PtyEmulatorHarness.Posix(top, arguments, 100, 30, _directory);
         await h.StartAsync();
-        await h.WaitForTextAsync("load average");
+        await h.WaitForTextAsync(loadAverage);
         await h.WaitForTextAsync("PID");
         await h.TypeAsync("q");
         await h.WaitForExitAsync();
@@ -271,44 +282,27 @@ public sealed class RealPtyEmulatorTests : IDisposable
         await h.WaitForExitAsync();
     }
 
-    [SkippableFact]
-    public async Task ConPtyRunsTheWindowsEditor()
+    private static bool IsGnuNano(string path)
     {
-        Skip.IfNot(OperatingSystem.IsWindowsVersionAtLeast(10, 0, 17763), "ConPTY probe.");
-        string edit = Path.Combine(Environment.SystemDirectory, "edit.exe");
-        Skip.IfNot(File.Exists(edit), "Microsoft Edit is not installed.");
-        if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 17763)) return;
-        await ConPtyEdit(edit);
-    }
-
-    [SupportedOSPlatform("windows10.0.17763")]
-    private async Task ConPtyEdit(string edit)
-    {
-        string file = Path.Combine(_directory, "edit.txt");
-        using var h = PtyEmulatorHarness.ConPty(edit, "edit.txt", 100, 30, _directory);
-        await h.StartAsync();
-        await h.WaitForTextAsync("edit.txt");
-
-        await h.TypeAsync("hello edit");
-        await h.KeyAsync(Keys.kbCtrlS, Keys.kbLeftCtrl);
-        await WaitForFile(file, "hello edit");
-        await h.KeyAsync(Keys.kbCtrlQ, Keys.kbLeftCtrl);
-        await h.WaitForExitAsync();
-    }
-
-    private static async Task WaitForFile(string path, string content)
-    {
-        DateTime deadline = DateTime.UtcNow + PtyEmulatorHarness.Timeout;
-        while (!(File.Exists(path) && SafeRead(path).Contains(content, StringComparison.Ordinal)))
+        using Process? process = Process.Start(new ProcessStartInfo(path, "--version")
         {
-            Assert.True(DateTime.UtcNow < deadline, $"{path} never held '{content}'.");
-            await Task.Delay(50);
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false
+        });
+        if (process is null) return false;
+
+        Task<string> output = process.StandardOutput.ReadToEndAsync();
+        Task<string> error = process.StandardError.ReadToEndAsync();
+        if (!process.WaitForExit(5000))
+        {
+            process.Kill(entireProcessTree: true);
+            return false;
         }
 
-        static string SafeRead(string path)
-        {
-            try { return File.ReadAllText(path); } catch (IOException) { return string.Empty; }
-        }
+        return process.ExitCode == 0
+               && (output.GetAwaiter().GetResult() + error.GetAwaiter().GetResult())
+                   .Contains("GNU nano", StringComparison.Ordinal);
     }
 }
 

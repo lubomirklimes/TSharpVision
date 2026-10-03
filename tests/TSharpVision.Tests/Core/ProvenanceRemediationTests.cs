@@ -132,8 +132,9 @@ public sealed class ProvenanceRemediationTests : IDisposable
             var editor = Editor(text, gap);
             for (int position = 0; position <= text.Length; position++)
             {
-                int end = position; while (end < text.Length && text[end] != '\r' && text[end] != '\n') end++;
-                int start = position; while (start > 0 && text[start - 1] != '\r' && text[start - 1] != '\n') start--;
+                // LF is the only line boundary (KEYBOARD-CLOSURE N8): a CR, lone or before LF, is an ordinary character.
+                int end = position; while (end < text.Length && text[end] != '\n') end++;
+                int start = position; while (start > 0 && text[start - 1] != '\n') start--;
                 Assert.Equal((uint)end, editor.LineEnd((uint)position)); Assert.Equal((uint)start, editor.LineStart((uint)position));
                 Assert.Equal((uint)Math.Min(position + 1, text.Length), editor.NextChar((uint)position));
                 Assert.Equal((uint)Math.Max(position - 1, 0), editor.PrevChar((uint)position));

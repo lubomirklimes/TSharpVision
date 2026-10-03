@@ -19,7 +19,7 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(IsPackable)' == 'true'">
-    <Version Condition="'$(Version)' == ''">0.1.0-preview.1</Version>
+    <Version Condition="'$(Version)' == ''">0.1.0-preview.2</Version>
     <Authors>Lubomir Klimes</Authors>
     <RepositoryUrl>https://github.com/lubomirklimes/TSharpVision</RepositoryUrl>
     <RepositoryType>git</RepositoryType>

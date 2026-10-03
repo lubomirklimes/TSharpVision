@@ -1,4 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- A reusable TSharpVision extension: a read-only, paged table (grid) view over any source of rows.
+
+       WHAT IT REFERENCES, AND WHAT IT MUST NEVER REFERENCE.
+
+           TSharpVision.TableView  ->  TSharpVision
+
+       Nothing else. In particular no application (TSharpCommander), no plugin contract and no file system
+       provider: the view reads rows through ITableDataSource, and whatever turns a DBF file, a database
+       table, a CSV stream or a synthetic generator into one belongs to the consumer.
+       TSharpVision.TableView.Tests asserts the reference set from the compiled assembly. -->
   <PropertyGroup>
     <PackageId>TSharpVision.TableView</PackageId>
     <Description>Read-only, paged table view for TSharpVision over any source of rows, with 64-bit row positions.</Description>

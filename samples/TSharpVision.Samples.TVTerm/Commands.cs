@@ -26,7 +26,7 @@ public static class Commands
     public const ushort cmScrollTop        = 1201;
     public const ushort cmScrollBottom     = 1202;
     public const ushort cmToggleWrap       = 1203;
-    public const ushort cmToggleAnsi       = 1204;
+    public const ushort cmToggleNewLineMode = 1204;
 
     // Session
     public const ushort cmInterrupt        = 1300;

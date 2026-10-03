@@ -20,6 +20,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\TSharpVision.Drivers.Terminal\TSharpVision.Drivers.Terminal.csproj" />
+    <!-- The terminal emulator's input encoder: encoder/decoder symmetry tests (KeyboardNormalizationTests). -->
+    <ProjectReference Include="..\..\extensions\TSharpVision.Terminal\TSharpVision.Terminal.csproj" />
     <ProjectReference Include="..\TSharpVision.TestSupport\TSharpVision.TestSupport.csproj" />
   </ItemGroup>
 

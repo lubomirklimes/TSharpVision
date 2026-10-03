@@ -89,7 +89,7 @@ public partial class TVDemoApp
         out TListBox      listBox)
     {
         // Dialog: 68 wide × 20 tall — fits in any normal 80×24 console.
-        var dlg = new TDialog(new TRect(0, 0, 68, 20), "Dialog Controls");
+        var dlg = new TDialog(new TRect(0, 0, 68, 20), "Common Controls");
 
         // Center on the desktop.
         if (DeskTop != null)
@@ -100,7 +100,7 @@ public partial class TVDemoApp
         // ── Row 1: header description ─────────────────────────────────────
         dlg.Insert(new TStaticText(
             new TRect(2, 1, 65, 2),
-            "Visual showcase of implemented Turbo Vision dialog controls."));
+            "Edit the name and choose display preferences."));
 
         // ── Row 2: Name label + input line ────────────────────────────────
         nameInput = new TInputLine(new TRect(10, 2, 50, 3), 40);
@@ -164,6 +164,7 @@ public partial class TVDemoApp
         dlg.Insert(new TButton(
             new TRect(25, 16, 40, 18), "~C~ancel", Views.cmCancel, ButtonConstants.bfNormal));
 
+        DemoButtonLayout.CenterRows(dlg);
         dlg.SelectNext(false);  // focus first selectable control
         dlg.helpCtx = DemoHelpCtx.ControlsShowcase;
         return dlg;
@@ -189,6 +190,7 @@ public partial class TVDemoApp
         dlg.Insert(new TButton(new TRect(9,  9, 19, 11), "~O~K",     Views.cmOK,     ButtonConstants.bfDefault));
         dlg.Insert(new TButton(new TRect(21, 9, 31, 11), "~C~ancel", Views.cmCancel, ButtonConstants.bfNormal));
 
+        DemoButtonLayout.CenterRows(dlg);
         dlg.SelectNext(false);
 
         ushort result = DeskTop.ExecView(dlg);
@@ -223,6 +225,7 @@ public partial class TVDemoApp
         dlg.Insert(new TButton(new TRect(10, 4, 21, 6), "~O~K",     Views.cmOK,     ButtonConstants.bfDefault));
         dlg.Insert(new TButton(new TRect(23, 4, 34, 6), "~C~ancel", Views.cmCancel, ButtonConstants.bfNormal));
 
+        DemoButtonLayout.CenterRows(dlg);
         dlg.SelectNext(false);
         return dlg;
     }

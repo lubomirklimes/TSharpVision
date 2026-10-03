@@ -1,5 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!-- The terminal's own tests: the emulator and key encoder fed directly (no process), the TTerminal view headless,
+       the PTY session lifecycles, and bounded probes of real shells and full-screen programs on the PTY of the host
+       they run on. Platform-specific tests report Skipped, not Passed, on an OS they cannot exercise. -->
   <PropertyGroup>
     <IsPackable>false</IsPackable>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
@@ -8,6 +11,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit" />
+    <PackageReference Include="Xunit.SkippableFact" />
     <PackageReference Include="xunit.runner.visualstudio">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
@@ -20,6 +24,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\extensions\TSharpVision.Terminal\TSharpVision.Terminal.csproj" />
+    <ProjectReference Include="..\TSharpVision.TestSupport\TSharpVision.TestSupport.csproj" />
   </ItemGroup>
 
 </Project>

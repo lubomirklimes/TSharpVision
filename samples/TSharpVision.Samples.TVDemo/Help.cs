@@ -20,6 +20,38 @@ public partial class TVDemoApp
         return _helpFile;
     }
 
+    // -----------------------------------------------------------------------
+    // OpenHelpIndex — Help|Index menu command. cmHelpIndex is only handled by
+    // THelpViewer, so without this the menu item does nothing when no help
+    // window is open. Reuses an already open help window when present.
+    // -----------------------------------------------------------------------
+    private void OpenHelpIndex()
+    {
+        if (DeskTop == null) return;
+        var hf = GetHelpFile();
+        if (hf == null) return;
+
+        THelpWindow? existing = null;
+        DeskTop.ForEachView(v => { if (v is THelpWindow hw) existing ??= hw; });
+        if (existing != null)
+        {
+            THelpViewer? viewer = null;
+            existing.ForEachView(v => { if (v is THelpViewer hv) viewer ??= hv; });
+            existing.Select();
+            if (viewer != null)
+            {
+                viewer.GoToIndex();
+                viewer.DrawView();
+            }
+            return;
+        }
+
+        // THelpWindow's centering constructor places the window on the desktop centre.
+        var window = new THelpWindow(hf, THelpViewer.IndexContext);
+        if (ValidView(window) != null)
+            ExecuteHelp(window);
+    }
+
     public override void ShutDown()
     {
         _helpStream?.Close();

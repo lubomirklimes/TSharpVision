@@ -1,44 +1,336 @@
 #nullable enable
+~override TSharpVision.Terminal.TerminalStyle.Equals(object obj) -> bool
+~override TSharpVision.Terminal.TerminalStyle.ToString() -> string
+const TSharpVision.Terminal.TerminalEmulator.DefaultMaxScrollbackLines = 1000 -> int
+const TSharpVision.Terminal.TTerminal.DefaultMaxCommandHistory = 100 -> int
+const TSharpVision.Terminal.TTerminal.DefaultMaxLines = 1000 -> int
+const TSharpVision.Terminal.TTerminal.TermName = "xterm-256color" -> string!
+override TSharpVision.Terminal.TerminalCell.Equals(object? obj) -> bool
+override TSharpVision.Terminal.TerminalCell.GetHashCode() -> int
+override TSharpVision.Terminal.TerminalCell.ToString() -> string!
+override TSharpVision.Terminal.TerminalColor.Equals(object? obj) -> bool
+override TSharpVision.Terminal.TerminalColor.GetHashCode() -> int
+override TSharpVision.Terminal.TerminalColor.ToString() -> string!
+override TSharpVision.Terminal.TerminalSize.Equals(object? obj) -> bool
+override TSharpVision.Terminal.TerminalSize.GetHashCode() -> int
+override TSharpVision.Terminal.TerminalSize.ToString() -> string!
+override TSharpVision.Terminal.TerminalStyle.GetHashCode() -> int
+override TSharpVision.Terminal.TerminalTextPosition.Equals(object? obj) -> bool
+override TSharpVision.Terminal.TerminalTextPosition.GetHashCode() -> int
+override TSharpVision.Terminal.TerminalTextPosition.ToString() -> string!
+override TSharpVision.Terminal.TTerminal.ChangeBounds(TSharpVision.TRect bounds) -> void
+override TSharpVision.Terminal.TTerminal.Draw() -> void
+override TSharpVision.Terminal.TTerminal.GetPalette() -> TSharpVision.TPalette!
+override TSharpVision.Terminal.TTerminal.HandleEvent(ref TSharpVision.TEvent ev) -> void
+override TSharpVision.Terminal.TTerminal.ShutDown() -> void
 static TSharpVision.Terminal.PtyAvailability.IsAnyPtySupported.get -> bool
 static TSharpVision.Terminal.PtyAvailability.IsConPtySupported.get -> bool
 static TSharpVision.Terminal.PtyAvailability.IsPosixPtySupported.get -> bool
+static TSharpVision.Terminal.TerminalCell.Blank(TSharpVision.Terminal.TerminalStyle style) -> TSharpVision.Terminal.TerminalCell
+static TSharpVision.Terminal.TerminalCell.operator !=(TSharpVision.Terminal.TerminalCell left, TSharpVision.Terminal.TerminalCell right) -> bool
+static TSharpVision.Terminal.TerminalCell.operator ==(TSharpVision.Terminal.TerminalCell left, TSharpVision.Terminal.TerminalCell right) -> bool
+static TSharpVision.Terminal.TerminalColor.Default.get -> TSharpVision.Terminal.TerminalColor
+static TSharpVision.Terminal.TerminalColor.FromIndex(byte index) -> TSharpVision.Terminal.TerminalColor
+static TSharpVision.Terminal.TerminalColor.FromRgb(byte red, byte green, byte blue) -> TSharpVision.Terminal.TerminalColor
+static TSharpVision.Terminal.TerminalColor.operator !=(TSharpVision.Terminal.TerminalColor left, TSharpVision.Terminal.TerminalColor right) -> bool
+static TSharpVision.Terminal.TerminalColor.operator ==(TSharpVision.Terminal.TerminalColor left, TSharpVision.Terminal.TerminalColor right) -> bool
+static TSharpVision.Terminal.TerminalInputEncoder.EncodeKey(TSharpVision.KeyDownEvent key, bool applicationCursorKeys) -> string?
+static TSharpVision.Terminal.TerminalInputEncoder.EncodePaste(string! text, bool bracketed) -> string!
+static TSharpVision.Terminal.TerminalSessionExtensions.SendTextAsync(this TSharpVision.Terminal.ITerminalSession! session, string! text, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+static TSharpVision.Terminal.TerminalSize.operator !=(TSharpVision.Terminal.TerminalSize left, TSharpVision.Terminal.TerminalSize right) -> bool
+static TSharpVision.Terminal.TerminalSize.operator ==(TSharpVision.Terminal.TerminalSize left, TSharpVision.Terminal.TerminalSize right) -> bool
+static TSharpVision.Terminal.TerminalStyle.Default.get -> TSharpVision.Terminal.TerminalStyle
+static TSharpVision.Terminal.TerminalStyle.operator !=(TSharpVision.Terminal.TerminalStyle left, TSharpVision.Terminal.TerminalStyle right) -> bool
+static TSharpVision.Terminal.TerminalStyle.operator ==(TSharpVision.Terminal.TerminalStyle left, TSharpVision.Terminal.TerminalStyle right) -> bool
+static TSharpVision.Terminal.TerminalTextPosition.operator !=(TSharpVision.Terminal.TerminalTextPosition left, TSharpVision.Terminal.TerminalTextPosition right) -> bool
+static TSharpVision.Terminal.TerminalTextPosition.operator ==(TSharpVision.Terminal.TerminalTextPosition left, TSharpVision.Terminal.TerminalTextPosition right) -> bool
+TSharpVision.Terminal.FakePtyTerminalSession
+TSharpVision.Terminal.FakePtyTerminalSession.Complete() -> void
+TSharpVision.Terminal.FakePtyTerminalSession.Dispose() -> void
+TSharpVision.Terminal.FakePtyTerminalSession.EchoInput.get -> bool
+TSharpVision.Terminal.FakePtyTerminalSession.EchoInput.set -> void
+TSharpVision.Terminal.FakePtyTerminalSession.Emit(string! text) -> void
+TSharpVision.Terminal.FakePtyTerminalSession.Emit(System.ReadOnlySpan<byte> data) -> void
+TSharpVision.Terminal.FakePtyTerminalSession.EmitLine(string! text) -> void
+TSharpVision.Terminal.FakePtyTerminalSession.Exited -> System.EventHandler?
+TSharpVision.Terminal.FakePtyTerminalSession.FakePtyTerminalSession() -> void
+TSharpVision.Terminal.FakePtyTerminalSession.InterruptAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.Terminal.FakePtyTerminalSession.InterruptCount.get -> int
+TSharpVision.Terminal.FakePtyTerminalSession.IsRunning.get -> bool
+TSharpVision.Terminal.FakePtyTerminalSession.LastSize.get -> TSharpVision.Terminal.TerminalSize?
+TSharpVision.Terminal.FakePtyTerminalSession.OutputReceived -> System.EventHandler<TSharpVision.Terminal.TerminalOutputEventArgs!>?
+TSharpVision.Terminal.FakePtyTerminalSession.ReceivedSizes.get -> System.Collections.Generic.IReadOnlyList<TSharpVision.Terminal.TerminalSize>!
+TSharpVision.Terminal.FakePtyTerminalSession.ResizeAsync(TSharpVision.Terminal.TerminalSize size, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.Terminal.FakePtyTerminalSession.SendInputAsync(System.ReadOnlyMemory<byte> input, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.Terminal.FakePtyTerminalSession.SentInputs.get -> System.Collections.Generic.IReadOnlyList<string!>!
+TSharpVision.Terminal.FakePtyTerminalSession.StartAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.Terminal.FakePtyTerminalSession.StopAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 TSharpVision.Terminal.IExitCodeTerminalSession
 TSharpVision.Terminal.IExitCodeTerminalSession.ExitCode.get -> int?
+TSharpVision.Terminal.IInterruptibleTerminalSession
+TSharpVision.Terminal.IInterruptibleTerminalSession.InterruptAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.Terminal.InMemoryTerminalSession
+TSharpVision.Terminal.InMemoryTerminalSession.Dispose() -> void
+TSharpVision.Terminal.InMemoryTerminalSession.Emit(string! text) -> void
+TSharpVision.Terminal.InMemoryTerminalSession.Emit(System.ReadOnlySpan<byte> data) -> void
+TSharpVision.Terminal.InMemoryTerminalSession.Exited -> System.EventHandler?
+TSharpVision.Terminal.InMemoryTerminalSession.InMemoryTerminalSession() -> void
+TSharpVision.Terminal.InMemoryTerminalSession.InterruptAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.Terminal.InMemoryTerminalSession.InterruptCount.get -> int
+TSharpVision.Terminal.InMemoryTerminalSession.IsRunning.get -> bool
+TSharpVision.Terminal.InMemoryTerminalSession.OutputReceived -> System.EventHandler<TSharpVision.Terminal.TerminalOutputEventArgs!>?
+TSharpVision.Terminal.InMemoryTerminalSession.ReceivedSizes.get -> System.Collections.Generic.IReadOnlyList<TSharpVision.Terminal.TerminalSize>!
+TSharpVision.Terminal.InMemoryTerminalSession.ResizeAsync(TSharpVision.Terminal.TerminalSize size, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.Terminal.InMemoryTerminalSession.SendInputAsync(System.ReadOnlyMemory<byte> input, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.Terminal.InMemoryTerminalSession.SentBytes.get -> System.Collections.Generic.IReadOnlyList<byte[]!>!
+TSharpVision.Terminal.InMemoryTerminalSession.SentInputs.get -> System.Collections.Generic.IReadOnlyList<string!>!
+TSharpVision.Terminal.InMemoryTerminalSession.StartAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.Terminal.InMemoryTerminalSession.StopAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.Terminal.IResizableTerminalSession
+TSharpVision.Terminal.IResizableTerminalSession.ResizeAsync(TSharpVision.Terminal.TerminalSize size, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.Terminal.ITerminalSession
+TSharpVision.Terminal.ITerminalSession.Exited -> System.EventHandler?
+TSharpVision.Terminal.ITerminalSession.IsRunning.get -> bool
+TSharpVision.Terminal.ITerminalSession.OutputReceived -> System.EventHandler<TSharpVision.Terminal.TerminalOutputEventArgs!>?
+TSharpVision.Terminal.ITerminalSession.SendInputAsync(System.ReadOnlyMemory<byte> input, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.Terminal.ITerminalSession.StartAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.Terminal.ITerminalSession.StopAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 TSharpVision.Terminal.Posix.PosixPtyTerminalSession
 TSharpVision.Terminal.Posix.PosixPtyTerminalSession.Dispose() -> void
 TSharpVision.Terminal.Posix.PosixPtyTerminalSession.ExitCode.get -> int?
 TSharpVision.Terminal.Posix.PosixPtyTerminalSession.Exited -> System.EventHandler?
 TSharpVision.Terminal.Posix.PosixPtyTerminalSession.InterruptAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 TSharpVision.Terminal.Posix.PosixPtyTerminalSession.IsRunning.get -> bool
-TSharpVision.Terminal.Posix.PosixPtyTerminalSession.OutputReceived -> System.EventHandler<TSharpVision.TerminalOutputEventArgs!>?
-TSharpVision.Terminal.Posix.PosixPtyTerminalSession.PosixPtyTerminalSession(string! fileName, string? arguments = "", TSharpVision.TerminalSize? initialSize = null) -> void
+TSharpVision.Terminal.Posix.PosixPtyTerminalSession.OutputReceived -> System.EventHandler<TSharpVision.Terminal.TerminalOutputEventArgs!>?
+TSharpVision.Terminal.Posix.PosixPtyTerminalSession.PosixPtyTerminalSession(string! fileName, string? arguments = "", TSharpVision.Terminal.TerminalSize? initialSize = null) -> void
 TSharpVision.Terminal.Posix.PosixPtyTerminalSession.PosixPtyTerminalSession(TSharpVision.Terminal.Posix.PosixPtyTerminalSessionOptions! options) -> void
-TSharpVision.Terminal.Posix.PosixPtyTerminalSession.ResizeAsync(TSharpVision.TerminalSize size, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
-TSharpVision.Terminal.Posix.PosixPtyTerminalSession.SendInputAsync(string! input, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.Terminal.Posix.PosixPtyTerminalSession.ProcessId.get -> int
+TSharpVision.Terminal.Posix.PosixPtyTerminalSession.ResizeAsync(TSharpVision.Terminal.TerminalSize size, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.Terminal.Posix.PosixPtyTerminalSession.SendInputAsync(System.ReadOnlyMemory<byte> input, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 TSharpVision.Terminal.Posix.PosixPtyTerminalSession.StartAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 TSharpVision.Terminal.Posix.PosixPtyTerminalSession.StopAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 TSharpVision.Terminal.Posix.PosixPtyTerminalSessionOptions
 TSharpVision.Terminal.Posix.PosixPtyTerminalSessionOptions.Arguments.get -> string?
 TSharpVision.Terminal.Posix.PosixPtyTerminalSessionOptions.Arguments.init -> void
+TSharpVision.Terminal.Posix.PosixPtyTerminalSessionOptions.Environment.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string?>?
+TSharpVision.Terminal.Posix.PosixPtyTerminalSessionOptions.Environment.init -> void
 TSharpVision.Terminal.Posix.PosixPtyTerminalSessionOptions.FileName.get -> string!
 TSharpVision.Terminal.Posix.PosixPtyTerminalSessionOptions.FileName.init -> void
-TSharpVision.Terminal.Posix.PosixPtyTerminalSessionOptions.InitialSize.get -> TSharpVision.TerminalSize
+TSharpVision.Terminal.Posix.PosixPtyTerminalSessionOptions.InitialSize.get -> TSharpVision.Terminal.TerminalSize
 TSharpVision.Terminal.Posix.PosixPtyTerminalSessionOptions.InitialSize.init -> void
 TSharpVision.Terminal.Posix.PosixPtyTerminalSessionOptions.PosixPtyTerminalSessionOptions() -> void
 TSharpVision.Terminal.Posix.PosixPtyTerminalSessionOptions.WorkingDirectory.get -> string?
 TSharpVision.Terminal.Posix.PosixPtyTerminalSessionOptions.WorkingDirectory.init -> void
+TSharpVision.Terminal.ProcessTerminalSession
+TSharpVision.Terminal.ProcessTerminalSession.Dispose() -> void
+TSharpVision.Terminal.ProcessTerminalSession.ExitCode.get -> int?
+TSharpVision.Terminal.ProcessTerminalSession.Exited -> System.EventHandler?
+TSharpVision.Terminal.ProcessTerminalSession.InterruptAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.Terminal.ProcessTerminalSession.IsRunning.get -> bool
+TSharpVision.Terminal.ProcessTerminalSession.OutputReceived -> System.EventHandler<TSharpVision.Terminal.TerminalOutputEventArgs!>?
+TSharpVision.Terminal.ProcessTerminalSession.ProcessTerminalSession(string! fileName, string! arguments = "", string? workingDirectory = null) -> void
+TSharpVision.Terminal.ProcessTerminalSession.ResizeAsync(TSharpVision.Terminal.TerminalSize size, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.Terminal.ProcessTerminalSession.SendInputAsync(System.ReadOnlyMemory<byte> input, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.Terminal.ProcessTerminalSession.StartAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.Terminal.ProcessTerminalSession.StopAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 TSharpVision.Terminal.PtyAvailability
+TSharpVision.Terminal.TerminalCell
+TSharpVision.Terminal.TerminalCell.DisplayChar.get -> char
+TSharpVision.Terminal.TerminalCell.Equals(TSharpVision.Terminal.TerminalCell other) -> bool
+TSharpVision.Terminal.TerminalCell.IsContinuation.get -> bool
+TSharpVision.Terminal.TerminalCell.IsEmpty.get -> bool
+TSharpVision.Terminal.TerminalCell.Style.get -> TSharpVision.Terminal.TerminalStyle
+TSharpVision.Terminal.TerminalCell.TerminalCell() -> void
+TSharpVision.Terminal.TerminalCell.Text.get -> string!
+TSharpVision.Terminal.TerminalCell.Width.get -> byte
+TSharpVision.Terminal.TerminalCellAttributes
+TSharpVision.Terminal.TerminalCellAttributes.Blink = 16 -> TSharpVision.Terminal.TerminalCellAttributes
+TSharpVision.Terminal.TerminalCellAttributes.Bold = 1 -> TSharpVision.Terminal.TerminalCellAttributes
+TSharpVision.Terminal.TerminalCellAttributes.Dim = 2 -> TSharpVision.Terminal.TerminalCellAttributes
+TSharpVision.Terminal.TerminalCellAttributes.Hidden = 64 -> TSharpVision.Terminal.TerminalCellAttributes
+TSharpVision.Terminal.TerminalCellAttributes.Inverse = 32 -> TSharpVision.Terminal.TerminalCellAttributes
+TSharpVision.Terminal.TerminalCellAttributes.Italic = 4 -> TSharpVision.Terminal.TerminalCellAttributes
+TSharpVision.Terminal.TerminalCellAttributes.None = 0 -> TSharpVision.Terminal.TerminalCellAttributes
+TSharpVision.Terminal.TerminalCellAttributes.Strikethrough = 128 -> TSharpVision.Terminal.TerminalCellAttributes
+TSharpVision.Terminal.TerminalCellAttributes.Underline = 8 -> TSharpVision.Terminal.TerminalCellAttributes
+TSharpVision.Terminal.TerminalChanges
+TSharpVision.Terminal.TerminalChanges.Bell = 8 -> TSharpVision.Terminal.TerminalChanges
+TSharpVision.Terminal.TerminalChanges.Content = 1 -> TSharpVision.Terminal.TerminalChanges
+TSharpVision.Terminal.TerminalChanges.Cursor = 2 -> TSharpVision.Terminal.TerminalChanges
+TSharpVision.Terminal.TerminalChanges.Modes = 16 -> TSharpVision.Terminal.TerminalChanges
+TSharpVision.Terminal.TerminalChanges.None = 0 -> TSharpVision.Terminal.TerminalChanges
+TSharpVision.Terminal.TerminalChanges.Size = 32 -> TSharpVision.Terminal.TerminalChanges
+TSharpVision.Terminal.TerminalChanges.Title = 4 -> TSharpVision.Terminal.TerminalChanges
+TSharpVision.Terminal.TerminalColor
+TSharpVision.Terminal.TerminalColor.Blue.get -> byte
+TSharpVision.Terminal.TerminalColor.Equals(TSharpVision.Terminal.TerminalColor other) -> bool
+TSharpVision.Terminal.TerminalColor.Green.get -> byte
+TSharpVision.Terminal.TerminalColor.Index.get -> byte
+TSharpVision.Terminal.TerminalColor.IsDefault.get -> bool
+TSharpVision.Terminal.TerminalColor.Kind.get -> TSharpVision.Terminal.TerminalColorKind
+TSharpVision.Terminal.TerminalColor.Red.get -> byte
+TSharpVision.Terminal.TerminalColor.TerminalColor() -> void
+TSharpVision.Terminal.TerminalColorKind
+TSharpVision.Terminal.TerminalColorKind.Default = 0 -> TSharpVision.Terminal.TerminalColorKind
+TSharpVision.Terminal.TerminalColorKind.Indexed = 1 -> TSharpVision.Terminal.TerminalColorKind
+TSharpVision.Terminal.TerminalColorKind.Rgb = 2 -> TSharpVision.Terminal.TerminalColorKind
+TSharpVision.Terminal.TerminalCommandEventArgs
+TSharpVision.Terminal.TerminalCommandEventArgs.Command.get -> string!
+TSharpVision.Terminal.TerminalCommandEventArgs.TerminalCommandEventArgs(string! command) -> void
+TSharpVision.Terminal.TerminalEmulator
+TSharpVision.Terminal.TerminalEmulator.AlternateScroll.get -> bool
+TSharpVision.Terminal.TerminalEmulator.ApplicationCursorKeys.get -> bool
+TSharpVision.Terminal.TerminalEmulator.ApplicationKeypad.get -> bool
+TSharpVision.Terminal.TerminalEmulator.AutoWrap.get -> bool
+TSharpVision.Terminal.TerminalEmulator.BracketedPaste.get -> bool
+TSharpVision.Terminal.TerminalEmulator.BufferRowCount.get -> int
+TSharpVision.Terminal.TerminalEmulator.ClearScrollback() -> void
+TSharpVision.Terminal.TerminalEmulator.Columns.get -> int
+TSharpVision.Terminal.TerminalEmulator.CurrentStyle.get -> TSharpVision.Terminal.TerminalStyle
+TSharpVision.Terminal.TerminalEmulator.CursorColumn.get -> int
+TSharpVision.Terminal.TerminalEmulator.CursorRow.get -> int
+TSharpVision.Terminal.TerminalEmulator.CursorVisible.get -> bool
+TSharpVision.Terminal.TerminalEmulator.Feed(string! text) -> void
+TSharpVision.Terminal.TerminalEmulator.Feed(System.ReadOnlySpan<byte> data) -> void
+TSharpVision.Terminal.TerminalEmulator.GetBufferRow(int index, out bool wrapped) -> System.ReadOnlySpan<TSharpVision.Terminal.TerminalCell>
+TSharpVision.Terminal.TerminalEmulator.GetCell(int row, int column) -> TSharpVision.Terminal.TerminalCell
+TSharpVision.Terminal.TerminalEmulator.GetRow(int row) -> System.ReadOnlySpan<TSharpVision.Terminal.TerminalCell>
+TSharpVision.Terminal.TerminalEmulator.GetRowText(int row) -> string!
+TSharpVision.Terminal.TerminalEmulator.InsertMode.get -> bool
+TSharpVision.Terminal.TerminalEmulator.IsAlternateScreenActive.get -> bool
+TSharpVision.Terminal.TerminalEmulator.IsRowWrapped(int row) -> bool
+TSharpVision.Terminal.TerminalEmulator.MaxScrollbackLines.get -> int
+TSharpVision.Terminal.TerminalEmulator.MaxScrollbackLines.set -> void
+TSharpVision.Terminal.TerminalEmulator.MouseTracking.get -> TSharpVision.Terminal.TerminalMouseTracking
+TSharpVision.Terminal.TerminalEmulator.NewLineMode.get -> bool
+TSharpVision.Terminal.TerminalEmulator.NewLineMode.set -> void
+TSharpVision.Terminal.TerminalEmulator.OriginMode.get -> bool
+TSharpVision.Terminal.TerminalEmulator.Reset() -> void
+TSharpVision.Terminal.TerminalEmulator.Resize(int columns, int rows) -> void
+TSharpVision.Terminal.TerminalEmulator.ReverseVideo.get -> bool
+TSharpVision.Terminal.TerminalEmulator.Rows.get -> int
+TSharpVision.Terminal.TerminalEmulator.ScrollbackCount.get -> int
+TSharpVision.Terminal.TerminalEmulator.ScrollbackTotalAdded.get -> long
+TSharpVision.Terminal.TerminalEmulator.SgrMouseEncoding.get -> bool
+TSharpVision.Terminal.TerminalEmulator.TakeChanges() -> TSharpVision.Terminal.TerminalChanges
+TSharpVision.Terminal.TerminalEmulator.TakeResponses() -> string?
+TSharpVision.Terminal.TerminalEmulator.TerminalEmulator(int columns, int rows, int maxScrollbackLines = 1000) -> void
+TSharpVision.Terminal.TerminalEmulator.Title.get -> string!
+TSharpVision.Terminal.TerminalInputEncoder
+TSharpVision.Terminal.TerminalInputMode
+TSharpVision.Terminal.TerminalInputMode.Command = 1 -> TSharpVision.Terminal.TerminalInputMode
+TSharpVision.Terminal.TerminalInputMode.None = 0 -> TSharpVision.Terminal.TerminalInputMode
+TSharpVision.Terminal.TerminalInputMode.RawSession = 2 -> TSharpVision.Terminal.TerminalInputMode
+TSharpVision.Terminal.TerminalMouseTracking
+TSharpVision.Terminal.TerminalMouseTracking.AnyEvent = 4 -> TSharpVision.Terminal.TerminalMouseTracking
+TSharpVision.Terminal.TerminalMouseTracking.ButtonEvent = 3 -> TSharpVision.Terminal.TerminalMouseTracking
+TSharpVision.Terminal.TerminalMouseTracking.None = 0 -> TSharpVision.Terminal.TerminalMouseTracking
+TSharpVision.Terminal.TerminalMouseTracking.Normal = 2 -> TSharpVision.Terminal.TerminalMouseTracking
+TSharpVision.Terminal.TerminalMouseTracking.X10 = 1 -> TSharpVision.Terminal.TerminalMouseTracking
+TSharpVision.Terminal.TerminalOutputEventArgs
+TSharpVision.Terminal.TerminalOutputEventArgs.Data.get -> System.ReadOnlyMemory<byte>
+TSharpVision.Terminal.TerminalOutputEventArgs.IsError.get -> bool
+TSharpVision.Terminal.TerminalOutputEventArgs.TerminalOutputEventArgs(System.ReadOnlyMemory<byte> data, bool isError = false) -> void
+TSharpVision.Terminal.TerminalSessionExtensions
+TSharpVision.Terminal.TerminalSize
+TSharpVision.Terminal.TerminalSize.Columns.get -> int
+TSharpVision.Terminal.TerminalSize.Equals(TSharpVision.Terminal.TerminalSize other) -> bool
+TSharpVision.Terminal.TerminalSize.Rows.get -> int
+TSharpVision.Terminal.TerminalSize.TerminalSize() -> void
+TSharpVision.Terminal.TerminalSize.TerminalSize(int columns, int rows) -> void
+TSharpVision.Terminal.TerminalStyle
+TSharpVision.Terminal.TerminalStyle.Attributes.get -> TSharpVision.Terminal.TerminalCellAttributes
+TSharpVision.Terminal.TerminalStyle.Attributes.init -> void
+TSharpVision.Terminal.TerminalStyle.Background.get -> TSharpVision.Terminal.TerminalColor
+TSharpVision.Terminal.TerminalStyle.Background.init -> void
+TSharpVision.Terminal.TerminalStyle.Deconstruct(out TSharpVision.Terminal.TerminalColor Foreground, out TSharpVision.Terminal.TerminalColor Background, out TSharpVision.Terminal.TerminalCellAttributes Attributes) -> void
+TSharpVision.Terminal.TerminalStyle.Equals(TSharpVision.Terminal.TerminalStyle other) -> bool
+TSharpVision.Terminal.TerminalStyle.Foreground.get -> TSharpVision.Terminal.TerminalColor
+TSharpVision.Terminal.TerminalStyle.Foreground.init -> void
+TSharpVision.Terminal.TerminalStyle.TerminalStyle() -> void
+TSharpVision.Terminal.TerminalStyle.TerminalStyle(TSharpVision.Terminal.TerminalColor Foreground, TSharpVision.Terminal.TerminalColor Background, TSharpVision.Terminal.TerminalCellAttributes Attributes) -> void
+TSharpVision.Terminal.TerminalTextPosition
+TSharpVision.Terminal.TerminalTextPosition.Column.get -> int
+TSharpVision.Terminal.TerminalTextPosition.CompareTo(TSharpVision.Terminal.TerminalTextPosition other) -> int
+TSharpVision.Terminal.TerminalTextPosition.Equals(TSharpVision.Terminal.TerminalTextPosition other) -> bool
+TSharpVision.Terminal.TerminalTextPosition.IsBefore(TSharpVision.Terminal.TerminalTextPosition other) -> bool
+TSharpVision.Terminal.TerminalTextPosition.LineIndex.get -> int
+TSharpVision.Terminal.TerminalTextPosition.TerminalTextPosition() -> void
+TSharpVision.Terminal.TerminalTextPosition.TerminalTextPosition(int lineIndex, int column) -> void
+TSharpVision.Terminal.TTerminal
+TSharpVision.Terminal.TTerminal.ApplyColorMap(byte[]! map16) -> void
+TSharpVision.Terminal.TTerminal.AttachSession(TSharpVision.Terminal.ITerminalSession! session) -> void
+TSharpVision.Terminal.TTerminal.AttachVerticalScrollBar(TSharpVision.TScrollBar! scrollBar) -> void
+TSharpVision.Terminal.TTerminal.Bell -> System.EventHandler?
+TSharpVision.Terminal.TTerminal.Clear() -> void
+TSharpVision.Terminal.TTerminal.ClearSelection() -> void
+TSharpVision.Terminal.TTerminal.CommandHistory.get -> System.Collections.Generic.IReadOnlyList<string!>!
+TSharpVision.Terminal.TTerminal.CommandSubmitted -> System.EventHandler<TSharpVision.Terminal.TerminalCommandEventArgs!>?
+TSharpVision.Terminal.TTerminal.CopySelection() -> string!
+TSharpVision.Terminal.TTerminal.CurrentLine.get -> string!
+TSharpVision.Terminal.TTerminal.CursorColumn.get -> int
+TSharpVision.Terminal.TTerminal.DetachSession() -> void
+TSharpVision.Terminal.TTerminal.DetachVerticalScrollBar() -> void
+TSharpVision.Terminal.TTerminal.Emulator.get -> TSharpVision.Terminal.TerminalEmulator!
+TSharpVision.Terminal.TTerminal.GetLineText(int lineIndex) -> string!
+TSharpVision.Terminal.TTerminal.GetSelectedText() -> string!
+TSharpVision.Terminal.TTerminal.GetText() -> string!
+TSharpVision.Terminal.TTerminal.HandleControlC() -> void
+TSharpVision.Terminal.TTerminal.HasSelection.get -> bool
+TSharpVision.Terminal.TTerminal.InputBackspace() -> void
+TSharpVision.Terminal.TTerminal.InputBuffer.get -> string!
+TSharpVision.Terminal.TTerminal.InputCursor.get -> int
+TSharpVision.Terminal.TTerminal.InputDelete() -> void
+TSharpVision.Terminal.TTerminal.InputEnabled.get -> bool
+TSharpVision.Terminal.TTerminal.InputEnabled.set -> void
+TSharpVision.Terminal.TTerminal.InputInsertChar(char c) -> void
+TSharpVision.Terminal.TTerminal.InputMode.get -> TSharpVision.Terminal.TerminalInputMode
+TSharpVision.Terminal.TTerminal.InputMode.set -> void
+TSharpVision.Terminal.TTerminal.IsAtBottom.get -> bool
+TSharpVision.Terminal.TTerminal.LineCount.get -> int
+TSharpVision.Terminal.TTerminal.Lines.get -> System.Collections.Generic.IReadOnlyList<string!>!
+TSharpVision.Terminal.TTerminal.MaxCommandHistory.get -> int
+TSharpVision.Terminal.TTerminal.MaxCommandHistory.set -> void
+TSharpVision.Terminal.TTerminal.MaxLines.get -> int
+TSharpVision.Terminal.TTerminal.MaxLines.set -> void
+TSharpVision.Terminal.TTerminal.NewLineMode.get -> bool
+TSharpVision.Terminal.TTerminal.NewLineMode.set -> void
+TSharpVision.Terminal.TTerminal.PasteText(string! text) -> void
+TSharpVision.Terminal.TTerminal.Prompt.get -> string!
+TSharpVision.Terminal.TTerminal.Prompt.set -> void
+TSharpVision.Terminal.TTerminal.ScrollLineDown() -> void
+TSharpVision.Terminal.TTerminal.ScrollLineUp() -> void
+TSharpVision.Terminal.TTerminal.ScrollOffset.get -> int
+TSharpVision.Terminal.TTerminal.ScrollPageDown() -> void
+TSharpVision.Terminal.TTerminal.ScrollPageUp() -> void
+TSharpVision.Terminal.TTerminal.ScrollToBottom() -> void
+TSharpVision.Terminal.TTerminal.ScrollToLine(int lineIndex) -> void
+TSharpVision.Terminal.TTerminal.ScrollToTop() -> void
+TSharpVision.Terminal.TTerminal.Session.get -> TSharpVision.Terminal.ITerminalSession?
+TSharpVision.Terminal.TTerminal.SessionExited -> System.EventHandler?
+TSharpVision.Terminal.TTerminal.SetSelection(TSharpVision.Terminal.TerminalTextPosition anchor, TSharpVision.Terminal.TerminalTextPosition active) -> void
+TSharpVision.Terminal.TTerminal.SubmitInput() -> void
+TSharpVision.Terminal.TTerminal.SyncRoot.get -> object!
+TSharpVision.Terminal.TTerminal.TerminalSize.get -> TSharpVision.Terminal.TerminalSize
+TSharpVision.Terminal.TTerminal.Title.get -> string!
+TSharpVision.Terminal.TTerminal.TitleChanged -> System.EventHandler?
+TSharpVision.Terminal.TTerminal.TryFind(string! query, int startLine, System.StringComparison comparison, out TSharpVision.Terminal.TerminalTextPosition start, out TSharpVision.Terminal.TerminalTextPosition end) -> bool
+TSharpVision.Terminal.TTerminal.TTerminal(TSharpVision.TRect bounds, int maxLines) -> void
+TSharpVision.Terminal.TTerminal.TTerminal(TSharpVision.TRect bounds) -> void
+TSharpVision.Terminal.TTerminal.Write(string! text) -> void
+TSharpVision.Terminal.TTerminal.WriteLine(string! line) -> void
 TSharpVision.Terminal.Windows.ConPtyTerminalSession
-TSharpVision.Terminal.Windows.ConPtyTerminalSession.ConPtyTerminalSession(string! fileName, string? arguments = "", TSharpVision.TerminalSize? initialSize = null) -> void
+TSharpVision.Terminal.Windows.ConPtyTerminalSession.ConPtyTerminalSession(string! fileName, string? arguments = "", TSharpVision.Terminal.TerminalSize? initialSize = null) -> void
 TSharpVision.Terminal.Windows.ConPtyTerminalSession.ConPtyTerminalSession(TSharpVision.Terminal.Windows.ConPtyTerminalSessionOptions! options) -> void
 TSharpVision.Terminal.Windows.ConPtyTerminalSession.Dispose() -> void
 TSharpVision.Terminal.Windows.ConPtyTerminalSession.ExitCode.get -> int?
 TSharpVision.Terminal.Windows.ConPtyTerminalSession.Exited -> System.EventHandler?
 TSharpVision.Terminal.Windows.ConPtyTerminalSession.InterruptAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 TSharpVision.Terminal.Windows.ConPtyTerminalSession.IsRunning.get -> bool
-TSharpVision.Terminal.Windows.ConPtyTerminalSession.OutputReceived -> System.EventHandler<TSharpVision.TerminalOutputEventArgs!>?
-TSharpVision.Terminal.Windows.ConPtyTerminalSession.ResizeAsync(TSharpVision.TerminalSize size, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
-TSharpVision.Terminal.Windows.ConPtyTerminalSession.SendInputAsync(string! input, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.Terminal.Windows.ConPtyTerminalSession.OutputReceived -> System.EventHandler<TSharpVision.Terminal.TerminalOutputEventArgs!>?
+TSharpVision.Terminal.Windows.ConPtyTerminalSession.ProcessId.get -> int
+TSharpVision.Terminal.Windows.ConPtyTerminalSession.ResizeAsync(TSharpVision.Terminal.TerminalSize size, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+TSharpVision.Terminal.Windows.ConPtyTerminalSession.SendInputAsync(System.ReadOnlyMemory<byte> input, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 TSharpVision.Terminal.Windows.ConPtyTerminalSession.StartAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 TSharpVision.Terminal.Windows.ConPtyTerminalSession.StopAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 TSharpVision.Terminal.Windows.ConPtyTerminalSessionOptions
@@ -47,7 +339,7 @@ TSharpVision.Terminal.Windows.ConPtyTerminalSessionOptions.Arguments.init -> voi
 TSharpVision.Terminal.Windows.ConPtyTerminalSessionOptions.ConPtyTerminalSessionOptions() -> void
 TSharpVision.Terminal.Windows.ConPtyTerminalSessionOptions.FileName.get -> string!
 TSharpVision.Terminal.Windows.ConPtyTerminalSessionOptions.FileName.init -> void
-TSharpVision.Terminal.Windows.ConPtyTerminalSessionOptions.InitialSize.get -> TSharpVision.TerminalSize
+TSharpVision.Terminal.Windows.ConPtyTerminalSessionOptions.InitialSize.get -> TSharpVision.Terminal.TerminalSize
 TSharpVision.Terminal.Windows.ConPtyTerminalSessionOptions.InitialSize.init -> void
 TSharpVision.Terminal.Windows.ConPtyTerminalSessionOptions.WorkingDirectory.get -> string?
 TSharpVision.Terminal.Windows.ConPtyTerminalSessionOptions.WorkingDirectory.init -> void

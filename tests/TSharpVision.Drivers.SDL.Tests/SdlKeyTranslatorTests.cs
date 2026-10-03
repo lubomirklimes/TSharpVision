@@ -148,6 +148,55 @@ public sealed class SdlKeyTranslatorTests
         Assert.Equal(Keys.kbEnter, ev.keyDown.keyCode);
     }
 
+    // ── F11/F12 identity and Enter with modifiers (KEYBOARD-NORM) ─────────
+
+    [Theory]
+    [InlineData(SdlKeyTranslator.SDLK_F11, (ushort)0, Keys.kbF11)]
+    [InlineData(SdlKeyTranslator.SDLK_F12, (ushort)0, Keys.kbF12)]
+    [InlineData(SdlKeyTranslator.SDLK_F4, SdlKeyTranslator.SDL_KMOD_LSHIFT, Keys.kbShiftF4)]
+    [InlineData(SdlKeyTranslator.SDLK_F5, SdlKeyTranslator.SDL_KMOD_LSHIFT, Keys.kbShiftF5)]
+    [InlineData(SdlKeyTranslator.SDLK_F11, SdlKeyTranslator.SDL_KMOD_LSHIFT, Keys.kbShiftF11)]
+    [InlineData(SdlKeyTranslator.SDLK_F12, SdlKeyTranslator.SDL_KMOD_RSHIFT, Keys.kbShiftF12)]
+    [InlineData(SdlKeyTranslator.SDLK_F11, SdlKeyTranslator.SDL_KMOD_LCTRL, Keys.kbCtrlF11)]
+    [InlineData(SdlKeyTranslator.SDLK_F12, SdlKeyTranslator.SDL_KMOD_RCTRL, Keys.kbCtrlF12)]
+    [InlineData(SdlKeyTranslator.SDLK_F11, SdlKeyTranslator.SDL_KMOD_LALT, Keys.kbAltF11)]
+    [InlineData(SdlKeyTranslator.SDLK_F12, SdlKeyTranslator.SDL_KMOD_LALT, Keys.kbAltF12)]
+    public void SDL_FunctionKeysKeepTheirPhysicalIdentity(uint keycode, ushort mod, ushort expected)
+    {
+        Assert.True(SdlKeyTranslator.TryTranslate(keycode, mod, '\0', out var ev));
+        Assert.Equal(expected, ev.keyDown.keyCode);
+        Assert.Equal(SdlKeyTranslator.ToShiftState(mod), ev.keyDown.controlKeyState);
+    }
+
+    [Fact]
+    public void SDL_F11IsNotShiftF4AndF12IsNotShiftF5()
+    {
+        SdlKeyTranslator.TryTranslate(SdlKeyTranslator.SDLK_F11, 0, '\0', out var f11);
+        SdlKeyTranslator.TryTranslate(SdlKeyTranslator.SDLK_F4, SdlKeyTranslator.SDL_KMOD_LSHIFT, '\0', out var shiftF4);
+        SdlKeyTranslator.TryTranslate(SdlKeyTranslator.SDLK_F12, 0, '\0', out var f12);
+        SdlKeyTranslator.TryTranslate(SdlKeyTranslator.SDLK_F5, SdlKeyTranslator.SDL_KMOD_LSHIFT, '\0', out var shiftF5);
+        Assert.NotEqual(shiftF4.keyDown.keyCode, f11.keyDown.keyCode);
+        Assert.NotEqual(shiftF5.keyDown.keyCode, f12.keyDown.keyCode);
+    }
+
+    /// <summary>
+    /// Ctrl+Enter has a key code of its own (kbCtrlEnter), as the Console driver and the Kitty protocol report it;
+    /// Shift+Enter and Alt+Enter have none, so they stay Enter with their modifier state preserved.
+    /// </summary>
+    [Theory]
+    [InlineData((ushort)0, Keys.kbEnter)]
+    [InlineData(SdlKeyTranslator.SDL_KMOD_LSHIFT, Keys.kbEnter)]
+    [InlineData(SdlKeyTranslator.SDL_KMOD_LCTRL, Keys.kbCtrlEnter)]
+    [InlineData(SdlKeyTranslator.SDL_KMOD_RCTRL, Keys.kbCtrlEnter)]
+    [InlineData(SdlKeyTranslator.SDL_KMOD_LALT, Keys.kbEnter)]
+    [InlineData((ushort)(SdlKeyTranslator.SDL_KMOD_LCTRL | SdlKeyTranslator.SDL_KMOD_LSHIFT), Keys.kbCtrlEnter)]
+    public void SDL_EnterWithModifiers(ushort mod, ushort expected)
+    {
+        Assert.True(SdlKeyTranslator.TryTranslate(SdlKeyTranslator.SDLK_RETURN, mod, '\0', out var ev));
+        Assert.Equal(expected, ev.keyDown.keyCode);
+        Assert.Equal(SdlKeyTranslator.ToShiftState(mod), ev.keyDown.controlKeyState);
+    }
+
     // ── Modifier-only keys are filtered ───────────────────────────────────
 
     [Fact]

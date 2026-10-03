@@ -1,9 +1,19 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!-- The TSharpVision terminal: an xterm-compatible emulator (screen grid, stateful VT parser, key encoder), the
+       TTerminal view that draws it, and the byte-stream session contract with its ConPTY, POSIX PTY, pipe and
+       in-memory implementations.
+
+       WHAT IT REFERENCES, AND WHAT IT MUST NEVER REFERENCE.
+
+           TSharpVision.Terminal  ->  TSharpVision
+
+       Nothing else: no application (TSharpCommander), no SSH or SFTP library. A remote shell plugs in as another
+       ITerminalSession; the emulator never sees a transport type. -->
   <PropertyGroup>
     <PackageId>TSharpVision.Terminal</PackageId>
-    <Description>ConPTY and POSIX pseudo-terminal session implementations for TSharpVision terminal controls.</Description>
-    <PackageTags>tsharpvision;tui;terminal;pty;conpty;posix</PackageTags>
+    <Description>xterm-compatible terminal emulator and TTerminal view for TSharpVision, with ConPTY, POSIX PTY and pipe sessions.</Description>
+    <PackageTags>tsharpvision;tui;terminal;terminal-emulator;vt100;xterm;pty;conpty;posix</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>

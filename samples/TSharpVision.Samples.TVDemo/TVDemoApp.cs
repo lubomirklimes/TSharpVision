@@ -115,6 +115,11 @@ public partial class TVDemoApp : TApplication
                 OpenHeap();
                 ClearEvent(ref ev);
                 break;
+
+            case Views.cmHelpIndex:
+                OpenHelpIndex();
+                ClearEvent(ref ev);
+                break;
         }
     }
 
@@ -264,11 +269,13 @@ public partial class TVDemoApp : TApplication
     // -----------------------------------------------------------------------
     private void ShowAbout()
     {
-        var dlg = new TDialog(new TRect(20, 7, 60, 17), "About TSharpVision TVDemo");
-        var st = new TStaticText(new TRect(1, 2, 38, 5),
-            "TSharpVision TVDemo\n" +
+        var dlg = new TDialog(new TRect(0, 0, 40, 10), "About TVDemo");
+        if (DeskTop != null)
+            dlg.MoveTo((DeskTop.size.x - 40) / 2, (DeskTop.size.y - 10) / 2);
+        var st = new TStaticText(new TRect(1, 2, 39, 5),
+            "\x03T# Vision Demo\n" +
             "\n" +
-            "A TSharpVision sample application.");
+            "\x03 A T# Vision sample application.");
         var btn = new TButton(new TRect(14, 6, 26, 8), "~O~K", Views.cmOK, ButtonConstants.bfDefault);
         dlg.Insert(st);
         dlg.Insert(btn);

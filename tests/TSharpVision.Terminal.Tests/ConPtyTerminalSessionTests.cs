@@ -48,7 +48,7 @@ public sealed class ConPtyTerminalSessionTests
         var exited  = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         using var session = CreateSession("cmd.exe", "/c echo ConPTY_smoke_12345");
-        session.OutputReceived += (_, e) => output.Append(e.Text);
+        session.OutputReceived += (_, e) => output.AppendOutput(e);
         session.Exited         += (_, _) => exited.TrySetResult(true);
 
         await session.StartAsync();
@@ -66,7 +66,7 @@ public sealed class ConPtyTerminalSessionTests
         var exited = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         using var session = CreateSession("cmd.exe", "/c dir");
-        session.OutputReceived += (_, e) => output.Append(e.Text);
+        session.OutputReceived += (_, e) => output.AppendOutput(e);
         session.Exited         += (_, _) => exited.TrySetResult(true);
 
         await session.StartAsync();
@@ -315,7 +315,7 @@ public sealed class ConPtyTerminalSessionTests
         if (!IsConPtySupported) return;
 
         using var session = CreateSession("cmd.exe", "/c echo x");
-        var ex = await Record.ExceptionAsync(() => session.SendInputAsync("hello\n"));
+        var ex = await Record.ExceptionAsync(() => session.SendTextAsync("hello\n"));
         Assert.Null(ex);
     }
 

@@ -12,29 +12,52 @@ namespace TSharpVision.Terminal.Windows;
 /// events, and forwards input through the PTY master.
 /// </summary>
 /// <remarks>
+/// <para>
 /// Requires Windows 10 version 1809 (build 17763) or later.
 /// On earlier Windows versions or non-Windows platforms,
 /// <see cref="StartAsync"/> throws <see cref="PlatformNotSupportedException"/>.
 /// The assembly still compiles on all platforms; the guard is runtime-only.
 /// ANSI/VT output is forwarded as raw bytes decoded to UTF-8; parsing is left
 /// to <see cref="TTerminal"/> (which contains the ANSI parser).
+/// </para>
+/// <para>
+/// <b>Ownership.</b> Every native resource has one owner and is released once: the pseudo console
+/// (<see cref="SafePseudoConsoleHandle"/>), the parent pipe ends (unbuffered
+/// <see cref="FileStream"/>s over <see cref="SafeFileHandle"/>s), the process
+/// (<see cref="SafeProcessHandle"/>), the primary thread (closed as soon as it is resumed) and the
+/// Job Object (<see cref="SafeJobObjectHandle"/>). Background users of a handle hold a
+/// <see cref="SafeHandle"/> reference, so a concurrent release is deferred rather than racing.
+/// </para>
+/// <para>
+/// <b>Process tree.</b> The child is created suspended, joins a Job Object configured with
+/// <c>JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE</c>, and only then runs, so no descendant can be created
+/// outside the job. Releasing the job handle — on <see cref="StopAsync"/>, on
+/// <see cref="Dispose"/>, or by the OS when this process dies — terminates every process still in
+/// it, and nothing else.
+/// </para>
+/// <para>
+/// A session is single-use: it can be started once.
+/// </para>
 /// </remarks>
 [SupportedOSPlatform("windows10.0.17763")]
 public sealed class ConPtyTerminalSession : ITerminalSession, IResizableTerminalSession,
     IInterruptibleTerminalSession, IExitCodeTerminalSession
 {
     private readonly ConPtyTerminalSessionOptions _options;
+    private readonly TerminalInputPump _input;
 
     // ConPTY handle — non-null and valid between StartAsync and cleanup.
     private SafePseudoConsoleHandle? _hPseudoConsole;
     private int _conPtyClosed;   // 0 = open, 1 = closed; guarded by CompareExchange
 
-    // Pipe streams — wrap the parent-side pipe handles.
+    // Pipe streams — wrap the parent-side pipe handles. Unbuffered, so disposing one never has
+    // anything to flush and never blocks.
     private FileStream? _inputStream;    // parent writes input here
     private FileStream? _outputStream;   // parent reads output here
 
     // Process handle.
     private SafeProcessHandle? _hProcess;
+    private int _processId;
 
     // Job Object for process-tree cleanup (best-effort; null when unavailable).
     private SafeJobObjectHandle? _hJob;
@@ -43,12 +66,14 @@ public sealed class ConPtyTerminalSession : ITerminalSession, IResizableTerminal
     private Task? _outputReaderTask;
     private Task? _processWatcherTask;
 
-    // Thread-safety for input writes.
+    // Serialises writes to the input pipe (queued input and interrupts).
     private readonly object _inputLock = new();
 
     // State flags.
     private volatile bool _isRunning;
+    private int _started;       // 0 = never started; guarded by CompareExchange
     private int _exitedFired;   // 0 = not fired; guarded by CompareExchange
+    private int _released;      // 0 = handles live; guarded by CompareExchange
     private int _disposed;      // 0 = alive; guarded by CompareExchange
 
     /// <inheritdoc/>
@@ -67,12 +92,22 @@ public sealed class ConPtyTerminalSession : ITerminalSession, IResizableTerminal
     /// </summary>
     public int? ExitCode { get; private set; }
 
+    /// <summary>The child's process id, or 0 before a successful start — for a host that tracks or signals it.</summary>
+    public int ProcessId => _processId;
+
+    /// <summary>True when the child was placed in a kill-on-close Job Object.</summary>
+    internal bool HasJob => _hJob is { IsInvalid: false };
+
+    /// <summary>The output reader, for tests that assert it finished.</summary>
+    internal Task? OutputReaderTask => _outputReaderTask;
+
     /// <param name="options">Session configuration.</param>
     public ConPtyTerminalSession(ConPtyTerminalSessionOptions options)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         if (string.IsNullOrEmpty(options.FileName))
             throw new ArgumentException("FileName must be specified.", nameof(options));
+        _input = new TerminalInputPump(WriteInput);
     }
 
     /// <summary>
@@ -96,7 +131,7 @@ public sealed class ConPtyTerminalSession : ITerminalSession, IResizableTerminal
     /// Thrown on non-Windows or on Windows versions earlier than build 17763.
     /// </exception>
     /// <exception cref="InvalidOperationException">
-    /// Thrown if the session is already running.
+    /// Thrown if the session is already running or was started before.
     /// </exception>
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
@@ -111,6 +146,9 @@ public sealed class ConPtyTerminalSession : ITerminalSession, IResizableTerminal
         if (Interlocked.CompareExchange(ref _disposed, 0, 0) != 0)
             throw new ObjectDisposedException(nameof(ConPtyTerminalSession));
 
+        if (Interlocked.CompareExchange(ref _started, 1, 0) != 0)
+            throw new InvalidOperationException("A terminal session can be started only once.");
+
         StartCore();
         return Task.CompletedTask;
     }
@@ -122,6 +160,9 @@ public sealed class ConPtyTerminalSession : ITerminalSession, IResizableTerminal
         SafeFileHandle? outputRead  = null;
         SafeFileHandle? outputWrite = null;
         SafePseudoConsoleHandle? hPseudoConsole = null;
+        SafeProcessHandle? process = null;
+        SafeJobObjectHandle? job = null;
+        IntPtr thread = IntPtr.Zero;
         IntPtr attributeList = IntPtr.Zero;
         bool success = false;
 
@@ -136,13 +177,8 @@ public sealed class ConPtyTerminalSession : ITerminalSession, IResizableTerminal
                 throw new Win32Exception(Marshal.GetLastWin32Error(), "Failed to create ConPTY output pipe.");
 
             // ── Create pseudo console ─────────────────────────────────────────
-            var coord = new NativeMethods.COORD
-            {
-                X = (short)_options.InitialSize.Columns,
-                Y = (short)_options.InitialSize.Rows
-            };
-
-            int hr = NativeMethods.CreatePseudoConsole(coord, inputRead, outputWrite, 0, out hPseudoConsole);
+            int hr = NativeMethods.CreatePseudoConsole(ToCoord(_options.InitialSize), inputRead, outputWrite,
+                0, out hPseudoConsole);
 
             // Close the child-side pipe handles now; ConPTY owns copies of them.
             inputRead.Dispose();  inputRead  = null;
@@ -157,7 +193,11 @@ public sealed class ConPtyTerminalSession : ITerminalSession, IResizableTerminal
             attributeList = Marshal.AllocHGlobal(attrListSize);
 
             if (!NativeMethods.InitializeProcThreadAttributeList(attributeList, 1, 0, ref attrListSize))
+            {
+                Marshal.FreeHGlobal(attributeList);
+                attributeList = IntPtr.Zero;
                 throw new Win32Exception(Marshal.GetLastWin32Error(), "Failed to initialize process attribute list.");
+            }
 
             if (!NativeMethods.UpdateProcThreadAttribute(
                     attributeList, 0,
@@ -166,7 +206,7 @@ public sealed class ConPtyTerminalSession : ITerminalSession, IResizableTerminal
                     IntPtr.Zero, IntPtr.Zero))
                 throw new Win32Exception(Marshal.GetLastWin32Error(), "Failed to set PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE.");
 
-            // ── Create child process ──────────────────────────────────────────
+            // ── Create child process, suspended ───────────────────────────────
             var startupInfoEx = new NativeMethods.STARTUPINFOEX();
             startupInfoEx.StartupInfo.cb = Marshal.SizeOf<NativeMethods.STARTUPINFOEX>();
             // Set STARTF_USESTDHANDLES with INVALID_HANDLE_VALUE so the child's
@@ -178,35 +218,39 @@ public sealed class ConPtyTerminalSession : ITerminalSession, IResizableTerminal
             startupInfoEx.StartupInfo.hStdError  = new IntPtr(-1);
             startupInfoEx.lpAttributeList = attributeList;
 
-            var cmdLine = new StringBuilder(_options.FileName);
-            if (!string.IsNullOrEmpty(_options.Arguments))
-                cmdLine.Append(' ').Append(_options.Arguments);
+            var cmdLine = new StringBuilder(BuildCommandLine(_options.FileName, _options.Arguments));
 
+            EnsureChildrenProcessCtrlC();
             if (!NativeMethods.CreateProcess(
                     null, cmdLine,
                     IntPtr.Zero, IntPtr.Zero,
                     false,
-                    NativeMethods.EXTENDED_STARTUPINFO_PRESENT,
+                    NativeMethods.EXTENDED_STARTUPINFO_PRESENT | NativeMethods.CREATE_SUSPENDED,
                     IntPtr.Zero,
                     _options.WorkingDirectory,
                     ref startupInfoEx,
                     out var processInfo))
                 throw new Win32Exception(Marshal.GetLastWin32Error(), "Failed to create child process.");
 
-            // Thread handle is not needed; close it immediately.
-            NativeMethods.CloseHandle(processInfo.hThread);
+            thread  = processInfo.hThread;
+            process = new SafeProcessHandle(processInfo.hProcess, ownsHandle: true);
+
+            // Join the kill-on-close job while the child has not executed a single instruction, so
+            // nothing it starts can be created outside the job.
+            job = TryCreateJobForProcess(process);
+
+            if (NativeMethods.ResumeThread(thread) == uint.MaxValue)
+                throw new Win32Exception(Marshal.GetLastWin32Error(), "Failed to resume the child process.");
 
             // ── Store live state ──────────────────────────────────────────────
+            _inputStream  = new FileStream(inputWrite, FileAccess.Write, bufferSize: 1, isAsync: false);
+            inputWrite    = null;
+            _outputStream = new FileStream(outputRead, FileAccess.Read, bufferSize: 1, isAsync: false);
+            outputRead    = null;
             _hPseudoConsole = hPseudoConsole; hPseudoConsole = null;
-            _hProcess       = new SafeProcessHandle(processInfo.hProcess, ownsHandle: true);
-            _inputStream    = new FileStream(inputWrite,  FileAccess.Write, bufferSize: 256,  isAsync: false);
-            _outputStream   = new FileStream(outputRead,  FileAccess.Read,  bufferSize: 1, isAsync: false);
-            inputWrite  = null;
-            outputRead  = null;
-
-            // Assign the child to a job with KILL_ON_JOB_CLOSE so the entire
-            // process tree is cleaned up when the job handle is released.
-            _hJob = TryCreateJobForProcess(_hProcess.DangerousGetHandle());
+            _hProcess       = process;        process        = null;
+            _hJob           = job;            job            = null;
+            _processId      = processInfo.dwProcessId;
 
             // ── Start background tasks ────────────────────────────────────────
             _isRunning = true;
@@ -216,6 +260,9 @@ public sealed class ConPtyTerminalSession : ITerminalSession, IResizableTerminal
         }
         finally
         {
+            // The primary thread handle is never needed after the resume.
+            if (thread != IntPtr.Zero) NativeMethods.CloseHandle(thread);
+
             // Always free the attribute list (safe to free after CreateProcess returns).
             if (attributeList != IntPtr.Zero)
             {
@@ -226,37 +273,65 @@ public sealed class ConPtyTerminalSession : ITerminalSession, IResizableTerminal
             // On failure, release any handles that were not transferred to fields.
             if (!success)
             {
+                if (process is { IsInvalid: false })
+                {
+                    try { NativeMethods.TerminateProcess(process.DangerousGetHandle(), 1); } catch { }
+                }
+                process?.Dispose();
+                job?.Dispose();
                 hPseudoConsole?.Dispose();
                 inputRead?.Dispose();
                 inputWrite?.Dispose();
                 outputRead?.Dispose();
                 outputWrite?.Dispose();
+                _inputStream?.Dispose();
+                _outputStream?.Dispose();
+                _inputStream = null;
+                _outputStream = null;
             }
         }
     }
 
+    private static int s_ctrlCNormalized;
+
+    /// <summary>
+    /// Makes sure programs in the pseudo console can be interrupted. Windows passes a process's "ignore Ctrl+C" flag on
+    /// to every process it creates; a host started by a launcher that set it (a test host, some IDEs and shells) would
+    /// otherwise start shells whose programs ignore the ETX that <see cref="InterruptAsync"/> writes — found in U-1b,
+    /// where <c>ping -t</c> in cmd.exe could not be stopped. The flag is cleared once, before the first child is
+    /// created, which is the state of a process started normally. Handlers the host registered with
+    /// <c>SetConsoleCtrlHandler</c> (or <c>Console.CancelKeyPress</c>) are not affected, and the pseudo console's own
+    /// Ctrl+C never reaches the host's console.
+    /// </summary>
+    internal static void EnsureChildrenProcessCtrlC()
+    {
+        if (Interlocked.Exchange(ref s_ctrlCNormalized, 1) == 0)
+            NativeMethods.SetConsoleCtrlHandler(IntPtr.Zero, false);
+    }
+
+    /// <summary>
+    /// The command line <c>CreateProcess</c> receives. An executable path containing whitespace is
+    /// quoted — otherwise <c>C:\Program Files\x.exe</c> would be parsed as <c>C:\Program</c> with
+    /// arguments. <paramref name="arguments"/> are passed through verbatim, as before.
+    /// </summary>
+    internal static string BuildCommandLine(string fileName, string? arguments)
+    {
+        string file = fileName.Length > 0 && fileName[0] != '"' && fileName.AsSpan().IndexOfAny(' ', '\t') >= 0
+            ? "\"" + fileName + "\""
+            : fileName;
+        return string.IsNullOrEmpty(arguments) ? file : file + " " + arguments;
+    }
+
     /// <inheritdoc/>
     /// <remarks>
-    /// If the session is not running, the call is a no-op. The input string is
-    /// encoded as UTF-8 before being written to the PTY master.
+    /// If the session is not running, the call is a no-op. The bytes are copied and queued; the
+    /// returned task completes once they reached the pseudo console or were discarded because the
+    /// session ended. The caller's thread never blocks on the pipe.
     /// </remarks>
-    public Task SendInputAsync(string input, CancellationToken cancellationToken = default)
+    public Task SendInputAsync(ReadOnlyMemory<byte> input, CancellationToken cancellationToken = default)
     {
-        if (!_isRunning || _inputStream == null) return Task.CompletedTask;
-
-        lock (_inputLock)
-        {
-            if (_inputStream == null) return Task.CompletedTask;
-            try
-            {
-                byte[] bytes = Encoding.UTF8.GetBytes(input);
-                _inputStream.Write(bytes, 0, bytes.Length);
-                _inputStream.Flush();
-            }
-            catch (IOException) { }
-            catch (ObjectDisposedException) { }
-        }
-        return Task.CompletedTask;
+        if (!_isRunning || input.IsEmpty) return Task.CompletedTask;
+        return _input.EnqueueAsync(input.ToArray());
     }
 
     /// <summary>
@@ -267,6 +342,8 @@ public sealed class ConPtyTerminalSession : ITerminalSession, IResizableTerminal
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         if (!_isRunning) return;
+
+        _input.Close();
 
         // Kill the child process.
         TerminateChildIfAlive();
@@ -297,6 +374,7 @@ public sealed class ConPtyTerminalSession : ITerminalSession, IResizableTerminal
     {
         if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0) return;
 
+        _input.Close();
         TerminateChildIfAlive();
         _isRunning = false;
         CloseConPty();
@@ -307,18 +385,27 @@ public sealed class ConPtyTerminalSession : ITerminalSession, IResizableTerminal
     // ── IResizableTerminalSession ─────────────────────────────────────────────
 
     /// <inheritdoc/>
-    /// <remarks>If the session is not running, the call is a no-op.</remarks>
+    /// <remarks>
+    /// If the session is not running, or its pseudo console is already closed, the call is a
+    /// no-op.
+    /// </remarks>
     public Task ResizeAsync(TerminalSize size, CancellationToken cancellationToken = default)
     {
-        if (!_isRunning || _hPseudoConsole == null || _hPseudoConsole.IsInvalid || _hPseudoConsole.IsClosed)
+        if (!_isRunning) return Task.CompletedTask;
+
+        SafePseudoConsoleHandle? pseudoConsole = _hPseudoConsole;
+        if (pseudoConsole == null || pseudoConsole.IsInvalid || pseudoConsole.IsClosed)
             return Task.CompletedTask;
 
-        var coord = new NativeMethods.COORD
+        try
         {
-            X = (short)size.Columns,
-            Y = (short)size.Rows
-        };
-        NativeMethods.ResizePseudoConsole(_hPseudoConsole, coord);
+            // The SafeHandle marshaller holds a reference for the call, so a concurrent close waits.
+            NativeMethods.ResizePseudoConsole(pseudoConsole, ToCoord(size));
+        }
+        catch (ObjectDisposedException)
+        {
+            // Closed between the check and the call: the session is ending; nothing to resize.
+        }
         return Task.CompletedTask;
     }
 
@@ -328,24 +415,12 @@ public sealed class ConPtyTerminalSession : ITerminalSession, IResizableTerminal
     /// <remarks>
     /// Writes the ETX character (0x03) to the PTY master, which the child
     /// process receives as a Ctrl+C signal via the Windows console. If the
-    /// session is not running, the call is a no-op.
+    /// session is not running, the call is a no-op. The write runs on a pool thread.
     /// </remarks>
     public Task InterruptAsync(CancellationToken cancellationToken = default)
     {
-        if (!_isRunning || _inputStream == null) return Task.CompletedTask;
-
-        lock (_inputLock)
-        {
-            if (_inputStream == null) return Task.CompletedTask;
-            try
-            {
-                _inputStream.WriteByte(0x03); // ETX = Ctrl+C
-                _inputStream.Flush();
-            }
-            catch (IOException) { }
-            catch (ObjectDisposedException) { }
-        }
-        return Task.CompletedTask;
+        if (!_isRunning) return Task.CompletedTask;
+        return Task.Run(() => { WriteInput(new byte[] { 0x03 }); }, CancellationToken.None);
     }
 
     // ── Background tasks ──────────────────────────────────────────────────────
@@ -355,28 +430,27 @@ public sealed class ConPtyTerminalSession : ITerminalSession, IResizableTerminal
         FileStream? stream = _outputStream;
         if (stream is null) return;
         var buffer   = new byte[4096];
-        var charBuf  = new char[Encoding.UTF8.GetMaxCharCount(4096)];
-        var decoder  = Encoding.UTF8.GetDecoder();
         try
         {
             int bytesRead;
+            // Raw bytes: the emulator owns decoding, so a split UTF-8 character or escape sequence is joined there.
             while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
-            {
-                int charCount = decoder.GetChars(buffer, 0, bytesRead, charBuf, 0);
-                if (charCount > 0)
-                    OutputReceived?.Invoke(this, new TerminalOutputEventArgs(new string(charBuf, 0, charCount)));
-            }
+                OutputReceived?.Invoke(this, new TerminalOutputEventArgs(buffer.AsMemory(0, bytesRead)));
         }
         catch (IOException) { }
         catch (ObjectDisposedException) { }
     }
 
     // Creates a Job Object with JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE and assigns
-    // the child process to it. Returns an invalid handle on failure (non-fatal).
-    private static SafeJobObjectHandle? TryCreateJobForProcess(IntPtr hProcess)
+    // the child process to it. Returns null on failure (non-fatal).
+    private static SafeJobObjectHandle? TryCreateJobForProcess(SafeProcessHandle process)
     {
         SafeJobObjectHandle hJob = NativeMethods.CreateJobObject(IntPtr.Zero, null);
-        if (hJob.IsInvalid) return hJob;
+        if (hJob.IsInvalid)
+        {
+            hJob.Dispose();
+            return null;
+        }
         try
         {
             var info = new NativeMethods.JOBOBJECT_EXTENDED_LIMIT_INFORMATION
@@ -391,7 +465,7 @@ public sealed class ConPtyTerminalSession : ITerminalSession, IResizableTerminal
                 NativeMethods.JobObjectExtendedLimitInformation,
                 ref info,
                 Marshal.SizeOf<NativeMethods.JOBOBJECT_EXTENDED_LIMIT_INFORMATION>());
-            bool assigned = configured && NativeMethods.AssignProcessToJobObject(hJob, hProcess);
+            bool assigned = configured && NativeMethods.AssignProcessToJobObject(hJob, process.DangerousGetHandle());
             if (!assigned) { hJob.Dispose(); return null; }
         }
         catch
@@ -408,16 +482,9 @@ public sealed class ConPtyTerminalSession : ITerminalSession, IResizableTerminal
         SafeProcessHandle? process = _hProcess;
         if (process == null || process.IsInvalid) return;
 
-        // Block the thread pool thread until the process exits.
-        await Task.Run(() => NativeMethods.WaitForSingleObject(
-            process.DangerousGetHandle(), NativeMethods.INFINITE)).ConfigureAwait(false);
-
-        // Capture exit code before closing anything.
-        if (NativeMethods.GetExitCodeProcess(process.DangerousGetHandle(), out uint code)
-            && code != NativeMethods.STILL_ACTIVE)
-        {
-            ExitCode = (int)code;
-        }
+        // Block a thread pool thread until the process exits; capture the exit code.
+        int? exitCode = await Task.Run(() => WaitForExitCode(process)).ConfigureAwait(false);
+        if (exitCode is int code) ExitCode = code;
 
         // The child process may exit before conhost.exe has written all its output
         // to the pipe. Give conhost a brief window to flush before we close the ConPTY.
@@ -436,11 +503,67 @@ public sealed class ConPtyTerminalSession : ITerminalSession, IResizableTerminal
             catch { }
         }
 
+        _input.Close();
         _isRunning = false;
         FireExited();
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Waits for the process under a handle reference, so releasing the handle meanwhile defers
+    /// the close instead of pulling the handle out from under the wait.
+    /// </summary>
+    private static int? WaitForExitCode(SafeProcessHandle process)
+    {
+        bool added = false;
+        try
+        {
+            process.DangerousAddRef(ref added);
+        }
+        catch (ObjectDisposedException)
+        {
+            return null;
+        }
+
+        try
+        {
+            IntPtr handle = process.DangerousGetHandle();
+            NativeMethods.WaitForSingleObject(handle, NativeMethods.INFINITE);
+            return NativeMethods.GetExitCodeProcess(handle, out uint code) && code != NativeMethods.STILL_ACTIVE
+                ? (int)code
+                : null;
+        }
+        finally
+        {
+            if (added) process.DangerousRelease();
+        }
+    }
+
+    private static NativeMethods.COORD ToCoord(TerminalSize size) => new()
+    {
+        X = (short)Math.Clamp(size.Columns, 1, short.MaxValue),
+        Y = (short)Math.Clamp(size.Rows, 1, short.MaxValue),
+    };
+
+    /// <summary>Writes every byte, or returns false once the pipe is unusable.</summary>
+    private bool WriteInput(byte[] data)
+    {
+        FileStream? stream = Volatile.Read(ref _inputStream);
+        if (stream is null) return false;
+
+        lock (_inputLock)
+        {
+            try
+            {
+                stream.Write(data, 0, data.Length);
+                stream.Flush();
+                return true;
+            }
+            catch (IOException) { return false; }
+            catch (ObjectDisposedException) { return false; }
+        }
+    }
 
     private void CloseConPty()
     {
@@ -451,30 +574,40 @@ public sealed class ConPtyTerminalSession : ITerminalSession, IResizableTerminal
     private void TerminateChildIfAlive()
     {
         SafeProcessHandle? process = _hProcess;
-        if (process == null || process.IsInvalid || process.IsClosed) return;
+        if (process == null || process.IsInvalid) return;
+
+        bool added = false;
         try
         {
-            NativeMethods.GetExitCodeProcess(process.DangerousGetHandle(), out uint code);
-            if (code == NativeMethods.STILL_ACTIVE)
-                NativeMethods.TerminateProcess(process.DangerousGetHandle(), 0);
+            process.DangerousAddRef(ref added);
+            IntPtr handle = process.DangerousGetHandle();
+            if (NativeMethods.GetExitCodeProcess(handle, out uint code) && code == NativeMethods.STILL_ACTIVE)
+                NativeMethods.TerminateProcess(handle, 0);
         }
-        catch { }
+        catch (ObjectDisposedException) { }
+        finally
+        {
+            if (added) process.DangerousRelease();
+        }
     }
 
     private void FireExited()
     {
+        if (Interlocked.CompareExchange(ref _disposed, 0, 0) != 0) return;
         if (Interlocked.CompareExchange(ref _exitedFired, 1, 0) == 0)
             Exited?.Invoke(this, EventArgs.Empty);
     }
 
     private void ReleaseHandles()
     {
+        if (Interlocked.CompareExchange(ref _released, 1, 0) != 0) return;
+
         try { _outputStream?.Dispose(); } catch { }
         try { _inputStream?.Dispose();  } catch { }
         try { _hProcess?.Dispose();     } catch { }
         // Closing the job handle triggers KILL_ON_JOB_CLOSE for any remaining
-        // child processes (grandchildren, etc.) that the direct TerminateProcess
-        // call may not have reached.
+        // processes of the tree (grandchildren, etc.) that the direct TerminateProcess
+        // call did not reach.
         try { _hJob?.Dispose();         } catch { }
     }
 }

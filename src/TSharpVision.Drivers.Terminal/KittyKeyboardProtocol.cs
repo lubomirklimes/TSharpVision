@@ -357,9 +357,28 @@ internal sealed class KittyKeyboardDecoder
         _ => 0,
     };
 
+    // Keypad keys the report-all-keys flag sends with codes of their own (KP_ENTER, KP_LEFT … KP_DELETE) are the
+    // main keys: the other drivers do not tell them apart either. Keypad digits and operators carry their text.
+    private static int MainKey(int key) => key switch
+    {
+        57414 => 13,     // KP_ENTER
+        57417 => -4,     // KP_LEFT
+        57418 => -3,     // KP_RIGHT
+        57419 => -1,     // KP_UP
+        57420 => -2,     // KP_DOWN
+        57421 => -13,    // KP_PAGE_UP
+        57422 => -14,    // KP_PAGE_DOWN
+        57423 => -5,     // KP_HOME
+        57424 => -6,     // KP_END
+        57425 => -11,    // KP_INSERT
+        57426 => -12,    // KP_DELETE
+        _ => key,
+    };
+
     private static bool TryTranslate(int key, uint modifiers, string text, out KeyDownEvent payload)
     {
         payload = default;
+        key = MainKey(key);
         bool shift = (modifiers & Keys.kbShift) != 0;
         bool control = (modifiers & Keys.kbCtrlShift) != 0;
         bool alt = (modifiers & Keys.kbAltShift) != 0;

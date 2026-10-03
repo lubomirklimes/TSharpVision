@@ -6,7 +6,7 @@ Use the {Index} to explore TVDemo demonstrations.
  {Main menu:MainMenu}
  {Welcome:WelcomeWindow}
  {Window management:WindowManagement}
- {Controls showcase:ControlsShowcase}
+ {Common controls:ControlsShowcase}
  {UI colors:ColorDialog}
  {Resource dialog:ResourceDialog}
  {Games}
@@ -15,7 +15,7 @@ Use the {Index} to explore TVDemo demonstrations.
 Tab selects links, Enter follows a link, Backspace returns, Esc closes help.
 
 .topic MainMenu=2
-File opens plain demonstration windows and a read-only file viewer. Demo contains simple dialogs, controls, input history and a resource-loaded dialog.
+File opens plain demonstration windows and a read-only file viewer. Demo contains common and selection controls, an outline, a popup menu, code editor, hex viewer, table viewer, terminal, input history and resource dialog.
 
 Accessories contains ASCII table, calculator, calendar and clock. Games contains puzzle, Tetris and Sokoban. Diagnostics contains mouse and memory displays. Options edits UI colors. Window arranges and restores supported windows.
 
@@ -30,7 +30,9 @@ F6 selects the next window; Shift+F6 selects the previous one. F5 zooms; Ctrl+F5
 Save Desktop State writes plain demonstration windows and the application palette to tvdemo-desktop.tvr next to the executable. Unsupported games, accessories and viewers are reported and excluded. Load validates the snapshot before replacing supported windows; other windows remain open. Saved order is preserved among restored windows, which are placed above retained windows. Only the palette is restored automatically on startup.
 
 .topic ControlsShowcase=6
-Use Tab/Shift+Tab to navigate input, check boxes, radio buttons and language list. Labels have Alt+letter accelerators. OK reports selected values; Cancel dismisses the dialog. Demo/Input History records submitted input and recalls it with the history button.
+Demo/Common Controls: use Tab/Shift+Tab to navigate input, check boxes, radio buttons and language list. OK reports selected values. Demo/Selection Controls cycles three states per item with Space. Demo/Outline navigates with arrows and expands or collapses with + and -. Demo/Popup Menu dispatches a chosen command.
+
+Code Editor contains editable highlighted C# with scrollbars. Hex Viewer and Table Viewer show in-memory data; arrows and Page keys navigate. Terminal runs the platform shell in a PTY when available. Demo/Input History records submitted input and recalls it with the history button.
 
 .topic ColorDialog=7
 Options/UI Colors edits a copy of the live palette. OK applies it and redraws; Cancel discards changes. Window/Save Desktop State persists the palette. See {Window management:WindowManagement}.

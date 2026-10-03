@@ -49,7 +49,7 @@ public sealed class PosixPtyTerminalSessionTests
         var exited = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         using var session = CreateSession("sh", "-c \"echo posix_pty_smoke_12345\"");
-        session.OutputReceived += (_, e) => output.Append(e.Text);
+        session.OutputReceived += (_, e) => output.AppendOutput(e);
         session.Exited         += (_, _) => exited.TrySetResult(true);
 
         await session.StartAsync();
@@ -67,7 +67,7 @@ public sealed class PosixPtyTerminalSessionTests
         var exited = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         using var session = CreateSession("sh", "-c \"echo hello\"");
-        session.OutputReceived += (_, e) => output.Append(e.Text);
+        session.OutputReceived += (_, e) => output.AppendOutput(e);
         session.Exited         += (_, _) => exited.TrySetResult(true);
 
         await session.StartAsync();
@@ -84,7 +84,7 @@ public sealed class PosixPtyTerminalSessionTests
         var output = new StringBuilder();
         var exited = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         using var session = CreateSession("sh", "-c \"test -r /dev/tty && echo controlling_pty_ok\"");
-        session.OutputReceived += (_, e) => output.Append(e.Text);
+        session.OutputReceived += (_, e) => output.AppendOutput(e);
         session.Exited += (_, _) => exited.TrySetResult(true);
 
         await session.StartAsync();
@@ -353,7 +353,7 @@ public sealed class PosixPtyTerminalSessionTests
         if (!IsPosixPtySupported) return;
 
         using var session = CreateSession("sh", "-c \"echo x\"");
-        var ex = await Record.ExceptionAsync(() => session.SendInputAsync("hello\n"));
+        var ex = await Record.ExceptionAsync(() => session.SendTextAsync("hello\n"));
         Assert.Null(ex);
     }
 
@@ -460,7 +460,7 @@ public sealed class PosixPtyTerminalSessionTests
         var exited = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         using var session = CreateSession("sh", "-c \"echo utf8_ok_12345\"");
-        session.OutputReceived += (_, e) => output.Append(e.Text);
+        session.OutputReceived += (_, e) => output.AppendOutput(e);
         session.Exited         += (_, _) => exited.TrySetResult(true);
 
         await session.StartAsync();
@@ -482,7 +482,7 @@ public sealed class PosixPtyTerminalSessionTests
 
         // sh -c "echo hello world" — the quoted arg must arrive as a single token.
         using var session = CreateSession("sh", "-c \"echo hello world\"");
-        session.OutputReceived += (_, e) => output.Append(e.Text);
+        session.OutputReceived += (_, e) => output.AppendOutput(e);
         session.Exited         += (_, _) => exited.TrySetResult(true);
 
         await session.StartAsync();

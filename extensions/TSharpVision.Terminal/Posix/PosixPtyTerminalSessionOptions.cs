@@ -19,4 +19,10 @@ public sealed class PosixPtyTerminalSessionOptions
     /// Defaults to 80 columns × 24 rows when not specified.
     /// </summary>
     public TerminalSize InitialSize { get; init; } = new TerminalSize(80, 24);
+
+    /// <summary>
+    /// Changes to the environment the child inherits: a value sets a variable, null removes it. The host sets
+    /// <c>TERM</c> here to what the emulator actually supports; see <see cref="TTerminal.TermName"/>.
+    /// </summary>
+    public IReadOnlyDictionary<string, string?>? Environment { get; init; }
 }

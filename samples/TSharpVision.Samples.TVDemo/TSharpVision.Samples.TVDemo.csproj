@@ -9,6 +9,10 @@
     <ProjectReference Include="..\..\src\TSharpVision.Drivers.SDL\TSharpVision.Drivers.SDL.csproj" />
     <ProjectReference Include="..\..\src\TSharpVision.Drivers.Console\TSharpVision.Drivers.Console.csproj" />
     <ProjectReference Include="..\..\src\TSharpVision.Drivers.Terminal\TSharpVision.Drivers.Terminal.csproj" />
+    <ProjectReference Include="..\..\extensions\TSharpVision.CodeEditor\TSharpVision.CodeEditor.csproj" />
+    <ProjectReference Include="..\..\extensions\TSharpVision.HexView\TSharpVision.HexView.csproj" />
+    <ProjectReference Include="..\..\extensions\TSharpVision.TableView\TSharpVision.TableView.csproj" />
+    <ProjectReference Include="..\..\extensions\TSharpVision.Terminal\TSharpVision.Terminal.csproj" />
   </ItemGroup>
 
   <ItemGroup>

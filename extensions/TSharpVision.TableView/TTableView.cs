@@ -170,7 +170,11 @@ public class TTableView : TView
     /// <summary>Gets how many rows are known to exist: the rows up to the end of the furthest block read so far.</summary>
     public long KnownRowCount => _discovered;
 
-    /// <summary>Gets the message of the most recent failed read, or null.</summary>
+    /// <summary>
+    /// Gets the message of the most recent failed read while the view still holds a block that failed, or null. It
+    /// clears once no failed block is held — retried, or evicted and read again successfully — so it never describes a
+    /// failure the table no longer has.
+    /// </summary>
     public string? LastError { get; private set; }
 
     /// <summary>Gets whether any read is outstanding.</summary>
@@ -711,6 +715,7 @@ public class TTableView : TView
             _discovered = Math.Max(_discovered, page.ReachedEnd ? returnedEnd : page.Start + page.Requested);
             if (page.ReachedEnd) _observedEnd = Math.Min(_observedEnd, returnedEnd);
             if (!_widthsSampled) SampleWidths(page);
+            if (LastError is not null && !_cache.HasFailedPages) LastError = null;
         }
 
         Refresh();

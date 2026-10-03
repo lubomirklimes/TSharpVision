@@ -112,6 +112,17 @@ internal sealed class TablePageCache
         return true;
     }
 
+    /// <summary>Whether any page held is a failed one.</summary>
+    public bool HasFailedPages
+    {
+        get
+        {
+            foreach (TablePage page in _lru)
+                if (page.Error is not null) return true;
+            return false;
+        }
+    }
+
     public IReadOnlyList<long> FailedIndices()
     {
         var failed = new List<long>();

@@ -21,6 +21,9 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\TSharpVision\TSharpVision.csproj" />
     <ProjectReference Include="..\..\extensions\TSharpVision.CodeEditor\TSharpVision.CodeEditor.csproj" />
+    <ProjectReference Include="..\..\extensions\TSharpVision.HexView\TSharpVision.HexView.csproj" />
+    <ProjectReference Include="..\..\extensions\TSharpVision.TableView\TSharpVision.TableView.csproj" />
+    <ProjectReference Include="..\..\extensions\TSharpVision.Terminal\TSharpVision.Terminal.csproj" />
     <ProjectReference Include="..\TSharpVision.TestSupport\TSharpVision.TestSupport.csproj" />
   </ItemGroup>
   <ItemGroup>

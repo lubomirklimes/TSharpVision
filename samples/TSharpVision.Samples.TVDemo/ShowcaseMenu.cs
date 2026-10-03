@@ -5,7 +5,9 @@ internal static class ShowcaseCmd
 {
     public const ushort NewWindow = 320, SimpleDialog = 321, Controls = 322,
         History = 323, Resource = 324, Colors = 325, SaveDesktop = 326,
-        LoadDesktop = 327, Tetris = 328;
+        LoadDesktop = 327, Tetris = 328, Selection = 329, Outline = 330,
+        Popup = 331, CodeEditor = 332, HexView = 333, TableView = 334,
+        Terminal = 335;
 }
 
 public partial class TVDemoApp
@@ -14,23 +16,32 @@ public partial class TVDemoApp
     {
         r.b.y = r.a.y + 1;
         var menu = new TMenuBar(r,
+            new TSubMenu($"~{TSharpVisionGlyphs.SystemMenu}~", Keys.kbAltSpace) +
+                new TMenuItem("~A~SCII table", TVDemoCmd.cmAsciiTable, Keys.kbNoKey) +
+                new TMenuItem("~C~alculator", TVDemoCmd.cmCalculator, Keys.kbNoKey) +
+                new TMenuItem("Ca~l~endar", TVDemoCmd.cmCalendar, Keys.kbNoKey) +
+                new TMenuItem("Cloc~k~", TVDemoCmd.cmClock, Keys.kbNoKey) +
+                TMenuItem.NewLine() +
+                new TMenuItem("~P~uzzle", TVDemoCmd.cmPuzzle, Keys.kbNoKey) +
+                new TMenuItem("~T~etris", ShowcaseCmd.Tetris, Keys.kbNoKey) +
             new TSubMenu("~F~ile", Keys.kbAltF) +
                 new TMenuItem("~N~ew demonstration window", ShowcaseCmd.NewWindow, Keys.kbF4) +
                 new TMenuItem("Open file ~v~iewer...", TVDemoCmd.cmFileViewer, Keys.kbF3) +
                 new TMenuItem("E~x~it", Views.cmQuit, Keys.kbAltX) +
             new TSubMenu("~D~emo", Keys.kbAltD) +
                 new TMenuItem("~S~imple dialog...", ShowcaseCmd.SimpleDialog, Keys.kbNoKey) +
-                new TMenuItem("~C~ontrols showcase...", ShowcaseCmd.Controls, Keys.kbNoKey) +
+                new TMenuItem("~C~ommon controls...", ShowcaseCmd.Controls, Keys.kbNoKey) +
+                new TMenuItem("Se~l~ection controls...", ShowcaseCmd.Selection, Keys.kbNoKey) +
+                new TMenuItem("~O~utline...", ShowcaseCmd.Outline, Keys.kbNoKey) +
+                new TMenuItem("~P~opup menu...", ShowcaseCmd.Popup, Keys.kbNoKey) +
+                TMenuItem.NewLine() +
+                new TMenuItem("Code ~e~ditor...", ShowcaseCmd.CodeEditor, Keys.kbNoKey) +
+                new TMenuItem("He~x~ viewer...", ShowcaseCmd.HexView, Keys.kbNoKey) +
+                new TMenuItem("~T~able viewer...", ShowcaseCmd.TableView, Keys.kbNoKey) +
+                new TMenuItem("Ter~m~inal...", ShowcaseCmd.Terminal, Keys.kbNoKey) +
+                TMenuItem.NewLine() +
                 new TMenuItem("Input ~h~istory...", ShowcaseCmd.History, Keys.kbNoKey) +
                 new TMenuItem("~R~esource dialog...", ShowcaseCmd.Resource, Keys.kbNoKey) +
-            new TSubMenu("~A~ccessories", Keys.kbAltA) +
-                new TMenuItem("~A~SCII table", TVDemoCmd.cmAsciiTable, Keys.kbNoKey) +
-                new TMenuItem("~C~alculator", TVDemoCmd.cmCalculator, Keys.kbNoKey) +
-                new TMenuItem("Ca~l~endar", TVDemoCmd.cmCalendar, Keys.kbNoKey) +
-                new TMenuItem("Cloc~k~", TVDemoCmd.cmClock, Keys.kbNoKey) +
-            new TSubMenu("~G~ames", Keys.kbAltG) +
-                new TMenuItem("~P~uzzle", TVDemoCmd.cmPuzzle, Keys.kbNoKey) +
-                new TMenuItem("~T~etris", ShowcaseCmd.Tetris, Keys.kbNoKey) +
             new TSubMenu("D~i~agnostics", Keys.kbAltI) +
                 new TMenuItem("~M~ouse dialog", TVDemoCmd.cmMouseDlg, Keys.kbNoKey) +
                 new TMenuItem("~H~eap / memory", TVDemoCmd.cmHeap, Keys.kbNoKey) +
@@ -61,6 +72,13 @@ public partial class TVDemoApp
             case ShowcaseCmd.NewWindow: OpenNewWindow(); break;
             case ShowcaseCmd.SimpleDialog: ShowSampleDialog(); break;
             case ShowcaseCmd.Controls: OpenControlsShowcaseDialog(); break;
+            case ShowcaseCmd.Selection: OpenSelectionDemo(); break;
+            case ShowcaseCmd.Outline: OpenOutlineDemo(); break;
+            case ShowcaseCmd.Popup: OpenPopupDemo(); break;
+            case ShowcaseCmd.CodeEditor: OpenCodeEditorDemo(); break;
+            case ShowcaseCmd.HexView: OpenHexViewDemo(); break;
+            case ShowcaseCmd.TableView: OpenTableViewDemo(); break;
+            case ShowcaseCmd.Terminal: OpenTerminalDemo(); break;
             case ShowcaseCmd.History: OpenHistoryDemoDialog(); break;
             case ShowcaseCmd.Resource: LoadResourceDialog(); break;
             case ShowcaseCmd.Colors: OpenColorDialog(); break;

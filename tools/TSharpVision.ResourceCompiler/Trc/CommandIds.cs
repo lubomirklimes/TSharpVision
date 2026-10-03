@@ -85,6 +85,7 @@ public static class CommandIds
             ["Shift+F5"] = Keys.kbShiftF5, ["Shift+F6"] = Keys.kbShiftF6,
             ["Shift+F7"] = Keys.kbShiftF7, ["Shift+F8"] = Keys.kbShiftF8,
             ["Shift+F9"] = Keys.kbShiftF9, ["Shift+F10"] = Keys.kbShiftF10,
+            ["Shift+F11"] = Keys.kbShiftF11, ["Shift+F12"] = Keys.kbShiftF12,
 
             // Ctrl+F keys
             ["Ctrl+F1"] = Keys.kbCtrlF1, ["Ctrl+F2"] = Keys.kbCtrlF2,
@@ -92,6 +93,7 @@ public static class CommandIds
             ["Ctrl+F5"] = Keys.kbCtrlF5, ["Ctrl+F6"] = Keys.kbCtrlF6,
             ["Ctrl+F7"] = Keys.kbCtrlF7, ["Ctrl+F8"] = Keys.kbCtrlF8,
             ["Ctrl+F9"] = Keys.kbCtrlF9, ["Ctrl+F10"] = Keys.kbCtrlF10,
+            ["Ctrl+F11"] = Keys.kbCtrlF11, ["Ctrl+F12"] = Keys.kbCtrlF12,
 
             // Alt+F keys
             ["Alt+F1"] = Keys.kbAltF1, ["Alt+F2"] = Keys.kbAltF2,
@@ -99,6 +101,7 @@ public static class CommandIds
             ["Alt+F5"] = Keys.kbAltF5, ["Alt+F6"] = Keys.kbAltF6,
             ["Alt+F7"] = Keys.kbAltF7, ["Alt+F8"] = Keys.kbAltF8,
             ["Alt+F9"] = Keys.kbAltF9, ["Alt+F10"] = Keys.kbAltF10,
+            ["Alt+F11"] = Keys.kbAltF11, ["Alt+F12"] = Keys.kbAltF12,
 
             // Alt+letter
             ["Alt+A"] = Keys.kbAltA, ["Alt+B"] = Keys.kbAltB, ["Alt+C"] = Keys.kbAltC,

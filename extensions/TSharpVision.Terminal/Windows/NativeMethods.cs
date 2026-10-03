@@ -40,6 +40,10 @@ internal static class NativeMethods
 
     // ── Process creation ──────────────────────────────────────────────────────
 
+    /// <summary>With a null handler: false clears this process's inherited "ignore Ctrl+C" flag.</summary>
+    [DllImport("kernel32.dll", SetLastError = true)]
+    internal static extern bool SetConsoleCtrlHandler(IntPtr handlerRoutine, bool add);
+
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     internal static extern bool CreateProcess(
         string? lpApplicationName,
@@ -89,6 +93,10 @@ internal static class NativeMethods
     [DllImport("kernel32.dll", SetLastError = true)]
     internal static extern bool CloseHandle(IntPtr hObject);
 
+    /// <summary>Returns the previous suspend count, or <c>0xFFFFFFFF</c> on failure.</summary>
+    [DllImport("kernel32.dll", SetLastError = true)]
+    internal static extern uint ResumeThread(IntPtr hThread);
+
     // ── Job Object ────────────────────────────────────────────────────────────
 
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
@@ -112,6 +120,9 @@ internal static class NativeMethods
 
     /// <summary>dwCreationFlags flag: startup info is STARTUPINFOEX.</summary>
     internal const uint EXTENDED_STARTUPINFO_PRESENT = 0x00080000;
+
+    /// <summary>The primary thread starts suspended, so the process can join a job before it runs.</summary>
+    internal const uint CREATE_SUSPENDED = 0x00000004;
 
     /// <summary>Startup info dwFlags: redirect standard handles.</summary>
     internal const uint STARTF_USESTDHANDLES = 0x00000100;

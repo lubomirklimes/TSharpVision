@@ -109,6 +109,8 @@ internal static class SdlKeyTranslator
     public const uint SDLK_DOWN     = 0x40000051;
     /// <summary>SDL key code for UP; pass as the keycode argument to translation.</summary>
     public const uint SDLK_UP       = 0x40000052;
+    /// <summary>SDL key code for keypad Enter; pass as the keycode argument to translation.</summary>
+    public const uint SDLK_KP_ENTER = 0x40000058;
 
     // SDL3 modifier-only keycodes — caller will see these on bare Shift/etc.
     /// <summary>SDL key code for left Control; pass as the keycode argument to translation.</summary>
@@ -153,9 +155,9 @@ internal static class SdlKeyTranslator
         // ---- Special / navigation keys -----------------------------------
         ushort kc = keycode switch
         {
-            SDLK_BACKSPACE => Keys.kbBack,
+            SDLK_BACKSPACE => alt ? Keys.kbAltBack : ctrl ? Keys.kbCtrlBack : Keys.kbBack,
             SDLK_TAB       => shf ? Keys.kbShiftTab : Keys.kbTab,
-            SDLK_RETURN    => Keys.kbEnter,
+            SDLK_RETURN or SDLK_KP_ENTER => ctrl ? Keys.kbCtrlEnter : Keys.kbEnter,
             SDLK_ESCAPE    => Keys.kbEsc,
             SDLK_DELETE    => ctrl && shf ? Keys.kbCtrlShiftDel : ctrl ? Keys.kbCtrlDel : (shf ? Keys.kbShiftDel : Keys.kbDel),
             SDLK_INSERT    => ctrl && shf ? Keys.kbCtrlShiftIns : ctrl ? Keys.kbCtrlIns : (shf ? Keys.kbShiftIns : Keys.kbIns),

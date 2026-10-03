@@ -75,8 +75,12 @@ public sealed class TTerminalWindow : TWindow
 
         _term = new TTerminal(new TRect(1, 1, w - 1, h - 1));
         _term.growMode = (byte)(Views.gfGrowHiX | Views.gfGrowHiY);
+        // The in-memory command loop and the demos write text with bare "\n" line feeds.
+        _term.NewLineMode = true;
         Insert(_term);
         _term.AttachVerticalScrollBar(sb);
+        // Raised on the event-loop thread, after the session's last output was shown.
+        _term.SessionExited += (_, _) => OnSessionExited();
 
         _memSession = new InMemoryTerminalSession();
         _term.AttachSession(_memSession);
@@ -129,20 +133,11 @@ public sealed class TTerminalWindow : TWindow
         _externalSpec = spec;
         _kind = spec.Kind;
         _userStopped = false;
+        // A PTY turns the program's "\n" into "\r\n" itself; pipes and scripted sessions deliver bare line feeds.
+        _term.NewLineMode = spec.Kind is not (SessionKind.Pty or SessionKind.Shell);
         _term.AttachSession(session);
         if (spec.RawSession || spec.Kind == SessionKind.Shell)
             _term.InputMode = TerminalInputMode.RawSession;
-
-        session.Exited += (_, _) =>
-        {
-            if (_userStopped) return;
-            int? code = GetExitCode(session);
-            string msg = code.HasValue
-                ? $"[Session] Exited with code {code}."
-                : "[Session] Exited.";
-            _term.Write(msg + "\n");
-            ResetToInMemory();
-        };
 
         try
         {
@@ -174,6 +169,8 @@ public sealed class TTerminalWindow : TWindow
                 FileName = spec.FileName,
                 Arguments = spec.Arguments,
                 WorkingDirectory = string.IsNullOrEmpty(spec.WorkingDirectory) ? null : spec.WorkingDirectory,
+                // Tell programs what the emulator implements, not what the host terminal is.
+                Environment = new Dictionary<string, string?> { ["TERM"] = TTerminal.TermName, ["COLORTERM"] = null },
             };
             return new PosixPtyTerminalSession(opts);
         }
@@ -211,8 +208,8 @@ public sealed class TTerminalWindow : TWindow
         var s = _externalSession;
         if (s == null || !s.IsRunning) return;
         // Ctrl+Z on Windows, Ctrl+D on Unix shells.
-        string eof = System.OperatingSystem.IsWindows() ? "" : "";
-        _ = s.SendInputAsync(eof);
+        string eof = System.OperatingSystem.IsWindows() ? "\u001a" : "\u0004";
+        _ = s.SendTextAsync(eof);
     }
 
     /// <summary>Interrupt (best-effort SIGINT/Ctrl+C) the active session.</summary>
@@ -223,13 +220,23 @@ public sealed class TTerminalWindow : TWindow
         if (s is IInterruptibleTerminalSession i)
             _ = i.InterruptAsync();
         else
-            _ = s.SendInputAsync("");
+            _ = s.SendTextAsync("\u0003");
+    }
+
+    private void OnSessionExited()
+    {
+        ITerminalSession? session = _externalSession;
+        if (_userStopped || session is null) return;
+        int? code = GetExitCode(session);
+        _term.WriteLine(code.HasValue ? $"[Session] Exited with code {code}." : "[Session] Exited.");
+        ResetToInMemory();
     }
 
     private void ResetToInMemory()
     {
         _externalSession = null;
         _kind = SessionKind.InMemoryCommand;
+        _term.NewLineMode = true;
         _term.InputMode = TerminalInputMode.Command;
         _term.AttachSession(_memSession);
     }

@@ -15,7 +15,7 @@ public static class KeyText
         return cache;
     }
 
-    /// <summary>Returns explicit event text when present; otherwise converts printable legacy bytes, optionally including Tab and bytes 127 through 254, or returns empty text.</summary>
+    /// <summary>Returns explicit event text when present; otherwise converts printable legacy bytes, optionally including Tab and bytes 128 through 254 (DEL, 127, is never text), or returns empty text.</summary>
     public static string PrintableText(in KeyDownEvent keyDown, bool includeTab = false, bool extendedLegacy = true)
     {
         if (!string.IsNullOrEmpty(keyDown.text))
@@ -25,7 +25,8 @@ public static class KeyText
         if (includeTab && ch == '\t')
             return "\t";
 
-        if (ch >= 32 && (extendedLegacy ? ch < 255 : ch < 127))
+        // DEL (0x7F) is a control character, not text: it is the low byte of kbCtrlBack.
+        if (ch >= 32 && ch != 0x7F && (extendedLegacy ? ch < 255 : ch < 127))
             return CharTextCache[ch];
 
         return string.Empty;

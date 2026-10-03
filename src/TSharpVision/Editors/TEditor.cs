@@ -178,13 +178,13 @@ public class TEditor : TView
         }
     }
 
-    /// <summary>Returns the next CR or LF offset at or after the supplied position, or the document length.</summary>
+    /// <summary>Returns the next LF offset at or after the supplied position, or the document length. The buffer is LF-only: a CR is an ordinary character.</summary>
     public uint LineEnd(uint p)
     {
         return FindLineBreak(Math.Min(p, bufLen), bufLen, false) ?? bufLen;
     }
 
-    /// <summary>Returns the position after the last CR or LF before the supplied offset, or zero.</summary>
+    /// <summary>Returns the position after the last LF before the supplied offset, or zero.</summary>
     public uint LineStart(uint p)
     {
         uint? terminator = FindLineBreak(0, Math.Min(p, bufLen), true);
@@ -199,7 +199,7 @@ public class TEditor : TView
             uint segmentStart = lastMatch && end > curPtr ? Math.Max(start, curPtr) : start;
             uint segmentEnd = !lastMatch && start < curPtr ? Math.Min(end, curPtr) : end;
             var segment = buffer.AsSpan((int)BufPtr(segmentStart), (int)(segmentEnd - segmentStart));
-            int index = lastMatch ? segment.LastIndexOfAny('\r', '\n') : segment.IndexOfAny('\r', '\n');
+            int index = lastMatch ? segment.LastIndexOf('\n') : segment.IndexOf('\n');
             if (index >= 0) return segmentStart + (uint)index;
             if (lastMatch) end = segmentStart;
             else start = segmentEnd;
@@ -220,7 +220,7 @@ public class TEditor : TView
         return offset > 0 ? offset - 1 : 0;
     }
 
-    /// <summary>Returns the position immediately after the next CR or LF, bounded by the document end.</summary>
+    /// <summary>Returns the position immediately after the next LF, bounded by the document end.</summary>
     public uint NextLine(uint p) => NextChar(LineEnd(p));
 
     /// <summary>Returns the start of the line containing the code unit before the supplied offset.</summary>
@@ -474,13 +474,17 @@ public class TEditor : TView
         int lines = length > 0 ? CountLines(Buf, curPtr, length) : 0;
         curPtr += length;
         curPos.y += lines;
+
+        // Commit the new length before anything reads the text: LineStart and CharPos clamp to bufLen, so with the
+        // pre-insertion length they would stop short of an insertion that ends past the old end of the document.
+        bufLen += length - selLen;
+        gapLen -= length - selLen;
+
         drawLine = curPos.y;
         drawPtr  = LineStart(curPtr);
         curPos.x = CharPos(drawPtr, curPtr);
         if (!selectText) selStart = curPtr;
         selEnd = curPtr;
-        bufLen += length - selLen;
-        gapLen -= length - selLen;
         if (allowUndo)
         {
             delCount += delLen;
@@ -976,9 +980,15 @@ public class TEditor : TView
         {
             if (p >= bufLen) { b.moveChar(x, ' ', normal, 1); x++; continue; }
             char c = BufChar(p);
-            if (c == '\r' || c == '\n') { b.moveChar(x, ' ', normal, 1); x++; continue; }
+            if (c == '\n') { b.moveChar(x, ' ', normal, 1); x++; continue; }
             ushort attr = (p >= selStart && p < selEnd) ? selected : normal;
-            if (c == '\t')
+            if (c == '\r')
+            {
+                // An ordinary one-column character of the line (the buffer is LF-only), drawn blank.
+                b.moveChar(x, ' ', attr, 1);
+                x++;
+            }
+            else if (c == '\t')
             {
                 int next = x + (int)tabSize - (x % (int)tabSize);
                 while (x < next && x < width) { b.moveChar(x, ' ', attr, 1); x++; }

@@ -79,7 +79,7 @@ public sealed class TVTermApp : TApplication
                 new TMenuItem("Scrollback ~T~op",    Commands.cmScrollTop,       Keys.kbNoKey, Views.hcNoContext) +
                 new TMenuItem("Scrollback ~B~ottom", Commands.cmScrollBottom,    Keys.kbNoKey, Views.hcNoContext) +
                 TMenuItem.NewLine() +
-                new TMenuItem("Toggle ~A~NSI",       Commands.cmToggleAnsi,      Keys.kbNoKey, Views.hcNoContext) +
+                new TMenuItem("Toggle ~N~ew-line mode", Commands.cmToggleNewLineMode, Keys.kbNoKey, Views.hcNoContext) +
             new TSubMenu("~S~ession", Keys.kbAltS) +
                 new TMenuItem("~I~nterrupt",         Commands.cmInterrupt,       Keys.kbF9, Views.hcNoContext, "F9") +
                 new TMenuItem("~R~estart",           Commands.cmRestart,         Keys.kbNoKey, Views.hcNoContext) +
@@ -160,7 +160,7 @@ public sealed class TVTermApp : TApplication
             case Commands.cmScrollTop:        WithTerm(t => t.ScrollToTop()); break;
             case Commands.cmScrollBottom:     WithTerm(t => t.ScrollToBottom()); break;
             case Commands.cmToggleWrap:       NotImplementedMsg("Line wrapping is always on; toggle support requires core API changes."); break;
-            case Commands.cmToggleAnsi:       DoToggleAnsi(); break;
+            case Commands.cmToggleNewLineMode: DoToggleNewLineMode(); break;
 
             case Commands.cmInterrupt:        WithWindow(w => w.Interrupt()); break;
             case Commands.cmRestart:          WithWindow(w => w.RestartExternalSession()); break;
@@ -426,12 +426,14 @@ public sealed class TVTermApp : TApplication
     // View menu actions
     // ------------------------------------------------------------------
 
-    private void DoToggleAnsi()
+    // Escape sequences are always interpreted: the terminal is an emulator. What can differ is whether a bare line
+    // feed also returns the carriage, which text from pipes and scripts needs and a PTY does not.
+    private void DoToggleNewLineMode()
     {
         var t = ActiveTerminal();
         if (t == null) return;
-        t.AnsiEnabled = !t.AnsiEnabled;
-        t.WriteLine($"[ANSI parsing: {(t.AnsiEnabled ? "on" : "off")}]");
+        t.NewLineMode = !t.NewLineMode;
+        t.WriteLine($"[New-line mode: {(t.NewLineMode ? "on" : "off")}]");
     }
 
     // ------------------------------------------------------------------
@@ -489,7 +491,7 @@ public sealed class TVTermApp : TApplication
         // Run the script through a transient session whose output is replayed
         // into the terminal. This keeps the demo scripts session-typed.
         var transient = new InMemoryTerminalSession();
-        transient.OutputReceived += (_, e) => term.Write(e.Text);
+        transient.OutputReceived += (_, e) => term.Write(System.Text.Encoding.UTF8.GetString(e.Data.Span));
         transient.StartAsync().GetAwaiter().GetResult();
         script(transient);
         transient.StopAsync().GetAwaiter().GetResult();

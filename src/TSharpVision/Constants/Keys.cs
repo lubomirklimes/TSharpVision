@@ -7,8 +7,8 @@ namespace TSharpVision.Constants;
 public static class Keys
 {
     // Normal keys
-    /// <summary>Key code for Space, used in the key-down event payload.</summary>
-    public const ushort kbSpace = 0x0034;
+    /// <summary>Key code for Space, used in the key-down event payload: the character code ' ', as every driver reports it.</summary>
+    public const ushort kbSpace = 0x0020;
 
     // Control keys
     /// <summary>Key code for Control+A, used in the key-down event payload.</summary>
@@ -167,10 +167,10 @@ public static class Keys
     public const ushort kbF9 = 0x4300;
     /// <summary>Key code for F10, used in the key-down event payload.</summary>
     public const ushort kbF10 = 0x4400;
-    /// <summary>Key code for F11, used in the key-down event payload.</summary>
-    public const ushort kbF11 = 0x5700;
-    /// <summary>Key code for F12, used in the key-down event payload.</summary>
-    public const ushort kbF12 = 0x5800;
+    /// <summary>Key code for F11, used in the key-down event payload (the BIOS extended code 0x85, distinct from Shift+F4).</summary>
+    public const ushort kbF11 = 0x8500;
+    /// <summary>Key code for F12, used in the key-down event payload (the BIOS extended code 0x86, distinct from Shift+F5).</summary>
+    public const ushort kbF12 = 0x8600;
 
     /// <summary>Key code for Home, used in the key-down event payload.</summary>
     public const ushort kbHome = 0x4700;

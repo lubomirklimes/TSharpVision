@@ -2,22 +2,24 @@
 
 T# Vision is a text-mode UI framework for C# and .NET, with Turbo Vision-style windows, dialogs, menus, editors and keyboard-driven interaction. Applications use the core framework with a console, terminal or SDL graphical driver.
 
+![TSharpVision TVDemo](docs/images/tvdemo.png)
+
 ## Packages
 
 | Package | Purpose |
 |---|---|
 | `TSharpVision` | Core framework; includes a headless NullDriver |
 | `TSharpVision.Drivers.Console` | Native Windows Console driver |
-| `TSharpVision.Drivers.Terminal` | ANSI/POSIX terminal driver |
+| `TSharpVision.Drivers.Terminal` | Outer ANSI terminal host driver |
 | `TSharpVision.Drivers.SDL` | SDL3 graphical drivers |
 | `TSharpVision.CodeEditor` | Syntax-aware code editor components using TextMate grammars |
 | `TSharpVision.HexView` | Paged read-only hexadecimal view over a byte source |
 | `TSharpVision.TableView` | Paged read-only table view over a row source |
-| `TSharpVision.Terminal` | ConPTY and POSIX pseudo-terminal session implementations |
+| `TSharpVision.Terminal` | Terminal widget, emulator and byte-stream sessions, including ConPTY and POSIX PTY |
 
 Install one driver package; it brings in `TSharpVision` transitively, including the public core APIs used below. A separate core reference is only needed for a core-only/headless application or when intentionally managing its version directly.
 
-The first planned release is `0.1.0-preview.1`. These are preview packages; a local candidate is not a NuGet.org publication. Use an available prerelease from your configured feed; see [Getting Started](https://github.com/lubomirklimes/TSharpVision/blob/main/docs/getting-started.md) for local-feed setup.
+Package metadata currently defaults to `0.1.0-preview.2`. This does not imply a NuGet.org publication. Use an available prerelease from your configured feed; see [Getting Started](https://github.com/lubomirklimes/TSharpVision/blob/main/docs/getting-started.md) for local-feed setup.
 
 ## Requirements
 
@@ -60,6 +62,14 @@ Run `dotnet run`. You should see a window with a greeting; press **Alt+X** to ex
 ## Drivers
 
 Select a driver before starting the runtime. The examples choose an exact driver name to avoid depending on automatic selection. See [Drivers](https://github.com/lubomirklimes/TSharpVision/blob/main/docs/drivers.md) for Console, Terminal, SDL and headless examples.
+
+## Documentation
+
+- [Conceptual documentation index](https://github.com/lubomirklimes/TSharpVision/blob/main/docs/README.md)
+- [Getting Started](https://github.com/lubomirklimes/TSharpVision/blob/main/docs/getting-started.md)
+- [Drivers](https://github.com/lubomirklimes/TSharpVision/blob/main/docs/drivers.md)
+- [Platform Support](https://github.com/lubomirklimes/TSharpVision/blob/main/docs/platform-support.md)
+- [Troubleshooting](https://github.com/lubomirklimes/TSharpVision/blob/main/docs/troubleshooting.md)
 
 ## License
 

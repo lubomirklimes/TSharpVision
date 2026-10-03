@@ -21,6 +21,7 @@ public partial class TVDemoApp
         dlg.Insert(new TButton(new TRect(14, 10, 26, 12), "~O~K",     Views.cmOK,     ButtonConstants.bfDefault));
         dlg.Insert(new TButton(new TRect(28, 10, 40, 12), "~C~ancel", Views.cmCancel, ButtonConstants.bfNormal));
 
+        DemoButtonLayout.CenterRows(dlg);
         dlg.SelectNext(false);
         return dlg;
     }

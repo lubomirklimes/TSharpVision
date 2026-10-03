@@ -1,4 +1,16 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- A reusable TSharpVision extension: a read-only, paged hexadecimal view over any random-access
+       byte source.
+
+       WHAT IT REFERENCES, AND WHAT IT MUST NEVER REFERENCE.
+
+           TSharpVision.HexView  ->  TSharpVision
+
+       Nothing else. In particular no application (TSharpCommander) and no file system provider: the
+       view reads bytes through IHexDataSource, and whatever turns a file, an archive entry, a remote
+       stream or a synthetic buffer into one belongs to the consumer.
+       TSharpVision.HexView.Tests asserts the reference set from the compiled assembly. -->
   <PropertyGroup>
     <PackageId>TSharpVision.HexView</PackageId>
     <Description>Read-only, paged hexadecimal view for TSharpVision over any random-access byte source.</Description>

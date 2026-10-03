@@ -177,6 +177,62 @@ public sealed class TTableViewAsyncTests
     }
 
     [Fact]
+    public void AFailureIsNoLongerReportedOnceNoFailedBlockIsHeld()
+    {
+        // T-4a: LastError describes a failure the view still holds, not one it once saw. Small blocks and a small cache
+        // make the failed block leave the cache after a few screens.
+        using var h = new TableHarness(height: 6, blockRows: 4);
+        var table = new FailOnceTable(failStart: 4, rows: 10_000);
+        h.View.SetDataSource(table);
+        h.Settle();
+
+        h.View.MoveTo(4, 0);                                          // block 1 fails
+        h.Settle();
+        Assert.NotNull(h.View.LastError);
+
+        h.View.MoveTo(400, 0);
+        h.Settle();
+        Assert.Contains(1L, h.View.CachedBlockIndices);               // still held, so still reported
+        Assert.NotNull(h.View.LastError);
+
+        for (long row = 800; row <= 4000; row += 400)
+        {
+            h.View.MoveTo(row, 0);
+            h.Settle();
+        }
+
+        Assert.DoesNotContain(1L, h.View.CachedBlockIndices);         // evicted: no stale "rows failed" any more
+        Assert.Null(h.View.LastError);
+
+        h.View.MoveTo(4, 0);                                          // coming back reads it again, successfully
+        h.Settle();
+        Assert.True(h.View.TryGetRow(4, out TableRow? row4));
+        Assert.Equal("v4", row4!.Cells[0].Text);
+        Assert.Null(h.View.LastError);
+        Assert.Equal(2, table.ReadsAt(4));
+    }
+
+    /// <summary>Synchronous rows <c>v{row}</c>; the first read of one block fails.</summary>
+    private sealed class FailOnceTable(long failStart, long rows) : ITableDataSource
+    {
+        private readonly Dictionary<long, int> _reads = new();
+
+        public IReadOnlyList<TableColumn> Columns { get; } = new[] { new TableColumn("V") };
+
+        public long? RowCount => rows;
+
+        public int ReadsAt(long start) => _reads.TryGetValue(start, out int n) ? n : 0;
+
+        public ValueTask<TableRowBlock> ReadRowsAsync(long start, int count, CancellationToken cancellationToken)
+        {
+            _reads[start] = ReadsAt(start) + 1;
+            if (start == failStart && _reads[start] == 1) throw new IOException("transient");
+            var list = Enumerable.Range(0, count).Select(i => new TableRow(new[] { new TableCell("v" + (start + i)) })).ToArray();
+            return ValueTask.FromResult(new TableRowBlock(start, list, start + count >= rows));
+        }
+    }
+
+    [Fact]
     public void ARowTheSourceDidNotSupplyIsShownAsUnavailableNotAsTheEnd()
     {
         using var h = new TableHarness(height: 6);

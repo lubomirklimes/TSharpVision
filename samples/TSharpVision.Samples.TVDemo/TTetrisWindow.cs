@@ -349,8 +349,6 @@ internal sealed class TTetrisView : TView
                     switch (ev.keyDown.charScan.charCode)
                     {
                         case (byte)' ':
-                            // Hard drop — keyCode for space differs by driver (SDL: 0x20, Win32: kbSpace),
-                            // so match by charCode instead.
                             if (!_gameOver && !_paused)
                             {
                                 _curY = GhostRow();

@@ -1,4 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The Hex extension's own tests, and its independence proof.
+
+       This project references TSharpVision.HexView, the headless TSharpVision test helpers and the test
+       framework, and NOTHING from TSharpCommander. Every source here is synthetic: no file is created,
+       and the multi-gigabyte cases exist only as arithmetic. -->
   <PropertyGroup>
     <IsPackable>false</IsPackable>
   </PropertyGroup>

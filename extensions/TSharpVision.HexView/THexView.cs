@@ -156,7 +156,7 @@ public class THexView : TView
     public void ScrollToOffset(long offset) => SetTop(Align(offset));
 
     /// <summary>Gets the bytes per row that fit <paramref name="width"/> columns for a source of <paramref name="length"/> bytes.</summary>
-    internal static int GetBytesPerRow(int width, long length)
+    public static int GetBytesPerRow(int width, long length)
     {
         foreach (int candidate in RowWidths)
             if (GetRowWidth(candidate, length) <= width)
@@ -166,14 +166,14 @@ public class THexView : TView
     }
 
     /// <summary>Gets the columns a row of <paramref name="bytesPerRow"/> bytes occupies for a source of <paramref name="length"/> bytes.</summary>
-    internal static int GetRowWidth(int bytesPerRow, long length)
+    public static int GetRowWidth(int bytesPerRow, long length)
         => OffsetDigits(length) + 2 + HexAreaWidth(bytesPerRow) + 1 + bytesPerRow;
 
     /// <summary>
     /// Formats <paramref name="offset"/> the way the offset column shows it: 8 uppercase hexadecimal
     /// digits, or 16 when <paramref name="length"/> exceeds <c>0xFFFFFFFF</c>.
     /// </summary>
-    internal static string FormatOffset(long offset, long length)
+    public static string FormatOffset(long offset, long length)
         => offset.ToString(OffsetDigits(length) == 16 ? "X16" : "X8", CultureInfo.InvariantCulture);
 
     /// <inheritdoc />
@@ -515,38 +515,75 @@ public class THexView : TView
 
     // ── row formatting ───────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Formats one row exactly as the view draws it — the offset column, the bytes in hexadecimal grouped in eights,
+    /// and their printable characters — for <paramref name="bytes"/> starting at <paramref name="rowOffset"/>.
+    /// </summary>
+    /// <remarks>
+    /// For consumers that need the view's text without a view: copying or exporting what it shows. Only the first
+    /// <paramref name="bytesPerRow"/> bytes are used; fewer leave the rest of the row blank, as the last row of a
+    /// source does. <paramref name="length"/> decides the offset width exactly as for <see cref="FormatOffset"/>.
+    /// Trailing blanks are removed.
+    /// </remarks>
+    /// <param name="rowOffset">The offset of the row's first byte.</param>
+    /// <param name="bytes">The row's bytes.</param>
+    /// <param name="bytesPerRow">Bytes per row: 4, 8, 16, 24 or 32 in the view; any positive count here.</param>
+    /// <param name="length">The source length that decides the offset width.</param>
+    public static string FormatRow(long rowOffset, ReadOnlySpan<byte> bytes, int bytesPerRow, long length)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(rowOffset);
+        ArgumentOutOfRangeException.ThrowIfLessThan(bytesPerRow, 1);
+
+        char[] text = new char[GetRowWidth(bytesPerRow, length)];
+        Array.Fill(text, ' ');
+        PutOffset(text, rowOffset, length);
+        int count = Math.Min(bytes.Length, bytesPerRow);
+        for (int i = 0; i < count; i++) PutByte(text, i, bytesPerRow, length, bytes[i]);
+        return new string(text).TrimEnd();
+    }
+
     private void FormatRow(char[] text, long rowOffset, int bytesPerRow, long length)
     {
-        int digits = OffsetDigits(length);
-        string offset = rowOffset.ToString(digits == 16 ? "X16" : "X8", CultureInfo.InvariantCulture);
-        Put(text, 0, offset);
-
-        int hexStart = digits + 2;
-        int asciiStart = hexStart + HexAreaWidth(bytesPerRow) + 1;
+        PutOffset(text, rowOffset, length);
 
         for (int i = 0; i < bytesPerRow; i++)
         {
             long at = rowOffset + i;
             if (at >= length) break;
 
-            int hex = hexStart + (i * 3) + (bytesPerRow >= 16 ? i / 8 : 0);
-            int ascii = asciiStart + i;
-
             switch (TryGetByte(at, out byte value))
             {
                 case ByteState.Available:
-                    Put(text, hex, HexDigit(value >> 4));
-                    Put(text, hex + 1, HexDigit(value & 0xF));
-                    Put(text, ascii, value is >= 0x20 and < 0x7F ? (char)value : '.');
+                    PutByte(text, i, bytesPerRow, length, value);
                     break;
 
                 case ByteState.Failed:
+                    (int hex, int ascii) = ByteColumns(i, bytesPerRow, length);
                     Put(text, hex, '!');
                     Put(text, hex + 1, '!');
                     Put(text, ascii, '!');
                     break;
             }
         }
+    }
+
+    private static void PutOffset(char[] text, long rowOffset, long length)
+        => Put(text, 0, rowOffset.ToString(OffsetDigits(length) == 16 ? "X16" : "X8", CultureInfo.InvariantCulture));
+
+    /// <summary>The hex and character columns of byte <paramref name="i"/> of a row.</summary>
+    private static (int Hex, int Ascii) ByteColumns(int i, int bytesPerRow, long length)
+    {
+        int hexStart = OffsetDigits(length) + 2;
+        int asciiStart = hexStart + HexAreaWidth(bytesPerRow) + 1;
+        return (hexStart + (i * 3) + (bytesPerRow >= 16 ? i / 8 : 0), asciiStart + i);
+    }
+
+    private static void PutByte(char[] text, int i, int bytesPerRow, long length, byte value)
+    {
+        (int hex, int ascii) = ByteColumns(i, bytesPerRow, length);
+        Put(text, hex, HexDigit(value >> 4));
+        Put(text, hex + 1, HexDigit(value & 0xF));
+        Put(text, ascii, value is >= 0x20 and < 0x7F ? (char)value : '.');
     }
 
     private ByteState TryGetByte(long offset, out byte value)

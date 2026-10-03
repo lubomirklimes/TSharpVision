@@ -83,24 +83,6 @@ public sealed class PerformanceMeasurementHarnessTests : IDisposable
         }));
     }
 
-    [Fact]
-    [Trait("Category", "PerformanceBaseline")]
-    public void TerminalScenarios_WriteAllocationBaselines()
-    {
-        var root = new TestGroup(new TRect(0, 0, 100, 30));
-        root.buffer = MakeBuffer(100, 30);
-        root.state |= Views.sfVisible | Views.sfExposed | Views.sfFocused;
-
-        var terminal = new TTerminal(new TRect(1, 1, 99, 29), maxLines: 250);
-        terminal.AnsiEnabled = true;
-        root.Insert(terminal);
-
-        WriteSample(Measure("terminal.write-line-and-draw", 200, () =>
-        {
-            terminal.WriteLine("line \u2502 colored-ish payload for allocation baseline");
-        }));
-    }
-
     private static PerfSample Measure(string name, int iterations, Action action)
     {
         action();

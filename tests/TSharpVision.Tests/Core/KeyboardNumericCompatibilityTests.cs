@@ -7,6 +7,8 @@ namespace TSharpVision.Tests.Core;
 
 public sealed class KeyboardNumericCompatibilityTests
 {
+    // kbF11 / kbF12 are the BIOS extended codes 0x85 / 0x86, as in tvision and as Shift/Ctrl/Alt+F11/F12 (0x87…0x8C)
+    // continue them. Until KEYBOARD-NORM they reused 0x57 / 0x58, the codes of Shift+F4 / Shift+F5.
     private const string HistoricalKeys = """
 kbAlt0 8100
 kbAlt1 7800
@@ -120,8 +122,8 @@ kbEnter 1C0D
 kbEsc 011B
 kbF1 3B00
 kbF10 4400
-kbF11 5700
-kbF12 5800
+kbF11 8500
+kbF12 8600
 kbF2 3C00
 kbF3 3D00
 kbF4 3E00
@@ -186,8 +188,12 @@ kbUp 4800
     [Fact]
     public void ExtensionsRemainDistinctAndPublicModifierPayloadIs32Bit()
     {
+        // Key codes only: the table also lists the uint keyboard-state masks (kbNumState is 0x0020), which are not key
+        // codes and may share a value with one.
         HashSet<uint> historical = HistoricalKeys.Split('\n', StringSplitOptions.RemoveEmptyEntries)
-            .Select(line => uint.Parse(line.Trim().Split(' ')[1], NumberStyles.HexNumber, CultureInfo.InvariantCulture))
+            .Select(line => line.Trim().Split(' '))
+            .Where(parts => typeof(Keys).GetField(parts[0])!.FieldType == typeof(ushort))
+            .Select(parts => uint.Parse(parts[1], NumberStyles.HexNumber, CultureInfo.InvariantCulture))
             .ToHashSet();
         Assert.DoesNotContain((uint)Keys.kbSpace, historical);
         Assert.DoesNotContain((uint)Keys.kbCtrlShiftIns, historical);

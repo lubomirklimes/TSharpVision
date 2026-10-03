@@ -90,6 +90,13 @@ internal static class AnsiKeyDecoder
                 return 2;
             }
 
+            // ESC DEL → Alt+Backspace (the "meta sends escape" form of DEL).
+            if (b1 == 0x7F)
+            {
+                ev = MakeKey(Keys.kbAltBack, Keys.kbAltShift);
+                return 2;
+            }
+
             // Unknown ESC sequence — surface a bare Esc and let the caller
             // re-process the second byte on the next round.
             ev = MakeKey(Keys.kbEsc);
@@ -175,14 +182,30 @@ internal static class AnsiKeyDecoder
         }
     }
 
+    // Longest parameter run an SS3 key can carry ("1;8" is three bytes); a longer run is not SS3.
+    private const int MaxSs3Parameters = 5;
+
     // ESC O <letter>  — applies to F1..F4 and the arrow-key family in
-    // application-cursor mode.
+    // application-cursor mode. Some terminals put an xterm modifier in between:
+    // ESC O <mod> <letter> or ESC O 1 ; <mod> <letter>, decoded exactly as the
+    // CSI form ESC [ 1 ; <mod> <letter>.
     private static int DecodeSs3(ReadOnlySpan<byte> buf, out TEvent ev, out bool complete)
     {
         ev = default;
         complete = true;
-        if (buf.Length < 3) { complete = false; return 0; }
-        byte c = buf[2];
+        int i = 2;
+        while (i < buf.Length && (buf[i] is >= (byte)'0' and <= (byte)'9' || buf[i] == (byte)';'))
+        {
+            if (i - 2 == MaxSs3Parameters)
+            {
+                // Too long for a key: not SS3. Report Esc and re-read the rest as input.
+                ev = MakeKey(Keys.kbEsc);
+                return 1;
+            }
+            i++;
+        }
+        if (i >= buf.Length) { complete = false; return 0; }
+        byte c = buf[i];
         ushort kc = c switch
         {
             (byte)'P' => Keys.kbF1,
@@ -204,8 +227,30 @@ internal static class AnsiKeyDecoder
             ev = MakeKey(Keys.kbEsc);
             return 1;
         }
-        ev = MakeKey(kc);
-        return 3;
+
+        ReadOnlySpan<byte> param = buf.Slice(2, i - 2);
+        if (param.IsEmpty)
+        {
+            ev = MakeKey(kc);
+            return 3;
+        }
+
+        // A well-formed SS3 key whose modifier is not one of xterm's 1..8 is consumed without a key.
+        if (!TryParseSs3Modifier(param, out int mod)) return i + 1;
+        uint sh = ModToShift(mod);
+        bool functionKey = c is (byte)'P' or (byte)'Q' or (byte)'R' or (byte)'S';
+        ev = MakeKey(functionKey ? WithModifierFn(kc, sh) : WithCtrlPrefix(kc, sh), sh);
+        return i + 1;
+    }
+
+    // "<mod>" or "1;<mod>", with <mod> the xterm modifier parameter 1..8.
+    private static bool TryParseSs3Modifier(ReadOnlySpan<byte> param, out int mod)
+    {
+        mod = 0;
+        if (param.Length > 2 && param[0] == (byte)'1' && param[1] == (byte)';') param = param[2..];
+        if (param.Length != 1 || param[0] is < (byte)'1' or > (byte)'8') return false;
+        mod = param[0] - '0';
+        return true;
     }
 
     // ESC [ ... <final>  — full CSI parse. Supports arrow keys (`A`..`D`),
@@ -253,6 +298,33 @@ internal static class AnsiKeyDecoder
         {
             uint sh = ModToShift(seenP2 ? p2 : (seenP1 ? p1 : 1));
             ev = MakeKey(WithCtrlPrefix(baseCode, sh), sh);
+            return i + 1;
+        }
+
+        // CSI 1 ; <mod> P/Q/R/S: xterm's modified F1..F4 (unmodified they are SS3 P..S). Only that form is a key —
+        // first parameter 1 or absent, and a modifier — so a cursor-position report (CSI row ; col R) is not one.
+        ushort pfKey = final switch
+        {
+            (byte)'P' => Keys.kbF1,
+            (byte)'Q' => Keys.kbF2,
+            (byte)'R' => Keys.kbF3,
+            (byte)'S' => Keys.kbF4,
+            _         => 0,
+        };
+        if (pfKey != 0)
+        {
+            if (seenP2 && (!seenP1 || p1 == 1))
+            {
+                uint sh = ModToShift(p2);
+                ev = MakeKey(WithModifierFn(pfKey, sh), sh);
+            }
+            return i + 1;
+        }
+
+        // CSI Z: Shift+Tab (back tab).
+        if (final == (byte)'Z' && !seenP1 && !seenP2)
+        {
+            ev = MakeKey(Keys.kbShiftTab, Keys.kbShift);
             return i + 1;
         }
 
@@ -306,18 +378,16 @@ internal static class AnsiKeyDecoder
         return s;
     }
 
-    // Promote a function key (F1..F12) to its modified sibling based on the
-    // modifier bitmask. Ctrl takes precedence over Alt which takes precedence
-    // over Shift, matching xterm modifier convention.
+    // Promote a function key (F1..F12), or Insert/Delete, to its modified sibling.
+    // One rule for every driver: the key code carries the highest-precedence
+    // modifier that has a code for this key — Alt, then Ctrl, then Shift — and
+    // controlKeyState carries the whole combination (the Win32 console, SDL and
+    // Kitty translators select their tables in the same order).
     private static ushort WithModifierFn(ushort baseCode, uint sh)
     {
-        bool ctrl  = (sh & Keys.kbCtrlShift) != 0;
-        bool alt   = (sh & Keys.kbAltShift)  != 0;
-        bool shift = (sh & Keys.kbShift)      != 0;
-        if (ctrl) return WithCtrlPrefix(baseCode, sh);
-        if (alt && !shift)
+        if ((sh & Keys.kbAltShift) != 0)
         {
-            return baseCode switch
+            ushort alt = baseCode switch
             {
                 Keys.kbF1  => Keys.kbAltF1,  Keys.kbF2  => Keys.kbAltF2,
                 Keys.kbF3  => Keys.kbAltF3,  Keys.kbF4  => Keys.kbAltF4,
@@ -325,10 +395,12 @@ internal static class AnsiKeyDecoder
                 Keys.kbF7  => Keys.kbAltF7,  Keys.kbF8  => Keys.kbAltF8,
                 Keys.kbF9  => Keys.kbAltF9,  Keys.kbF10 => Keys.kbAltF10,
                 Keys.kbF11 => Keys.kbAltF11, Keys.kbF12 => Keys.kbAltF12,
-                _          => baseCode,
+                _          => 0,
             };
+            if (alt != 0) return alt;
         }
-        if (shift && !alt)
+        if ((sh & Keys.kbCtrlShift) != 0) return WithCtrlPrefix(baseCode, sh);
+        if ((sh & Keys.kbShift) != 0)
         {
             return baseCode switch
             {
@@ -338,6 +410,7 @@ internal static class AnsiKeyDecoder
                 Keys.kbF7  => Keys.kbShiftF7,  Keys.kbF8  => Keys.kbShiftF8,
                 Keys.kbF9  => Keys.kbShiftF9,  Keys.kbF10 => Keys.kbShiftF10,
                 Keys.kbF11 => Keys.kbShiftF11, Keys.kbF12 => Keys.kbShiftF12,
+                Keys.kbIns => Keys.kbShiftIns, Keys.kbDel => Keys.kbShiftDel,
                 _          => baseCode,
             };
         }

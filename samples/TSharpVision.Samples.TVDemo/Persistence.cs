@@ -82,6 +82,7 @@ public partial class TVDemoApp
                 if (stream.In.Fail() != 0 || stream.Out.Fail() != 0) throw new InvalidDataException("Resource stream failed.");
             }
             dialog.MoveTo((desktop.size.x - dialog.size.x) / 2, (desktop.size.y - dialog.size.y) / 2);
+            DemoButtonLayout.CenterRows(dialog);
             dialog.helpCtx = DemoHelpCtx.ResourceDialog;
             desktop.ExecView(dialog);
         }

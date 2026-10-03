@@ -5,6 +5,10 @@ override TSharpVision.HexView.THexView.GetPalette() -> TSharpVision.TPalette!
 override TSharpVision.HexView.THexView.HandleEvent(ref TSharpVision.TEvent ev) -> void
 override TSharpVision.HexView.THexView.SetState(ushort aState, bool enable) -> void
 override TSharpVision.HexView.THexView.ShutDown() -> void
+static TSharpVision.HexView.THexView.FormatOffset(long offset, long length) -> string!
+static TSharpVision.HexView.THexView.FormatRow(long rowOffset, System.ReadOnlySpan<byte> bytes, int bytesPerRow, long length) -> string!
+static TSharpVision.HexView.THexView.GetBytesPerRow(int width, long length) -> int
+static TSharpVision.HexView.THexView.GetRowWidth(int bytesPerRow, long length) -> int
 TSharpVision.HexView.IHexDataSource
 TSharpVision.HexView.IHexDataSource.Length.get -> long?
 TSharpVision.HexView.IHexDataSource.ReadAsync(long offset, System.Memory<byte> destination, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<int>

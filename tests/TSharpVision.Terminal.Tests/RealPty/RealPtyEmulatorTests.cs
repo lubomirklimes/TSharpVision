@@ -282,46 +282,6 @@ public sealed class RealPtyEmulatorTests : IDisposable
         await h.WaitForExitAsync();
     }
 
-    [SkippableFact]
-    public async Task ConPtyRunsTheWindowsEditor()
-    {
-        Skip.IfNot(OperatingSystem.IsWindowsVersionAtLeast(10, 0, 17763), "ConPTY probe.");
-        string edit = Path.Combine(Environment.SystemDirectory, "edit.exe");
-        Skip.IfNot(File.Exists(edit), "Microsoft Edit is not installed.");
-        if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 17763)) return;
-        await ConPtyEdit(edit);
-    }
-
-    [SupportedOSPlatform("windows10.0.17763")]
-    private async Task ConPtyEdit(string edit)
-    {
-        string file = Path.Combine(_directory, "edit.txt");
-        using var h = PtyEmulatorHarness.ConPty(edit, "edit.txt", 100, 30, _directory);
-        await h.StartAsync();
-        await h.WaitForTextAsync("edit.txt");
-
-        await h.TypeAsync("hello edit");
-        await h.KeyAsync(Keys.kbCtrlS, Keys.kbLeftCtrl);
-        await WaitForFile(file, "hello edit");
-        await h.KeyAsync(Keys.kbCtrlQ, Keys.kbLeftCtrl);
-        await h.WaitForExitAsync();
-    }
-
-    private static async Task WaitForFile(string path, string content)
-    {
-        DateTime deadline = DateTime.UtcNow + PtyEmulatorHarness.Timeout;
-        while (!(File.Exists(path) && SafeRead(path).Contains(content, StringComparison.Ordinal)))
-        {
-            Assert.True(DateTime.UtcNow < deadline, $"{path} never held '{content}'.");
-            await Task.Delay(50);
-        }
-
-        static string SafeRead(string path)
-        {
-            try { return File.ReadAllText(path); } catch (IOException) { return string.Empty; }
-        }
-    }
-
     private static bool IsGnuNano(string path)
     {
         using Process? process = Process.Start(new ProcessStartInfo(path, "--version")

@@ -54,9 +54,10 @@ jobs:
             'TSharpVision.TableView',
             'TSharpVision.Terminal'
           )
+          $version = (dotnet msbuild src/TSharpVision/TSharpVision.csproj -getProperty:Version).Trim()
           foreach ($extension in @('nupkg', 'snupkg')) {
             $actual = @(Get-ChildItem artifacts/nuget -Filter "*.$extension" | ForEach-Object Name | Sort-Object)
-            $expected = @($ids | ForEach-Object { '{0}.0.1.0-preview.1.{1}' -f $_, $extension } | Sort-Object)
+            $expected = @($ids | ForEach-Object { '{0}.{1}.{2}' -f $_, $version, $extension } | Sort-Object)
             if (Compare-Object $expected $actual) {
               Write-Error "Unexpected $extension package set: $($actual -join ', ')"
               exit 1

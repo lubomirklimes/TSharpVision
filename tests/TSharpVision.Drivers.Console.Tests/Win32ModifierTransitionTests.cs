@@ -17,7 +17,8 @@ public sealed class Win32ModifierTransitionTests
     [Fact]
     public void ConsoleAdvertisesKeyReleaseAndModifierTransitionCapabilities()
         => Assert.Equal(
-            KeyboardCapabilities.KeyReleaseEvents | KeyboardCapabilities.StandaloneModifierTransitions,
+            KeyboardCapabilities.KeyReleaseEvents | KeyboardCapabilities.StandaloneModifierTransitions
+                | KeyboardCapabilities.DistinctNumericKeypad,
             new Win32ConsoleDriver().KeyboardCapabilities);
 
     [Theory]

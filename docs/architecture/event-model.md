@@ -12,13 +12,60 @@ During `ExecView`, the executing modal view becomes the shared routing root. Nes
 
 ## Keyboard
 
-`evKeyDown` represents the initial press and each native repeat. There is no `evKeyRepeat` or framework keyboard-repeat timer. `evKeyUp` reports an ordinary release when the host exposes it. `evModifierChanged` reports a logical Shift, Ctrl or Alt transition independently of ordinary releases.
+There are three keyboard event kinds. `evKeyDown` is the initial press and each native repeat; there is no separate repeat event and no framework repeat timer. `evKeyUp` is the release of an ordinary key, on drivers that advertise `KeyReleaseEvents`. `evModifierChanged` is a Shift, Ctrl or Alt transition reported on its own, on drivers that advertise `StandaloneModifierTransitions`. Modifier releases are reported only as `evModifierChanged`, never as `evKeyUp`. The historical `evKeyboard` mask still covers `evKeyDown` alone, so a view opts in to the other two.
 
-`keyCode` carries command and navigation identity, including preserved historical key combinations. `text` carries Unicode textual content independently of that identity. It is always a non-null string; events without text, including releases and modifier changes, use `string.Empty`. The shared `uint controlKeyState` contains keyboard modifiers and lock state when supplied by the host.
+### Identity and text
 
-Consumers should use the active driver's `KeyboardCapabilities` to determine whether releases and standalone modifier transitions are available. A backend does not fabricate missing reports.
+`keyCode` is the historical Turbo Vision key identity: commands, navigation, function keys, ASCII and the preserved Ctrl/Alt combinations. `text` is the Unicode text that the active layout or input transport produced for the event. The two are independent, and arbitrary Unicode is never encoded into `keyCode`. A key that only types a character outside that legacy set arrives as
 
-The outer ANSI terminal driver requests Kitty/CSI-u reporting at startup and reads the negotiation reply asynchronously. Capabilities remain `None` before confirmation. Confirmation alone is insufficient: the confirmed flags must include both event-type reporting and all-keys reporting for `KeyReleaseEvents` and `StandaloneModifierTransitions`. Partial confirmation can leave both unavailable. Associated Unicode text depends on the reports supplied by the terminal. Legacy ANSI input produces key-down events without reliable release or modifier-only reporting. Shutdown disables negotiated modes and restores terminal state.
+```
+evKeyDown  keyCode = 0  text = "ě"
+```
+
+which is complete and intentional, not an unmapped key. Handle shortcuts by `keyCode` and typed input by `text`. The one legacy exception is the console driver, which may still carry a Latin-1 character (U+0080–U+00FF) in `keyCode` as well as in `text`.
+
+`text` is never null. Events without text, including every release and modifier change, use `string.Empty`.
+
+`charScan.scanCode` is the scan component of the packed historical identity, the high byte of `keyCode`. `raw_scanCode` is a different thing: an optional backend-native scan byte that a driver fills in when its host supplies one. It is not a portable physical-key identifier and is zero when not supplied.
+
+`controlKeyState` holds the logical modifier and lock state when the host supplies it.
+
+### Releases
+
+A release carries the identity its press was published with, and no text. For a text-only key that is
+
+```
+evKeyDown  keyCode = 0  text = "ě"
+evKeyUp    keyCode = 0  text = ""
+```
+
+A driver does not invent a legacy identity for a release that the press did not have, and nothing in the event tells which physical position was pressed.
+
+### Alt and AltGr
+
+A text-producing AltGr combination yields its text and no Alt or Ctrl shortcut identity: AltGr+E on a Czech layout is `€`, not `kbAltE` or `kbCtrlE`. The logical modifier bits in `controlKeyState` remain available. On hosts where Right Alt is ambiguous, a driver may hold back a Right Alt shortcut until it knows whether text follows, so such a shortcut can arrive slightly later than its Left Alt equivalent.
+
+### Numeric keypad
+
+When the transport can tell the keypad from the main keyboard, keypad keys have their own identities: `kbKeypad0`–`kbKeypad9`, `kbKeypadDecimal`, `kbKeypadDivide`, `kbKeypadMultiply`, `kbKeypadEnter`, and the historical `kbGrayMinus` and `kbGrayPlus` for keypad `-` and `+`. The identity says which key was pressed; `text` says what character it generated, if any; `controlKeyState & kbNumState` says whether NumLock is on. `kbNumLock` is the identity of the NumLock key itself.
+
+### Capabilities
+
+Drivers differ in what they can report. `IDriver.KeyboardCapabilities` states what the active driver reports reliably, and a driver never fabricates a report its transport does not supply.
+
+| Flag | Meaning |
+|---|---|
+| `KeyReleaseEvents` | Releases of ordinary keys arrive as `evKeyUp`. |
+| `StandaloneModifierTransitions` | Shift, Ctrl and Alt transitions arrive as `evModifierChanged`. |
+| `DistinctNumericKeypad` | Keypad keys are reported with identities separate from the corresponding main-keyboard keys. |
+
+`Win32ConsoleDriver`, `SDLDriver` and `SDLGpuDriver` advertise all three. `AnsiTerminalDriver` advertises what the terminal has confirmed, and the value can change after startup once the negotiation reply has been read.
+
+### Terminals
+
+Plain ANSI input is text and escape sequences. It cannot reliably expose key releases, standalone modifiers, the physical origin of a key or a distinct keypad, so the capabilities are `None`, input arrives as key-down events only, and keypad keys are reported as their main-keyboard aliases.
+
+The terminal driver requests the Kitty keyboard protocol at startup and reads the reply asynchronously; capabilities stay `None` until it is confirmed. What is then available depends on the confirmed flags. `KeyReleaseEvents` and `StandaloneModifierTransitions` need both event-type reporting and all-keys reporting, and `DistinctNumericKeypad` needs all-keys reporting, so a partial confirmation can leave some or all of them unavailable. The text of an event is the associated text the terminal reports. A Kitty key identity alone is not turned into generated text. Shutdown disables the negotiated modes and restores the terminal state.
 
 ## Mouse
 

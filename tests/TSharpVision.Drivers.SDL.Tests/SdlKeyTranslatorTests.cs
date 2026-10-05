@@ -217,4 +217,22 @@ public sealed class SdlKeyTranslatorTests
         bool ok = SdlKeyTranslator.TryTranslate(0x00E1, 0, 'á', out _);
         Assert.False(ok);
     }
+    [Theory]
+    [InlineData('ě')]
+    [InlineData('š')]
+    [InlineData('č')]
+    [InlineData('ř')]
+    [InlineData('\uD83D')]
+    public void OptionalUnicodeTextNeverBecomesLegacyIdentity(char textChar)
+    {
+        foreach (uint native in new uint[] { 'a', '2', '?' })
+        {
+            Assert.True(SdlKeyTranslator.TryTranslate(native, SdlKeyTranslator.SDL_KMOD_LSHIFT, textChar, out var ev));
+            Assert.Equal((ushort)0, ev.keyDown.keyCode);
+            Assert.Equal((byte)0, ev.keyDown.charScan.charCode);
+            Assert.Equal((byte)0, ev.keyDown.charScan.scanCode);
+            Assert.Equal(textChar.ToString(), ev.keyDown.text);
+            Assert.Equal(Keys.kbShift, ev.keyDown.controlKeyState);
+        }
+    }
 }

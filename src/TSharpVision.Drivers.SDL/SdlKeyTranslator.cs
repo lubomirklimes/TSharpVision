@@ -46,6 +46,13 @@ internal static class SdlKeyTranslator
     /// <summary>SDL modifier mask for right Alt being pressed.</summary>
     public const ushort SDL_KMOD_RALT   = 0x0200;
 
+    /// <summary>SDL modifier mask for Num Lock being active.</summary>
+    public const ushort SDL_KMOD_NUM    = 0x1000;
+    /// <summary>SDL modifier mask for Caps Lock being active.</summary>
+    public const ushort SDL_KMOD_CAPS   = 0x2000;
+    /// <summary>SDL modifier mask for Scroll Lock being active.</summary>
+    public const ushort SDL_KMOD_SCROLL = 0x8000;
+
     /// <summary>SDL modifier mask for either Shift key being pressed.</summary>
     public const ushort SDL_KMOD_SHIFT = SDL_KMOD_LSHIFT | SDL_KMOD_RSHIFT;
     /// <summary>SDL modifier mask for either Control key being pressed.</summary>
@@ -157,7 +164,24 @@ internal static class SdlKeyTranslator
         {
             SDLK_BACKSPACE => alt ? Keys.kbAltBack : ctrl ? Keys.kbCtrlBack : Keys.kbBack,
             SDLK_TAB       => shf ? Keys.kbShiftTab : Keys.kbTab,
-            SDLK_RETURN or SDLK_KP_ENTER => ctrl ? Keys.kbCtrlEnter : Keys.kbEnter,
+            SDLK_RETURN => ctrl ? Keys.kbCtrlEnter : Keys.kbEnter,
+            0x40000062 => Keys.kbKeypad0,
+            0x40000059 => Keys.kbKeypad1,
+            0x4000005A => Keys.kbKeypad2,
+            0x4000005B => Keys.kbKeypad3,
+            0x4000005C => Keys.kbKeypad4,
+            0x4000005D => Keys.kbKeypad5,
+            0x4000005E => Keys.kbKeypad6,
+            0x4000005F => Keys.kbKeypad7,
+            0x40000060 => Keys.kbKeypad8,
+            0x40000061 => Keys.kbKeypad9,
+            0x40000063 => Keys.kbKeypadDecimal,
+            0x40000054 => Keys.kbKeypadDivide,
+            0x40000055 => Keys.kbKeypadMultiply,
+            0x40000058 => Keys.kbKeypadEnter,
+            0x40000053 => Keys.kbNumLock,
+            0x40000056 => Keys.kbGrayMinus,
+            0x40000057 => Keys.kbGrayPlus,
             SDLK_ESCAPE    => Keys.kbEsc,
             SDLK_DELETE    => ctrl && shf ? Keys.kbCtrlShiftDel : ctrl ? Keys.kbCtrlDel : (shf ? Keys.kbShiftDel : Keys.kbDel),
             SDLK_INSERT    => ctrl && shf ? Keys.kbCtrlShiftIns : ctrl ? Keys.kbCtrlIns : (shf ? Keys.kbShiftIns : Keys.kbIns),
@@ -187,6 +211,7 @@ internal static class SdlKeyTranslator
         if (kc != 0)
         {
             ev = MakeKey(kc, shift);
+            if (textChar != 0 && !char.IsControl(textChar)) ev.keyDown.text = textChar.ToString();
             return true;
         }
 
@@ -208,9 +233,7 @@ internal static class SdlKeyTranslator
             // Plain or shifted letter — use textChar if available, else
             // synthesize from keycode.
             char ch = textChar != 0 ? textChar : (char)(shf ? char.ToUpper((char)keycode) : keycode);
-            ev = MakeKey(ch, shift);
-            ev.keyDown.charScan.charCode = (byte)ch;
-            ev.keyDown.text = ch.ToString();
+            ev = SdlTextInput.CreateEvent(ch.ToString(), shift);
             return true;
         }
 
@@ -224,9 +247,7 @@ internal static class SdlKeyTranslator
                 return true;
             }
             char ch = textChar != 0 ? textChar : (char)keycode;
-            ev = MakeKey(ch, shift);
-            ev.keyDown.charScan.charCode = (byte)ch;
-            ev.keyDown.text = ch.ToString();
+            ev = SdlTextInput.CreateEvent(ch.ToString(), shift);
             return true;
         }
 
@@ -234,22 +255,23 @@ internal static class SdlKeyTranslator
         if (keycode >= 0x20 && keycode <= 0x7E)
         {
             char ch = textChar != 0 ? textChar : (char)keycode;
-            ev = MakeKey(ch, shift);
-            ev.keyDown.charScan.charCode = (byte)ch;
-            ev.keyDown.text = ch.ToString();
+            ev = SdlTextInput.CreateEvent(ch.ToString(), shift);
             return true;
         }
 
         return false;
     }
 
-    /// <summary>Maps SDL Shift, Control, and Alt modifier bits to framework keyboard-state masks.</summary>
+    /// <summary>Maps SDL Shift, Control, Alt, and lock modifier bits to framework keyboard-state masks.</summary>
     public static uint ToShiftState(ushort modState)
     {
         uint s = 0;
         if ((modState & SDL_KMOD_SHIFT) != 0) s |= Keys.kbShift;
         if ((modState & SDL_KMOD_CTRL)  != 0) s |= Keys.kbCtrlShift;
         if ((modState & SDL_KMOD_ALT)   != 0) s |= Keys.kbAltShift;
+        if ((modState & SDL_KMOD_NUM) != 0) s |= Keys.kbNumState;
+        if ((modState & SDL_KMOD_CAPS) != 0) s |= Keys.kbCapsState;
+        if ((modState & SDL_KMOD_SCROLL) != 0) s |= Keys.kbScrollState;
         return s;
     }
 

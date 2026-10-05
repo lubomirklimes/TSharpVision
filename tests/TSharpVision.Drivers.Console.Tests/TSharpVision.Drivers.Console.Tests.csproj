@@ -21,6 +21,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\TSharpVision.Drivers.Console\TSharpVision.Drivers.Console.csproj" />
     <ProjectReference Include="..\TSharpVision.TestSupport\TSharpVision.TestSupport.csproj" />
+    <!-- Shared layout profiles and the sequence matcher: the same expectation per physical key on every driver. -->
+    <ProjectReference Include="..\..\diagnostics\TSharpVision.Diagnostics.Keyboard\TSharpVision.Diagnostics.Keyboard.csproj" />
   </ItemGroup>
 
 </Project>

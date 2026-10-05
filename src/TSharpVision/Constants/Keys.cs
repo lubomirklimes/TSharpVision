@@ -2,7 +2,8 @@ namespace TSharpVision.Constants;
 
 /// <summary>
 /// Turbo Vision keyboard scancodes. Layout taken from tkeys.h; values are
-/// preserved verbatim so events round-trip with C++ tvision streams.
+/// preserved verbatim so events round-trip with C++ tvision streams. Modern keypad
+/// extensions preserve transport-provided identities; legacy ANSI can retain aliases.
 /// </summary>
 public static class Keys
 {
@@ -317,6 +318,38 @@ public static class Keys
     public const ushort kbNoKey = 0x0000;
     /// <summary>Key code for Alt+Backspace, used in the key-down event payload.</summary>
     public const ushort kbAltBack = 0x0800;
+
+    // Modern extensions occupy an unused scan-only range; these are not BIOS scans.
+    /// <summary>TSharpVision extension for distinct modern numeric-keypad identity: Keypad0. Preserved when the transport identifies the key; text and lock state remain independent.</summary>
+    public const ushort kbKeypad0 = 0x9000;
+    /// <summary>TSharpVision extension for distinct modern numeric-keypad identity: Keypad1. Preserved when the transport identifies the key; text and lock state remain independent.</summary>
+    public const ushort kbKeypad1 = 0x9100;
+    /// <summary>TSharpVision extension for distinct modern numeric-keypad identity: Keypad2. Preserved when the transport identifies the key; text and lock state remain independent.</summary>
+    public const ushort kbKeypad2 = 0x9200;
+    /// <summary>TSharpVision extension for distinct modern numeric-keypad identity: Keypad3. Preserved when the transport identifies the key; text and lock state remain independent.</summary>
+    public const ushort kbKeypad3 = 0x9300;
+    /// <summary>TSharpVision extension for distinct modern numeric-keypad identity: Keypad4. Preserved when the transport identifies the key; text and lock state remain independent.</summary>
+    public const ushort kbKeypad4 = 0x9400;
+    /// <summary>TSharpVision extension for distinct modern numeric-keypad identity: Keypad5. Preserved when the transport identifies the key; text and lock state remain independent.</summary>
+    public const ushort kbKeypad5 = 0x9500;
+    /// <summary>TSharpVision extension for distinct modern numeric-keypad identity: Keypad6. Preserved when the transport identifies the key; text and lock state remain independent.</summary>
+    public const ushort kbKeypad6 = 0x9600;
+    /// <summary>TSharpVision extension for distinct modern numeric-keypad identity: Keypad7. Preserved when the transport identifies the key; text and lock state remain independent.</summary>
+    public const ushort kbKeypad7 = 0x9700;
+    /// <summary>TSharpVision extension for distinct modern numeric-keypad identity: Keypad8. Preserved when the transport identifies the key; text and lock state remain independent.</summary>
+    public const ushort kbKeypad8 = 0x9800;
+    /// <summary>TSharpVision extension for distinct modern numeric-keypad identity: Keypad9. Preserved when the transport identifies the key; text and lock state remain independent.</summary>
+    public const ushort kbKeypad9 = 0x9900;
+    /// <summary>TSharpVision extension for distinct modern numeric-keypad identity: KeypadDecimal. Preserved when the transport identifies the key; text and lock state remain independent.</summary>
+    public const ushort kbKeypadDecimal = 0x9A00;
+    /// <summary>TSharpVision extension for distinct modern numeric-keypad identity: KeypadDivide. Preserved when the transport identifies the key; text and lock state remain independent.</summary>
+    public const ushort kbKeypadDivide = 0x9B00;
+    /// <summary>TSharpVision extension for distinct modern numeric-keypad identity: KeypadMultiply. Preserved when the transport identifies the key; text and lock state remain independent.</summary>
+    public const ushort kbKeypadMultiply = 0x9C00;
+    /// <summary>TSharpVision extension for distinct modern numeric-keypad identity: KeypadEnter. Preserved when the transport identifies the key; text and lock state remain independent.</summary>
+    public const ushort kbKeypadEnter = 0x9D00;
+    /// <summary>TSharpVision extension for distinct modern numeric-keypad identity: NumLock. Preserved when the transport identifies the key; text and lock state remain independent.</summary>
+    public const ushort kbNumLock = 0x9E00;
 
     // Keyboard state and shift masks
     /// <summary>Keyboard-state mask: Right Shift is pressed.</summary>

@@ -260,6 +260,17 @@ internal static class AnsiKeyDecoder
         ev = default;
         complete = true;
 
+        // Linux console F1..F5 are ESC [ [ A..E: the second '[' is not a final byte.
+        if (buf.Length > 2 && buf[2] == (byte)'[')
+        {
+            if (buf.Length == 3) { complete = false; return 0; }
+            if (buf[3] is >= (byte)'A' and <= (byte)'E')
+            {
+                ev = MakeKey((ushort)(Keys.kbF1 + ((buf[3] - 'A') << 8)));
+                return 4;
+            }
+        }
+
         // Walk past parameters; final byte is in 0x40..0x7E. We bound the
         // search to avoid scanning the entire input forever.
         int i = 2;

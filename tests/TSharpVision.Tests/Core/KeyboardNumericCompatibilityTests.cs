@@ -7,6 +7,33 @@ namespace TSharpVision.Tests.Core;
 
 public sealed class KeyboardNumericCompatibilityTests
 {
+    [Fact]
+    public void ModernKeypadValuesAreUniqueAndRoundTripWithoutPrintableBytes()
+    {
+        var all = typeof(Keys).GetFields(BindingFlags.Public | BindingFlags.Static);
+        var modern = all.Where(f => f.Name.StartsWith("kbKeypad", StringComparison.Ordinal) || f.Name == "kbNumLock").ToArray();
+        Assert.Equal(15, modern.Length);
+        var values = modern.Select(f => (ushort)f.GetRawConstantValue()!).Order().ToArray();
+        Assert.Equal(Enumerable.Range(0, 15).Select(i => (ushort)(0x9000 + i * 0x100)), values);
+        foreach (ushort value in values)
+        {
+            Assert.Single(all, f => Convert.ToUInt32(f.GetRawConstantValue(), CultureInfo.InvariantCulture) == value);
+            var packed = new CharScanType(value);
+            Assert.Equal((byte)0, packed.charCode);
+            Assert.Equal(value, packed.ToUShort());
+            using var stream = new System.IO.MemoryStream();
+            new Opstream(stream).WriteShort(value);
+            stream.Position = 0;
+            Assert.Equal(value, new Ipstream(stream).ReadShort());
+        }
+        Assert.Equal((ushort)0x4A2D, Keys.kbGrayMinus);
+        Assert.Equal((ushort)0x4E2B, Keys.kbGrayPlus);
+        Assert.Equal((ushort)0x0020, Keys.kbSpace);
+        Assert.Equal((ushort)0x01CD, Keys.kbCtrlShiftIns);
+        Assert.Equal((ushort)0x01CE, Keys.kbCtrlShiftDel);
+        Assert.Equal(typeof(ushort), typeof(KeyDownEvent).GetField(nameof(KeyDownEvent.keyCode))!.FieldType);
+    }
+
     // kbF11 / kbF12 are the BIOS extended codes 0x85 / 0x86, as in tvision and as Shift/Ctrl/Alt+F11/F12 (0x87…0x8C)
     // continue them. Until KEYBOARD-NORM they reused 0x57 / 0x58, the codes of Shift+F4 / Shift+F5.
     private const string HistoricalKeys = """

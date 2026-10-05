@@ -19,6 +19,7 @@ public static class TVDemoCmd
     public const ushort cmMouseDlg    = 306;
     public const ushort cmClock       = 307;
     public const ushort cmHeap        = 308;
+    public const ushort cmKeyboardDlg = 309;
 }
 
 // ---------------------------------------------------------------------------
@@ -103,6 +104,11 @@ public partial class TVDemoApp : TApplication
 
             case TVDemoCmd.cmMouseDlg:
                 OpenMouseDlg();
+                ClearEvent(ref ev);
+                break;
+
+            case TVDemoCmd.cmKeyboardDlg:
+                OpenKeyboardDlg();
                 ClearEvent(ref ev);
                 break;
 
@@ -255,8 +261,8 @@ public partial class TVDemoApp : TApplication
     // -----------------------------------------------------------------------
     private void OpenHeap()
     {
-        int x = 45 + (_cascade % 2);
-        int y = 10 + (_cascade % 2);
+        int x = 12 + (_cascade % 2);
+        int y = 3 + (_cascade % 2);
         _cascade++;
         var heap = new HeapDialog(x, y);
         var valid = ValidView(heap);

@@ -201,11 +201,26 @@ const TSharpVision.Constants.Keys.kbGrayPlus = 20011 -> ushort
 const TSharpVision.Constants.Keys.kbHome = 18176 -> ushort
 const TSharpVision.Constants.Keys.kbIns = 20992 -> ushort
 const TSharpVision.Constants.Keys.kbInsState = 128 -> uint
+const TSharpVision.Constants.Keys.kbKeypad0 = 36864 -> ushort
+const TSharpVision.Constants.Keys.kbKeypad1 = 37120 -> ushort
+const TSharpVision.Constants.Keys.kbKeypad2 = 37376 -> ushort
+const TSharpVision.Constants.Keys.kbKeypad3 = 37632 -> ushort
+const TSharpVision.Constants.Keys.kbKeypad4 = 37888 -> ushort
+const TSharpVision.Constants.Keys.kbKeypad5 = 38144 -> ushort
+const TSharpVision.Constants.Keys.kbKeypad6 = 38400 -> ushort
+const TSharpVision.Constants.Keys.kbKeypad7 = 38656 -> ushort
+const TSharpVision.Constants.Keys.kbKeypad8 = 38912 -> ushort
+const TSharpVision.Constants.Keys.kbKeypad9 = 39168 -> ushort
+const TSharpVision.Constants.Keys.kbKeypadDecimal = 39424 -> ushort
+const TSharpVision.Constants.Keys.kbKeypadDivide = 39680 -> ushort
+const TSharpVision.Constants.Keys.kbKeypadEnter = 40192 -> ushort
+const TSharpVision.Constants.Keys.kbKeypadMultiply = 39936 -> ushort
 const TSharpVision.Constants.Keys.kbLeft = 19200 -> ushort
 const TSharpVision.Constants.Keys.kbLeftAlt = 8 -> uint
 const TSharpVision.Constants.Keys.kbLeftCtrl = 4 -> uint
 const TSharpVision.Constants.Keys.kbLeftShift = 1 -> uint
 const TSharpVision.Constants.Keys.kbNoKey = 0 -> ushort
+const TSharpVision.Constants.Keys.kbNumLock = 40448 -> ushort
 const TSharpVision.Constants.Keys.kbNumState = 32 -> uint
 const TSharpVision.Constants.Keys.kbPgDn = 20736 -> ushort
 const TSharpVision.Constants.Keys.kbPgUp = 18688 -> ushort
@@ -1343,6 +1358,7 @@ TSharpVision.Drivers.IDriver.WriteBuf(int x, int y, int w, int h, System.Span<TS
 TSharpVision.Drivers.IRenderer
 TSharpVision.Drivers.IRenderer.Render(TSharpVision.ScreenBuffer! screenBuffer, uint regionX, uint regionY, uint regionWidth, uint regionHeight) -> void
 TSharpVision.Drivers.KeyboardCapabilities
+TSharpVision.Drivers.KeyboardCapabilities.DistinctNumericKeypad = 4 -> TSharpVision.Drivers.KeyboardCapabilities
 TSharpVision.Drivers.KeyboardCapabilities.KeyReleaseEvents = 1 -> TSharpVision.Drivers.KeyboardCapabilities
 TSharpVision.Drivers.KeyboardCapabilities.None = 0 -> TSharpVision.Drivers.KeyboardCapabilities
 TSharpVision.Drivers.KeyboardCapabilities.StandaloneModifierTransitions = 2 -> TSharpVision.Drivers.KeyboardCapabilities

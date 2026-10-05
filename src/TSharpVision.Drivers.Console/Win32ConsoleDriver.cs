@@ -186,7 +186,8 @@ public sealed class Win32ConsoleDriver : IDriver, IDisposable
     public bool SupportsGraphics  => false;
     /// <inheritdoc />
     public KeyboardCapabilities KeyboardCapabilities =>
-        KeyboardCapabilities.KeyReleaseEvents | KeyboardCapabilities.StandaloneModifierTransitions;
+        KeyboardCapabilities.KeyReleaseEvents | KeyboardCapabilities.StandaloneModifierTransitions
+        | KeyboardCapabilities.DistinctNumericKeypad;
 
     /// <summary>
     /// Exposed for smoke tests: returns the P/Invoke marshaled size of CHAR_INFO.

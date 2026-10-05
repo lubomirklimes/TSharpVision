@@ -86,17 +86,66 @@ internal static class Win32KeyTranslator
     ];
 
     /// <summary>Translates a Win32 key record; returns false for releases, modifier-only keys, and unmapped input.</summary>
-    public static bool TryTranslate(bool keyDown, ushort vk, char ch, uint ctrlState, out TEvent ev)
+    public static bool TryTranslate(bool keyDown, ushort vk, char ch, uint ctrlState, out TEvent ev, ushort scanCode = 0)
     {
         ev = default;
         if (!keyDown || vk is 0x10 or 0x11 or 0x12 or 0x14 or 0x5B or 0x5C
-            or 0x90 or 0x91 or >= 0xA0 and <= 0xA5) return false;
+            or 0x91 or >= 0xA0 and <= 0xA5) return false;
 
         uint state = ToControlKeyState(ctrlState);
         bool control = (state & Keys.kbCtrlShift) != 0;
         bool alt = (state & Keys.kbAltShift) != 0;
         bool shift = (state & Keys.kbShift) != 0;
         bool printable = ch != '\0' && !char.IsControl(ch);
+
+        // VK_NUMPAD is explicit. NumLock-off navigation requires both its native
+        // keypad scan and absence of ENHANCED_KEY; generated text is never evidence.
+        ushort keypad = vk switch
+        {
+            0x60 => Keys.kbKeypad0,
+            0x61 => Keys.kbKeypad1,
+            0x62 => Keys.kbKeypad2,
+            0x63 => Keys.kbKeypad3,
+            0x64 => Keys.kbKeypad4,
+            0x65 => Keys.kbKeypad5,
+            0x66 => Keys.kbKeypad6,
+            0x67 => Keys.kbKeypad7,
+            0x68 => Keys.kbKeypad8,
+            0x69 => Keys.kbKeypad9,
+            0x6E => Keys.kbKeypadDecimal,
+            0x6F => Keys.kbKeypadDivide,
+            0x6A => Keys.kbKeypadMultiply,
+            0x6D => Keys.kbGrayMinus,
+            0x6B => Keys.kbGrayPlus,
+            0x90 => Keys.kbNumLock,
+            0x0D when (ctrlState & ENHANCED_KEY) != 0 => Keys.kbKeypadEnter,
+            _ => 0
+        };
+        if (keypad == 0 && (ctrlState & ENHANCED_KEY) == 0)
+            keypad = (vk, scanCode) switch
+            {
+                (0x2D, 0x52) => Keys.kbKeypad0,
+                (0x23, 0x4F) => Keys.kbKeypad1,
+                (0x28, 0x50) => Keys.kbKeypad2,
+                (0x22, 0x51) => Keys.kbKeypad3,
+                (0x25, 0x4B) => Keys.kbKeypad4,
+                (0x0C, 0x4C) => Keys.kbKeypad5,
+                (0x27, 0x4D) => Keys.kbKeypad6,
+                (0x24, 0x47) => Keys.kbKeypad7,
+                (0x26, 0x48) => Keys.kbKeypad8,
+                (0x21, 0x49) => Keys.kbKeypad9,
+                (0x2E, 0x53) => Keys.kbKeypadDecimal,
+                _ => 0
+            };
+        if (keypad != 0)
+        {
+            ev.What = Events.evKeyDown;
+            ev.keyDown.keyCode = keypad;
+            ev.keyDown.charScan = new CharScanType(keypad);
+            ev.keyDown.controlKeyState = state;
+            if (printable) ev.keyDown.text = ch.ToString();
+            return true;
+        }
 
         // The input signature has no layout identity. Prefer supplied text for Ctrl+Alt.
         if (printable && control && alt)

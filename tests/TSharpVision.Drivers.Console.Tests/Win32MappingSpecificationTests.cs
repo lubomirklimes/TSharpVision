@@ -68,9 +68,15 @@ public sealed class Win32MappingSpecificationTests
     {
         Assert.True(Win32KeyTranslator.TryTranslate(true, (ushort)vk, text, state, out var ev));
         Assert.Equal(Events.evKeyDown, ev.What); Assert.Equal(text.ToString(), ev.keyDown.text);
-        Assert.Equal(text <= 255 ? (ushort)text : (ushort)0, ev.keyDown.keyCode);
-        Assert.Equal(text <= 255 ? (byte)text : (byte)0, ev.keyDown.charScan.charCode);
-        Assert.Equal(0, ev.keyDown.raw_scanCode); Assert.Equal(0, ev.keyDown.charScan.scanCode);
+        ushort expected = vk switch
+        {
+            0x61 => Keys.kbKeypad1, 0x6B => Keys.kbGrayPlus,
+            0x6D => Keys.kbGrayMinus, 0x6F => Keys.kbKeypadDivide,
+            _ => text <= 255 ? (ushort)text : (ushort)0
+        };
+        Assert.Equal(expected, ev.keyDown.keyCode);
+        Assert.Equal(new CharScanType(expected).ToUShort(), ev.keyDown.charScan.ToUShort());
+        Assert.Equal(0, ev.keyDown.raw_scanCode);
     }
 
     [Fact]
@@ -112,7 +118,7 @@ public sealed class Win32MappingSpecificationTests
             Assert.False(Win32KeyTranslator.TryTranslate(false, vk, 'a', Ctrl | Alt | Shift, out var ev));
             Assert.Equal(Events.evNothing, ev.What);
         }
-        foreach (ushort vk in new ushort[] { 0, 0x10, 0x11, 0x12, 0x14, 0x5B, 0x5C, 0x90, 0x91, 0xA0, 0xA5, 0x41, 0x7C })
+        foreach (ushort vk in new ushort[] { 0, 0x10, 0x11, 0x12, 0x14, 0x5B, 0x5C, 0x91, 0xA0, 0xA5, 0x41, 0x7C })
             Assert.False(Win32KeyTranslator.TryTranslate(true, vk, '\0', 0, out _));
     }
     [Fact]
@@ -131,7 +137,7 @@ public sealed class Win32MappingSpecificationTests
     [InlineData(0x24, Keys.kbHome)] [InlineData(0x2D, Keys.kbIns)] [InlineData(0x0D, Keys.kbEnter)]
     public void KeypadAndEnhancedLocationsShareTheCommandContract(int vk, ushort expected)
     {
-        AssertCommand(vk, '\0', 0, expected); AssertCommand(vk, '\0', Win32KeyTranslator.ENHANCED_KEY, expected);
+        AssertCommand(vk, '\0', 0, expected); AssertCommand(vk, '\0', Win32KeyTranslator.ENHANCED_KEY, vk == 0x0D ? Keys.kbKeypadEnter : expected);
     }
     [Theory]
     [InlineData('\u0001')] [InlineData('\u001F')] [InlineData('\u007F')]

@@ -1,6 +1,5 @@
 using TSharpVision.Constants;
 using System.Runtime.InteropServices;
-using System.Text;
 
 namespace TSharpVision.Drivers.SDL;
 
@@ -90,7 +89,8 @@ public class SDLDriver : IDisposable, IDriver
     public bool SupportsGraphics  => true;
     /// <inheritdoc />
     public KeyboardCapabilities KeyboardCapabilities =>
-        KeyboardCapabilities.KeyReleaseEvents | KeyboardCapabilities.StandaloneModifierTransitions;
+        KeyboardCapabilities.KeyReleaseEvents | KeyboardCapabilities.StandaloneModifierTransitions
+        | KeyboardCapabilities.DistinctNumericKeypad;
 
     /// <summary>Optional rendering callback invoked while pumping messages; initialization installs a callback that renders the screen buffer.</summary>
     public Action<IRenderer>? MessageLoop { get; set; }
@@ -303,20 +303,7 @@ public class SDLDriver : IDisposable, IDriver
                 string? text = Marshal.PtrToStringUTF8(e.Text.Text);
                 if (string.IsNullOrEmpty(text)) break;
 
-                Rune rune = Rune.GetRuneAt(text, 0);
-                char ch   = rune.Value <= 0xFFFF ? (char)rune.Value : text[0];
-
-                uint shift = SdlKeyTranslator.ToShiftState(_lastModState);
-                TEvent kev = default;
-                kev.What                      = Events.evKeyDown;
-                kev.keyDown.keyCode           = (ushort)ch;
-                kev.keyDown.charScan.charCode = rune.Value <= 0x7F ? (byte)rune.Value : (byte)0;
-                kev.keyDown.controlKeyState   = shift;
-                kev.keyDown.text              = text;
-
-                FlushPendingMotion();
-                _pendingKeys.Enqueue(kev);
-                MarkDirty(SdlDirtyReason.KeyInput);
+                ProcessTextInput(text, _lastModState);
                 break;
             }
 
@@ -590,10 +577,22 @@ public class SDLDriver : IDisposable, IDriver
         return changed;
     }
 
+    internal void ProcessTextInput(string text, ushort modifierState)
+    {
+        if (string.IsNullOrEmpty(text)) return;
+        FlushPendingMotion();
+        TEvent ev = SdlTextInput.CreateEvent(text, SdlKeyTranslator.ToShiftState(modifierState));
+        _heldKeys.TextCommitted(ev.keyDown);
+        _pendingKeys.Enqueue(ev);
+        MarkDirty(SdlDirtyReason.KeyInput);
+    }
+
     internal bool ProcessOrdinaryKeyUp(uint keycode, ushort modifierState)
     {
-        if (!_heldKeys.TryKeyUp(keycode, modifierState, out TEvent ev)) return false;
+        if (!_heldKeys.TryKeyUp(keycode, modifierState, out TEvent deferredPress, out TEvent ev)) return false;
         FlushPendingMotion();
+        // A Right Alt chord the layout turned into no text is published as the shortcut it was.
+        if (deferredPress.What != Events.evNothing) _pendingKeys.Enqueue(deferredPress);
         _pendingKeys.Enqueue(ev);
         MarkDirty(SdlDirtyReason.KeyInput);
         return true;
@@ -601,17 +600,8 @@ public class SDLDriver : IDisposable, IDriver
 
     internal bool ProcessOrdinaryKeyDown(uint keycode, ushort modifierState)
     {
-        _heldKeys.KeyDown(keycode, modifierState);
-
         // Layout-correct printable input arrives later through SDL_TEXTINPUT.
-        bool hasCtrl = (modifierState & SdlKeyTranslator.SDL_KMOD_CTRL) != 0;
-        bool hasLAlt = (modifierState & SdlKeyTranslator.SDL_KMOD_LALT) != 0;
-        bool printable = (keycode >= 0x20 && keycode <= 0x7E)
-            || (keycode >= 'a' && keycode <= 'z');
-        if (printable && !hasCtrl && !hasLAlt) return false;
-
-        if (!SdlKeyTranslator.TryTranslate(keycode, modifierState, '\0', out TEvent ev))
-            return false;
+        if (!_heldKeys.KeyDown(keycode, modifierState, out TEvent ev)) return false;
         FlushPendingMotion();
         _pendingKeys.Enqueue(ev);
         MarkDirty(SdlDirtyReason.KeyInput);

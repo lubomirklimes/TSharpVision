@@ -40,6 +40,10 @@ internal sealed class KittyKeyboardNegotiator
                 capabilities |= KeyboardCapabilities.KeyReleaseEvents;
             if ((ActiveFlags & (2 | 8)) == (2 | 8))
                 capabilities |= KeyboardCapabilities.StandaloneModifierTransitions;
+            // Text-producing keypad keys get dedicated codes only when all keys are
+            // reported as escape codes; disambiguation alone covers just the others.
+            if ((ActiveFlags & 8) != 0)
+                capabilities |= KeyboardCapabilities.DistinctNumericKeypad;
             return capabilities;
         }
     }
@@ -169,6 +173,9 @@ internal sealed class KittyKeyboardDecoder
     private readonly Dictionary<int, KeyDownEvent> _heldKeys = new();
     private byte _physicalModifiers;
 
+    /// <summary>The protocol was negotiated, so a report for a key without a legacy identity is a real key press.</summary>
+    internal bool ProtocolActive { get; set; }
+
     internal void Reset()
     {
         _heldKeys.Clear();
@@ -257,10 +264,18 @@ internal sealed class KittyKeyboardDecoder
             return finalIndex + 1;
 
         string text = fields.Length > 2 ? DecodeText(fields[2]) : string.Empty;
-        int identityKey = ((modifiers & (Keys.kbCtrlShift | Keys.kbAltShift)) != 0 && baseLayoutKey != 0)
+        int identityKey = (key is not (57360 or >= 57399 and <= 57427) && (modifiers & (Keys.kbCtrlShift | Keys.kbAltShift)) != 0 && baseLayoutKey != 0)
             ? baseLayoutKey : key;
-        if ((modifiers & Keys.kbShift) != 0 && shiftedKey != 0 && text.Length == 0)
-            text = ScalarText(shiftedKey);
+        // Key codes say which key, never what it typed: text comes only from the associated-text
+        // field. With Shift alone the shifted alternate is the key's identity; it is not text either.
+        if ((modifiers & (Keys.kbShift | Keys.kbCtrlShift | Keys.kbAltShift)) == (modifiers & Keys.kbShift)
+            && (modifiers & Keys.kbShift) != 0 && shiftedKey != 0)
+            identityKey = shiftedKey;
+        // A key of the active layout without a legacy identity (CSI 283 u for Czech "ě") is still
+        // a key press. It is published with neither identity nor text rather than dropped, so its
+        // repeat and release keep their meaning. Functional keys live in the private-use area.
+        bool unidentified = ProtocolActive && eventType != 3 && ScalarText(key).Length != 0
+            && key is not (>= 0xE000 and <= 0xF8FF);
 
         if (eventType == 3 && _heldKeys.Remove(key, out KeyDownEvent pressed))
         {
@@ -281,7 +296,7 @@ internal sealed class KittyKeyboardDecoder
             return finalIndex + 1;
         }
 
-        if (!TryTranslate(identityKey, modifiers, text, out KeyDownEvent payload))
+        if (!TryTranslate(identityKey, modifiers, text, unidentified, out KeyDownEvent payload))
             return finalIndex + 1;
 
         if (eventType == 1)
@@ -357,32 +372,47 @@ internal sealed class KittyKeyboardDecoder
         _ => 0,
     };
 
-    // Keypad keys the report-all-keys flag sends with codes of their own (KP_ENTER, KP_LEFT … KP_DELETE) are the
-    // main keys: the other drivers do not tell them apart either. Keypad digits and operators carry their text.
-    private static int MainKey(int key) => key switch
-    {
-        57414 => 13,     // KP_ENTER
-        57417 => -4,     // KP_LEFT
-        57418 => -3,     // KP_RIGHT
-        57419 => -1,     // KP_UP
-        57420 => -2,     // KP_DOWN
-        57421 => -13,    // KP_PAGE_UP
-        57422 => -14,    // KP_PAGE_DOWN
-        57423 => -5,     // KP_HOME
-        57424 => -6,     // KP_END
-        57425 => -11,    // KP_INSERT
-        57426 => -12,    // KP_DELETE
-        _ => key,
-    };
-
-    private static bool TryTranslate(int key, uint modifiers, string text, out KeyDownEvent payload)
+    private static bool TryTranslate(int key, uint modifiers, string text, bool unidentified, out KeyDownEvent payload)
     {
         payload = default;
-        key = MainKey(key);
+
         bool shift = (modifiers & Keys.kbShift) != 0;
         bool control = (modifiers & Keys.kbCtrlShift) != 0;
         bool alt = (modifiers & Keys.kbAltShift) != 0;
-        ushort code = SpecialKeyCode(key, shift, control, alt);
+        // Dedicated functional codes in report-all-keys mode, including NumLock-off forms.
+        ushort keypad = key switch
+        {
+            57399 => Keys.kbKeypad0,
+            57400 => Keys.kbKeypad1,
+            57401 => Keys.kbKeypad2,
+            57402 => Keys.kbKeypad3,
+            57403 => Keys.kbKeypad4,
+            57404 => Keys.kbKeypad5,
+            57405 => Keys.kbKeypad6,
+            57406 => Keys.kbKeypad7,
+            57407 => Keys.kbKeypad8,
+            57408 => Keys.kbKeypad9,
+            57409 => Keys.kbKeypadDecimal,
+            57410 => Keys.kbKeypadDivide,
+            57411 => Keys.kbKeypadMultiply,
+            57412 => Keys.kbGrayMinus,
+            57413 => Keys.kbGrayPlus,
+            57414 => Keys.kbKeypadEnter,
+            57360 => Keys.kbNumLock,
+            57417 => Keys.kbKeypad4,
+            57418 => Keys.kbKeypad6,
+            57419 => Keys.kbKeypad8,
+            57420 => Keys.kbKeypad2,
+            57421 => Keys.kbKeypad9,
+            57422 => Keys.kbKeypad3,
+            57423 => Keys.kbKeypad7,
+            57424 => Keys.kbKeypad1,
+            57425 => Keys.kbKeypad0,
+            57426 => Keys.kbKeypadDecimal,
+            57427 => Keys.kbKeypad5,
+            _ => 0
+        };
+        ushort code = keypad != 0 ? keypad : SpecialKeyCode(key, shift, control, alt);
 
         if (code == 0 && key >= 'a' && key <= 'z' && (control || alt))
             code = (alt ? AltLetters : ControlLetters)[key - 'a'];
@@ -402,7 +432,7 @@ internal sealed class KittyKeyboardDecoder
             else if (key is >= 0x20 and <= 0x7E && text.Length == 0)
                 code = (ushort)key;
         }
-        if (code == 0 && text.Length == 0) return false;
+        if (code == 0 && text.Length == 0 && !unidentified) return false;
 
         payload.keyCode = code;
         payload.charScan = new CharScanType(code);
@@ -527,6 +557,7 @@ internal sealed class TerminalInputDecoder
             }
             if (consumed == 0)
             {
+                _kitty.ProtocolActive = _negotiator.State == KittyNegotiationState.Active;
                 consumed = _kitty.TryDecode(span, out ev, out complete);
                 if (consumed == 0 && !complete) return;
             }

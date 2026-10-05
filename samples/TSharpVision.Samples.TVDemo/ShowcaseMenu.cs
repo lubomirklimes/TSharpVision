@@ -43,7 +43,8 @@ public partial class TVDemoApp
                 new TMenuItem("Input ~h~istory...", ShowcaseCmd.History, Keys.kbNoKey) +
                 new TMenuItem("~R~esource dialog...", ShowcaseCmd.Resource, Keys.kbNoKey) +
             new TSubMenu("D~i~agnostics", Keys.kbAltI) +
-                new TMenuItem("~M~ouse dialog", TVDemoCmd.cmMouseDlg, Keys.kbNoKey) +
+                new TMenuItem("~K~eyboard...", TVDemoCmd.cmKeyboardDlg, Keys.kbNoKey) +
+                new TMenuItem("~M~ouse...", TVDemoCmd.cmMouseDlg, Keys.kbNoKey) +
                 new TMenuItem("~H~eap / memory", TVDemoCmd.cmHeap, Keys.kbNoKey) +
             new TSubMenu("~O~ptions", Keys.kbAltO) +
                 new TMenuItem("UI ~c~olors...", ShowcaseCmd.Colors, Keys.kbNoKey) +

@@ -48,17 +48,17 @@ public sealed class SdlKeyClosureTests
     }
 
     [Theory]
-    [InlineData((ushort)0, Keys.kbEnter)]
-    [InlineData(LShift, Keys.kbEnter)]
-    [InlineData(LCtrl, Keys.kbCtrlEnter)]
-    [InlineData(LAlt, Keys.kbEnter)]
-    [InlineData((ushort)(LCtrl | LShift), Keys.kbCtrlEnter)]
-    public void KeypadEnterIsEnter(ushort mod, ushort expected)
+    [InlineData((ushort)0, Keys.kbKeypadEnter)]
+    [InlineData(LShift, Keys.kbKeypadEnter)]
+    [InlineData(LCtrl, Keys.kbKeypadEnter)]
+    [InlineData(LAlt, Keys.kbKeypadEnter)]
+    [InlineData((ushort)(LCtrl | LShift), Keys.kbKeypadEnter)]
+    public void KeypadEnterIsDistinct(ushort mod, ushort expected)
     {
         TEvent ev = Translate(KeypadEnter, mod);
         Assert.Equal(expected, ev.keyDown.keyCode);
         Assert.Equal(SdlKeyTranslator.ToShiftState(mod), ev.keyDown.controlKeyState);
-        Assert.Equal(Translate(SdlKeyTranslator.SDLK_RETURN, mod).keyDown.keyCode, ev.keyDown.keyCode);
+        Assert.NotEqual(Translate(SdlKeyTranslator.SDLK_RETURN, mod).keyDown.keyCode, ev.keyDown.keyCode);
     }
 
     [Theory]
@@ -80,10 +80,10 @@ public sealed class SdlKeyClosureTests
     [InlineData(true, Backspace, LCtrl, Keys.kbCtrlBack)]
     [InlineData(false, Backspace, LAlt, Keys.kbAltBack)]
     [InlineData(true, Backspace, LAlt, Keys.kbAltBack)]
-    [InlineData(false, KeypadEnter, (ushort)0, Keys.kbEnter)]
-    [InlineData(true, KeypadEnter, (ushort)0, Keys.kbEnter)]
-    [InlineData(false, KeypadEnter, LCtrl, Keys.kbCtrlEnter)]
-    [InlineData(true, KeypadEnter, LCtrl, Keys.kbCtrlEnter)]
+    [InlineData(false, KeypadEnter, (ushort)0, Keys.kbKeypadEnter)]
+    [InlineData(true, KeypadEnter, (ushort)0, Keys.kbKeypadEnter)]
+    [InlineData(false, KeypadEnter, LCtrl, Keys.kbKeypadEnter)]
+    [InlineData(true, KeypadEnter, LCtrl, Keys.kbKeypadEnter)]
     public void PressAndReleaseCarryTheIdentity(bool gpu, uint keycode, ushort mod, ushort expected)
     {
         IDriver driver;

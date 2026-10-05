@@ -11,7 +11,8 @@ public sealed class SdlModifierTransitionTests
     public void BothSdlDriversAdvertiseKeyReleaseAndModifierTransitionCapabilities()
     {
         KeyboardCapabilities expected = KeyboardCapabilities.KeyReleaseEvents
-            | KeyboardCapabilities.StandaloneModifierTransitions;
+            | KeyboardCapabilities.StandaloneModifierTransitions
+            | KeyboardCapabilities.DistinctNumericKeypad;
         Assert.Equal(expected, new SDLDriver().KeyboardCapabilities);
         Assert.Equal(expected, new SDLGpuDriver().KeyboardCapabilities);
     }
@@ -56,8 +57,8 @@ public sealed class SdlModifierTransitionTests
         var held = new SdlHeldKeyTracker();
         Assert.True(SdlKeyTranslator.TryTranslate(
             SdlKeyTranslator.SDLK_DOWN, nativeState, '\0', out TEvent down));
-        held.KeyDown(SdlKeyTranslator.SDLK_DOWN, nativeState);
-        Assert.True(held.TryKeyUp(SdlKeyTranslator.SDLK_DOWN, nativeState, out TEvent up));
+        Assert.True(held.KeyDown(SdlKeyTranslator.SDLK_DOWN, nativeState, out _));
+        Assert.True(held.TryKeyUp(SdlKeyTranslator.SDLK_DOWN, nativeState, out _, out TEvent up));
         Assert.Equal(Events.evKeyDown, down.What);
         Assert.Equal(Events.evKeyUp, up.What);
         Assert.Equal(Keys.kbDown, up.keyDown.keyCode);

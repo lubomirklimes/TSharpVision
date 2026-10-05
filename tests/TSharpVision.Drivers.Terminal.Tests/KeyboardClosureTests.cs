@@ -85,24 +85,24 @@ public sealed class KeyboardClosureTests
     // ── N3: keypad keys under Kitty (report-all-keys sends keypad codes) ─────
 
     [Theory]
-    [InlineData("\u001b[57414u", Keys.kbEnter, 0u)]
-    [InlineData("\u001b[57414;2u", Keys.kbEnter, Shift)]
-    [InlineData("\u001b[57414;5u", Keys.kbCtrlEnter, Ctrl)]
-    [InlineData("\u001b[57414;3u", Keys.kbEnter, Alt)]
-    [InlineData("\u001b[57414;6u", Keys.kbCtrlEnter, Ctrl | Shift)]
-    [InlineData("\u001b[57417u", Keys.kbLeft, 0u)]
-    [InlineData("\u001b[57418u", Keys.kbRight, 0u)]
-    [InlineData("\u001b[57419u", Keys.kbUp, 0u)]
-    [InlineData("\u001b[57420u", Keys.kbDown, 0u)]
-    [InlineData("\u001b[57421u", Keys.kbPgUp, 0u)]
-    [InlineData("\u001b[57422u", Keys.kbPgDn, 0u)]
-    [InlineData("\u001b[57423u", Keys.kbHome, 0u)]
-    [InlineData("\u001b[57424u", Keys.kbEnd, 0u)]
-    [InlineData("\u001b[57425u", Keys.kbIns, 0u)]
-    [InlineData("\u001b[57426u", Keys.kbDel, 0u)]
-    [InlineData("\u001b[57423;5u", Keys.kbCtrlHome, Ctrl)]
-    [InlineData("\u001b[57417;5u", Keys.kbCtrlLeft, Ctrl)]
-    public void KittyKeypadKeysAreTheirMainKeys(string sequence, ushort keyCode, uint modifiers)
+    [InlineData("\u001b[57414u", Keys.kbKeypadEnter, 0u)]
+    [InlineData("\u001b[57414;2u", Keys.kbKeypadEnter, Shift)]
+    [InlineData("\u001b[57414;5u", Keys.kbKeypadEnter, Ctrl)]
+    [InlineData("\u001b[57414;3u", Keys.kbKeypadEnter, Alt)]
+    [InlineData("\u001b[57414;6u", Keys.kbKeypadEnter, Ctrl | Shift)]
+    [InlineData("\u001b[57417u", Keys.kbKeypad4, 0u)]
+    [InlineData("\u001b[57418u", Keys.kbKeypad6, 0u)]
+    [InlineData("\u001b[57419u", Keys.kbKeypad8, 0u)]
+    [InlineData("\u001b[57420u", Keys.kbKeypad2, 0u)]
+    [InlineData("\u001b[57421u", Keys.kbKeypad9, 0u)]
+    [InlineData("\u001b[57422u", Keys.kbKeypad3, 0u)]
+    [InlineData("\u001b[57423u", Keys.kbKeypad7, 0u)]
+    [InlineData("\u001b[57424u", Keys.kbKeypad1, 0u)]
+    [InlineData("\u001b[57425u", Keys.kbKeypad0, 0u)]
+    [InlineData("\u001b[57426u", Keys.kbKeypadDecimal, 0u)]
+    [InlineData("\u001b[57423;5u", Keys.kbKeypad7, Ctrl)]
+    [InlineData("\u001b[57417;5u", Keys.kbKeypad4, Ctrl)]
+    public void KittyKeypadKeysAreDistinct(string sequence, ushort keyCode, uint modifiers)
         => AssertKey(Kitty(sequence), sequence, keyCode, modifiers);
 
     [Fact]
@@ -118,8 +118,8 @@ public sealed class KeyboardClosureTests
         Assert.True(decoder.TryRead(out TEvent release));
         Assert.Equal(Events.evKeyDown, press.What);
         Assert.Equal(Events.evKeyUp, release.What);
-        Assert.Equal(Keys.kbCtrlEnter, press.keyDown.keyCode);
-        Assert.Equal(Keys.kbCtrlEnter, release.keyDown.keyCode);
+        Assert.Equal(Keys.kbKeypadEnter, press.keyDown.keyCode);
+        Assert.Equal(Keys.kbKeypadEnter, release.keyDown.keyCode);
     }
 
     [Fact]

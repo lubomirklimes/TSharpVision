@@ -8,3 +8,4 @@ These pages cover framework behavior and application development. Member signatu
 - [Dialogs and controls](dialogs-and-controls.md).
 - [Editors](editors/editor-architecture.md), [terminal widget and child sessions](terminal/terminal-widget.md), [outline views](views/outline.md), and [paged byte and table views](views/paged-views.md).
 - [Contributing](contributing.md).
+- [Diagnostics tools](diagnostics.md).

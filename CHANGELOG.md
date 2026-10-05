@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.1.0-preview.3
+
+### Keyboard and input
+
+- The numeric keypad has its own key identities: `kbKeypad0`–`kbKeypad9`, `kbKeypadDecimal`, `kbKeypadDivide`,
+  `kbKeypadMultiply` and `kbKeypadEnter`, alongside the existing `kbGrayMinus` and `kbGrayPlus`. `kbNumLock` identifies
+  the NumLock key; `kbNumState` still reports the lock state.
+- `KeyboardCapabilities.DistinctNumericKeypad` tells whether the active driver can report those identities. The console
+  and SDL drivers do; the ANSI terminal driver does once the Kitty protocol reports all keys, and otherwise keeps
+  reporting keypad keys as their main-keyboard aliases.
+- Unicode text stays separate from the legacy key identity. A key that only types a non-ASCII character arrives with
+  its `text` and `keyCode` 0, instead of a code derived from the character. This fixes Czech QWERTY and similar
+  layouts, where keys such as `ě` or `č` were reported as Esc, Enter or other unrelated keys.
+- SDL: a key release carries the identity of its press, and a text-only key no longer gets an invented one.
+- AltGr / Right Alt: a text-producing combination yields its text, not an Alt or Ctrl shortcut.
+- Kitty keyboard protocol: text comes only from the associated text the terminal reports; keys without a legacy
+  identity, keypad keys and their repeats and releases are decoded consistently.
+- Console: releasing a dead key no longer reports its accent character as a key identity.
+- ANSI terminal: the Linux console sequences for F1–F5 are decoded.
+
+### Diagnostics
+
+- New developer tool `TSharpVision.Diagnostics.Keyboard` checks key identity, text, modifiers and event order on the
+  console, SDL renderer, SDL GPU and terminal drivers. It has US English and Czech QWERTY profiles and four input
+  sources: a person at the keyboard, native event injection, Windows scan-code injection through the real layout, and
+  a PTY for the terminal driver.
+- TVDemo: a Keyboard Diagnostics dialog shows live key events and a numeric keypad that follows the driver's
+  capabilities; the Mouse Diagnostics dialog draws the buttons and wheel.
+
+### Documentation
+
+- [Input and event routing](docs/architecture/event-model.md) describes the keyboard semantics: event kinds, identity
+  versus text, releases, AltGr, keypad identities, capabilities and terminal limits.
+- [Diagnostics](docs/diagnostics.md) covers the keyboard and SDL glyph tools.
+
 ## 0.1.0-preview.2
 
 ### Breaking API corrections

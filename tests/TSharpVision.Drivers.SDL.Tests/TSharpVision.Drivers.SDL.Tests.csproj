@@ -2,6 +2,9 @@
 
   <PropertyGroup>
     <IsPackable>false</IsPackable>
+    <!-- The keyboard diagnostics project references every driver. Their namespaces must not leak
+         into this project, where an unqualified Console has to stay System.Console. -->
+    <DisableTransitiveProjectReferences>true</DisableTransitiveProjectReferences>
   </PropertyGroup>
 
   <ItemGroup>
@@ -27,6 +30,8 @@
     <!-- Covers the headless diagnostic tool's stroke-size selection logic, which is pure and
          SDL-free. Referencing the tool keeps that logic in one place instead of duplicating it. -->
     <ProjectReference Include="..\..\diagnostics\TSharpVision.Diagnostics.SdlGlyphs\TSharpVision.Diagnostics.SdlGlyphs.csproj" />
+    <!-- Shared layout profiles and the sequence matcher: the same expectation per physical key on every driver. -->
+    <ProjectReference Include="..\..\diagnostics\TSharpVision.Diagnostics.Keyboard\TSharpVision.Diagnostics.Keyboard.csproj" />
   </ItemGroup>
 
 </Project>

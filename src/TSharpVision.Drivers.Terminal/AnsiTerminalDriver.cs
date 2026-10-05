@@ -58,7 +58,8 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
     public bool SupportsGraphics  => false;
     /// <summary>
     /// Gets keyboard features confirmed at runtime through Kitty protocol negotiation;
-    /// legacy ANSI mode reports <see cref="KeyboardCapabilities.None"/>.
+    /// legacy ANSI mode reports <see cref="KeyboardCapabilities.None"/>, so the value can
+    /// change while the application runs.
     /// </summary>
     public KeyboardCapabilities KeyboardCapabilities => _input.KeyboardCapabilities;
 

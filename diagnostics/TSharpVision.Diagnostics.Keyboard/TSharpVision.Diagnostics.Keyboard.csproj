@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>TSharpVision.Diagnostics.Keyboard</RootNamespace>
+    <AssemblyName>TSharpVision.Diagnostics.Keyboard</AssemblyName>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!-- One executable, two roles: the controller owns profiles, expectations and verdicts; the
+       target (the same executable relaunched with "target") is a minimal TSharpVision application
+       that records keyboard events and reports them over a named pipe. Only public framework API
+       is used, so no driver grants this project InternalsVisibleTo. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\TSharpVision\TSharpVision.csproj" />
+    <ProjectReference Include="..\..\src\TSharpVision.Drivers.Console\TSharpVision.Drivers.Console.csproj" />
+    <ProjectReference Include="..\..\src\TSharpVision.Drivers.SDL\TSharpVision.Drivers.SDL.csproj" />
+    <ProjectReference Include="..\..\src\TSharpVision.Drivers.Terminal\TSharpVision.Drivers.Terminal.csproj" />
+    <!-- PTY sessions for the Terminal Level-B source. -->
+    <ProjectReference Include="..\..\extensions\TSharpVision.Terminal\TSharpVision.Terminal.csproj" />
+  </ItemGroup>
+
+</Project>

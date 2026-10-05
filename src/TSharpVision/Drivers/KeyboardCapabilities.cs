@@ -10,4 +10,6 @@ public enum KeyboardCapabilities
     KeyReleaseEvents = 1 << 0,
     /// <summary>The driver reports complete logical Shift, Ctrl, and Alt transitions independently of ordinary keys.</summary>
     StandaloneModifierTransitions = 1 << 1,
+    /// <summary>The driver reports the numeric keypad as identities distinct from the corresponding main-keyboard keys.</summary>
+    DistinctNumericKeypad = 1 << 2,
 }

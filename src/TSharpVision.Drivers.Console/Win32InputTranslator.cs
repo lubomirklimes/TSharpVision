@@ -7,7 +7,7 @@ namespace TSharpVision.Drivers.Console;
 internal sealed class Win32InputTranslator
 {
     private readonly ModifierStateTracker _modifiers = new();
-    private readonly Dictionary<(ushort VirtualKey, ushort ScanCode), KeyDownEvent> _heldKeys = new();
+    private readonly Dictionary<(ushort VirtualKey, ushort ScanCode, bool Enhanced), KeyDownEvent> _heldKeys = new();
 
     public bool TryTranslate(
         bool keyDown, ushort virtualKey, ushort scanCode, char character,
@@ -22,11 +22,12 @@ internal sealed class Win32InputTranslator
             return true;
         }
 
-        (ushort VirtualKey, ushort ScanCode) identity = (virtualKey, scanCode);
+        (ushort VirtualKey, ushort ScanCode, bool Enhanced) identity =
+            (virtualKey, scanCode, (controlKeyState & Win32KeyTranslator.ENHANCED_KEY) != 0);
         if (keyDown)
         {
             if (!Win32KeyTranslator.TryTranslate(
-                    true, virtualKey, character, controlKeyState, out ev))
+                    true, virtualKey, character, controlKeyState, out ev, scanCode))
                 return false;
             _heldKeys.TryAdd(identity, ev.keyDown);
             return true;
@@ -43,9 +44,12 @@ internal sealed class Win32InputTranslator
         }
 
         // A driver may attach after the key was pressed. Navigation and other stable
-        // identities can still be translated from the release record itself.
+        // identities can still be translated from the release record itself. The record's
+        // character is never used: a release publishes no text, and a character is not an
+        // identity any press reported. The console host sends such releases for a dead key,
+        // whose press had no character while its releases carry the accent.
         if (Win32KeyTranslator.TryTranslate(
-                true, virtualKey, character, controlKeyState, out ev))
+                true, virtualKey, '\0', controlKeyState, out ev, scanCode))
         {
             ev.What = Events.evKeyUp;
             return true;

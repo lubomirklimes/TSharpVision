@@ -30,8 +30,7 @@ public sealed class HeapDialogTests
             now = 500;
             Assert.True(view.Tick());
             Assert.Equal(2048, view.Peak);
-            Assert.Contains("Gen0 7  Gen1 8", view.TextLine(1));
-            Assert.Contains("Gen2 9", view.TextLine(2));
+            Assert.Contains("Gen0 7  Gen1 8  Gen2 9", view.TextLine(1));
             memory = 512;
             for (int i = 0; i < 48; i++)
             {

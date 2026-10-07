@@ -239,8 +239,8 @@ public sealed class PosixPtyTerminalSession : ITerminalSession, IResizableTermin
                 NativeMethods.SetCloseOnExec(slaveFd);
             }
 
-            // POSIX_SPAWN_SETSID starts a new session. Opening
-            // the slave inside that session makes it the controlling terminal.
+            // POSIX_SPAWN_SETSID starts a new session. Linux makes the opened slave its
+            // controlling terminal; Darwin only redirects the child's standard descriptors.
             CheckSpawn(NativeMethods.SpawnActionsInit(actions), "file actions init");
             actionsInitialized = true;
             CheckSpawn(NativeMethods.SpawnAttrInit(attributes), "attributes init");

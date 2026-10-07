@@ -79,7 +79,9 @@ public sealed class PosixPtyTerminalSessionTests
     [Fact]
     public async Task StartAsync_ChildHasControllingTerminal()
     {
-        if (!IsPosixPtySupported) return;
+        // Darwin's posix_spawn supports session creation but does not assign the opened slave
+        // as the child's controlling terminal.
+        if (!OperatingSystem.IsLinux()) return;
 
         var output = new StringBuilder();
         var exited = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);

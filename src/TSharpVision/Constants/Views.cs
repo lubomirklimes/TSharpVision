@@ -213,6 +213,8 @@ public static class Views
     public const ushort cmUpdateTitle  = 523;
     /// <summary>Insert text carried by a TextInfo message payload.</summary>
     public const ushort cmInsertText   = 524;
+    /// <summary>Delete the editor selection, or text back to the previous word boundary when there is no selection; supports undo.</summary>
+    public const ushort cmDelWordLeft  = 525;
 
     // Editor update flags.
     /// <summary>Editor update flag for refreshing caret, scrollbars, and status.</summary>

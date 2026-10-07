@@ -155,3 +155,33 @@ static TSharpVision.CodeEditor.Syntax.SyntaxSpan.operator ==(TSharpVision.CodeEd
 static TSharpVision.CodeEditor.Syntax.TextMate.TextMateSyntaxService.Default.get -> TSharpVision.CodeEditor.Syntax.TextMate.TextMateSyntaxService!
 ~override TSharpVision.CodeEditor.Syntax.SyntaxSpan.Equals(object obj) -> bool
 ~override TSharpVision.CodeEditor.Syntax.SyntaxSpan.ToString() -> string
+TSharpVision.CodeEditor.Syntax.ISyntaxService.GetLanguages() -> System.Collections.Generic.IReadOnlyList<TSharpVision.CodeEditor.Syntax.SyntaxLanguageInfo!>!
+TSharpVision.CodeEditor.Syntax.SyntaxLanguageInfo
+TSharpVision.CodeEditor.Syntax.SyntaxLanguageInfo.Aliases.get -> System.Collections.Generic.IReadOnlyList<string!>!
+TSharpVision.CodeEditor.Syntax.SyntaxLanguageInfo.FileExtensions.get -> System.Collections.Generic.IReadOnlyList<string!>!
+TSharpVision.CodeEditor.Syntax.SyntaxLanguageInfo.FileNames.get -> System.Collections.Generic.IReadOnlyList<string!>!
+TSharpVision.CodeEditor.Syntax.SyntaxLanguageInfo.Language.get -> TSharpVision.CodeEditor.Syntax.SyntaxLanguage!
+TSharpVision.CodeEditor.Syntax.SyntaxLanguageInfo.SyntaxLanguageInfo(TSharpVision.CodeEditor.Syntax.SyntaxLanguage! language, System.Collections.Generic.IReadOnlyList<string!>? aliases = null, System.Collections.Generic.IReadOnlyList<string!>? fileExtensions = null, System.Collections.Generic.IReadOnlyList<string!>? fileNames = null) -> void
+TSharpVision.CodeEditor.Syntax.TextMate.TextMateSyntaxService.GetLanguages() -> System.Collections.Generic.IReadOnlyList<TSharpVision.CodeEditor.Syntax.SyntaxLanguageInfo!>!
+override TSharpVision.CodeEditor.Syntax.SyntaxLanguageInfo.ToString() -> string!
+TSharpVision.CodeEditor.Syntax.ISyntaxLanguageRegistry
+TSharpVision.CodeEditor.Syntax.ISyntaxLanguageRegistry.RegisterLanguage(TSharpVision.CodeEditor.Syntax.SyntaxLanguageDefinition! definition, System.Func<TSharpVision.CodeEditor.Syntax.ISyntaxClassifier!>! classifierFactory) -> void
+TSharpVision.CodeEditor.Syntax.SyntaxLanguageDefinition
+TSharpVision.CodeEditor.Syntax.SyntaxLanguageDefinition.Aliases.get -> System.Collections.Generic.IReadOnlyList<string!>!
+TSharpVision.CodeEditor.Syntax.SyntaxLanguageDefinition.Aliases.init -> void
+TSharpVision.CodeEditor.Syntax.SyntaxLanguageDefinition.FileExtensions.get -> System.Collections.Generic.IReadOnlyList<string!>!
+TSharpVision.CodeEditor.Syntax.SyntaxLanguageDefinition.FileExtensions.init -> void
+TSharpVision.CodeEditor.Syntax.SyntaxLanguageDefinition.FileNamePatterns.get -> System.Collections.Generic.IReadOnlyList<string!>!
+TSharpVision.CodeEditor.Syntax.SyntaxLanguageDefinition.FileNamePatterns.init -> void
+TSharpVision.CodeEditor.Syntax.SyntaxLanguageDefinition.FileNames.get -> System.Collections.Generic.IReadOnlyList<string!>!
+TSharpVision.CodeEditor.Syntax.SyntaxLanguageDefinition.FileNames.init -> void
+TSharpVision.CodeEditor.Syntax.SyntaxLanguageDefinition.FirstLinePattern.get -> string?
+TSharpVision.CodeEditor.Syntax.SyntaxLanguageDefinition.FirstLinePattern.init -> void
+TSharpVision.CodeEditor.Syntax.SyntaxLanguageDefinition.Language.get -> TSharpVision.CodeEditor.Syntax.SyntaxLanguage!
+TSharpVision.CodeEditor.Syntax.SyntaxLanguageDefinition.Priority.get -> int
+TSharpVision.CodeEditor.Syntax.SyntaxLanguageDefinition.Priority.init -> void
+TSharpVision.CodeEditor.Syntax.SyntaxLanguageDefinition.SyntaxLanguageDefinition(TSharpVision.CodeEditor.Syntax.SyntaxLanguage! language) -> void
+TSharpVision.CodeEditor.Syntax.TextMate.TextMateSyntaxService.RegisterLanguage(TSharpVision.CodeEditor.Syntax.SyntaxLanguageDefinition! definition, System.Func<TSharpVision.CodeEditor.Syntax.ISyntaxClassifier!>! classifierFactory) -> void
+TSharpVision.CodeEditor.Syntax.TextMate.TextMateSyntaxService.RegisterTextMateLanguage(TSharpVision.CodeEditor.Syntax.SyntaxLanguageDefinition! definition, System.IO.Stream! grammar) -> void
+TSharpVision.CodeEditor.Syntax.TextMate.TextMateSyntaxService.RegisterTextMateLanguage(TSharpVision.CodeEditor.Syntax.SyntaxLanguageDefinition! definition, string! grammarJson) -> void
+override TSharpVision.CodeEditor.Syntax.SyntaxLanguageDefinition.ToString() -> string!

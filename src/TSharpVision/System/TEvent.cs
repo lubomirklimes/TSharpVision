@@ -91,6 +91,16 @@ public struct KeyDownEvent
     public uint controlKeyState;
     /// <summary>Untranslated scan-code byte supplied by the input driver when available.</summary>
     public byte raw_scanCode;
+    /// <summary>Logical TSharpVision identity of the reported numeric-keypad key (<c>kbKeypad0</c>–<c>kbKeypadEnter</c>, <c>kbGrayMinus</c>, <c>kbGrayPlus</c>); not a native scan code.</summary>
+    /// <remarks>
+    /// Set by <see cref="KeypadKeys.Normalize"/> for every keypad event a program dispatches, whether or not
+    /// <see cref="keyCode"/> was replaced by a semantic key. Where the key is on the keyboard is a different property
+    /// from the modifier and lock state in <see cref="controlKeyState"/>, which is why it has a field of its own.
+    /// Drivers leave it zero and report the identity in <see cref="keyCode"/>.
+    /// It remains zero for non-keypad keys, indistinguishable keypad keys, or when normalization is bypassed.
+    /// Native scan information, when available, is carried separately in <see cref="raw_scanCode"/>.
+    /// </remarks>
+    public ushort keypadKey;
     private string? _text;
 
     /// <summary>Unicode text extension supplied by the input driver; empty when the event has no text.</summary>

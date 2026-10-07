@@ -17,6 +17,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Grammars for languages the bundled grammar package does not cover. Written for this project. -->
+    <EmbeddedResource Include="Syntax\TextMate\Grammars\*.tmLanguage.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="TSharpVision.CodeEditor.Tests" />
   </ItemGroup>
 

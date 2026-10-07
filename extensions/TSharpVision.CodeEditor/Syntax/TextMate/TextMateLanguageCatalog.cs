@@ -35,9 +35,20 @@ internal sealed class TextMateLanguageCatalog
         ("perl", "perl"), ("ruby", "ruby"), ("php", "php"), ("lua", "lua"), ("make", "makefile"),
     };
 
+    /// <summary>
+    /// Languages detection knows but a chooser does not list, because each only repeats the grammar of the language
+    /// it is listed under: choosing that one is the same choice.
+    /// </summary>
+    private static readonly (string Id, string ListedUnder)[] Variants =
+    {
+        ("dockercompose", "yaml"), ("properties", "ini"), ("typst-code", "typst"),
+    };
+
+    // In order of precedence: by priority, then in the order they were added. Detection takes the first match.
     private readonly List<Entry> _entries = new();
     private readonly Dictionary<string, Entry> _byId = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Entry> _byScope = new(StringComparer.Ordinal);
+    private readonly Lazy<IReadOnlyList<SyntaxLanguageInfo>> _userLanguages;
 
     public TextMateLanguageCatalog(RegistryOptions options)
     {
@@ -59,14 +70,179 @@ internal sealed class TextMateLanguageCatalog
                 _byScope.TryAdd(scope, entry);
             }
 
+            foreach (string alias in language.Aliases ?? new List<string>())
+                entry.AddAlias(alias);
+
             foreach (string extension in language.Extensions ?? new List<string>())
                 entry.AddExtension(extension);
         }
 
         ReadManifests(typeof(RegistryOptions).Assembly);
+        AddOwnLanguages();
+        _userLanguages = new Lazy<IReadOnlyList<SyntaxLanguageInfo>>(BuildUserLanguages, LazyThreadSafetyMode.ExecutionAndPublication);
+    }
+
+    /// <summary>A catalog with one more language. Entries are immutable once published, so they are shared.</summary>
+    private TextMateLanguageCatalog(TextMateLanguageCatalog source, Entry added)
+    {
+        _entries.AddRange(source._entries);
+        int at = _entries.FindIndex(entry => entry.Priority < added.Priority);
+        _entries.Insert(at < 0 ? _entries.Count : at, added);
+
+        foreach (KeyValuePair<string, Entry> pair in source._byId) _byId.Add(pair.Key, pair.Value);
+        foreach (KeyValuePair<string, Entry> pair in source._byScope) _byScope.Add(pair.Key, pair.Value);
+        _byId.Add(added.Language.Id, added);
+        if (added.ScopeName is not null) _byScope.TryAdd(added.ScopeName, added);
+        _userLanguages = new Lazy<IReadOnlyList<SyntaxLanguageInfo>>(BuildUserLanguages, LazyThreadSafetyMode.ExecutionAndPublication);
+    }
+
+    /// <summary>
+    /// This catalog and <paramref name="added"/>, an entry made by <see cref="CreateEntry"/>. The catalog itself
+    /// never changes, so a reader that holds it is not disturbed by a registration.
+    /// </summary>
+    public TextMateLanguageCatalog With(Entry added) => new(this, added);
+
+    /// <summary>
+    /// Checks an application's language against this catalog and makes its entry. Throws without side effects.
+    /// </summary>
+    /// <param name="definition">The language as the application describes it.</param>
+    /// <param name="scopeName">The TextMate scope of its grammar, or null when it brings its own classifier.</param>
+    /// <param name="classifierFactory">Its classifier factory, or null when a grammar classifies it.</param>
+    public Entry CreateEntry(SyntaxLanguageDefinition definition, string? scopeName, Func<ISyntaxClassifier>? classifierFactory)
+    {
+        SyntaxLanguage language = definition.Language;
+        string id = language.Id;
+
+        if (string.Equals(id, SyntaxLanguage.PlainTextId, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Plain Text is not a language that can be registered.");
+        if (id.Any(char.IsWhiteSpace))
+            throw new ArgumentException($"The language identifier '{id}' contains white space.", nameof(definition));
+        if (_entries.FirstOrDefault(e => string.Equals(e.Language.Id, id, StringComparison.OrdinalIgnoreCase)) is { } existing)
+            throw new InvalidOperationException(
+                $"A language with the identifier '{existing.Language.Id}' ({existing.Language.DisplayName}) is already registered.");
+
+        var entry = new Entry(language, scopeName) { Priority = definition.Priority };
+        if (classifierFactory is not null)
+        {
+            entry.Custom = new Lazy<ISyntaxClassifier?>(
+                () => GuardedSyntaxClassifier.Create(language, classifierFactory), LazyThreadSafetyMode.ExecutionAndPublication);
+        }
+
+        foreach (string alias in Checked(definition.Aliases, "alias", plainName: false)) entry.AddAlias(alias);
+        foreach (string extension in Checked(definition.FileExtensions, "file extension", plainName: true))
+            entry.AddExtension(extension[0] == '.' ? extension : "." + extension);
+        foreach (string name in Checked(definition.FileNames, "file name", plainName: true)) entry.FileNames.Add(name);
+        foreach (string pattern in Checked(definition.FileNamePatterns, "file-name pattern", plainName: false))
+            entry.FileNamePatterns.Add(pattern);
+
+        if (definition.FirstLinePattern is { } firstLine)
+        {
+            if (string.IsNullOrWhiteSpace(firstLine))
+                throw new ArgumentException("The first-line pattern is empty.", nameof(definition));
+            try
+            {
+                entry.FirstLine = new Regex(firstLine, RegexOptions.CultureInvariant, PatternTimeout);
+            }
+            catch (ArgumentException ex)
+            {
+                throw new ArgumentException($"The first-line pattern is not a valid regular expression: {ex.Message}", nameof(definition), ex);
+            }
+        }
+
+        return entry;
+
+        static List<string> Checked(IReadOnlyList<string> values, string what, bool plainName)
+        {
+            var result = new List<string>(values.Count);
+            foreach (string value in values)
+            {
+                if (string.IsNullOrWhiteSpace(value))
+                    throw new ArgumentException($"A {what} is empty.", nameof(definition));
+                if (plainName && (value == "." || value.AsSpan().IndexOfAny("*?/\\") >= 0))
+                    throw new ArgumentException($"The {what} '{value}' is not a plain name.", nameof(definition));
+                result.Add(value);
+            }
+
+            return result;
+        }
+    }
+
+    /// <summary>
+    /// What the bundled manifests leave out: one language with a grammar of this assembly's own (TOML), and a few
+    /// common names for languages the package already has. Deliberately short — this is not a file-name database.
+    /// </summary>
+    private void AddOwnLanguages()
+    {
+        if (!_byId.ContainsKey("toml"))
+        {
+            var toml = new Entry(new SyntaxLanguage("toml", "TOML"), "source.toml");
+            toml.AddExtension(".toml");
+            foreach (string name in new[] { "Cargo.lock", "poetry.lock", "uv.lock", "Pipfile" }) toml.FileNames.Add(name);
+            _entries.Add(toml);
+            _byId.Add("toml", toml);
+            _byScope.TryAdd(toml.ScopeName!, toml);
+        }
+
+        if (_byId.TryGetValue("xml", out Entry? xml))
+        {
+            foreach (string extension in new[] { ".config", ".resx", ".slnx", ".manifest", ".nuspec", ".vsixmanifest" })
+                xml.AddExtension(extension);
+        }
+
+        // "KEY=value" files: the package knows the exact name ".env" only.
+        if (_byId.TryGetValue("properties", out Entry? properties))
+        {
+            properties.AddExtension(".env");
+            properties.FileNamePatterns.Add(".env.*");
+        }
     }
 
     public IReadOnlyList<Entry> Entries => _entries;
+
+    /// <summary>
+    /// The languages a person can choose, by display name. A variant is not listed; its names are added to the
+    /// language it repeats, so searching for <c>properties</c> finds INI.
+    /// </summary>
+    public IReadOnlyList<SyntaxLanguageInfo> UserLanguages() => _userLanguages.Value;
+
+    private IReadOnlyList<SyntaxLanguageInfo> BuildUserLanguages()
+    {
+        var listed = new List<SyntaxLanguageInfo>(_entries.Count);
+        foreach (Entry entry in _entries)
+        {
+            if (Variants.Any(variant => variant.Id == entry.Language.Id && _byId.ContainsKey(variant.ListedUnder))) continue;
+
+            var aliases = new List<string>(entry.Aliases);
+            var extensions = new List<string>(entry.Extensions);
+            var names = new List<string>(entry.FileNames);
+            foreach ((string id, string listedUnder) in Variants)
+            {
+                if (listedUnder != entry.Language.Id || !_byId.TryGetValue(id, out Entry? variant)) continue;
+                aliases.Add(variant.Language.Id);
+                aliases.Add(variant.Language.DisplayName);
+                aliases.AddRange(variant.Aliases);
+                extensions.AddRange(variant.Extensions);
+                names.AddRange(variant.FileNames);
+            }
+
+            listed.Add(new SyntaxLanguageInfo(
+                entry.Language,
+                Distinct(aliases.Where(alias => !Same(alias, entry.Language.Id) && !Same(alias, entry.Language.DisplayName))),
+                Distinct(extensions),
+                Distinct(names)));
+        }
+
+        listed.Sort(static (a, b) =>
+        {
+            int byName = string.Compare(a.Language.DisplayName, b.Language.DisplayName, StringComparison.OrdinalIgnoreCase);
+            return byName != 0 ? byName : string.CompareOrdinal(a.Language.Id, b.Language.Id);
+        });
+        return listed.AsReadOnly();
+
+        static bool Same(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+
+        static string[] Distinct(IEnumerable<string> values) => values.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+    }
 
     public Entry? FindById(string id) => _byId.TryGetValue(id, out Entry? entry) ? entry : null;
 
@@ -105,7 +281,7 @@ internal sealed class TextMateLanguageCatalog
         }
 
         string firstLine = FirstLine(contentSample);
-        if (firstLine.Length == 0) return null;
+        if (firstLine.Length == 0) return ContentLanguageSniffer.Detect(contentSample) is { } sniffed ? FindById(sniffed) : null;
 
         foreach (Entry entry in _entries)
         {
@@ -119,7 +295,10 @@ internal sealed class TextMateLanguageCatalog
             }
         }
 
-        return DetectInterpreter(firstLine);
+        if (DetectInterpreter(firstLine) is { } interpreted) return interpreted;
+
+        // Last: a conservative look at the content itself, for JSON, XML and YAML only.
+        return ContentLanguageSniffer.Detect(contentSample) is { } id ? FindById(id) : null;
     }
 
     private Entry? DetectInterpreter(string firstLine)
@@ -259,9 +438,11 @@ internal sealed class TextMateLanguageCatalog
 
     internal sealed class Entry
     {
-        private readonly HashSet<string> _extensions = new(StringComparer.OrdinalIgnoreCase);
+        // In the order they were declared: the first extension is the language's most characteristic one.
+        private readonly List<string> _extensions = new();
+        private readonly List<string> _aliases = new();
 
-        public Entry(SyntaxLanguage language, string scopeName)
+        public Entry(SyntaxLanguage language, string? scopeName)
         {
             Language = language;
             ScopeName = scopeName;
@@ -269,9 +450,23 @@ internal sealed class TextMateLanguageCatalog
 
         public SyntaxLanguage Language { get; }
 
-        public string ScopeName { get; }
+        /// <summary>The TextMate scope of the grammar, or null for a language with a classifier of its own.</summary>
+        public string? ScopeName { get; }
+
+        /// <summary>The classifier an application registered, created on first use; null for a grammar's language.</summary>
+        public Lazy<ISyntaxClassifier?>? Custom { get; set; }
+
+        /// <summary>Precedence among equally specific claims; built-in languages have 0.</summary>
+        public int Priority { get; init; }
 
         public IReadOnlyCollection<string> Extensions => _extensions;
+
+        public IReadOnlyCollection<string> Aliases => _aliases;
+
+        public void AddAlias(string alias)
+        {
+            if (!string.IsNullOrWhiteSpace(alias) && !_aliases.Contains(alias, StringComparer.OrdinalIgnoreCase)) _aliases.Add(alias);
+        }
 
         public HashSet<string> FileNames { get; } = new(StringComparer.OrdinalIgnoreCase);
 
@@ -285,7 +480,7 @@ internal sealed class TextMateLanguageCatalog
 
             // A few manifests list patterns such as "*.log.?" among extensions.
             if (extension.Contains('*') || extension.Contains('?')) FileNamePatterns.Add(extension);
-            else _extensions.Add(extension);
+            else if (!_extensions.Contains(extension, StringComparer.OrdinalIgnoreCase)) _extensions.Add(extension);
         }
     }
 }

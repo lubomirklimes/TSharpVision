@@ -98,6 +98,7 @@ internal sealed class TargetApp : TApplication
     // Nothing may translate or consume a key before it is recorded.
     public override TStatusLine? InitStatusLine(TRect r) => null;
     public override TMenuBar? InitMenuBar(TRect r) => null;
+    protected override void NormalizeKeyEvent(ref TEvent ev) { }
 
     public override void GetEvent(ref TEvent ev)
     {

@@ -82,8 +82,10 @@ public static class MsgBox
     {
         var dialog = new TDialog(r, TSharpVisionIntl.Get(TitleKeys[options & 0x3], Titles[options & 0x3]));
         int height = r.b.y - r.a.y;
+        // TStaticText breaks rows on LF only and would draw a CR as an ordinary cell.
+        msg = (msg ?? string.Empty).Replace("\r\n", "\n").Replace('\r', '\n');
         dialog.Insert(new TStaticText(
-            new TRect(3, 2, dialog.size.x - 2, height - 3), msg));
+            new TRect(3, 2, Math.Max(3, dialog.size.x - 2), Math.Max(2, height - 3)), msg));
 
         var buttons = new List<TButton>();
         int totalW = -2;
@@ -126,9 +128,56 @@ public static class MsgBox
         return r;
     }
 
-    /// <summary>Runs a centered message dialog and returns its response command, or zero for a null host.</summary>
+    // The classic box is 40 by 9 cells; the text view is 5 columns narrower and 5 rows shorter
+    // than the dialog (BuildMessageBox), and each button takes 10 columns plus a 2-column gap.
+    private const int ClassicWidth = 40;
+    private const int ClassicHeight = 9;
+    private const int TextMargin = 5;
+    // Prose in a grown box wraps at the width InputBox caps itself to (60 columns).
+    private const int ComfortableWidth = 60;
+
+    // Bounds for MessageBox: the classic box when the message fits it, otherwise one grown to the
+    // text and buttons, never larger than the host. Rows are counted by TStaticText's own layout.
+    private static TRect AutoRect(TGroup? host, string msg, ushort options)
+    {
+        var ds = host?.size ?? new TPoint { x = 80, y = 25 };
+        msg = (msg ?? string.Empty).Replace("\r\n", "\n").Replace('\r', '\n');
+
+        int buttons = System.Numerics.BitOperations.PopCount((uint)(options & 0x0F00));
+        int maxW = Math.Max(ds.x, TWindow.MinWinSize.x);
+        int maxH = Math.Max(ds.y, TWindow.MinWinSize.y);
+        int minW = Math.Min(Math.Max(ClassicWidth, buttons * 12 - 2 + 4), maxW);
+        int minH = Math.Min(ClassicHeight, maxH);
+
+        int w = minW;
+        if (TStaticText.CountRows(msg, w - TextMargin) > minH - TextMargin)
+        {
+            // Wide enough for the longest line up to the comfortable width, and for the longest
+            // unbreakable token (a path, a URL) so it is not cut in the middle.
+            int longestLine = 0, longestToken = 0, line = 0, token = 0;
+            foreach (char c in msg)
+            {
+                line = c == '\n' ? 0 : line + 1;
+                token = c == '\n' || c == ' ' ? 0 : token + 1;
+                longestLine = Math.Max(longestLine, line);
+                longestToken = Math.Max(longestToken, token);
+            }
+            int textW = Math.Max(longestToken, Math.Min(longestLine, ComfortableWidth - TextMargin));
+            w = Math.Clamp(textW + TextMargin, minW, maxW);
+            // Too tall for the host: widen until the text fits or the host width is used up.
+            while (w < maxW && TStaticText.CountRows(msg, w - TextMargin) > maxH - TextMargin)
+                w++;
+        }
+        int h = Math.Clamp(TStaticText.CountRows(msg, w - TextMargin) + TextMargin, minH, maxH);
+
+        var r = new TRect(0, 0, w, h);
+        r.Move(Math.Max(0, (ds.x - w) / 2), Math.Max(0, (ds.y - h) / 2));
+        return r;
+    }
+
+    /// <summary>Runs a centered message dialog sized to its text and buttons within the host, and returns its response command, or zero for a null host.</summary>
     public static ushort MessageBox(TGroup? host, string msg, ushort options)
-        => MessageBoxRect(host, DefaultRect(host), msg, options);
+        => MessageBoxRect(host, AutoRect(host, msg, options), msg, options);
 
     /// <summary>Creates a dialog with labeled input, initial text, and a character limit at owner-relative cell bounds; does not execute it.</summary>
     public static TDialog BuildInputBox(TRect bounds, string title,

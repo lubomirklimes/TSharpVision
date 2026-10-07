@@ -1,3 +1,5 @@
+using TSharpVision.Constants;
+
 namespace TSharpVision;
 
 /// <summary>
@@ -21,6 +23,10 @@ public static class KeyText
         if (!string.IsNullOrEmpty(keyDown.text))
             return keyDown.text;
 
+        // A named special key is not text, whatever its legacy low byte happens to be.
+        if (IsNamedSpecialKey(keyDown.keyCode))
+            return string.Empty;
+
         byte ch = keyDown.charScan.charCode;
         if (includeTab && ch == '\t')
             return "\t";
@@ -31,5 +37,17 @@ public static class KeyText
 
         return string.Empty;
     }
-}
 
+    /// <summary>
+    /// Returns whether <paramref name="keyCode"/> is a named non-character key whose legacy low byte lies in the
+    /// printable range. Such a code identifies a key, not a character: its low byte must never be read as text.
+    /// </summary>
+    /// <remarks>
+    /// Almost every special key has a zero low byte and needs no entry here. The exceptions are the synthetic codes
+    /// that were given a non-zero low byte to stay distinct from their neighbours: <see cref="Keys.kbCtrlShiftIns"/>
+    /// (0x01CD) and <see cref="Keys.kbCtrlShiftDel"/> (0x01CE). The keypad's Gray +/- are deliberately not listed:
+    /// their low byte is the character the key types.
+    /// </remarks>
+    public static bool IsNamedSpecialKey(ushort keyCode)
+        => keyCode is Keys.kbCtrlShiftIns or Keys.kbCtrlShiftDel;
+}

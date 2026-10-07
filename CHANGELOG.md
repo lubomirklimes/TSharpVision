@@ -1,5 +1,48 @@
 # Changelog
 
+## 0.1.0-preview.4
+
+### Keyboard and input
+
+- Normalize keypad events to their text, Enter or navigation actions while preserving the physical identity in
+  `KeyDownEvent.keypadKey`; applications can customize this through `TProgram.NormalizeKeyEvent` and `KeypadKeys`.
+- Fixed duplicate keypad `+` and `-` text on SDL and unwanted characters from Ctrl+Shift+Insert / Delete.
+- `TInputLine` copies, cuts and pastes through `ClipboardService.Current`: Ctrl+C / Ctrl+Insert, Ctrl+X / Shift+Delete
+  and Ctrl+V / Shift+Insert. Pasted text becomes one line and is cut to the line's capacity; a masked line
+  (`PasswordChar`) copies nothing.
+- Fixed `TInputLine` deleting the selection twice when a typed character of two UTF-16 units replaced it.
+
+### Editor
+
+- Added Shift selection, Ctrl+Home / End navigation and Ctrl+Backspace / Delete word deletion, including selections
+  and undo; restored Ctrl+Insert, Shift+Insert and Shift+Delete clipboard shortcuts.
+- Fixed word navigation past the end of a full document buffer.
+
+### Code editor and syntax (`TSharpVision.CodeEditor`)
+
+- Added TOML highlighting and expanded filename detection for XML, environment and TOML files.
+- Detect JSON, XML and YAML content when the filename does not identify a language.
+- Added `ISyntaxService.GetLanguages()` and `SyntaxLanguageInfo` for language selection, including aliases and file names.
+- Added registration and discovery of custom syntax languages, using application classifiers or TextMate grammars.
+
+### Views
+
+- Fixed a group that was hidden and shown again being drawn from the image it had before it was hidden. A group
+  resized while hidden could throw `ArgumentOutOfRangeException` from `TView.WriteBuf` or show a garbled image; one
+  whose content changed while hidden showed the old content.
+- `MsgBox.MessageBox` sizes its dialog to the message and buttons instead of always using 40×9 cells, so longer or
+  multi-line messages are no longer cut off. A message that fits 40×9 looks as before; a larger one grows up to the
+  host's size. CRLF and CR line breaks in message-box text are treated as line breaks. `MessageBoxRect` keeps the
+  caller's bounds.
+
+### Diagnostics
+
+- Keep raw keypad identities visible in TVDemo Keyboard Diagnostics and the cross-driver keyboard diagnostics tool.
+
+### Documentation
+
+- Updated input routing and editor documentation for keypad normalization, editing shortcuts and custom languages.
+
 ## 0.1.0-preview.3
 
 ### Keyboard and input

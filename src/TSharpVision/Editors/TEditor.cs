@@ -233,6 +233,8 @@ public class TEditor : TView
     /// <summary>Finds the next word start from a valid character offset; letters, digits, and underscores form words.</summary>
     public uint NextWord(uint p)
     {
+        // At the end of the document there is no character to classify: BufChar(bufLen) is the gap, or past the buffer.
+        if (p >= bufLen) return bufLen;
         if (IsWordChar(BufChar(p)))
             while (p < bufLen && IsWordChar(BufChar(p)))
                 p = NextChar(p);
@@ -1083,6 +1085,15 @@ public class TEditor : TView
             return;
         }
 
+        // Ctrl+Backspace is kbCtrlBack (0x0E7F): its low byte is DEL, which the printable test below would take for
+        // a character. It is the "delete the word before the caret" key of every current editor.
+        if (key == Keys.kbCtrlBack)
+        {
+            ev.What = Events.evCommand;
+            ev.message.command = Views.cmDelWordLeft;
+            return;
+        }
+
         if (charCode == 9 || (charCode >= 32 && charCode < 255))
             return;
 
@@ -1112,6 +1123,13 @@ public class TEditor : TView
                 ev.What = Events.evCommand; ev.message.command = Views.cmPaste; break;
             case Keys.kbCtrlX:
                 ev.What = Events.evCommand; ev.message.command = Views.cmCut; break;
+            // The CUA clipboard keys of the original firstKeys table.
+            case Keys.kbCtrlIns:
+                ev.What = Events.evCommand; ev.message.command = Views.cmCopy; break;
+            case Keys.kbShiftIns:
+                ev.What = Events.evCommand; ev.message.command = Views.cmPaste; break;
+            case Keys.kbShiftDel:
+                ev.What = Events.evCommand; ev.message.command = Views.cmCut; break;
             case Keys.kbLeft:      ev.What = Events.evCommand; ev.message.command = Views.cmCharLeft;  break;
             case Keys.kbRight:     ev.What = Events.evCommand; ev.message.command = Views.cmCharRight; break;
             case Keys.kbCtrlLeft:  ev.What = Events.evCommand; ev.message.command = Views.cmWordLeft;  break;
@@ -1124,6 +1142,9 @@ public class TEditor : TView
             case Keys.kbPgDn:      ev.What = Events.evCommand; ev.message.command = Views.cmPageDown;  break;
             case Keys.kbCtrlPgUp:  ev.What = Events.evCommand; ev.message.command = Views.cmTextStart; break;
             case Keys.kbCtrlPgDn:  ev.What = Events.evCommand; ev.message.command = Views.cmTextEnd;   break;
+            case Keys.kbCtrlHome:  ev.What = Events.evCommand; ev.message.command = Views.cmTextStart; break;
+            case Keys.kbCtrlEnd:   ev.What = Events.evCommand; ev.message.command = Views.cmTextEnd;   break;
+            case Keys.kbCtrlDel:   ev.What = Events.evCommand; ev.message.command = Views.cmDelWord;   break;
             case Keys.kbIns:       ev.What = Events.evCommand; ev.message.command = Views.cmInsMode;   break;
             case Keys.kbDel:       ev.What = Events.evCommand; ev.message.command = Views.cmDelChar;   break;
             case Keys.kbBack:      ev.What = Events.evCommand; ev.message.command = Views.cmBackSpace;  break;
@@ -1160,10 +1181,18 @@ public class TEditor : TView
     public override void HandleEvent(ref TEvent ev)
     {
         base.HandleEvent(ref ev);
+
+        // Shift held with a movement key extends the selection from its anchor, as in every current editor. Read
+        // before ConvertEvent turns the key into a command; a key completing a Ctrl+K / Ctrl+Q prefix is a letter of
+        // that sequence, whatever its case, and extends nothing. The key code itself carries at most one modifier
+        // (Ctrl+Shift+Left is kbCtrlLeft), so the Shift state is the only place this is known.
+        bool shiftHeld = keyState == 0
+            && ((ev.What == Events.evKeyDown && (ev.keyDown.controlKeyState & Keys.kbShift) != 0)
+                || (ev.What == Events.evMouseDown && (ev.mouse.controlKeyState & Keys.kbShift) != 0));
         ConvertEvent(ref ev);
         bool centerCursor = !CursorVisible();
         byte selectMode = 0;
-        if (selecting) selectMode = Views.smExtend;
+        if (selecting || shiftHeld) selectMode = Views.smExtend;
 
         switch (ev.What)
         {
@@ -1251,7 +1280,9 @@ public class TEditor : TView
                             case Views.cmDelChar:
                                 DeleteRange(curPtr, NextChar(curPtr), true); break;
                             case Views.cmDelWord:
-                                DeleteRange(curPtr, NextWord(curPtr), false); break;
+                                DeleteRange(curPtr, NextWord(curPtr), true); break;
+                            case Views.cmDelWordLeft:
+                                DeleteRange(PrevWord(curPtr), curPtr, true); break;
                             case Views.cmDelStart:
                                 DeleteRange(LineStart(curPtr), curPtr, false); break;
                             case Views.cmDelEnd:

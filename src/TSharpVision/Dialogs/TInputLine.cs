@@ -1,7 +1,11 @@
 using TSharpVision.Constants;
 namespace TSharpVision;
 
-/// <summary>Single-line UTF-16 text input with selection, horizontal scrolling, and optional validation.</summary>
+/// <summary>
+/// Single-line UTF-16 text input with selection, horizontal scrolling, and optional validation.
+/// Ctrl+C / Ctrl+Ins copy the selection, Ctrl+X / Shift+Del cut it and Ctrl+V / Shift+Ins paste, all through
+/// <see cref="ClipboardService.Current"/>.
+/// </summary>
 public class TInputLine : TView
 {
     /// <summary>Type identifier used to register and restore this object in a stream.</summary>
@@ -274,8 +278,12 @@ public class TInputLine : TView
                 {
                     bool inserted = false;
                     foreach (char ch in text)
+                    {
                         inserted |= InsertChar(ch);
-                    SelStart = 0; SelEnd = 0;
+                        // The first unit replaced the selection. Left set, the range would be deleted again for
+                        // every further unit of the same text (a surrogate pair is two).
+                        SelStart = 0; SelEnd = 0;
+                    }
                     if (inserted) MakeVisible();
                     ClearEvent(ref @event);
                     break;
@@ -339,6 +347,29 @@ public class TInputLine : TView
                     case Keys.kbTab:
                     case Keys.kbShiftTab:
                         return;
+                    // Clipboard keys, the same six TEditor maps. Copy leaves the selection and the cursor alone,
+                    // so these return here instead of running the selection reset below.
+                    case Keys.kbCtrlC:
+                    case Keys.kbCtrlIns:
+                        CopySelection();
+                        ClearEvent(ref @event);
+                        return;
+                    case Keys.kbCtrlX:
+                    case Keys.kbShiftDel:
+                        // Only what reached the clipboard is deleted.
+                        if (CopySelection())
+                        {
+                            DeleteSelect();
+                            SelStart = 0; SelEnd = 0;
+                            MakeVisible();
+                        }
+                        ClearEvent(ref @event);
+                        return;
+                    case Keys.kbCtrlV:
+                    case Keys.kbShiftIns:
+                        if (PasteClipboard()) MakeVisible();
+                        ClearEvent(ref @event);
+                        return;
                     default:
                         handled = false;
                         break;
@@ -352,6 +383,105 @@ public class TInputLine : TView
                 break;
             }
         }
+    }
+
+    // Clamps the selection to the text (Data is a public field and may have been replaced under it) and
+    // returns whether anything is selected.
+    private bool NormalizeSelection()
+    {
+        SelStart = Math.Clamp(SelStart, 0, Data.Length);
+        SelEnd = Math.Clamp(SelEnd, 0, Data.Length);
+        return SelStart < SelEnd;
+    }
+
+    // Puts the selected text on the clipboard and returns whether it got there. A masked line copies nothing:
+    // the clipboard would show what the screen hides.
+    private bool CopySelection()
+    {
+        if (_passwordChar != null || !NormalizeSelection()) return false;
+
+        try
+        {
+            IClipboardService clipboard = ClipboardService.Current;
+            return clipboard.IsAvailable && clipboard.SetText(Data.Substring(SelStart, SelEnd - SelStart));
+        }
+        catch (Exception)
+        {
+            // A clipboard service is application code; its failure must not reach the event loop.
+            return false;
+        }
+    }
+
+    // Inserts the clipboard text at the cursor, replacing the selection, and returns whether the line changed.
+    // The text goes through InsertChar unit by unit like typed text, so it meets the same capacity; what does
+    // not fit is dropped, never half of a surrogate pair. Paste inserts in overwrite mode too, as TEditor does.
+    private bool PasteClipboard()
+    {
+        string text;
+        try
+        {
+            IClipboardService clipboard = ClipboardService.Current;
+            if (!clipboard.IsAvailable || !clipboard.TryGetText(out string? read) || read is null) return false;
+            text = SingleLine(read);
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+
+        bool selected = NormalizeSelection();
+        int room = Math.Max(0, MaxLen - (Data.Length - (selected ? SelEnd - SelStart : 0)));
+        if (text.Length > room)
+        {
+            if (room > 0 && char.IsHighSurrogate(text[room - 1])) room--;
+            text = text.Substring(0, room);
+        }
+        if (text.Length == 0) return false;
+
+        if (selected) DeleteSelect();
+        else CurPos = Math.Clamp(CurPos, 0, Data.Length);
+        SelStart = 0; SelEnd = 0;
+
+        ushort overwrite = (ushort)(state & Views.sfCursorIns);
+        state = (ushort)(state & ~Views.sfCursorIns);
+        try
+        {
+            foreach (char ch in text)
+                InsertChar(ch);
+        }
+        finally
+        {
+            state |= overwrite;
+        }
+        return true;
+    }
+
+    // Clipboard text as one line: a run of line breaks between two pieces of text is one space, a run at either
+    // end is dropped, a tab is a space, and any other control character or unpaired surrogate is dropped.
+    private static string SingleLine(string text)
+    {
+        var line = new System.Text.StringBuilder(text.Length);
+        bool pendingBreak = false;
+        for (int i = 0; i < text.Length; i++)
+        {
+            char c = text[i];
+            if (c is '\r' or '\n' or '\u0085' or '\u2028' or '\u2029')
+            {
+                pendingBreak = line.Length > 0;
+                continue;
+            }
+
+            bool pair = char.IsHighSurrogate(c) && i + 1 < text.Length && char.IsLowSurrogate(text[i + 1]);
+            if (c != '\t' && !pair && (char.IsControl(c) || char.IsSurrogate(c))) continue;
+
+            if (pendingBreak) line.Append(' ');
+            pendingBreak = false;
+            if (c == '\t') line.Append(' ');
+            else if (pair) line.Append(c).Append(text[++i]);
+            else line.Append(c);
+        }
+
+        return line.ToString();
     }
 
     /// <summary>Selects all text or clears selection, updating the insertion position and display.</summary>

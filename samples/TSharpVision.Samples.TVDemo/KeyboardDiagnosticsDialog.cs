@@ -314,6 +314,11 @@ public partial class TVDemoApp
         try { StatusLine = null; base.GetEvent(ref ev); }
         finally { StatusLine = statusLine; }
     }
+    // The dialog shows what the driver reported, keypad identities included.
+    protected override void NormalizeKeyEvent(ref TEvent ev)
+    {
+        if (!_keyboardCapture) base.NormalizeKeyEvent(ref ev);
+    }
     private void OpenKeyboardDlg()
     {
         var dialog = new KeyboardDiagnosticsDialog();

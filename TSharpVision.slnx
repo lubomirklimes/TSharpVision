@@ -20,6 +20,7 @@
     <Project Path="tests/TSharpVision.HexView.Tests/TSharpVision.HexView.Tests.csproj" />
     <Project Path="tests/TSharpVision.TableView.Tests/TSharpVision.TableView.Tests.csproj" />
     <Project Path="tests/TSharpVision.CodeEditor.Tests/TSharpVision.CodeEditor.Tests.csproj" />
+    <Project Path="tests/TSharpVision.CodeEditor.Consumer.Tests/TSharpVision.CodeEditor.Consumer.Tests.csproj" />
     <Project Path="tests/TSharpVision.Terminal.Tests/TSharpVision.Terminal.Tests.csproj" />
   </Folder>
   <Folder Name="/Samples/">

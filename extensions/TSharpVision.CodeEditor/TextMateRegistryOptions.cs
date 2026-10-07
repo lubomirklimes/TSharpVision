@@ -42,6 +42,51 @@ internal sealed class TextMateRegistryOptions : IRegistryOptions
         return scopeName;
     }
 
+    /// <summary>Loads a JSON grammar from a stream and returns its scope name, or null when it cannot be used.</summary>
+    public string? TryLoadGrammar(Stream stream)
+    {
+        using var reader = new StreamReader(stream);
+        IRawGrammar grammar = GrammarReader.ReadGrammarSync(reader);
+        string? scopeName = grammar.GetScopeName();
+        if (string.IsNullOrWhiteSpace(scopeName))
+            return null;
+
+        grammars[scopeName] = grammar;
+        return scopeName;
+    }
+
+    /// <summary>
+    /// Reads a JSON grammar and adds it under its own scope name, which it returns. The stream is left open.
+    /// </summary>
+    /// <exception cref="FormatException">The grammar cannot be read or declares no scope name.</exception>
+    /// <exception cref="InvalidOperationException">The scope name is taken.</exception>
+    public string AddGrammar(Stream stream, Func<string, bool> scopeIsTaken)
+    {
+        IRawGrammar grammar;
+        string? scopeName;
+        try
+        {
+            using var reader = new StreamReader(stream, System.Text.Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 4096, leaveOpen: true);
+            grammar = GrammarReader.ReadGrammarSync(reader);
+            scopeName = grammar?.GetScopeName();
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            throw new FormatException("The TextMate grammar cannot be read: " + ex.Message, ex);
+        }
+
+        if (grammar is null || string.IsNullOrWhiteSpace(scopeName))
+            throw new FormatException("The TextMate grammar declares no scope name.");
+        if (grammars.ContainsKey(scopeName) || scopeIsTaken(scopeName))
+            throw new InvalidOperationException($"A grammar with the scope name '{scopeName}' is already registered.");
+
+        grammars.Add(scopeName, grammar);
+        return scopeName;
+    }
+
+    /// <summary>Forgets a grammar added with <see cref="AddGrammar"/> that turned out to be unusable.</summary>
+    public void RemoveGrammar(string scopeName) => grammars.Remove(scopeName);
+
     public IRawTheme GetDefaultTheme() => theme;
 
     public IRawGrammar? GetGrammar(string scopeName)

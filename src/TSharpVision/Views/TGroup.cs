@@ -20,7 +20,25 @@ public class TGroup : TView
     public ScreenBuffer? buffer;
     /// <summary>Nested drawing-lock count; the final unlock redraws the group.</summary>
     public byte lockFlag;
-    private bool _bufferFreed;
+
+    // The instance FreeBuffer() released. It stays in `buffer` so GetBuffer() can reuse the
+    // allocation, but until GetBuffer() revives it it is not an image of this group: it holds
+    // what was drawn before the release, laid out for the size the group had then. Held by
+    // reference rather than as a flag so that it describes that one instance — a buffer assigned
+    // to the public field afterwards (TProgram adopts the driver's) is live without further ado.
+    private ScreenBuffer? _freedBuffer;
+
+    /// <summary>
+    /// The buffer this group may draw through and its children may write into: the retained
+    /// buffer, or null when there is none or <see cref="FreeBuffer"/> has released it.
+    /// </summary>
+    /// <remarks>
+    /// Every size change of a buffered group goes through <see cref="FreeBuffer"/> and
+    /// <see cref="GetBuffer"/> in <see cref="ChangeBounds"/>, and <see cref="GetBuffer"/> only
+    /// revives a released buffer of exactly the current size, so a live buffer always fits the
+    /// group's current bounds.
+    /// </remarks>
+    internal ScreenBuffer? LiveBuffer => ReferenceEquals(buffer, _freedBuffer) ? null : buffer;
 
     /// <summary>Current drawing clip rectangle in group-local character cells.</summary>
     public TRect clip;
@@ -637,10 +655,12 @@ public class TGroup : TView
     /// <inheritdoc />
     public override void Draw() 
     { 
-        if (buffer == null)
+        // A released buffer is no buffer: it is the image from before the release, possibly of
+        // another size. Obtain a live one and repaint the children into it.
+        if (LiveBuffer == null)
         {
             GetBuffer();
-            if (buffer != null)
+            if (LiveBuffer != null)
             {
                 lockFlag++;
                 Redraw();
@@ -648,9 +668,9 @@ public class TGroup : TView
             }
         }
 
-        if (buffer != null)
+        if (LiveBuffer is { } live)
         {
-            WriteBuf(0, 0, size.x, size.y, buffer);
+            WriteBuf(0, 0, size.x, size.y, live);
         }
         else
         {
@@ -668,7 +688,7 @@ public class TGroup : TView
     /// <summary>Defers buffered display updates by increasing the lock count when buffering or a lock is active.</summary>
     public void Lock() 
     {
-        if (buffer != null || lockFlag != 0)
+        if (LiveBuffer != null || lockFlag != 0)
             lockFlag++;
     }
     /// <summary>Releases one drawing lock and redraws when the count reaches zero.</summary>
@@ -712,7 +732,7 @@ public class TGroup : TView
     {
         if ((options & Views.ofBuffered) != 0 && buffer != null)
         {
-            _bufferFreed = true;
+            _freedBuffer = buffer;
         }
     }
     /// <summary>Obtains or reuses a cell buffer when this group is exposed and has the buffered option.</summary>
@@ -722,16 +742,15 @@ public class TGroup : TView
             if ((options & Views.ofBuffered) != 0)
             {
                 int sz = Math.Max(size.x * size.y * ScreenBuffer.GetSize(), 0);
-                if (_bufferFreed && buffer != null && buffer.Size == sz)
+                if (buffer != null && ReferenceEquals(buffer, _freedBuffer) && buffer.Size == sz)
                 {
                     buffer.Clear();
-                    _bufferFreed = false;
                 }
                 else
                 {
                     buffer = new ScreenBuffer(sz);
-                    _bufferFreed = false;
                 }
+                _freedBuffer = null;
             }
     }
 

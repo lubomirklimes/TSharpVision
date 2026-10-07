@@ -253,7 +253,10 @@ public ref struct TVWrite
     private void L40(TView view)
     {
         var owner = view.owner;
-        if (owner?.buffer != null)
+        // A buffer the owner has released (TGroup.FreeBuffer) is not a buffer: LiveBuffer is
+        // null, and the write takes the buffer-less path below instead of landing in an image
+        // the owner no longer draws from.
+        if (owner?.LiveBuffer != null)
         {
             // owner has a buffer: copy cells into it.
             bool direct = ReferenceEquals(owner.buffer, TScreen.ScreenBuffer);
@@ -296,7 +299,7 @@ public ref struct TVWrite
     // (0x08 = dark gray on black); the character is preserved from the source.
     private void L50(TGroup owner)
     {
-        ScreenBuffer? ownerBuffer = owner.buffer;
+        ScreenBuffer? ownerBuffer = owner.LiveBuffer;
         if (ownerBuffer == null) return;
         Span<TScreenChar> dst = ownerBuffer.Data;
 

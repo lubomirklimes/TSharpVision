@@ -9,8 +9,9 @@ namespace TSharpVision.Tests.Editors;
 
 /// <summary>
 /// KEYBOARD-CLOSURE N2: Ctrl+Backspace and Alt+Backspace arrive with identities of their own (kbCtrlBack = 0x0E7F,
-/// kbAltBack = 0x0800) from the console, SDL and Kitty drivers. TEditor binds neither, so they must do nothing — in
-/// particular kbCtrlBack's low byte, DEL (0x7F), is not a printable character and must never be inserted.
+/// kbAltBack = 0x0800) from the console, SDL and Kitty drivers. kbCtrlBack's low byte, DEL (0x7F), is not a printable
+/// character and must never be inserted: Ctrl+Backspace deletes the word before the caret (see
+/// <see cref="EditorModernKeyTests"/>), and Alt+Backspace, which TEditor does not bind, does nothing.
 /// </summary>
 [Collection("NonParallel")]
 public sealed class EditorBackspaceIdentityTests : IDisposable
@@ -37,7 +38,6 @@ public sealed class EditorBackspaceIdentityTests : IDisposable
     }
 
     [Theory]
-    [InlineData(Keys.kbCtrlBack, Keys.kbCtrlShift)]
     [InlineData(Keys.kbAltBack, Keys.kbAltShift)]
     public void AnUnboundBackspaceIdentityLeavesTheTextAlone(ushort keyCode, uint modifiers)
     {
@@ -50,6 +50,18 @@ public sealed class EditorBackspaceIdentityTests : IDisposable
 
         Assert.Equal("hello world", Text(editor));
         Assert.False(editor.modified);
+    }
+
+    [Fact]
+    public void CtrlBackspaceNeverInsertsItsDelByte()
+    {
+        var editor = new TEditor(new TRect(0, 0, 20, 4), null, null, null, 256);
+        editor.InsertText("hello world");
+
+        TEvent ev = Key(Keys.kbCtrlBack, Keys.kbCtrlShift);
+        editor.HandleEvent(ref ev);
+
+        Assert.Equal("hello ", Text(editor));
     }
 
     [Fact]

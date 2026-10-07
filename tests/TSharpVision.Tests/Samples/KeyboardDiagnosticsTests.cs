@@ -575,4 +575,42 @@ public sealed class KeyboardDiagnosticsTests
         }
         finally { dialog.ShutDown(); }
     }
+
+    /// <summary>
+    /// While the dialog captures the keyboard the application does not normalize keypad keys, so the dialog shows the
+    /// physical key (KP4, KP1 …) and not the cursor key or digit a view would get. Outside the dialog it does.
+    /// </summary>
+    [Theory]
+    [InlineData(Keys.kbKeypad4, 0u, "", Keys.kbLeft)]
+    [InlineData(Keys.kbKeypad1, Keys.kbNumState, "1", (ushort)'1')]
+    [InlineData(Keys.kbKeypadDecimal, 0u, "", Keys.kbDel)]
+    [InlineData(Keys.kbKeypadEnter, 0u, "", Keys.kbEnter)]
+    public void WhileCapturingTheApplicationLeavesKeypadIdentitiesToTheDialog(ushort identity, uint state, string text, ushort semantic)
+    {
+        const System.Reflection.BindingFlags Private = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+        var normalize = typeof(TVDemoApp).GetMethod("NormalizeKeyEvent", Private | System.Reflection.BindingFlags.DeclaredOnly)!;
+        var capture = typeof(TVDemoApp).GetField("_keyboardCapture", Private)!;
+        // Only the capture flag is read; the application itself is not needed and is not started.
+        object app = System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(TVDemoApp));
+
+        TEvent Through(bool capturing)
+        {
+            capture.SetValue(app, capturing);
+            TEvent ev = Key(Events.evKeyDown, identity, state);
+            ev.keyDown.charScan = new CharScanType(identity);
+            ev.keyDown.text = text;
+            object[] arguments = [ev];
+            normalize.Invoke(app, arguments);
+            return (TEvent)arguments[0];
+        }
+
+        TEvent raw = Through(capturing: true);
+        Assert.Equal(identity, raw.keyDown.keyCode);
+        Assert.Equal(0, raw.keyDown.keypadKey);
+        Assert.True(KeyboardDiagnosticsState.IsKeypad(KeyboardDiagnosticsState.MapKey(raw.keyDown.keyCode)));
+
+        TEvent normal = Through(capturing: false);
+        Assert.Equal(semantic, normal.keyDown.keyCode);
+        Assert.Equal(identity, normal.keyDown.keypadKey);
+    }
 }

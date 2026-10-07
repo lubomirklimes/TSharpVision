@@ -153,6 +153,10 @@ public class TProgram : TGroup
                 InputTrace.LogEvent("Stage4-GetEvent(driver)", @event);
         }
 
+        // Before the status line and every view, modal loops and menus included: they all read through here.
+        if (@event.What == Events.evKeyDown || @event.What == Events.evKeyUp)
+            NormalizeKeyEvent(ref @event);
+
         if (StatusLine != null)
         {
             if (((@event.What & Events.evKeyDown) != 0) ||
@@ -167,6 +171,13 @@ public class TProgram : TGroup
             }
         }
     }
+
+    /// <summary>
+    /// Gives a key press or release read by <see cref="GetEvent"/> its semantic identity before anything handles it.
+    /// The default applies <see cref="KeypadKeys.Normalize"/>; a program that must see keys exactly as the driver
+    /// reported them overrides this.
+    /// </summary>
+    protected virtual void NormalizeKeyEvent(ref TEvent @event) => KeypadKeys.Normalize(ref @event);
 
     /// <inheritdoc />
     public override TPalette GetPalette()

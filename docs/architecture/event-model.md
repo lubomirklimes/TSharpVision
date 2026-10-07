@@ -49,6 +49,42 @@ A text-producing AltGr combination yields its text and no Alt or Ctrl shortcut i
 
 When the transport can tell the keypad from the main keyboard, keypad keys have their own identities: `kbKeypad0`–`kbKeypad9`, `kbKeypadDecimal`, `kbKeypadDivide`, `kbKeypadMultiply`, `kbKeypadEnter`, and the historical `kbGrayMinus` and `kbGrayPlus` for keypad `-` and `+`. The identity says which key was pressed; `text` says what character it generated, if any; `controlKeyState & kbNumState` says whether NumLock is on. `kbNumLock` is the identity of the NumLock key itself.
 
+Drivers report these identities; views never have to know them. `TProgram.GetEvent` gives each keypad press and release its semantic key code before the status line, a view, a modal loop or a menu sees it, and keeps the physical key in `keypadKey`:
+
+```
+driver        evKeyDown  keyCode = kbKeypad8                      NumLock off
+dispatched    evKeyDown  keyCode = kbUp       keypadKey = kbKeypad8
+
+driver        evKeyDown  keyCode = kbKeypad1  text = "1"          NumLock on
+dispatched    evKeyDown  keyCode = '1'        text = "1"  keypadKey = kbKeypad1
+```
+
+The step is `KeypadKeys.Normalize`. It decides from the event alone, in this order:
+
+| The driver reported | Dispatched as |
+|---|---|
+| `kbKeypadEnter` | `kbEnter`; `kbCtrlEnter` with Ctrl |
+| A keypad key with `text` | That text. `keyCode` is the character when the text is one ASCII character and 0 otherwise, as for any typed key. The text is the driver's (the decimal key types what the layout says) and is never derived from the identity. |
+| `kbKeypad0`–`kbKeypad9` or `kbKeypadDecimal` without text, NumLock off | The cursor key printed on it: 7 Home, 8 Up, 9 PgUp, 4 Left, 6 Right, 1 End, 2 Down, 3 PgDn, 0 Ins, decimal Del, in the modifier variant the main key has (`kbCtrlHome`, `kbShiftIns`, …). `controlKeyState` keeps the whole combination. |
+| Anything else | Unchanged, which no view handles: a key without text while NumLock is on, keypad 5 without text, `/` or `*` without text. |
+
+`kbGrayMinus` and `kbGrayPlus` keep their historical key codes, which applications bind. Like every keypad key they type only the text their event carries: the character in their legacy scan pair is cleared when the event has no text.
+
+`keypadKey` is set on every keypad event, changed or not, so `keypadKey != 0` means the key is on the keypad. It is a field of its own because where a key is on the keyboard is not modifier or lock state. A release carries no text, so the release of a key that typed text keeps the keypad identity as its `keyCode`; `keypadKey` pairs it with its press.
+
+A program that must see keys as the driver reported them, such as a keyboard diagnostic, overrides `TProgram.NormalizeKeyEvent`.
+
+What the drivers supply differs:
+
+| | Text of a typing keypad key | NumLock state | Consequence |
+|---|---|---|---|
+| Console | In the same event | yes | One event per key. |
+| SDL | A separate text event after the key event | yes (`SDL_KMOD_NUM`) | The key event is the identity (navigation, or nothing with NumLock on); the text event that follows types, and has no keypad identity. |
+| Kitty | In the same event when the terminal reports associated text | yes | Without associated text a typing keypad key types nothing. |
+| Plain ANSI | — | no | The keypad sends what the main keys send; there is nothing to normalize. |
+
+With NumLock on, Shift turns the keypad into cursor keys for the host, but the event then still carries NumLock on and no text, like a digit whose text has not arrived. It is not treated as navigation on any driver.
+
 ### Capabilities
 
 Drivers differ in what they can report. `IDriver.KeyboardCapabilities` states what the active driver reports reliably, and a driver never fabricates a report its transport does not supply.

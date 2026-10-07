@@ -121,6 +121,61 @@ public sealed class SyntaxLanguage : IEquatable<SyntaxLanguage>
 }
 
 /// <summary>
+/// A language a person can choose for a document: its identity and the names it is known by.
+/// </summary>
+/// <remarks>
+/// Backend-neutral: nothing here says how the language is classified. The aliases, extensions and file names are
+/// for finding the language in a list and for describing it; detection itself stays with
+/// <see cref="ISyntaxService.DetectLanguage"/>.
+/// Collections are copied at construction and exposed as read-only snapshots. Null collections become empty;
+/// null elements are rejected. Later changes to the supplied collections do not affect this instance.
+/// </remarks>
+public sealed class SyntaxLanguageInfo
+{
+    /// <summary>Creates a description of <paramref name="language"/>.</summary>
+    /// <param name="language">The language identity.</param>
+    /// <param name="aliases">Other names the language is known by, without the identifier and the display name.</param>
+    /// <param name="fileExtensions">File extensions with their leading dot, most characteristic first.</param>
+    /// <param name="fileNames">Exact file names such as <c>Makefile</c>.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="language"/> is null.</exception>
+    /// <exception cref="ArgumentException">A supplied collection contains a null element.</exception>
+    public SyntaxLanguageInfo(
+        SyntaxLanguage language,
+        IReadOnlyList<string>? aliases = null,
+        IReadOnlyList<string>? fileExtensions = null,
+        IReadOnlyList<string>? fileNames = null)
+    {
+        Language = language ?? throw new ArgumentNullException(nameof(language));
+        Aliases = Snapshot(aliases, nameof(aliases));
+        FileExtensions = Snapshot(fileExtensions, nameof(fileExtensions));
+        FileNames = Snapshot(fileNames, nameof(fileNames));
+    }
+
+    private static IReadOnlyList<string> Snapshot(IReadOnlyList<string>? values, string parameterName)
+    {
+        string[] copy = values?.ToArray() ?? Array.Empty<string>();
+        if (copy.Any(value => value is null))
+            throw new ArgumentException("Metadata cannot contain null elements.", parameterName);
+        return Array.AsReadOnly(copy);
+    }
+
+    /// <summary>Gets the language identity: stable identifier and display name.</summary>
+    public SyntaxLanguage Language { get; }
+
+    /// <summary>Gets other names the language is known by (<c>py</c>, <c>bash</c>), for searching a list.</summary>
+    public IReadOnlyList<string> Aliases { get; }
+
+    /// <summary>Gets the file extensions that name the language, each with its leading dot.</summary>
+    public IReadOnlyList<string> FileExtensions { get; }
+
+    /// <summary>Gets the exact file names that name the language.</summary>
+    public IReadOnlyList<string> FileNames { get; }
+
+    /// <inheritdoc />
+    public override string ToString() => Language.DisplayName;
+}
+
+/// <summary>
 /// The opaque state a classifier carries from the end of one line to the start of the next — for
 /// example "inside a block comment".
 /// </summary>
@@ -196,6 +251,17 @@ public interface ISyntaxService
 
     /// <summary>Gets the classifier for <paramref name="language"/>, or null for plain text or an unknown language.</summary>
     ISyntaxClassifier? CreateClassifier(SyntaxLanguage language);
+
+    /// <summary>
+    /// Gets the languages a person can choose explicitly, ordered by display name. Plain text is not among them: it
+    /// is always available as <see cref="SyntaxLanguage.PlainText"/>.
+    /// </summary>
+    /// <remarks>
+    /// A user-facing list, not a registry dump: variants that only repeat another language's grammar are left out.
+    /// Every built-in language returned has a classifier; a language an application registered has one unless its
+    /// classifier factory failed. A service that cannot enumerate its languages returns an empty list.
+    /// </remarks>
+    IReadOnlyList<SyntaxLanguageInfo> GetLanguages() => Array.Empty<SyntaxLanguageInfo>();
 }
 
 /// <summary>Random access to the lines of a document, without their terminators.</summary>

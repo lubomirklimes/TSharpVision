@@ -19,7 +19,7 @@ T# Vision is a text-mode UI framework for C# and .NET, with Turbo Vision-style w
 
 Install one driver package; it brings in `TSharpVision` transitively, including the public core APIs used below. A separate core reference is only needed for a core-only/headless application or when intentionally managing its version directly.
 
-Package metadata currently defaults to `0.1.0-preview.3`. This does not imply a NuGet.org publication. Use an available prerelease from your configured feed; see [Getting Started](https://github.com/lubomirklimes/TSharpVision/blob/main/docs/getting-started.md) for local-feed setup.
+Package metadata currently defaults to `0.1.0-preview.4`. This does not imply a NuGet.org publication. Use an available prerelease from your configured feed; see [Getting Started](https://github.com/lubomirklimes/TSharpVision/blob/main/docs/getting-started.md) for local-feed setup.
 
 ## Requirements
 

@@ -1,0 +1,11 @@
+{
+  "name": "Tiny",
+  "scopeName": "source.tiny",
+  "patterns": [
+    { "name": "comment.line.number-sign.tiny", "match": "#.*$" },
+    { "name": "comment.block.tiny", "begin": "/\\*", "end": "\\*/" },
+    { "name": "string.quoted.double.tiny", "begin": "\"", "end": "\"" },
+    { "name": "constant.numeric.tiny", "match": "\\b[0-9]+\\b" },
+    { "name": "keyword.control.tiny", "match": "\\blet\\b" }
+  ]
+}

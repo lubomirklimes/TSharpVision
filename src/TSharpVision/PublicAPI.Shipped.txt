@@ -2776,3 +2776,11 @@ TSharpVision.TMultiCheckBoxes.TMultiCheckBoxes(TSharpVision.StreamableInit init)
 TSharpVision.TMultiCheckBoxes.TMultiCheckBoxes(TSharpVision.TRect bounds, TSharpVision.TSItem! aStrings, byte aSelRange, ushort aFlags, string! aStates) -> void
 virtual TSharpVision.TCluster.MultiMark(int item) -> byte
 virtual TSharpVision.TCluster.SetButtonState(uint aMask, bool enable) -> void
+const TSharpVision.Constants.Views.cmDelWordLeft = 525 -> ushort
+static TSharpVision.KeypadKeys.IsKeypadIdentity(ushort keyCode) -> bool
+static TSharpVision.KeypadKeys.NavigationKey(ushort keypadKey, uint controlKeyState) -> ushort
+static TSharpVision.KeypadKeys.Normalize(ref TSharpVision.TEvent ev) -> bool
+TSharpVision.KeyDownEvent.keypadKey -> ushort
+TSharpVision.KeypadKeys
+virtual TSharpVision.TProgram.NormalizeKeyEvent(ref TSharpVision.TEvent event) -> void
+static TSharpVision.KeyText.IsNamedSpecialKey(ushort keyCode) -> bool

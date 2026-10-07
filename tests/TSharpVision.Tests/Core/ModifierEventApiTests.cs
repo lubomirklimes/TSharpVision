@@ -33,7 +33,7 @@ public sealed class ModifierEventApiTests
             typeof(TEvent).GetFields().Select(field => field.Name));
         Assert.DoesNotContain(typeof(TEvent).GetFields(), field => field.Name == nameof(TEvent.Modifiers));
         Assert.Equal(
-            ["charScan", "keyCode", "controlKeyState", "raw_scanCode"],
+            ["charScan", "keyCode", "controlKeyState", "raw_scanCode", "keypadKey"],
             typeof(KeyDownEvent).GetFields().Where(field => field.IsPublic).Select(field => field.Name));
         Assert.Equal(typeof(uint), typeof(KeyDownEvent).GetField("controlKeyState")!.FieldType);
         Assert.Equal(typeof(string), typeof(KeyDownEvent).GetProperty(nameof(KeyDownEvent.text))!.PropertyType);

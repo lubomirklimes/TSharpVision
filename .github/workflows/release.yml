@@ -1,0 +1,123 @@
+name: GitHub Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: pwsh
+
+jobs:
+  validate:
+    name: Validate tagged release
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.metadata.outputs.version }}
+      prerelease: ${{ steps.metadata.outputs.prerelease }}
+      commit: ${{ steps.metadata.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      - name: Validate tag, MSBuild versions and changelog
+        id: metadata
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: ./scripts/prepare-github-release.ps1 -Tag $env:RELEASE_TAG
+      - run: dotnet restore TSharpVision.slnx -p:TreatWarningsAsErrors=true
+      - run: dotnet build TSharpVision.slnx -c Release -t:Rebuild --no-restore -v minimal -warnaserror
+      - run: dotnet test TSharpVision.slnx -c Release --no-build --no-restore -v minimal
+        env:
+          TERM: xterm-256color
+      - name: Reuse release package validation (never uploaded or published)
+        env:
+          EXPECTED_COMMIT: ${{ steps.metadata.outputs.commit }}
+        run: |
+          ./scripts/pack-local-packages.ps1 -UseRepositoryVersion -SkipBuild `
+            -OutputDirectory artifacts/release-validation -ExpectedCommit $env:EXPECTED_COMMIT
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-notes
+          path: artifacts/github-release/release-notes.md
+          if-no-files-found: error
+
+  demo:
+    name: TVDemo (${{ matrix.rid }})
+    needs: validate
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: win-x64
+            os: windows-2025
+          - rid: linux-x64
+            os: ubuntu-24.04
+          - rid: osx-x64
+            os: macos-15-intel
+          - rid: osx-arm64
+            os: macos-15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.validate.outputs.commit }}
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      - name: Publish and archive self-contained TVDemo
+        env:
+          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+          RELEASE_RID: ${{ matrix.rid }}
+        run: ./scripts/publish-tvdemo-release.ps1 -Version $env:RELEASE_VERSION -RuntimeIdentifier $env:RELEASE_RID
+      - uses: actions/upload-artifact@v7
+        with:
+          name: tvdemo-${{ matrix.rid }}
+          path: artifacts/tvdemo-release/archives/*
+          if-no-files-found: error
+
+  release:
+    name: Publish complete GitHub Release
+    needs: [validate, demo]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.validate.outputs.commit }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-notes
+          path: artifacts/github-release
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: tvdemo-*
+          merge-multiple: true
+          path: artifacts/tvdemo-release/archives
+      - name: Check assets and generate SHA-256 checksums
+        env:
+          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+        run: ./scripts/complete-github-release.ps1 -Version $env:RELEASE_VERSION
+      # Only this step accesses GitHub release APIs. Failure leaves a draft for manual review.
+      - name: Create draft, upload and verify all assets, then publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+          RELEASE_COMMIT: ${{ needs.validate.outputs.commit }}
+        run: ./scripts/complete-github-release.ps1 -Version $env:RELEASE_VERSION -Commit $env:RELEASE_COMMIT -Publish

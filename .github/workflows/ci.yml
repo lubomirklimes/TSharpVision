@@ -44,25 +44,7 @@ jobs:
       - name: Verify complete package set
         shell: pwsh
         run: |
-          $ids = @(
-            'TSharpVision',
-            'TSharpVision.Drivers.Console',
-            'TSharpVision.Drivers.SDL',
-            'TSharpVision.Drivers.Terminal',
-            'TSharpVision.CodeEditor',
-            'TSharpVision.HexView',
-            'TSharpVision.TableView',
-            'TSharpVision.Terminal'
-          )
-          $version = (dotnet msbuild src/TSharpVision/TSharpVision.csproj -getProperty:Version).Trim()
-          foreach ($extension in @('nupkg', 'snupkg')) {
-            $actual = @(Get-ChildItem artifacts/nuget -Filter "*.$extension" | ForEach-Object Name | Sort-Object)
-            $expected = @($ids | ForEach-Object { '{0}.{1}.{2}' -f $_, $version, $extension } | Sort-Object)
-            if (Compare-Object $expected $actual) {
-              Write-Error "Unexpected $extension package set: $($actual -join ', ')"
-              exit 1
-            }
-          }
+          ./scripts/pack-local-packages.ps1 -UseRepositoryVersion -ValidateOnly -OutputDirectory artifacts/nuget
       - uses: actions/upload-artifact@v7
         with:
           name: nuget-packages

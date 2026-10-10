@@ -1,0 +1,76 @@
+name: Publish NuGet
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+# Serialize every release, including dispatches on different refs. Never cancel a push.
+concurrency:
+  group: nuget-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish packages
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      - name: Check release configuration
+        env:
+          NUGET_USER: ${{ vars.NUGET_USER }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:NUGET_USER)) {
+            throw 'Configure the release environment variable NUGET_USER (NuGet profile name).'
+          }
+          if (Test-Path artifacts/nuget-publish) {
+            throw 'The publish directory must be fresh.'
+          }
+      - run: dotnet restore TSharpVision.slnx -p:TreatWarningsAsErrors=true
+      - run: dotnet build TSharpVision.slnx -c Release -t:Rebuild --no-restore -v minimal -warnaserror
+      - run: dotnet test TSharpVision.slnx -c Release --no-build --no-restore -v minimal
+      - name: Pack and validate release packages
+        id: packages
+        env:
+          EXPECTED_COMMIT: ${{ github.sha }}
+        run: |
+          ./scripts/pack-local-packages.ps1 -UseRepositoryVersion -SkipBuild `
+            -OutputDirectory artifacts/nuget-publish `
+            -ReleaseManifestPath artifacts/nuget-publish/manifest.json `
+            -ExpectedCommit $env:EXPECTED_COMMIT
+      - uses: actions/upload-artifact@v7
+        with:
+          name: nuget-${{ steps.packages.outputs.version }}
+          path: artifacts/nuget-publish/*.*nupkg
+          if-no-files-found: error
+      - name: NuGet login
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: ${{ vars.NUGET_USER }}
+      # All checks precede authentication. Multi-package publication is not transactional.
+      # Push nupkg only: dotnet also pushes its matching snupkg. Duplicates must fail.
+      - name: Publish validated packages in dependency order
+        env:
+          NUGET_TEMP_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          $manifest = Get-Content artifacts/nuget-publish/manifest.json -Raw | ConvertFrom-Json
+          foreach ($package in $manifest.Packages) {
+            dotnet nuget push (Join-Path artifacts/nuget-publish $package) `
+              --api-key $env:NUGET_TEMP_KEY --source https://api.nuget.org/v3/index.json
+          }

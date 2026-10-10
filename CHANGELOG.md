@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.0-rc.1
+
+- First release candidate for TSharpVision 1.0; feature-frozen for 1.0.
+- Public API baseline frozen for 1.0, with no pending Unshipped API entries.
+- Scoped the POSIX controlling-terminal assertion to Linux and clarified the macOS behavior.
+
 ## 0.1.0-preview.4
 
 ### Keyboard and input

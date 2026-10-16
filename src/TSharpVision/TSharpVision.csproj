@@ -6,6 +6,8 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="TSharpVision.Drivers.Console" />
+    <InternalsVisibleTo Include="TSharpVision.Drivers.Terminal" />
+    <InternalsVisibleTo Include="TSharpVision.Tests" />
     <InternalsVisibleTo Include="TSharpVision.Drivers.SDL" />
   </ItemGroup>
 </Project>

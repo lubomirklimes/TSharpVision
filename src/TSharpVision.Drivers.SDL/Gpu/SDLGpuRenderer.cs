@@ -348,6 +348,7 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
 
     private void SubmitFrame(ScreenBuffer screenBuffer, uint cols, uint rows)
     {
+        if (_renderCts.IsCancellationRequested) return;
         lock (_snapLock)
         {
             if (_snap == null || _snapCols != cols || _snapRows != rows)
@@ -371,6 +372,7 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
         {
             try   { _frameReady.Wait(_renderCts.Token); }
             catch (OperationCanceledException) { break; }
+            if (_renderCts.IsCancellationRequested) break;
 
             if (_options.DiagnosticsEnabled)
             {
@@ -1049,16 +1051,19 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
     // Disposal
     // ─────────────────────────────────────────────────────────────────────────
 
-    public void Dispose()
+    public void Dispose() => Dispose(TimeSpan.FromSeconds(2));
+
+    internal void Dispose(TimeSpan shutdownTimeout)
     {
         if (_disposed) return;
-        _disposed = true;
 
         // Stop the render thread before releasing any GPU or TTF resources.
         _renderCts.Cancel();
         try { _frameReady.Release(); } catch (SemaphoreFullException) { }
-        _renderThread?.Join(TimeSpan.FromSeconds(2));
+        if (_renderThread != null && !_renderThread.Join(shutdownTimeout))
+            throw new TimeoutException("The SDL GPU render worker has not stopped; its resources are retained. Retry shutdown after it exits.");
         _renderThread = null;
+        _disposed = true;
 
         _glyphCache.Clear();
 

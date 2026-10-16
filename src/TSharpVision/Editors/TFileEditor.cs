@@ -158,59 +158,45 @@ public class TFileEditor : TEditor
     /// <summary>Writes content using the selected line endings and retained encoding, optionally backing up the old file; clears modified state on success.</summary>
     public bool SaveFile()
     {
-        if ((editorFlags & Views.efBackupFiles) != 0
-            && File.Exists(fileName))
-        {
-            string backup = MakeBackupName(fileName);
-            try
-            {
-                if (File.Exists(backup)) File.Delete(backup);
-                File.Move(fileName, backup);
-            }
-            catch
-            {
-                // Failure to roll the backup is non-fatal upstream.
-            }
-        }
-
-        FileStream f;
-        try { f = File.Create(fileName); }
-        catch
-        {
-            editorDialog(Views.edCreateError, fileName);
-            return false;
-        }
-
+        string? temporary = null;
+        int error = Views.edCreateError;
         try
         {
-            if (HadUtf8Bom || OriginalEncoding == EditorEncodingKind.Utf8Bom)
+            string destination = Path.GetFullPath(fileName);
+            temporary = Path.Combine(Path.GetDirectoryName(destination)!, ".tsharpvision-" + Guid.NewGuid().ToString("N") + ".tmp");
+            using (var f = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
             {
-                byte[] bom = { 0xEF, 0xBB, 0xBF };
-                f.Write(bom, 0, bom.Length);
+                error = Views.edWriteError;
+                if (HadUtf8Bom || OriginalEncoding == EditorEncodingKind.Utf8Bom)
+                    f.Write(new byte[] { 0xEF, 0xBB, 0xBF });
+                WriteContentWithLineEndings(f);
+                f.Flush(flushToDisk: true);
             }
-            WriteRangeWithLineEndings(f, 0, (int)curPtr);
-            uint right = bufLen - curPtr;
-            if (right > 0)
-                WriteRangeWithLineEndings(f, (int)(curPtr + gapLen), (int)right);
+
+            // The destination and its backup are touched only after the complete new file is closed.
+            if ((editorFlags & Views.efBackupFiles) != 0 && File.Exists(destination))
+                File.Replace(temporary, destination, MakeBackupName(destination));
+            else
+                File.Move(temporary, destination, overwrite: true);
         }
         catch (EncoderFallbackException)
         {
-            f.Dispose();
             editorDialog(Views.edEncodingWriteError, fileName);
             return false;
         }
         catch
         {
-            f.Dispose();
-            editorDialog(Views.edWriteError, fileName);
+            editorDialog(error, fileName);
             return false;
         }
-
-        try { f.Dispose(); }
-        catch
+        finally
         {
-            editorDialog(Views.edWriteError, fileName);
-            return false;
+            if (temporary != null)
+            {
+                try { File.Delete(temporary); }
+                catch (IOException) { }
+                catch (UnauthorizedAccessException) { }
+            }
         }
 
         modified = false;
@@ -348,7 +334,7 @@ public class TFileEditor : TEditor
         };
     }
 
-    private void WriteRangeWithLineEndings(Stream stream, int offset, int length)
+    private void WriteContentWithLineEndings(Stream stream)
     {
         string lineEnding = SaveLineEnding switch
         {
@@ -357,14 +343,13 @@ public class TFileEditor : TEditor
             LineEndingKind.Lf => "\n",
             _ => DefaultLineEndingForPlatform() == LineEndingKind.CrLf ? "\r\n" : "\n",
         };
-        var sb = new StringBuilder(length + 16);
-        int end = offset + length;
-        for (int i = offset; i < end; i++)
+        var sb = new StringBuilder((int)bufLen);
+        for (uint i = 0; i < bufLen; i++)
         {
-            if (Buf[i] == '\n')
+            if (BufChar(i) == '\n')
                 sb.Append(lineEnding);
             else
-                sb.Append(Buf[i]);
+                sb.Append(BufChar(i));
         }
         byte[] bytes = EncodeTextForSave(sb.ToString());
         stream.Write(bytes, 0, bytes.Length);

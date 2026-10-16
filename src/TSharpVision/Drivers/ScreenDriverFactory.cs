@@ -1,6 +1,8 @@
 using TSharpVision;
 using TSharpVision.Config;
 using System.Reflection;
+using System.Reflection.Metadata;
+using System.Reflection.PortableExecutable;
 
 namespace TSharpVision.Drivers;
 
@@ -73,6 +75,13 @@ public class ScreenDriverFactory
         var assemblies = new List<Assembly>();
         foreach (var file in Directory.GetFiles(currentDirectory, "*.dll"))
         {
+            // Loading an assembly and enumerating its types is the expensive part of discovery,
+            // and an application directory is mostly libraries that have nothing to do with the
+            // screen - and views and editors that draw on it without being drivers. Those are told
+            // apart from their metadata alone and never loaded here.
+            if (!MayDefineDriver(file))
+                continue;
+
             try
             {
                 assemblies.Add(Assembly.LoadFrom(file));
@@ -105,6 +114,59 @@ public class ScreenDriverFactory
             })
             .Where(type => typeof(IDriver).IsAssignableFrom(type) && !type.IsInterface && !type.IsAbstract)
             .ToArray();
+    }
+
+    /// <summary>
+    /// Whether the file at <paramref name="file"/> could contain a selectable screen driver: it is
+    /// this assembly, or a managed assembly that uses <see cref="ScreenDriverAttribute"/>.
+    /// </summary>
+    /// <remarks>
+    /// A driver is only ever selected through a <see cref="ScreenDriverAttribute"/> on its own
+    /// class - the attribute is not inherited - so an assembly that never names that attribute
+    /// cannot contribute one. Only the file's metadata is read; nothing is loaded. A file that is
+    /// not a managed assembly is not a candidate - loading it would have failed and been skipped.
+    /// A file whose metadata cannot be read is left to the loader, which decides as it always did.
+    /// </remarks>
+    private static bool MayDefineDriver(string file)
+    {
+        Type marker = typeof(ScreenDriverAttribute);
+        string core = marker.Assembly.GetName().Name!;
+
+        try
+        {
+            using var stream = new FileStream(
+                file, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
+            using var image = new PEReader(stream);
+
+            if (!image.HasMetadata)
+                return false;
+
+            MetadataReader metadata = image.GetMetadataReader();
+            if (!metadata.IsAssembly)
+                return false;
+
+            if (metadata.StringComparer.Equals(metadata.GetAssemblyDefinition().Name, core))
+                return true;
+
+            foreach (TypeReferenceHandle handle in metadata.TypeReferences)
+            {
+                TypeReference reference = metadata.GetTypeReference(handle);
+                if (metadata.StringComparer.Equals(reference.Name, marker.Name)
+                    && metadata.StringComparer.Equals(reference.Namespace, marker.Namespace!))
+                    return true;
+            }
+
+            return false;
+        }
+        catch (BadImageFormatException)
+        {
+            // Not a portable executable at all.
+            return false;
+        }
+        catch (Exception)
+        {
+            return true;
+        }
     }
 
     private static Platform GetCurrentPlatform() => ClassifyPlatform(

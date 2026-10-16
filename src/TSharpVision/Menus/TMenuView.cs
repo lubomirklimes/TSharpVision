@@ -44,161 +44,166 @@ public class TMenuView : TView
     /// <inheritdoc />
     public override ushort Execute()
     {
-        if (InputTrace.Enabled)
-            InputTrace.Log("Stage9-TMenuView.Execute(start)", $"view={GetType().Name}");
-
-        bool autoSelect = false;
-        ushort result = 0;
-        TMenuItem? itemShown = null;
-        TMenuView target;
-        TRect r;
-        TEvent e = default;
-
-        Current = Menu?.Default;
-        bool running = true;
-        while (running)
+        TGroup.EventLoopDepth++;
+        try
         {
-            GetEvent(ref e);
-            bool doSelect = false;
-            bool doReturn = false;
+            if (InputTrace.Enabled)
+                InputTrace.Log("Stage9-TMenuView.Execute(start)", $"view={GetType().Name}");
 
-            switch (e.What)
+            bool autoSelect = false;
+            ushort result = 0;
+            TMenuItem? itemShown = null;
+            TMenuView target;
+            TRect r;
+            TEvent e = default;
+
+            Current = Menu?.Default;
+            bool running = true;
+            while (running)
             {
-                case Events.evMouseDown:
-                    if (MouseInView(e.mouse.where) || MouseInOwner(e))
-                    {
-                        TrackMouse(e);
-                        if (size.y == 1) autoSelect = true;
-                    }
-                    else doReturn = true;
-                    break;
-                case Events.evMouseUp:
-                    TrackMouse(e);
-                    if (MouseInOwner(e)) Current = Menu?.Default;
-                    else if (Current != null && !string.IsNullOrEmpty(Current.Name))
-                        doSelect = true;
-                    else doReturn = true;
-                    break;
-                case Events.evMouseMove:
-                    if (e.mouse.buttons != 0)
-                    {
-                        TrackMouse(e);
-                        if (!MouseInView(e.mouse.where) && !MouseInOwner(e) && MouseInMenus(e))
-                            doReturn = true;
-                    }
-                    break;
-                case Events.evKeyDown:
-                    switch (e.keyDown.keyCode)
-                    {
-                        case Keys.kbUp:
-                        case Keys.kbDown:
-                            if (size.y != 1) TrackKey(e.keyDown.keyCode == Keys.kbDown);
-                            else if (e.keyDown.keyCode == Keys.kbDown) autoSelect = true;
-                            break;
-                        case Keys.kbLeft:
-                        case Keys.kbRight:
-                            if (ParentMenu != null) doReturn = true;
-                            else TrackKey(e.keyDown.keyCode == Keys.kbRight);
-                            break;
-                        case Keys.kbHome:
-                        case Keys.kbEnd:
-                            if (size.y != 1)
-                            {
-                                Current = Menu?.Items;
-                                if (e.keyDown.keyCode == Keys.kbEnd) TrackKey(false);
-                            }
-                            break;
-                        case Keys.kbEnter:
-                            if (size.y == 1) autoSelect = true;
-                            doSelect = true;
-                            break;
-                        case Keys.kbEsc:
-                            doReturn = true;
-                            if (ParentMenu == null || ParentMenu.size.y != 1)
-                                ClearEvent(ref e);
-                            break;
-                        default:
+                GetEvent(ref e);
+                bool doSelect = false;
+                bool doReturn = false;
+
+                switch (e.What)
+                {
+                    case Events.evMouseDown:
+                        if (MouseInView(e.mouse.where) || MouseInOwner(e))
                         {
-                            target = this;
-                            char altCh = GetAltChar(e.keyDown.keyCode, e.keyDown.charScan.charCode, e.keyDown.controlKeyState);
-                            bool isAlt = altCh != '\0';
-                            if (isAlt && ParentMenu != null) target = TopMenu();
-                            char ch = isAlt ? altCh : (char)e.keyDown.charScan.charCode;
-                            TMenuItem? found = (ch != '\0') ? target.FindItem(ch) : null;
-                            if (found == null)
-                            {
-                                if (!isAlt && (e.keyDown.charScan.charCode < 32 || e.keyDown.charScan.charCode >= 127))
-                                {
-                                    found = TopMenu().HotKey(e.keyDown.keyCode);
-                                    if (found != null && CommandEnabled(found.Command))
-                                    { result = found.Command; doReturn = true; }
-                                }
-                            }
-                            else if (target == this)
-                            {
-                                if (size.y == 1) autoSelect = true;
-                                Current = found;
-                                doSelect = true;
-                            }
-                            else if (ParentMenu != target || ParentMenu.Current != found)
+                            TrackMouse(e);
+                            if (size.y == 1) autoSelect = true;
+                        }
+                        else doReturn = true;
+                        break;
+                    case Events.evMouseUp:
+                        TrackMouse(e);
+                        if (MouseInOwner(e)) Current = Menu?.Default;
+                        else if (Current != null && !string.IsNullOrEmpty(Current.Name))
+                            doSelect = true;
+                        else doReturn = true;
+                        break;
+                    case Events.evMouseMove:
+                        if (e.mouse.buttons != 0)
+                        {
+                            TrackMouse(e);
+                            if (!MouseInView(e.mouse.where) && !MouseInOwner(e) && MouseInMenus(e))
                                 doReturn = true;
-                            break;
+                        }
+                        break;
+                    case Events.evKeyDown:
+                        switch (e.keyDown.keyCode)
+                        {
+                            case Keys.kbUp:
+                            case Keys.kbDown:
+                                if (size.y != 1) TrackKey(e.keyDown.keyCode == Keys.kbDown);
+                                else if (e.keyDown.keyCode == Keys.kbDown) autoSelect = true;
+                                break;
+                            case Keys.kbLeft:
+                            case Keys.kbRight:
+                                if (ParentMenu != null) doReturn = true;
+                                else TrackKey(e.keyDown.keyCode == Keys.kbRight);
+                                break;
+                            case Keys.kbHome:
+                            case Keys.kbEnd:
+                                if (size.y != 1)
+                                {
+                                    Current = Menu?.Items;
+                                    if (e.keyDown.keyCode == Keys.kbEnd) TrackKey(false);
+                                }
+                                break;
+                            case Keys.kbEnter:
+                                if (size.y == 1) autoSelect = true;
+                                doSelect = true;
+                                break;
+                            case Keys.kbEsc:
+                                doReturn = true;
+                                if (ParentMenu == null || ParentMenu.size.y != 1)
+                                    ClearEvent(ref e);
+                                break;
+                            default:
+                            {
+                                target = this;
+                                char altCh = GetAltChar(e.keyDown.keyCode, e.keyDown.charScan.charCode, e.keyDown.controlKeyState);
+                                bool isAlt = altCh != '\0';
+                                if (isAlt && ParentMenu != null) target = TopMenu();
+                                char ch = isAlt ? altCh : (char)e.keyDown.charScan.charCode;
+                                TMenuItem? found = (ch != '\0') ? target.FindItem(ch) : null;
+                                if (found == null)
+                                {
+                                    if (!isAlt && (e.keyDown.charScan.charCode < 32 || e.keyDown.charScan.charCode >= 127))
+                                    {
+                                        found = TopMenu().HotKey(e.keyDown.keyCode);
+                                        if (found != null && CommandEnabled(found.Command))
+                                        { result = found.Command; doReturn = true; }
+                                    }
+                                }
+                                else if (target == this)
+                                {
+                                    if (size.y == 1) autoSelect = true;
+                                    Current = found;
+                                    doSelect = true;
+                                }
+                                else if (ParentMenu != target || ParentMenu.Current != found)
+                                    doReturn = true;
+                                break;
+                            }
+                        }
+                        break;
+                    case Events.evCommand:
+                        if (e.message.command == Views.cmMenu)
+                        {
+                            autoSelect = false;
+                            if (ParentMenu != null) doReturn = true;
+                        }
+                        else doReturn = true;
+                        break;
+                }
+
+                if (itemShown != Current) { itemShown = Current; DrawView(); }
+
+                if ((doSelect || (!doReturn && autoSelect))
+                    && Current is TMenuItem currentItem && !string.IsNullOrEmpty(currentItem.Name))
+                {
+                    if (currentItem.Command == 0)
+                    {
+                        // Submenu: a modal menu is always inserted in an owning group,
+                        // so the popup is only opened when that owner is present.
+                        if (owner is TGroup ownerGroup)
+                        {
+                            if ((e.What & (Events.evMouseDown | Events.evMouseMove)) != 0)
+                                PutEvent(ref e);
+                            r = GetItemRect(currentItem);
+                            r.a.x += origin.x;
+                            r.a.y = r.b.y + origin.y;
+                            r.b = ownerGroup.size;
+                            target = TopMenu().NewSubView(r, currentItem.SubMenu, this);
+                            result = ownerGroup.ExecView(target);
                         }
                     }
-                    break;
-                case Events.evCommand:
-                    if (e.message.command == Views.cmMenu)
-                    {
-                        autoSelect = false;
-                        if (ParentMenu != null) doReturn = true;
-                    }
-                    else doReturn = true;
-                    break;
-            }
-
-            if (itemShown != Current) { itemShown = Current; DrawView(); }
-
-            if ((doSelect || (!doReturn && autoSelect))
-                && Current is TMenuItem currentItem && !string.IsNullOrEmpty(currentItem.Name))
-            {
-                if (currentItem.Command == 0)
-                {
-                    // Submenu: a modal menu is always inserted in an owning group,
-                    // so the popup is only opened when that owner is present.
-                    if (owner is TGroup ownerGroup)
-                    {
-                        if ((e.What & (Events.evMouseDown | Events.evMouseMove)) != 0)
-                            PutEvent(ref e);
-                        r = GetItemRect(currentItem);
-                        r.a.x += origin.x;
-                        r.a.y = r.b.y + origin.y;
-                        r.b = ownerGroup.size;
-                        target = TopMenu().NewSubView(r, currentItem.SubMenu, this);
-                        result = ownerGroup.ExecView(target);
-                    }
+                    else if (doSelect)
+                        result = currentItem.Command;
                 }
-                else if (doSelect)
-                    result = currentItem.Command;
+
+                if (result != 0 && CommandEnabled(result))
+                { doReturn = true; ClearEvent(ref e); }
+                else result = 0;
+
+                if (doReturn) running = false;
             }
 
-            if (result != 0 && CommandEnabled(result))
-            { doReturn = true; ClearEvent(ref e); }
-            else result = 0;
-
-            if (doReturn) running = false;
+            if (e.What != Events.evNothing && (ParentMenu != null || e.What == Events.evCommand))
+                PutEvent(ref e);
+            if (Current != null)
+            {
+                if (Menu != null) Menu.Default = Current;
+                Current = null;
+                DrawView();
+            }
+            if (InputTrace.Enabled)
+                InputTrace.Log("Stage9-TMenuView.Execute(exit)", $"view={GetType().Name} result={result}");
+            return result;
         }
-
-        if (e.What != Events.evNothing && (ParentMenu != null || e.What == Events.evCommand))
-            PutEvent(ref e);
-        if (Current != null)
-        {
-            if (Menu != null) Menu.Default = Current;
-            Current = null;
-            DrawView();
-        }
-        if (InputTrace.Enabled)
-            InputTrace.Log("Stage9-TMenuView.Execute(exit)", $"view={GetType().Name} result={result}");
-        return result;
+        finally { TGroup.EventLoopDepth--; }
     }
 
     /// <summary>Finds an enabled named entry by case-insensitive tilde-marked mnemonic, or returns null.</summary>

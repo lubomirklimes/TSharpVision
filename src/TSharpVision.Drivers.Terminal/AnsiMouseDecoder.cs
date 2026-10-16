@@ -26,7 +26,7 @@ internal static class AnsiMouseDecoder
         ev = default;
         complete = true;
 
-        if (buf[0] != 0x1B)
+        if (buf.IsEmpty || buf[0] != 0x1B)
             return 0;
         if (buf.Length < 2) { complete = false; return 0; }
         if (buf[1] != (byte)'[')
@@ -38,32 +38,39 @@ internal static class AnsiMouseDecoder
         // Need the full SGR mouse prefix "ESC [ < <button>...".
         if (buf.Length < 4) { complete = false; return 0; }
 
-        // Walk to terminator (M or m).
-        int i = 3;
-        while (i < buf.Length && buf[i] != (byte)'M' && buf[i] != (byte)'m') i++;
-        if (i >= buf.Length) { complete = false; return 0; }
-
-        byte term = buf[i];
-        ReadOnlySpan<byte> body = buf.Slice(3, i - 3);
-
-        // Parse three semicolon-separated decimal integers.
-        int p = 0; int field = 0;
-        int b = 0, x = 0, y = 0;
-        for (int k = 0; k < body.Length; k++)
+        // Three nonempty decimal fields, bounded before multiplication. A rejected prefix is
+        // consumed without swallowing the offending byte, which may start the next input event.
+        const int maxFrameLength = 32;
+        const int maxValue = 65535;
+        Span<int> values = stackalloc int[3];
+        values.Clear();
+        int field = 0, digits = 0, i = 3;
+        byte term;
+        for (; ; i++)
         {
-            byte ch = body[k];
-            if (ch == ';') { field++; continue; }
-            if (ch < '0' || ch > '9') continue;
-            int d = ch - '0';
-            switch (field)
+            if (i >= maxFrameLength) return i;
+            if (i >= buf.Length) { complete = false; return 0; }
+            byte ch = buf[i];
+            if (ch >= '0' && ch <= '9')
             {
-                case 0: b = b * 10 + d; break;
-                case 1: x = x * 10 + d; break;
-                case 2: y = y * 10 + d; break;
+                int digit = ch - '0';
+                if (++digits > 5 || values[field] > (maxValue - digit) / 10) return i;
+                values[field] = values[field] * 10 + digit;
             }
-            p++;
+            else if (ch == ';' && field < 2 && digits != 0)
+            {
+                field++;
+                digits = 0;
+            }
+            else if ((ch == 'M' || ch == 'm') && field == 2 && digits != 0)
+            {
+                term = ch;
+                break;
+            }
+            else return i;
         }
-        if (field < 2) return i + 1; // malformed but framed — discard
+        int b = values[0], x = values[1], y = values[2];
+        if (b > 255 || x == 0 || y == 0) return i + 1;
 
         // Coordinates are 1-based.
         ev.mouse.where = new TPoint(x - 1, y - 1);

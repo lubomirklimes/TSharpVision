@@ -498,6 +498,16 @@ internal sealed class KittyKeyboardDecoder
 /// <summary>Incremental mixed ANSI/Kitty/mouse byte-stream decoder used by the terminal driver.</summary>
 internal sealed class TerminalInputDecoder
 {
+    internal const int EscapeDelayMilliseconds = 50;
+    private readonly Func<long> _milliseconds;
+    private long? _escapeSince;
+    internal int PendingByteCount => _pending.Count;
+    internal int NextWaitTimeout => _events.Count != 0 ? 0 : _escapeSince is long since
+        ? (int)Math.Clamp(EscapeDelayMilliseconds - (_milliseconds() - since), 0, EscapeDelayMilliseconds) : -1;
+
+    internal TerminalInputDecoder(Func<long>? milliseconds = null)
+        => _milliseconds = milliseconds ?? (() => Environment.TickCount64);
+
     private readonly List<byte> _pending = new(128);
     private readonly Queue<TEvent> _events = new();
     private readonly KittyKeyboardNegotiator _negotiator = new();
@@ -516,18 +526,29 @@ internal sealed class TerminalInputDecoder
     {
         _kitty.Reset();
         _pending.Clear();
+        _escapeSince = null;
         _events.Clear();
         return _negotiator.End();
     }
 
     internal void Feed(ReadOnlySpan<byte> bytes, Action<string> controlOutput)
     {
-        foreach (byte value in bytes) _pending.Add(value);
-        Drain(controlOutput);
+        FinalizeEscape();
+        // Drain incrementally so even a single huge malformed frame cannot grow the retained prefix.
+        foreach (byte value in bytes)
+        {
+            _pending.Add(value);
+            Drain(controlOutput);
+            if (_pending.Count == 1 && _pending[0] == 0x1B)
+                _escapeSince = _milliseconds();
+            else
+                _escapeSince = null;
+        }
     }
 
     internal bool TryRead(out TEvent ev)
     {
+        FinalizeEscape();
         if (_events.Count != 0)
         {
             ev = _events.Dequeue();
@@ -535,6 +556,16 @@ internal sealed class TerminalInputDecoder
         }
         ev = default;
         return false;
+    }
+
+    private void FinalizeEscape()
+    {
+        if (_escapeSince is not long since || _milliseconds() - since < EscapeDelayMilliseconds) return;
+        // ESC ESC decodes the first byte as the same normalized Escape used by ANSI fallback.
+        AnsiKeyDecoder.TryDecode(new byte[] { 0x1B, 0x1B }, out TEvent ev, out _);
+        _events.Enqueue(ev);
+        _pending.Clear();
+        _escapeSince = null;
     }
 
     private void Drain(Action<string> controlOutput)

@@ -27,5 +27,6 @@ TSharpVision.Drivers.Console.Win32ConsoleDriver.SupportsGraphics.get -> bool
 TSharpVision.Drivers.Console.Win32ConsoleDriver.SupportsMouse.get -> bool
 TSharpVision.Drivers.Console.Win32ConsoleDriver.SupportsTrueColor.get -> bool
 TSharpVision.Drivers.Console.Win32ConsoleDriver.Suspend() -> void
+TSharpVision.Drivers.Console.Win32ConsoleDriver.WaitForEvent(int timeoutMilliseconds, System.Threading.WaitHandle! wakeSignal) -> void
 TSharpVision.Drivers.Console.Win32ConsoleDriver.Win32ConsoleDriver() -> void
 TSharpVision.Drivers.Console.Win32ConsoleDriver.WriteBuf(int x, int y, int w, int h, System.Span<TSharpVision.TScreenChar> buf) -> void

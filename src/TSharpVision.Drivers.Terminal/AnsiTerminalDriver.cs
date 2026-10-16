@@ -30,7 +30,7 @@ namespace TSharpVision.Drivers.Terminal;
 // by default. TSHARPVISION_DRIVER="AnsiTerminalDriver" can override for decoder testing.
 // Initialize() short-circuits on Windows, so no TTY side-effects occur.
 [ScreenDriver(System = Platform.Windows, Driver = nameof(AnsiTerminalDriver), Priority = 10)]
-public sealed class AnsiTerminalDriver : IDriver, IDisposable
+public sealed class AnsiTerminalDriver : IDriver, IIdleWaitDriver, IDisposable
 {
     // Opaque native termios storage: 128 bytes covers Darwin's 72-byte structure
     // and the supported Linux layouts. Native cfmakeraw owns flag/offset details.
@@ -40,6 +40,7 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
 
     // ---- driver state --------------------------------------------------
     private bool   _attached;
+    private volatile bool _stopped;
     private IntPtr _savedTermios = IntPtr.Zero;
     private ushort _cols = 80;
     private ushort _rows = 25;
@@ -66,6 +67,7 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
     /// <inheritdoc />
     public void Initialize()
     {
+        _stopped = false;
         if (OperatingSystem.IsWindows()) return;
         if (_attached) return;
         try
@@ -191,6 +193,8 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
     /// <inheritdoc />
     public void Shutdown()
     {
+        _stopped = true;
+        TEventQueue.Wake();
         if (!_attached) return;
         Suspend();
         if (_savedTermios != IntPtr.Zero)
@@ -277,7 +281,8 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
                     lastAttr = sc.Attr;
                     first = false;
                 }
-                sb.Append(sc.Character == 0 ? ' ' : sc.Character);
+                // Cell literals may never introduce terminal controls; generated ANSI above stays intact.
+                sb.Append(char.IsControl(sc.Character) ? ' ' : sc.Character);
             }
         }
         sb.Append("\x1b[0m");
@@ -289,6 +294,25 @@ public sealed class AnsiTerminalDriver : IDriver, IDisposable
     public void MakeBeep()
     {
         if (_attached) Write("\a");
+    }
+
+    /// <inheritdoc />
+    public void WaitForEvent(int timeoutMilliseconds, WaitHandle wakeSignal)
+    {
+        ObjectDisposedException.ThrowIf(_stopped, this);
+        if (_pendingKeys.Count != 0) return;
+        int timeout = ComputeWaitTimeout(timeoutMilliseconds, _input.NextWaitTimeout);
+        if (!_attached) wakeSignal.WaitOne(timeout);
+        else TerminalNative.WaitForInput(STDIN_FILENO, wakeSignal, timeout);
+        ObjectDisposedException.ThrowIf(_stopped, this);
+    }
+
+    // Resize has no existing SIGWINCH integration: a 100 ms deadline preserves
+    // responsiveness while avoiding the previous per-loop zero-timeout probing.
+    internal static int ComputeWaitTimeout(int applicationTimeout, int decoderTimeout)
+    {
+        int timeout = applicationTimeout < 0 ? 100 : Math.Min(applicationTimeout, 100);
+        return decoderTimeout < 0 ? timeout : Math.Min(timeout, decoderTimeout);
     }
 
     /// <inheritdoc />

@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/Diagnostics/">
     <Project Path="diagnostics/TSharpVision.Diagnostics.Keyboard/TSharpVision.Diagnostics.Keyboard.csproj" />
+    <Project Path="diagnostics/TSharpVision.Diagnostics.IdleWait/TSharpVision.Diagnostics.IdleWait.csproj" />
     <Project Path="diagnostics/TSharpVision.Diagnostics.SdlGlyphs/TSharpVision.Diagnostics.SdlGlyphs.csproj" />
     <Project Path="tests/TSharpVision.Diagnostics.Keyboard.Tests/TSharpVision.Diagnostics.Keyboard.Tests.csproj" />
   </Folder>

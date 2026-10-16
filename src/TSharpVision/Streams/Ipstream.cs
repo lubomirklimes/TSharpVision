@@ -88,25 +88,30 @@ public class Ipstream : Pstream
         return ((ulong)hi << 32) | lo;
     }
 
-    /// <summary>Reads into the first sz array positions, zero-filling an unread suffix and setting EOF on a short read.</summary>
+    /// <summary>Reads into the first sz array positions, zero-filling an unread suffix and setting EOF at end of stream.</summary>
     public void ReadBytes(byte[] data, int sz)
     {
-        int got = Buffer.Read(data, 0, sz);
-        if (got < sz)
-        {
-            SetState(IOSEOFBit);
-            for (int i = got; i < sz; i++) data[i] = 0;
-        }
+        ReadBytes(data, 0, sz);
     }
 
-    /// <summary>Reads sz bytes into the array at offset, zero-filling an unread suffix and setting EOF on a short read.</summary>
+    /// <summary>Reads sz bytes into the array at offset, zero-filling an unread suffix and setting EOF at end of stream.</summary>
     public void ReadBytes(byte[] data, int offset, int sz)
     {
-        int got = Buffer.Read(data, offset, sz);
-        if (got < sz)
+        ArgumentNullException.ThrowIfNull(data);
+        ArgumentOutOfRangeException.ThrowIfNegative(offset);
+        ArgumentOutOfRangeException.ThrowIfNegative(sz);
+        if (offset > data.Length - sz) throw new ArgumentException("The requested range exceeds the array.");
+        int got = 0;
+        while (got < sz)
         {
-            SetState(IOSEOFBit);
-            for (int i = offset + got; i < offset + sz; i++) data[i] = 0;
+            int read = Buffer.Read(data, offset + got, sz - got);
+            if (read == 0)
+            {
+                SetState(IOSEOFBit);
+                Array.Clear(data, offset + got, sz - got);
+                break;
+            }
+            got += read;
         }
     }
 

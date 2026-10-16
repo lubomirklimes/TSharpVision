@@ -904,8 +904,13 @@ public class TView : TStreamable, IInfo, IDisposable
 
     // Reorders this view to appear just before `target` in the owner's
     // z-list. Called by MakeFirst() → PutInFrontOf(owner.First()) to
-    // bring a window to the front. Triggers Hide/Show so that the owner's
-    // ResetCurrent() runs and updates `current` to the moved view.
+    // bring a window to the front.
+    //
+    // Mirrors upstream TView::putInFrontOf. The view is never hidden: a Hide()/Show() pair
+    // would first paint whatever lies under the view (the desktop background, for a window
+    // nothing else covers) and only then the view again, and every write reaches the screen
+    // as it is made. Only what the move actually changes is drawn — the view itself when it
+    // comes forward, the siblings that now cover it when it goes back.
     /// <summary>Moves this view before a sibling in the owner's drawing order and refreshes visibility and selection.</summary>
     public virtual void PutInFrontOf(TView? target)
     {
@@ -913,15 +918,33 @@ public class TView : TStreamable, IInfo, IDisposable
         if (target != null && target.owner != owner) return;
 
         TGroup ow = owner;
-        ushort saveState = state;
+        if ((state & Views.sfVisible) == 0)
+        {
+            ow.RemoveView(this);
+            ow.InsertView(this, target);
+            return;
+        }
 
-        // Temporarily remove from the visible set without destroying
-        // focus state — upstream does p->hide() / removeView / insertView / show().
-        Hide();
+        // Forward when `this` is found behind `target`; otherwise the view goes back, and the
+        // siblings up to `target` are the ones that end up over it.
+        TView? lastView = NextView();
+        TView? p = target;
+        while (p != null && p != this)
+            p = p.NextView();
+        if (p == null)
+            lastView = target;
+
+        // The flag alone, not SetState: the view stays exposed and keeps its buffer.
+        state = (ushort)(state & ~Views.sfVisible);
+        if (lastView == target)
+            DrawHide(lastView);
         ow.RemoveView(this);
         ow.InsertView(this, target);
-        if ((saveState & Views.sfVisible) != 0)
-            Show();
+        state |= Views.sfVisible;
+        if (lastView != target)
+            DrawShow(lastView);
+        if ((options & Views.ofSelectable) != 0)
+            ow.ResetCurrent();
     }
     /// <summary>Returns the explicit top-view override or the nearest modal view in the owner chain.</summary>
     public virtual TView? TopView()

@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.0.0-rc.2
+
+- Added optional `IIdleWaitDriver` support and the protected `TProgram.GetIdleWaitTimeout()` extension point:
+  idle loops wait for input, posted work or application deadlines, including in modal dialogs and menus.
+  Applications with periodic `Idle()` work should override the deadline hook; continuous invocation is no longer promised.
+- Fixed quit and shutdown wakeups during modal execution and kept SDL GPU resources alive until the render worker stops.
+- Fixed blank screens after unchanged-size resize notifications, redundant console resize handling, and flicker when reordering views.
+- Reduced driver discovery overhead by inspecting assembly metadata before loading unrelated libraries.
+- Made editor saves replace the destination only after writing succeeds, preserving existing files on encoding/write failures,
+  and fixed saving Unicode surrogate pairs split by the editor's gap buffer.
+- Fixed standalone Escape timing, bounded malformed terminal mouse input, and prevented control characters in cells from injecting terminal commands.
+- Released HexView and TableView read cancellation resources after completion while keeping active request tokens valid during shutdown.
+
 ## 1.0.0-rc.1
 
 - First release candidate for TSharpVision 1.0; feature-frozen for 1.0.

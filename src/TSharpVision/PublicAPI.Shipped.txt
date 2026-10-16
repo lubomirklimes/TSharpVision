@@ -1355,6 +1355,8 @@ TSharpVision.Drivers.IDriver.SupportsMouse.get -> bool
 TSharpVision.Drivers.IDriver.SupportsTrueColor.get -> bool
 TSharpVision.Drivers.IDriver.Suspend() -> void
 TSharpVision.Drivers.IDriver.WriteBuf(int x, int y, int w, int h, System.Span<TSharpVision.TScreenChar> buf) -> void
+TSharpVision.Drivers.IIdleWaitDriver
+TSharpVision.Drivers.IIdleWaitDriver.WaitForEvent(int timeoutMilliseconds, System.Threading.WaitHandle! wakeSignal) -> void
 TSharpVision.Drivers.IRenderer
 TSharpVision.Drivers.IRenderer.Render(TSharpVision.ScreenBuffer! screenBuffer, uint regionX, uint regionY, uint regionWidth, uint regionHeight) -> void
 TSharpVision.Drivers.KeyboardCapabilities
@@ -2584,6 +2586,7 @@ virtual TSharpVision.TProgram.CanMoveFocus() -> bool
 virtual TSharpVision.TProgram.ExecuteDialog(TSharpVision.TDialog? dialog, object? data = null) -> ushort
 virtual TSharpVision.TProgram.ExecuteHelp(TSharpVision.THelpWindow! window) -> void
 virtual TSharpVision.TProgram.GetHelpFile() -> TSharpVision.THelpFile?
+virtual TSharpVision.TProgram.GetIdleWaitTimeout() -> int
 virtual TSharpVision.TProgram.HandleScreenResize() -> void
 virtual TSharpVision.TProgram.Idle() -> void
 virtual TSharpVision.TProgram.InitDesktop(TSharpVision.TRect r) -> TSharpVision.TDeskTop?

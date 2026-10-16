@@ -74,3 +74,46 @@ sealed class HeadlessApp : TApplication
 ```
 
 The interactive examples show an empty desktop; Alt+X exits.
+
+## Idle wait and application deadlines
+
+`TProgram.GetEvent` remains a nonblocking probe when called outside a framework event loop.
+Inside `TGroup.Execute` and menu loops it performs one `Idle()` pass after empty input,
+then waits when no queued event, targeted post, pending event, modal termination or rendering
+work remains. `PumpMessages` is nonblocking for every built-in driver. Posts and input are
+delivered on the UI thread after waking, including during nested modal execution.
+
+`IDriver` is unchanged. Drivers may additionally implement `IIdleWaitDriver.WaitForEvent(int,
+WaitHandle)`. The timeout is a maximum in milliseconds (`-1` means no application deadline).
+The supplied framework signal is borrowed: never reset, dispose or retain it after returning.
+Wait on native input and that signal together, shorten the wait for driver deadlines, and return
+immediately for native or rendering work already pending. Throw on native wait failure; interrupt
+an active wait before releasing driver resources during shutdown. Framework queue details remain
+internal. Legacy drivers use a wakeable framework wait capped at 100 ms before probing native input.
+
+An application that needs periodic Idle work overrides `protected virtual int GetIdleWaitTimeout()`.
+Return the remaining time until the earliest required work, computed from a monotonic clock;
+perform expired work in `Idle`, then advance its deadline. Return `-1` when no deadline exists.
+If a background producer adds an earlier deadline, queue an ordinary framework event or use
+`TView.Post` so the UI can recompute it promptly. Existing Idle overrides still run on each empty
+pass, but continuous Idle invocation is no longer promised. `DoNotReleaseCPU != 0` deliberately
+bypasses waiting and retains continuous execution.
+
+Win32 Console waits on the borrowed console input handle and framework signal together. ANSI
+Terminal polls stdin plus a managed-wake pipe, using the earlier of the application deadline,
+the decoder's remaining 50 ms standalone Esc deadline, and a 100 ms resize-probe deadline.
+SDL renderer and GPU bridge managed wakes into registered SDL user events. Their native wait
+has a 1000 ms safety deadline to detect a failed/filtered user-event wake; normal posts and
+native input interrupt it immediately. The safety deadline is a failure-detection bound, not
+an input-latency bound. Dirty rendering bypasses waiting.
+
+Use queued `cmQuit` for cross-thread termination (the lifecycle Ctrl+C handler already does this).
+While a modal is active, queued quit is routed to the application's virtual handler on the UI thread;
+once accepted, nested groups and menus unwind through `cmCancel` before root quit validation.
+Driver disposal interrupts native waiting and propagates through normal lifecycle cleanup.
+View-tree mutation and application teardown otherwise retain the framework's UI-thread ownership rules.
+
+The nonshipping `diagnostics/TSharpVision.Diagnostics.IdleWait` project measures 15 seconds of
+idle process CPU and loop passes. Run its executable with `console` or `sdl` and an output JSON
+path. Add `validate` as the third argument for native key/mouse/resize, queue/Post and quit latency.
+The console diagnostic allocates and hides its own console. SDL measurement uses an actual window.

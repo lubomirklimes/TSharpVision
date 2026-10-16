@@ -10,7 +10,7 @@ namespace TSharpVision.Drivers.SDL;
 [ScreenDriver(System = Platform.Windows, Driver = nameof(SDLDriver), Priority = 300)]
 [ScreenDriver(System = Platform.Linux,   Driver = nameof(SDLDriver), Priority = 300)]
 [ScreenDriver(System = Platform.MacOS,   Driver = nameof(SDLDriver), Priority = 300)]
-public class SDLDriver : IDisposable, IDriver
+public class SDLDriver : IDisposable, IDriver, IIdleWaitDriver
 {
     // Cell metrics are derived from the loaded font at runtime.
     // These defaults are used only if Initialize() is never called (headless).
@@ -52,7 +52,7 @@ public class SDLDriver : IDisposable, IDriver
 
     // ── Idle wait ────────────────────────────────────────────────────────────
     // Use SDL_WaitEventTimeout rather than busy-spinning when the UI is idle.
-    private const int IdleWaitMs = 8;
+    private readonly SdlIdleWait _idleWait = new();
 
     // Character grid dimensions — updated on window resize.
     private ushort _cols = 120;
@@ -147,6 +147,7 @@ public class SDLDriver : IDisposable, IDriver
             // Log SDL window / display diagnostics and apply VSync configuration.
             sdlRenderer.LogWindowDiagnostics(window, renderer);
 
+            _idleWait.Initialize();
             _attached = true;
             TScreen.ScreenWidth  = GetCols();
             TScreen.ScreenHeight = GetRows();
@@ -195,6 +196,21 @@ public class SDLDriver : IDisposable, IDriver
     public TDisplay.SM GetScreenMode() => TDisplay.SM.CO80;
 
     /// <inheritdoc />
+    public void WaitForEvent(int timeoutMilliseconds, WaitHandle wakeSignal)
+    {
+        _idleWait.ThrowIfStopped();
+        if (!_attached)
+        {
+            wakeSignal.WaitOne(timeoutMilliseconds < 0 ? 100 : Math.Min(timeoutMilliseconds, 100));
+            return;
+        }
+        if (_dirty || _pendingKeys.Count != 0) return;
+        sdlRenderer?.RecordIdleWait();
+        _idleWait.Wait(timeoutMilliseconds, wakeSignal, ProcessSdlEvent);
+        FlushPendingMotion();
+    }
+
+    /// <inheritdoc />
     public void PumpMessages()
     {
         if (!_attached) return;
@@ -203,7 +219,6 @@ public class SDLDriver : IDisposable, IDriver
         // Render at the top so we always show the buffer that WriteBuf() wrote
         // in the *previous* iteration — WriteBuf is called by the framework
         // after PumpMessages returns, so dirty=true here means the buffer is fresh.
-        bool rendered = false;
         if (_dirty)
         {
             var reasons = _pendingReasons;
@@ -213,7 +228,6 @@ public class SDLDriver : IDisposable, IDriver
             if (sdlRenderer != null) MessageLoop?.Invoke(sdlRenderer);
             sdlRenderer?.RecordRenderWithReasons((int)reasons);
 
-            rendered = true;
             _dirtyRenderCount++;
         }
 
@@ -222,37 +236,13 @@ public class SDLDriver : IDisposable, IDriver
         // for the latest position is flushed after all events are drained.
         // Non-motion events flush the coalescer first to preserve ordering.
         ResetDrainCounters();
-        bool hadSdlEvent = false;
         while (SDL3.SDL.PollEvent(out var e))
         {
-            hadSdlEvent = true;
             _drainEventCount++;
             ProcessSdlEvent(e);
         }
         FlushPendingMotion();
         ReportDrainStats();
-
-        // ── Idle wait ──────────────────────────────────────────────────────
-        // When nothing is dirty and no events were pending, wait for the next
-        // SDL event rather than busy-spinning.
-        if (!rendered && !hadSdlEvent && !_dirty)
-        {
-            sdlRenderer?.RecordIdleWait();
-            if (SDL3.SDL.WaitEventTimeout(out var waited, IdleWaitMs))
-            {
-                ResetDrainCounters();
-                _drainEventCount++;
-                ProcessSdlEvent(waited);
-                // Drain any further events that arrived during the wait.
-                while (SDL3.SDL.PollEvent(out var e))
-                {
-                    _drainEventCount++;
-                    ProcessSdlEvent(e);
-                }
-                FlushPendingMotion();
-                ReportDrainStats();
-            }
-        }
     }
 
     // ── SDL event processing ───────────────────────────────────────────────
@@ -498,6 +488,8 @@ public class SDLDriver : IDisposable, IDriver
     /// <inheritdoc />
     public void Shutdown()
     {
+        _idleWait.Stop();
+        TEventQueue.Wake();
         if (!_attached) return;
         try { sdlRenderer?.Dispose(); } catch { }
         sdlRenderer = null;

@@ -203,6 +203,92 @@ public sealed class Win32DriverHardeningTests : IDisposable
         Assert.Equal(1, count);
     }
 
+    // ── §3b — Win32ConsoleDriver: a buffer-size record that changes nothing is not a resize ──
+
+    private static int QueuedResizes()
+    {
+        int count = 0;
+        for (int i = 0; i < 20; i++)
+        {
+            TEvent ev = default;
+            TEventQueue.GetNextEvent(ref ev);
+            if (ev.What == Events.evNothing) break;
+            if (ev.What == Events.evCommand && ev.message.command == Views.cmScreenResized) count++;
+        }
+
+        return count;
+    }
+
+    [Fact]
+    public void Win32Driver_UnchangedWindowSize_IsNotReportedAsAResize()
+    {
+        // The record of a change the terminal made before Initialize() read the size is still queued
+        // at the first pump: it reads the size already in use. Reporting it replaced the screen buffer
+        // with an empty one and had the application clear a screen that was already complete.
+        var driver = new Win32ConsoleDriver();
+        driver.SetWindowSizeForTests(160, 45);
+        ScreenBuffer? buffer = TScreen.ScreenBuffer;
+        ushort width = TScreen.ScreenWidth;
+        ushort height = TScreen.ScreenHeight;
+
+        Assert.False(driver.ApplyWindowSize(160, 45));
+
+        Assert.Equal(0, QueuedResizes());
+        Assert.Same(buffer, TScreen.ScreenBuffer);
+        Assert.Equal(width, TScreen.ScreenWidth);
+        Assert.Equal(height, TScreen.ScreenHeight);
+    }
+
+    [Fact]
+    public void Win32Driver_ChangedWindowSize_IsReportedOnce()
+    {
+        var driver = new Win32ConsoleDriver();
+        driver.SetWindowSizeForTests(160, 45);
+        ScreenBuffer? buffer = TScreen.ScreenBuffer;
+
+        Assert.True(driver.ApplyWindowSize(120, 30));
+
+        Assert.Equal(1, QueuedResizes());
+        Assert.NotSame(buffer, TScreen.ScreenBuffer);
+        Assert.Equal(160, TScreen.ScreenWidth);
+        Assert.Equal(45, TScreen.ScreenHeight);
+        Assert.Equal(160 * 45, TScreen.ScreenBuffer!.Data.Length);
+    }
+
+    [Theory]
+    [InlineData(160, 30)]
+    [InlineData(120, 45)]
+    public void Win32Driver_AChangeInOneDimension_IsAResize(ushort previousCols, ushort previousRows)
+    {
+        var driver = new Win32ConsoleDriver();
+        driver.SetWindowSizeForTests(160, 45);
+
+        Assert.True(driver.ApplyWindowSize(previousCols, previousRows));
+        Assert.Equal(1, QueuedResizes());
+    }
+
+    // ── §3c — driver discovery: a driver package is a candidate without being loaded first ──
+
+    [Fact]
+    public void DriverDiscovery_TheConsoleDriverPackageIsACandidate()
+    {
+        // Discovery decides from metadata which assemblies beside the application are worth loading.
+        // The package that declares [ScreenDriver] classes must be one of them.
+        var method = typeof(TSharpVision.Drivers.ScreenDriverFactory).GetMethod(
+            "MayDefineDriver", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+
+        Assert.True((bool)method.Invoke(null, [typeof(Win32ConsoleDriver).Assembly.Location])!);
+    }
+
+    [Fact]
+    public void DriverDiscovery_FindsTheConsoleDriver()
+    {
+        var field = typeof(TSharpVision.Drivers.ScreenDriverFactory).GetField(
+            "DriverTypes", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+
+        Assert.Contains(typeof(Win32ConsoleDriver), (Type[])field.GetValue(null)!);
+    }
+
     [Fact]
     public void SimulateResize_UpdatesTScreenWidth()
     {

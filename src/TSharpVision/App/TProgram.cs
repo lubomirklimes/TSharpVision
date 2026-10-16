@@ -127,13 +127,24 @@ public class TProgram : TGroup
     /// <inheritdoc />
     public override void GetEvent(ref TEvent @event)
     {
+        if (TGroup.EventLoopDepth != 0) ObjectDisposedException.ThrowIf(_shutDown, this);
+        // Unwind nested modal loops after the root accepted termination. Menus
+        // also understand cmCancel; leave final quit validation to the root loop.
+        if (endState != 0 && ModalTopView != null && ModalTopView != this)
+        {
+            @event = default;
+            @event.What = Events.evCommand;
+            @event.message.command = Views.cmCancel;
+            return;
+        }
+        long wakeGeneration = TEventQueue.WakeGeneration;
         TScreen.ActiveDriver.PumpMessages();
 
         // One posted event per pass. Every loop reaches this method through the owner chain,
         // including the nested one a modal view runs via TGroup.ExecView, so a post always
         // gets delivered straight to its target no matter who currently owns dispatch.
         // Taking only one keeps posts and input from starving each other.
-        TEventQueue.DeliverPostedEvent();
+        bool deliveredPost = TEventQueue.DeliverPostedEvent();
 
         if (Pending.What != Events.evNothing)
         {
@@ -148,6 +159,23 @@ public class TProgram : TGroup
             if (@event.What == Events.evNothing)
             {
                 Idle();
+                // All owning/modal loops retrieve through here. A direct non-loop probe
+                // remains nonblocking, as before. Finish the current Idle pass before waiting.
+                if (TGroup.EventLoopDepth != 0 && !deliveredPost && DoNotReleaseCPU == 0
+                    && !_shutDown && endState == 0 && (ModalTopView is not TGroup modal || modal.endState == 0)
+                    && Pending.What == Events.evNothing)
+                {
+                    int timeout = GetIdleWaitTimeout();
+                    if (timeout < -1) throw new InvalidOperationException("Idle wait timeout must be -1 or nonnegative.");
+                    WaitHandle? wake = TEventQueue.PrepareWait(wakeGeneration);
+                    if (wake != null)
+                    {
+                        if (TScreen.ActiveDriver is TSharpVision.Drivers.IIdleWaitDriver waitingDriver)
+                            waitingDriver.WaitForEvent(timeout, wake);
+                        else
+                            wake.WaitOne(timeout < 0 ? 100 : Math.Min(timeout, 100));
+                    }
+                }
             }
             else if (InputTrace.Enabled)
                 InputTrace.LogEvent("Stage4-GetEvent(driver)", @event);
@@ -170,6 +198,16 @@ public class TProgram : TGroup
                     InputTrace.LogEvent("Stage4-StatusLinePreFilter(after)", @event);
             }
         }
+        // Native close, Ctrl+C and ordinary queued quit remain application requests
+        // even while a modal owns dispatch. Honor the application's virtual handler
+        // (including veto/confirmation) on the UI thread, outside all queue locks.
+        if (@event.What == Events.evCommand && @event.message.command == Views.cmQuit
+            && ModalTopView != null && ModalTopView != this)
+        {
+            HandleEvent(ref @event);
+            @event.What = Events.evNothing;
+        }
+
     }
 
     /// <summary>
@@ -308,13 +346,14 @@ public class TProgram : TGroup
             Message(this, Events.evBroadcast, Views.cmCommandSetChanged, null);
             commandSetChanged = false;
         }
-
-        // cooperative yield so the OS can schedule other threads when the event loop is
-        // spinning idle. Mirrors upstream CLY_ReleaseCPU().
-        // Skipped when DoNotReleaseCPU is set (e.g. real-time or test harnesses).
-        if (DoNotReleaseCPU == 0)
-            System.Threading.Thread.Yield();
     }
+
+    /// <summary>Returns milliseconds until application Idle work is next required, or -1 for no deadline.</summary>
+    /// <returns>A nonnegative maximum wait in milliseconds, or -1 when no application deadline exists.</returns>
+    /// <remarks>Called on the UI thread after Idle only when no immediate work remains. Override for periodic application
+    /// work; recompute from a monotonic clock. Queue a framework event when a background producer changes
+    /// an earlier deadline. Idle now runs once per empty pass, then the loop waits. DoNotReleaseCPU bypasses waiting.</remarks>
+    protected virtual int GetIdleWaitTimeout() => -1;
 
     /// <summary>Chooses palette and shadow settings for the current logical screen mode.</summary>
     public virtual void InitScreen()
@@ -343,7 +382,7 @@ public class TProgram : TGroup
     public virtual void OutOfMemory() { /* empty by design */ }
 
     /// <inheritdoc />
-    public override void PutEvent(ref TEvent ev) { Pending = ev; }
+    public override void PutEvent(ref TEvent ev) { Pending = ev; TEventQueue.Wake(); }
 
     /// <summary>Claims the calling thread as the UI thread and runs the modal application event loop until termination.</summary>
     public virtual void Run()
@@ -366,6 +405,11 @@ public class TProgram : TGroup
                 $"HandleScreenResize start: {TScreen.ScreenWidth}x{TScreen.ScreenHeight} " +
                 $"bufSame={ReferenceEquals(buffer, TScreen.ScreenBuffer)}");
 
+        // Whether the cell grid is the one this root is already laid out for. A driver may report a
+        // resize that leaves it unchanged (a console's buffer-size record that arrives after the size
+        // was already read, say), and the repaint below must not depend on the size having moved.
+        bool sameSize = size.x == TScreen.ScreenWidth && size.y == TScreen.ScreenHeight;
+
         // 1. Sync root buffer BEFORE ChangeBounds.
         buffer = TScreen.ScreenBuffer;
 
@@ -385,6 +429,13 @@ public class TProgram : TGroup
         SetState(Views.sfExposed, false);
         Redraw();
         SetState(Views.sfExposed, true);
+
+        // 5. With the size unchanged, nothing above has painted: ChangeBounds repaints through the
+        //    children's own ChangeBounds, which it only reaches when the size differs. The screen was
+        //    cleared in step 2 and the root now holds the driver's new, empty buffer, so without this
+        //    the views stay laid out and working behind a blank screen until something else draws.
+        if (sameSize)
+            Redraw();
     }
 
     // Real video-mode change is a driver concern; we just refresh the screen geometry from
@@ -502,7 +553,7 @@ public class TProgram : TGroup
         return p;
     }
 
-    private bool _shutDown;
+    private volatile bool _shutDown;
 
     /// <summary>The root view has no owner, so it stays a valid post target until shutdown.</summary>
     internal override bool CanReceivePostedEvents => !_shutDown;
@@ -511,6 +562,8 @@ public class TProgram : TGroup
     public override void ShutDown()
     {
         _shutDown = true;
+        EndModal(Views.cmQuit);
+        TEventQueue.Wake();
         _helpWindow = null;
 
         StatusLine = null;

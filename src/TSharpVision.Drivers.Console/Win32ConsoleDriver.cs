@@ -17,7 +17,7 @@ namespace TSharpVision.Drivers.Console;
 
 /// <summary>Windows console backend for cell output and native keyboard, mouse, and resize events; remains inactive for redirected input or output.</summary>
 [ScreenDriver(System = Platform.Windows, Driver = nameof(Win32ConsoleDriver), Priority = 50)]
-public sealed class Win32ConsoleDriver : IDriver, IDisposable
+public sealed class Win32ConsoleDriver : IDriver, IIdleWaitDriver, IDisposable
 {
     // ---- kernel32 P/Invoke surface ------------------------------------
     private const int STD_INPUT_HANDLE  = -10;
@@ -166,6 +166,7 @@ public sealed class Win32ConsoleDriver : IDriver, IDisposable
 
     // ---- driver state -------------------------------------------------
     private bool   _attached;
+    private volatile bool _stopped;
     private IntPtr _hIn  = IntPtr.Zero;
     private IntPtr _hOut = IntPtr.Zero;
     private uint   _savedInMode;
@@ -208,6 +209,7 @@ public sealed class Win32ConsoleDriver : IDriver, IDisposable
     /// <inheritdoc />
     public void Initialize()
     {
+        _stopped = false;
         if (!OperatingSystem.IsWindows()) return;
 
         // Ensure Console.Write/Console.Error paths handle Unicode correctly.
@@ -275,6 +277,8 @@ public sealed class Win32ConsoleDriver : IDriver, IDisposable
     /// <inheritdoc />
     public void Shutdown()
     {
+        _stopped = true;
+        TEventQueue.Wake();
         if (!_attached) return;
 
         // Clear the screen and restore the cursor so the terminal
@@ -396,6 +400,39 @@ public sealed class Win32ConsoleDriver : IDriver, IDisposable
     }
 
     /// <inheritdoc />
+    public void WaitForEvent(int timeoutMilliseconds, WaitHandle wakeSignal)
+    {
+        ObjectDisposedException.ThrowIf(_stopped, this);
+        if (_pendingKeys.Count != 0) return;
+        if (!_attached)
+            wakeSignal.WaitOne(timeoutMilliseconds < 0 ? 100 : Math.Min(timeoutMilliseconds, 100));
+        else
+            WaitOnHandles(_hIn, wakeSignal, timeoutMilliseconds);
+        ObjectDisposedException.ThrowIf(_stopped, this);
+    }
+
+    internal static void WaitOnHandles(IntPtr inputHandle, WaitHandle wakeSignal, int timeoutMilliseconds)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(timeoutMilliseconds, -1);
+        bool retained = false;
+        try
+        {
+            wakeSignal.SafeWaitHandle.DangerousAddRef(ref retained);
+            uint result = WaitForMultipleObjects(2,
+                new[] { inputHandle, wakeSignal.SafeWaitHandle.DangerousGetHandle() }, false,
+                timeoutMilliseconds < 0 ? uint.MaxValue : (uint)timeoutMilliseconds);
+            if (result == uint.MaxValue)
+                throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error(), "Console idle wait failed.");
+            if (result != 0 && result != 1 && result != 258)
+                throw new InvalidOperationException($"Unexpected console wait result: {result}.");
+        }
+        finally { if (retained) wakeSignal.SafeWaitHandle.DangerousRelease(); }
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern uint WaitForMultipleObjects(uint count, IntPtr[] handles, bool waitAll, uint milliseconds);
+
+    /// <inheritdoc />
     public void PumpMessages()
     {
         if (!_attached) return;
@@ -467,24 +504,50 @@ public sealed class Win32ConsoleDriver : IDriver, IDisposable
                                   $"{resizeInfo.srWindow.Right},{resizeInfo.srWindow.Bottom}]"
                                 : $" (GetCSBI failed err={Marshal.GetLastWin32Error()})") +
                             $" prev={prevCols}x{prevRows} -> {_cols}x{_rows}");
-                    TScreen.ScreenWidth  = _cols;
-                    TScreen.ScreenHeight = _rows;
-                    // Reallocate the screen buffer to match the new dimensions.
-                    // The old buffer has the wrong size; keeping it would cause
-                    // clipping or out-of-range writes on the next WriteBuf call.
-                    TScreen.ScreenBuffer = AllocateScreenBuffer();
-                    // Enqueue a resize notification so TProgram can relayout
-                    // and force a full redraw on the next HandleEvent cycle.
-                    {
-                        TEvent resEv = default;
-                        resEv.What = TSharpVision.Constants.Events.evCommand;
-                        resEv.message.command = TSharpVision.Constants.Views.cmScreenResized;
-                        TEventQueue.Enqueue(resEv);
-                    }
+                    ApplyWindowSize(prevCols, prevRows);
                     break;
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Publishes the window size just read into <c>_cols</c> / <c>_rows</c>, if it differs from the one
+    /// the application was last told about.
+    /// </summary>
+    /// <remarks>
+    /// A record that leaves the visible window as it was is not a resize. The record of a change made
+    /// before <see cref="Initialize"/> read the size is still in the queue when the first pump runs,
+    /// and one drag can queue several records that all read the same final size. Reporting such a
+    /// record would replace the screen buffer with an empty one and have the application clear and
+    /// repaint a screen that is already right.
+    /// </remarks>
+    /// <returns>Whether a resize was reported.</returns>
+    internal bool ApplyWindowSize(ushort previousCols, ushort previousRows)
+    {
+        if (_cols == previousCols && _rows == previousRows)
+            return false;
+
+        TScreen.ScreenWidth  = _cols;
+        TScreen.ScreenHeight = _rows;
+        // Reallocate the screen buffer to match the new dimensions.
+        // The old buffer has the wrong size; keeping it would cause
+        // clipping or out-of-range writes on the next WriteBuf call.
+        TScreen.ScreenBuffer = AllocateScreenBuffer();
+        // Enqueue a resize notification so TProgram can relayout
+        // and force a full redraw on the next HandleEvent cycle.
+        TEvent resEv = default;
+        resEv.What = TSharpVision.Constants.Events.evCommand;
+        resEv.message.command = TSharpVision.Constants.Views.cmScreenResized;
+        TEventQueue.Enqueue(resEv);
+        return true;
+    }
+
+    /// <summary>Sets the window size as a console record would have it read. For tests.</summary>
+    internal void SetWindowSizeForTests(ushort cols, ushort rows)
+    {
+        _cols = cols;
+        _rows = rows;
     }
 
     /// <summary>

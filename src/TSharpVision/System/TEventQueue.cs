@@ -18,13 +18,32 @@ public class TEventQueue : IDisposable
 
     private static readonly object _lock = new object();
     private static readonly Queue<TEvent> _queue = new Queue<TEvent>();
+    // Reset and producer signaling share the queue lock. Generation also retains wakes
+    // that have no queued payload (EndModal, shutdown, and pending-slot changes).
+    private static readonly ManualResetEvent _wake = new(false);
+    private static long _wakeGeneration;
+    internal static long WakeGeneration { get { lock (_lock) return _wakeGeneration; } }
+    internal static void Wake()
+    {
+        lock (_lock) { _wakeGeneration++; _wake.Set(); }
+    }
+    internal static WaitHandle? PrepareWait(long generation)
+    {
+        lock (_lock)
+        {
+            if (generation != _wakeGeneration || (_mouseEvents && _queue.Count != 0) || _posts.Count != 0)
+                return null;
+            _wake.Reset();
+            return _wake;
+        }
+    }
 
     // Posted events live in their own queue rather than in _queue. An event taken from
     // _queue is handed to whichever group currently owns the event loop, so a modal view
     // running through TGroup.ExecView would receive — and drop — anything meant for a view
     // underneath it. Keeping posts separate lets DeliverPostedEvent hand them straight to
     // their target and leaves ordinary event semantics untouched.
-    private static readonly object _postLock = new object();
+    private static readonly object _postLock = _lock;
     private static readonly Queue<TPostedEvent> _posts = new Queue<TPostedEvent>();
 
     private static MouseEventType _lastMouse;
@@ -32,7 +51,7 @@ public class TEventQueue : IDisposable
     private static int _downTime;
     private static int _autoTime;
 
-    private static bool _mouseEvents = false;
+    private static volatile bool _mouseEvents = false;
     private bool disposedValue;
 
     private static int CurrentTick => Environment.TickCount & Int32.MaxValue;
@@ -52,12 +71,14 @@ public class TEventQueue : IDisposable
         _downMouse = default;
         _downTime = CurrentTick;
         _autoTime = CurrentTick;
+        Wake();
     }
 
     /// <summary>Suspends queued-event retrieval without removing pending events.</summary>
     public static void Suspend()
     {
         _mouseEvents = false;
+        Wake();
     }
 
     /// <summary>Thread-safely appends an event copy to the shared FIFO input queue.</summary>
@@ -66,6 +87,7 @@ public class TEventQueue : IDisposable
         lock (_lock)
         {
             _queue.Enqueue(ev);
+            Wake();
         }
     }
 
@@ -110,6 +132,7 @@ public class TEventQueue : IDisposable
         lock (_postLock)
         {
             _posts.Enqueue(new TPostedEvent(target, command, info));
+            Wake();
         }
     }
 

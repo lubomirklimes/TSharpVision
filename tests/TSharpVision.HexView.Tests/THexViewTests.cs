@@ -9,6 +9,41 @@ public sealed class THexViewTests
 {
     private const int Page = HexPageCache.PageSize;
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RequestSourceIsDisposedOnlyAfterOperationEnds(bool fail)
+    {
+        using var h = new HexHarness(height: 1);
+        var source = new GatedSource(101L * Page);
+        h.View.SetDataSource(source);
+        for (int i = 0; i < 100; i++)
+        {
+            if (i > 0) h.View.ScrollToOffset((long)i * Page);
+            var request = source.Next();
+            Assert.NotNull(request.Token.WaitHandle);
+            if (fail) request.Completion.SetException(new IOException("read failed"));
+            else request.Complete();
+            Assert.Throws<ObjectDisposedException>(() => request.Token.WaitHandle);
+            h.Settle();
+        }
+    }
+
+    [Fact]
+    public void ShutdownCancelsButKeepsActiveRequestTokenAliveUntilCompletion()
+    {
+        using var h = new HexHarness();
+        var source = new GatedSource(Page);
+        h.View.SetDataSource(source);
+        var request = source.Next();
+        h.View.ShutDown();
+        Assert.True(request.Token.IsCancellationRequested);
+        using (request.Token.Register(() => { })) { }
+        Assert.NotNull(request.Token.WaitHandle);
+        request.Completion.SetCanceled(request.Token);
+        Assert.Throws<ObjectDisposedException>(() => request.Token.WaitHandle);
+    }
+
     private static byte Ascii(long offset) => (byte)('A' + (offset % 26));
 
     // ── layout ───────────────────────────────────────────────────────────────

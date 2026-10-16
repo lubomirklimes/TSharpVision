@@ -7,8 +7,91 @@ using Xunit;
 
 namespace TSharpVision.Tests.Editors;
 
+[Collection("NonParallel")]
 public sealed class TFileEditorEncodingTests
 {
+    [Fact]
+    public void FailedBackupReplacementPreservesDestinationAndRemovesTemporaryFile()
+    {
+        using var temp = new TempDirectory();
+        string path = WriteBytes(temp, "safe.txt", Encoding.UTF8.GetBytes("original"));
+        Directory.CreateDirectory(Path.ChangeExtension(path, ".bak"));
+        var ed = new TFileEditor(new TRect(0, 0, 40, 10), null, null, null, path);
+        var flags = TEditor.editorFlags;
+        var dialog = TEditor.editorDialog;
+        try
+        {
+            TEditor.editorFlags |= Views.efBackupFiles;
+            TEditor.editorDialog = (_, _) => Views.cmOK;
+            ed.SetSelect(0, ed.bufLen, false);
+            ed.InsertText("new content");
+            Assert.False(ed.SaveFile());
+            Assert.Equal("original", File.ReadAllText(path));
+            Assert.Single(Directory.GetFiles(temp.Path));
+            Directory.Delete(Path.ChangeExtension(path, ".bak"));
+            Assert.True(ed.SaveFile());
+            Assert.Equal("new content", File.ReadAllText(path));
+            Assert.Equal("original", File.ReadAllText(Path.ChangeExtension(path, ".bak")));
+        }
+        finally
+        {
+            TEditor.editorFlags = flags;
+            TEditor.editorDialog = dialog;
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void FailedSavePreservesDestinationAndBackupAndCanRetry(bool backup)
+    {
+        using var temp = new TempDirectory();
+        string path = WriteBytes(temp, "safe.txt", LegacyTextEncodings.Cp852.Encode("original"));
+        string backupPath = Path.ChangeExtension(path, ".bak");
+        File.WriteAllText(backupPath, "previous backup");
+        var ed = new TFileEditor(new TRect(0, 0, 40, 10), null, null, null, path,
+            new TFileEditorOpenOptions { Encoding = EditorTextEncoding.Legacy(LegacyTextEncodings.Cp852) });
+        var flags = TEditor.editorFlags;
+        var dialog = TEditor.editorDialog;
+        try
+        {
+            TEditor.editorFlags = (ushort)(backup ? flags | Views.efBackupFiles : flags & ~Views.efBackupFiles);
+            TEditor.editorDialog = (_, _) => Views.cmOK;
+            ed.SetSelect(0, ed.bufLen, false);
+            ed.InsertText("漢");
+            Assert.False(ed.SaveFile());
+            Assert.Equal(LegacyTextEncodings.Cp852.Encode("original"), File.ReadAllBytes(path));
+            Assert.Equal("previous backup", File.ReadAllText(backupPath));
+            Assert.Equal(2, Directory.GetFiles(temp.Path).Length);
+            ed.SetSelect(0, ed.bufLen, false);
+            ed.InsertText("retry");
+            Assert.True(ed.SaveFile());
+            Assert.Equal("retry", File.ReadAllText(path));
+            Assert.Equal(backup ? "original" : "previous backup", File.ReadAllText(backupPath));
+        }
+        finally
+        {
+            TEditor.editorFlags = flags;
+            TEditor.editorDialog = dialog;
+        }
+    }
+
+    [Theory]
+    [InlineData(1u)]
+    [InlineData(2u)]
+    [InlineData(3u)]
+    public void SavePreservesSurrogatesAcrossGap(uint gap)
+    {
+        using var temp = new TempDirectory();
+        byte[] expected = Encoding.UTF8.GetBytes("A🙂B");
+        string path = WriteBytes(temp, "unicode.txt", expected);
+        var ed = new TFileEditor(new TRect(0, 0, 40, 10), null, null, null, path);
+        ed.SetSelect(gap, gap, false);
+        Assert.Equal(gap, ed.curPtr);
+        Assert.True(ed.SaveFile());
+        Assert.Equal(expected, File.ReadAllBytes(path));
+    }
+
     private static string ReadAll(TEditor ed)
     {
         var sb = new StringBuilder();

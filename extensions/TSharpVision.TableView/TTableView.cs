@@ -641,7 +641,11 @@ public class TTableView : TView
 
         int generation = _generation;
         CancellationToken token = cancellation.Token;
-        _ = StartRead(() => ReadBlockAsync(source, index, start, count, generation, pending.Id, token));
+        _ = StartRead(async () =>
+        {
+            try { await ReadBlockAsync(source, index, start, count, generation, pending.Id, token).ConfigureAwait(false); }
+            finally { pending.Complete(); }
+        });
     }
 
     private async Task ReadBlockAsync(
@@ -736,16 +740,16 @@ public class TTableView : TView
 
         foreach (long index in stale)
         {
-            _pending[index].Cancellation.Cancel();
+            _pending[index].Cancel();
             _pending.Remove(index);
         }
     }
 
     private void ResetReads()
     {
-        // Cancelling the lifetime source cancels every linked request token. The sources are not disposed: a data
-        // source may still be registering on a token, and nothing here holds a timer or a wait handle.
+        // Only request completion disposes its source: cancelled reads may still use their tokens.
         _lifetime.Cancel();
+        _lifetime.Dispose();
         _lifetime = new CancellationTokenSource();
         _pending.Clear();
         _cache.Clear();
@@ -972,12 +976,28 @@ public class TTableView : TView
         public PendingRead(long id, CancellationTokenSource cancellation)
         {
             Id = id;
-            Cancellation = cancellation;
+            _cancellation = cancellation;
         }
 
         public long Id { get; }
 
-        public CancellationTokenSource Cancellation { get; }
+        private readonly object _gate = new();
+        private CancellationTokenSource? _cancellation;
+
+        public void Cancel()
+        {
+            lock (_gate) _cancellation?.Cancel();
+        }
+
+        public void Complete()
+        {
+            // Serialize completion with UI cancellation; a completed request may remain queued.
+            lock (_gate)
+            {
+                _cancellation?.Dispose();
+                _cancellation = null;
+            }
+        }
     }
 }
 

@@ -140,7 +140,10 @@ public class TGroup : TView
     public override void EndModal(ushort command)
     {
         if ((state & Views.sfModal) != 0)
+        {
             endState = command;
+            TEventQueue.Wake();
+        }
         else
             base.EndModal(command);
     }
@@ -151,6 +154,8 @@ public class TGroup : TView
         owner?.EventError(ev);
     }
 
+    [ThreadStatic] internal static int EventLoopDepth;
+
     /// <summary>
     /// Modal entry point reused by <see cref="TProgram"/>. Drains events
     /// through <see cref="HandleEvent"/> until <see cref="EndModal"/> sets
@@ -158,19 +163,24 @@ public class TGroup : TView
     /// </summary>
     public override ushort Execute()
     {
-        do
+        EventLoopDepth++;
+        try
         {
-            endState = 0;
             do
             {
-                TEvent e = default;
-                GetEvent(ref e);
-                HandleEvent(ref e);
-                if (e.What != Events.evNothing)
-                    EventError(e);
-            } while (endState == 0);
-        } while (!Valid(endState));
-        return endState;
+                endState = 0;
+                do
+                {
+                    TEvent e = default;
+                    GetEvent(ref e);
+                    HandleEvent(ref e);
+                    if (e.What != Events.evNothing)
+                        EventError(e);
+                } while (endState == 0);
+            } while (!Valid(endState));
+            return endState;
+        }
+        finally { EventLoopDepth--; }
     }
 
     /// <summary>Links a view before the target child without performing the higher-level visibility and selection updates of InsertBefore.</summary>

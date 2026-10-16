@@ -8,6 +8,41 @@ namespace TSharpVision.TableView.Tests;
 /// </summary>
 public sealed class TTableViewAsyncTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RequestSourceIsDisposedOnlyAfterOperationEnds(bool fail)
+    {
+        using var h = new TableHarness(height: 6, blockRows: 4);
+        var table = new GatedTable(1, 1000);
+        h.View.SetDataSource(table);
+        for (int i = 0; i < 100; i++)
+        {
+            if (i > 0) h.View.MoveTo(i * 4, 0);
+            var request = table.Next();
+            Assert.NotNull(request.Token.WaitHandle);
+            if (fail) request.Completion.SetException(new IOException("read failed"));
+            else request.Complete("row");
+            Assert.Throws<ObjectDisposedException>(() => request.Token.WaitHandle);
+            h.Settle();
+        }
+    }
+
+    [Fact]
+    public void ShutdownCancelsButKeepsActiveRequestTokenAliveUntilCompletion()
+    {
+        using var h = new TableHarness(height: 6);
+        var table = new GatedTable(1, 10);
+        h.View.SetDataSource(table);
+        var request = table.Next();
+        h.View.ShutDown();
+        Assert.True(request.Token.IsCancellationRequested);
+        using (request.Token.Register(() => { })) { }
+        Assert.NotNull(request.Token.WaitHandle);
+        request.Completion.SetCanceled(request.Token);
+        Assert.Throws<ObjectDisposedException>(() => request.Token.WaitHandle);
+    }
+
     [Fact]
     public void DrawingNeverReadsAndAnUnloadedRowSaysItIsLoading()
     {

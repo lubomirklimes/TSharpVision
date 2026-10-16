@@ -42,6 +42,104 @@ internal static class TerminalNative
         return result > 0 && (descriptor.ReturnedEvents & PollIn) != 0;
     }
 
+    internal static unsafe void WaitForInput(int inputFd, WaitHandle wakeSignal, int timeout)
+    {
+        int[] pipe = new int[2];
+        if (OperatingSystem.IsLinux())
+        {
+            // Atomic close-on-exec on Linux: a concurrently launched child must not
+            // inherit this temporary framework wake source.
+            if (CreatePipeCloseOnExec(pipe, 0x80000 /* O_CLOEXEC */) != 0) throw NativeFailure("pipe2");
+        }
+        else
+        {
+            if (CreatePipe(pipe) != 0) throw NativeFailure("pipe");
+            if (SetDescriptorFlags(pipe[0], 2 /* F_SETFD */, 1 /* FD_CLOEXEC */) < 0
+                || SetDescriptorFlags(pipe[1], 2, 1) < 0)
+            {
+                var error = NativeFailure("fcntl(FD_CLOEXEC)");
+                Close(pipe[0]); Close(pipe[1]);
+                throw error;
+            }
+        }
+        RegisteredWaitHandle? registration = null;
+        Exception? wakeError = null;
+        var callbackGate = new object();
+        bool callbackActive = true;
+        try
+        {
+            // One callback writes one byte into an otherwise empty pipe: no full-pipe
+            // blocking is possible. Unregister/join before either descriptor is closed.
+            registration = ThreadPool.RegisterWaitForSingleObject(wakeSignal, (_, _) =>
+            {
+                lock (callbackGate)
+                {
+                    if (!callbackActive) return;
+                    byte value = 1;
+                    nint written;
+                    do { written = Write(pipe[1], &value, 1); }
+                    while (written < 0 && Marshal.GetLastPInvokeError() == 4);
+                    if (written != 1) Volatile.Write(ref wakeError, NativeFailure("wake pipe write"));
+                }
+            }, null, -1, true);
+            var descriptors = new[]
+            {
+                new PollFd { Fd = inputFd, Events = 1 },
+                new PollFd { Fd = pipe[0], Events = 1 }
+            };
+            long deadline = timeout < 0 ? long.MaxValue : Environment.TickCount64 + timeout;
+            while (true)
+            {
+                int remaining = deadline == long.MaxValue ? -1 : (int)Math.Max(0, deadline - Environment.TickCount64);
+                int result = OperatingSystem.IsMacOS()
+                    ? PollManyDarwin(descriptors, 2, remaining) : PollManyLinux(descriptors, 2, remaining);
+                if (result < 0 && Marshal.GetLastPInvokeError() == 4) continue; // EINTR, preserve deadline.
+                if (result < 0) throw NativeFailure("poll");
+                if (descriptors.Any(d => (d.ReturnedEvents & (8 | 16 | 32)) != 0))
+                    throw new IOException("Terminal idle poll reported an invalid, failed, or closed descriptor.");
+                break;
+            }
+        }
+        finally
+        {
+            if (registration != null)
+            {
+                registration.Unregister(null);
+                lock (callbackGate) callbackActive = false;
+            }
+            Close(pipe[0]);
+            Close(pipe[1]);
+        }
+        if (wakeError != null) throw wakeError;
+    }
+
+    private static IOException NativeFailure(string operation)
+        => new($"Terminal {operation} failed (errno {Marshal.GetLastPInvokeError()}).");
+
+    [DllImport("libc", EntryPoint = "pipe2", SetLastError = true)]
+    private static extern int CreatePipeCloseOnExec([Out] int[] descriptors, int flags);
+    private static int SetDescriptorFlags(int fd, int command, int flags)
+        => OperatingSystem.IsMacOS() && RuntimeInformation.ProcessArchitecture == Architecture.Arm64
+            ? FcntlDarwinArm64(fd, command, 0, 0, 0, 0, 0, 0, flags)
+            : Fcntl(fd, command, flags);
+
+    [DllImport("libc", EntryPoint = "fcntl", SetLastError = true)]
+    private static extern int Fcntl(int fd, int command, int flags);
+    // Like ioctl below, Darwin ARM64 unnamed arguments must start on the stack.
+    [DllImport("libc", EntryPoint = "fcntl", SetLastError = true)]
+    private static extern int FcntlDarwinArm64(int fd, int command,
+        nuint pad2, nuint pad3, nuint pad4, nuint pad5, nuint pad6, nuint pad7, int flags);
+    [DllImport("libc", EntryPoint = "pipe", SetLastError = true)]
+    private static extern int CreatePipe([Out] int[] descriptors);
+    [DllImport("libc", EntryPoint = "close", SetLastError = true)]
+    private static extern int Close(int fd);
+    [DllImport("libc", EntryPoint = "write", SetLastError = true)]
+    private static extern unsafe nint Write(int fd, byte* buffer, nuint count);
+    [DllImport("libc", EntryPoint = "poll", SetLastError = true)]
+    private static extern int PollManyDarwin([In, Out] PollFd[] descriptors, uint count, int timeout);
+    [DllImport("libc", EntryPoint = "poll", SetLastError = true)]
+    private static extern int PollManyLinux([In, Out] PollFd[] descriptors, nuint count, int timeout);
+
     [DllImport("libc", EntryPoint = "ioctl", SetLastError = true)]
     private static extern int Ioctl(int fd, nuint request, ref WinSize size);
 

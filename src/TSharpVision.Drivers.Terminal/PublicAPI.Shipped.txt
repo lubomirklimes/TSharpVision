@@ -22,6 +22,7 @@ TSharpVision.Drivers.Terminal.AnsiTerminalDriver.SupportsGraphics.get -> bool
 TSharpVision.Drivers.Terminal.AnsiTerminalDriver.SupportsMouse.get -> bool
 TSharpVision.Drivers.Terminal.AnsiTerminalDriver.SupportsTrueColor.get -> bool
 TSharpVision.Drivers.Terminal.AnsiTerminalDriver.Suspend() -> void
+TSharpVision.Drivers.Terminal.AnsiTerminalDriver.WaitForEvent(int timeoutMilliseconds, System.Threading.WaitHandle! wakeSignal) -> void
 TSharpVision.Drivers.Terminal.AnsiTerminalDriver.WriteBuf(int x, int y, int w, int h, System.Span<TSharpVision.TScreenChar> buf) -> void
 TSharpVision.Drivers.Terminal.TerminalClipboardService
 TSharpVision.Drivers.Terminal.TerminalClipboardService.GetText() -> string?

@@ -41,11 +41,18 @@ public sealed class IdleWaitTests : IDisposable
     {
         var app = new ProbeProgram { StopAfterCommands = 3 };
         using var entered = new ManualResetEventSlim();
-        _driver.OnWait = (_, signal) => { entered.Set(); Assert.True(signal.WaitOne(2000)); };
+        using var producerFinished = new ManualResetEventSlim();
+        _driver.OnWait = (_, signal) =>
+        {
+            entered.Set();
+            Assert.True(signal.WaitOne(2000));
+            Assert.True(producerFinished.Wait(2000));
+        };
         var producer = Worker(() =>
         {
             if (!entered.Wait(2000)) return;
             foreach (ushort command in new ushort[] { 901, 902, 903 }) TEventQueue.Enqueue(Command(command));
+            producerFinished.Set();
         });
         try { app.Run(); Assert.True(producer.Join(2000)); Assert.Equal(new ushort[] { 901, 902, 903 }, app.Commands); Assert.Equal(1, _driver.Waits); }
         finally { app.ShutDown(); }

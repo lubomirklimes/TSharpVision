@@ -71,7 +71,17 @@ try {
         --title "TSharpVision $Version" --notes-file $NotesPath --target $Commit
     $assetPaths = @($assets.FullName)
     gh release upload $tag @assetPaths
-    $release = gh api "repos/$env:GH_REPO/releases/tags/$tag" | ConvertFrom-Json
+    # GitHub exposes draft releases in the list endpoint, but the by-tag endpoint returns 404 until publication.
+    $releasePages = gh api --paginate --slurp "repos/$env:GH_REPO/releases?per_page=100" | ConvertFrom-Json
+    $matchingReleases = @(
+        foreach ($page in $releasePages) {
+            foreach ($candidate in $page) {
+                if ($candidate.tag_name -ceq $tag) { $candidate }
+            }
+        }
+    )
+    if ($matchingReleases.Count -ne 1) { throw "Expected exactly one draft release for '$tag'." }
+    $release = $matchingReleases[0]
     if (-not $release.draft) { throw 'Expected an unpublished draft during asset verification.' }
     if ($release.assets.Count -ne $assets.Count) { throw 'Uploaded asset count differs from the five-file allowlist.' }
     foreach ($file in $assets) {

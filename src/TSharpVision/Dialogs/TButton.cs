@@ -85,6 +85,11 @@ public class TButton : TView
             }
         }
         cShadow = GetColor(8);
+        // The cells around the face are a shadow cast on the owner's surface: keep the shadow role's foreground and
+        // take the background a plain view in the same owner paints (owner entry 1, the frame/surface role). In the
+        // standard palettes both backgrounds agree; in a blue or cyan parent this stops the dialog gray from leaking.
+        if (owner != null)
+            cShadow = (ushort)((cShadow & Colors.fgMask) | (owner.MapColor(1) & Colors.bgMask));
         int s = size.x - 1;
         int T = size.y / 2 - 1;
 

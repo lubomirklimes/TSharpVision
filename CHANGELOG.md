@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.0-rc.3
+
+- `TButton` draws its shadow cells on the owner's surface background (owner palette entry 1), keeping the shadow
+  role's foreground. Buttons on a blue, cyan or custom-palette parent no longer show gray cells beside and below the
+  face; standard gray dialogs render identically.
+- Dialog controls (buttons, clusters, input lines, history, lists) now resolve their colors inside a plain `TWindow`:
+  the blue, cyan and gray window palettes gained entries 9–32 that reuse existing application roles, instead of
+  rendering the error attribute. Entries 1–8 and `TDialog` are unchanged; `TWindow.GetPalette()` now has 32 entries.
+
 ## 1.0.0-rc.2
 
 - Added optional `IIdleWaitDriver` support and the protected `TProgram.GetIdleWaitTimeout()` extension point:

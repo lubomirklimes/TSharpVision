@@ -76,9 +76,24 @@ public class TWindow : TGroup
         _closeCompleted = true;
     }
 
-    private static readonly TPalette _blue = new TPalette("\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F", 8);
-    private static readonly TPalette _cyan = new TPalette("\x10\x11\x12\x13\x14\x15\x16\x17", 8);
-    private static readonly TPalette _gray = new TPalette("\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F", 8);
+    // Entries 1-8 are the classic window roles (frame passive/active/icons, scrollbar page/controls, scroller normal/
+    // selected, reserved). Entries 9-32 give the dialog controls (TButton, TCluster, TInputLine, THistory, TListViewer,
+    // ...) the same role numbers they have in TDialog, so they resolve inside a plain window instead of
+    // falling out of range to errorAttr. They reuse existing application roles chosen for the window's surface, as in
+    // Turbo Vision 2.0's blue and cyan dialogs: an input field is black on gray on blue, a cluster black on gray on cyan.
+    // Only 63 application entries are standard (applications append their own from 65), so no new ones are introduced.
+    //   9 label shortcut, 10-15 button normal/default/selected/disabled/shortcut/shadow, 16-18 cluster normal/selected/
+    //   shortcut, 19-21 input normal/selected/arrows, 22-23 history arrow/sides, 24-25 history scrollbar, 26-29 list
+    //   normal/focused/selected/divider, 30 info pane, 31 cluster disabled, 32 reserved.
+    private static readonly TPalette _blue = new TPalette(
+        "\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F" +
+        "\x0D\x29\x2A\x2B\x2C\x2D\x2E\x2F\x30\x31\x1D\x33\x1A\x35\x0A\x37\x38\x39\x3A\x3B\x3C\x3D\x3E\x3F", 32);
+    private static readonly TPalette _cyan = new TPalette(
+        "\x10\x11\x12\x13\x14\x15\x16\x17" +
+        "\x15\x29\x2A\x2B\x2C\x2D\x2E\x1D\x19\x28\x32\x33\x34\x35\x12\x37\x38\x1D\x3A\x28\x0E\x3D\x2C\x3F", 32);
+    private static readonly TPalette _gray = new TPalette(
+        "\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F" +
+        "\x28\x29\x2A\x2B\x2C\x2D\x2E\x2F\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39\x3A\x3B\x3C\x3D\x3E\x3F", 32);
     /// <inheritdoc />
     public override TPalette GetPalette()
     {

@@ -183,11 +183,12 @@ public sealed class WindowFrameTests
     // ── GetPalette by palette index ───────────────────────────────────────────
 
     [Fact]
-    public void Window_Palette_Blue_Size8()
+    public void Window_Palette_Blue_Size32()
     {
+        // Entries 1-8 are the window roles; 9-32 resolve the dialog controls (see ButtonShadowPaletteTests).
         using var driver = new DriverScope();
         var win = new TWindow(new TRect(5, 5, 45, 20), "Hello", 1);
-        Assert.Equal(8, win.GetPalette().Size);
+        Assert.Equal(32, win.GetPalette().Size);
     }
 
     [Fact]

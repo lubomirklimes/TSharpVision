@@ -25,6 +25,7 @@ public class TMenuView : TView
         ParentMenu = aParent;
         Menu = aMenu;
         Current = null;
+        eventMask |= Events.evBroadcast;
     }
 
     /// <summary>Creates an unbound menu view in owner-relative character-cell bounds.</summary>
@@ -33,6 +34,7 @@ public class TMenuView : TView
         ParentMenu = null;
         Menu = null;
         Current = null;
+        eventMask |= Events.evBroadcast;
     }
 
     /// <inheritdoc />
@@ -57,6 +59,9 @@ public class TMenuView : TView
             TRect r;
             TEvent e = default;
 
+            // Menus created or shown after the last cmCommandSetChanged broadcast (popups, submenus) start from the
+            // current command set; later changes arrive through that broadcast while this loop runs.
+            if (Menu != null && UpdateMenu(Menu)) DrawView();
             Current = Menu?.Default;
             bool running = true;
             while (running)

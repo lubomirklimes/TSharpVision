@@ -1,4 +1,4 @@
-﻿using System.Runtime.CompilerServices;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using TSharpVision.Drivers.SDL.Rendering.GlyphComposition;
 
@@ -88,7 +88,10 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
             bgVs = LoadShaderFromSpirv("TSharpVision.Drivers.SDL.Gpu.Shaders.BgVert.spv",    SDL3.ShaderCross.ShaderStage.Vertex);
             bgPs = LoadShaderFromSpirv("TSharpVision.Drivers.SDL.Gpu.Shaders.BgFrag.spv",    SDL3.ShaderCross.ShaderStage.Fragment);
             glyphVs = LoadShaderFromSpirv("TSharpVision.Drivers.SDL.Gpu.Shaders.GlyphVert.spv", SDL3.ShaderCross.ShaderStage.Vertex);
-            glyphPs = LoadShaderFromSpirv("TSharpVision.Drivers.SDL.Gpu.Shaders.GlyphFrag.spv", SDL3.ShaderCross.ShaderStage.Fragment);
+            // The glyph fragment shader samples the atlas: one sampler. SDL builds the shader's
+            // resource layout from these counts; Vulkan consumes the SPIR-V as is, so an
+            // undeclared sampler there means an unbound descriptor (device lost on NVIDIA).
+            glyphPs = LoadShaderFromSpirv("TSharpVision.Drivers.SDL.Gpu.Shaders.GlyphFrag.spv", SDL3.ShaderCross.ShaderStage.Fragment, numSamplers: 1);
 
             _bgPipeline    = CreateBgPipeline(bgVs, bgPs, swapFmt);
             _glyphPipeline = CreateGlyphPipeline(glyphVs, glyphPs, swapFmt);
@@ -113,7 +116,7 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
     }
     // ─── Shader loading ──────────────────────────────────────────────────────
 
-    private IntPtr LoadShaderFromSpirv(string resourceName, SDL3.ShaderCross.ShaderStage stage)
+    private IntPtr LoadShaderFromSpirv(string resourceName, SDL3.ShaderCross.ShaderStage stage, uint numSamplers = 0)
     {
         var assembly = typeof(TerminalGpuPipeline).Assembly;
         using var stream = assembly.GetManifestResourceStream(resourceName)
@@ -134,7 +137,7 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
                     ManagedEntrypoint = "main",
                     ShaderStage       = stage,
                 };
-                var resourceInfo = new SDL3.ShaderCross.GraphicsShaderResourceInfo();
+                var resourceInfo = new SDL3.ShaderCross.GraphicsShaderResourceInfo { NumSamplers = numSamplers };
                 IntPtr shader = SDL3.ShaderCross.CompileGraphicsShaderFromSPIRV(
                     _device, ref spirvInfo, ref resourceInfo, 0u);
 

@@ -1,3 +1,4 @@
+using TSharpVision.Config;
 using TSharpVision.Constants;
 using TSharpVision.Drivers;
 using TSharpVision.Drivers.SDL;
@@ -58,9 +59,14 @@ public class SDLGpuDriver : IDisposable, IDriver, IIdleWaitDriver
     /// <summary>Optional rendering callback invoked while pumping messages; initialization installs a callback that renders the screen buffer.</summary>
     public Action<IRenderer>? MessageLoop { get; set; }
 
+    /// <summary>The typed font fitting mode resolved during initialization.</summary>
+    internal FontFitMode FontFit { get; private set; }
+
     /// <inheritdoc />
     public void Initialize() => Initialize(() =>
     {
+        // Prevent a synthesized second quit after native close; retain genuine OS quit events.
+        SDL3.SDL.SetHint(SDL3.SDL.Hints.QuitOnLastWindowClose, "0");
         if (!SDL3.SDL.Init(SDL3.SDL.InitFlags.Video))
             throw new InvalidOperationException($"SDL_Init failed: {SDL3.SDL.GetError()}");
     });
@@ -78,6 +84,8 @@ public class SDLGpuDriver : IDisposable, IDriver, IIdleWaitDriver
         bool sdlInitialized = false;
         try
         {
+            FontFit = ScreenDriverFactory.Configuration?.Graphics.FontFit ?? FontFitMode.Condense;
+
             initializeVideo();
             sdlInitialized = true;
 
@@ -102,7 +110,7 @@ public class SDLGpuDriver : IDisposable, IDriver, IIdleWaitDriver
             _gpuRenderer = new SDLGpuRenderer(
                 _window, options,
                 graphics?.FontName,
-                graphics?.FontSize);
+                graphics?.FontSize, FontFit);
             _gpuRenderer.Initialize();
             _gpuRenderer.LogDiagnostics(_window);
             _gpuRenderer.StartRenderThread();

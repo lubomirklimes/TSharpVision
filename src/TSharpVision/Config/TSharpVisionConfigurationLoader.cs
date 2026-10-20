@@ -11,6 +11,8 @@ namespace TSharpVision.Config;
 ///   3. Environment variables — applied by each driver at runtime
 ///
 /// If neither file exists a default (all-null) configuration is returned.
+/// A configuration assigned in code to <see cref="Drivers.ScreenDriverFactory.Configuration"/>
+/// replaces the loaded one as-is; it is not merged with the files.
 /// </summary>
 public static class TSharpVisionConfigurationLoader
 {
@@ -64,44 +66,50 @@ public static class TSharpVisionConfigurationLoader
     /// Loads configuration from an explicit file path.
     /// Returns defaults when the file does not exist or cannot be read.
     /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// The file sets <c>[graphics] fontFit</c> to a value that names no <see cref="FontFitMode"/>.
+    /// </exception>
     public static TSharpVisionConfiguration LoadFromPath(string path)
     {
         if (!File.Exists(path))
             return new TSharpVisionConfiguration();
 
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> rawSections;
         try
         {
             string text = File.ReadAllText(path);
             var ini = IniConfigurationReader.Parse(text);
-            var rawSections = ini.GetAllSections();
-
-            var driverRaw   = rawSections.GetValueOrDefault("driver");
-            var graphicsRaw = rawSections.GetValueOrDefault("graphics");
-            var locRaw      = rawSections.GetValueOrDefault("localization");
-
-            return new TSharpVisionConfiguration
-            {
-                Driver = new DriverConfiguration
-                {
-                    Name = driverRaw?.GetValueOrDefault("name"),
-                },
-                Graphics = new GraphicsDriverConfiguration
-                {
-                    FontName = graphicsRaw?.GetValueOrDefault("fontName"),
-                    FontSize = ParseNullablePositiveInt(graphicsRaw?.GetValueOrDefault("fontSize")),
-                },
-                Localization = new LocalizationConfiguration
-                {
-                    Language = locRaw?.GetValueOrDefault("language"),
-                },
-                RawSections = rawSections,
-            };
+            rawSections = ini.GetAllSections();
         }
         catch (Exception ex)
         {
             Console.Error.WriteLine($"Warning: failed to read config '{path}': {ex.Message}");
             return new TSharpVisionConfiguration();
         }
+
+        var driverRaw   = rawSections.GetValueOrDefault("driver");
+        var graphicsRaw = rawSections.GetValueOrDefault("graphics");
+        var locRaw      = rawSections.GetValueOrDefault("localization");
+
+        // An invalid fontFit is an error, not a warning: an explicit choice is never replaced by the default.
+        return new TSharpVisionConfiguration
+        {
+            Driver = new DriverConfiguration
+            {
+                Name = driverRaw?.GetValueOrDefault("name"),
+            },
+            Graphics = new GraphicsDriverConfiguration
+            {
+                FontName = graphicsRaw?.GetValueOrDefault("fontName"),
+                FontSize = ParseNullablePositiveInt(graphicsRaw?.GetValueOrDefault("fontSize")),
+                ExplicitFontFit = ParseFontFit(graphicsRaw?.GetValueOrDefault("fontFit"), path),
+            },
+            Localization = new LocalizationConfiguration
+            {
+                Language = locRaw?.GetValueOrDefault("language"),
+            },
+            RawSections = rawSections,
+        };
     }
 
     /// <summary>
@@ -122,6 +130,7 @@ public static class TSharpVisionConfigurationLoader
             {
                 FontName = @override.Graphics.FontName ?? @base.Graphics.FontName,
                 FontSize = @override.Graphics.FontSize ?? @base.Graphics.FontSize,
+                ExplicitFontFit = @override.Graphics.ExplicitFontFit ?? @base.Graphics.ExplicitFontFit,
             },
             Localization = new LocalizationConfiguration
             {
@@ -170,5 +179,26 @@ public static class TSharpVisionConfigurationLoader
         Console.Error.WriteLine(
             $"Warning: ignoring invalid [graphics] fontSize value '{value}'.");
         return null;
+    }
+
+    /// <summary>
+    /// Parses a <c>[graphics] fontFit</c> value. Missing or blank means "not set" (null), like
+    /// <c>fontSize</c>; mode names match case-insensitively with surrounding whitespace ignored.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The value names no <see cref="FontFitMode"/>.</exception>
+    internal static FontFitMode? ParseFontFit(string? value, string? path = null)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+
+        string trimmed = value.Trim();
+        if (string.Equals(trimmed, nameof(FontFitMode.Condense), StringComparison.OrdinalIgnoreCase))
+            return FontFitMode.Condense;
+        if (string.Equals(trimmed, nameof(FontFitMode.Uniform), StringComparison.OrdinalIgnoreCase))
+            return FontFitMode.Uniform;
+
+        string where = path is null ? "" : $" in '{path}'";
+        throw new InvalidOperationException(
+            $"Invalid [graphics] fontFit value '{trimmed}'{where}. Supported values: Condense, Uniform.");
     }
 }

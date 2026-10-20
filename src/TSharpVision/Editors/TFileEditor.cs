@@ -436,7 +436,12 @@ public class TFileEditor : TEditor
             switch (answer)
             {
                 case Views.cmYes:    return Save();
-                case Views.cmNo:     modified = false; return true;
+                case Views.cmNo:
+                    // A later window can still veto application quit. Keep the
+                    // unsaved buffer dirty until the accepted exit disposes it.
+                    if (command != Views.cmQuit)
+                        modified = false;
+                    return true;
                 case Views.cmCancel: return false;
             }
         }

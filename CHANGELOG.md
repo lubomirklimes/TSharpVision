@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0.0-rc.4
+
+Pending release.
+
+- TFrame: fix title rendering at very small widths, including bounds safety and Unicode surrogate-safe truncation.
+- TMenuView: fix menu command enable/disable synchronization, including broadcasts and initial state refresh when opening menus.
+- SDL: share cell-sized glyph masks between the 2D renderer and GPU shader/CPU-composite paths, preserving Czech accents and descenders with consistent baselines, colors and cell geometry.
+- SDL: add `[graphics] fontFit=Condense|Uniform`, defaulting to Condense. Uniform measures one common ordinary-text size using the complete Czech uppercase/lowercase repertoire; rare compatibility letters and exceptional Unicode outliers retain individual fitting.
+- Configuration: add public `TSharpVision.Config.FontFitMode` and `GraphicsDriverConfiguration.FontFit` get/init, with programmatic configuration, case-insensitive cfg values and user/application precedence. Invalid cfg values report a clear error.
+- SDL GPU: declare the glyph fragment shader atlas sampler in shadercross metadata, correcting Vulkan initialization while preserving the D3D12 path and existing shader resources.
+- SDL: disable the synthetic quit following the last native window close, retaining genuine OS quit events, application veto/confirmation and graceful cleanup.
+- Modified TVDemo editors now display the standard Save/Discard/Cancel confirmation, including during application shutdown.
+- Canceling application shutdown after an earlier Don't Save choice no longer leaves unsaved documents incorrectly marked clean.
+
 ## 1.0.0-rc.3
 
 - `TButton` draws its shadow cells on the owner's surface background (owner palette entry 1), keeping the shadow

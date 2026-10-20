@@ -177,8 +177,17 @@ public class TGroup : TView
                     if (e.What != Events.evNothing)
                         EventError(e);
                 } while (endState == 0);
-            } while (!Valid(endState));
-            return endState;
+                // The request has reached validation. Clear the pending modal end
+                // while validation runs so GetEvent does not auto-cancel dialogs
+                // opened by Valid (for example, an editor's unsaved-file prompt).
+                ushort command = endState;
+                endState = 0;
+                if (Valid(command))
+                {
+                    endState = command;
+                    return command;
+                }
+            } while (true);
         }
         finally { EventLoopDepth--; }
     }

@@ -1,3 +1,4 @@
+using TSharpVision.Config;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using TSharpVision;
@@ -15,8 +16,10 @@ namespace TSharpVision.Drivers.SDL;
 /// Rendering strategy per cell:
 ///   1. Background: solid colour rectangle, painted before the glyph.
 ///   2. CP437 B0–DF: cell-sized bitmap from <see cref="Cp437GlyphGenerator"/>, drawn 1:1.
-///   3. Other box drawing: SDL_ttf glyph fitted into the cell.
-///   4. Normal text: natural SDL_ttf glyph.
+///   3. Other box drawing and block elements: SDL_ttf glyph on the font baseline, clipped to the cell.
+///   4. Normal text: SDL_ttf glyph on the shared text baseline, fitted into the cell.
+///   Font glyphs (3 and 4) come from <see cref="SdlCellGlyphRasterizer"/>, shared with the GPU
+///   renderer, as cell-sized masks drawn 1:1.
 ///   5. Space / NUL: background only, no glyph texture.
 ///
 /// Glyph textures carry foreground ink on a transparent background (alpha-only).
@@ -58,6 +61,10 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
     // Fallback symbol font (kept open alongside the primary font to provide
     // coverage for emoji / symbol codepoints absent from monospace fonts).
     private IntPtr _symbolFont = IntPtr.Zero;
+    private string? _symbolFontPath;
+
+    // Font glyph → cell mask, shared placement with SDLGpuRenderer.
+    private SdlCellGlyphRasterizer? _cellGlyphs;
 
     // ─────────────────────────────────────────────────────────────────────────
     // Font probing
@@ -72,6 +79,7 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
         if (_symbolFont == IntPtr.Zero) return;
 
         SDL3.TTF.AddFallbackFont(_font, _symbolFont);
+        _symbolFontPath = symbolPath;
         if (SdlRendererPerformanceDiagnostics.Enabled)
             Console.Error.WriteLine($"[SDLRenderer] symbolFallback='{symbolPath}'");
     }
@@ -88,6 +96,10 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
 
     /// <summary>Creates a text renderer over an SDL renderer handle with optional font name and point size; null values use configured defaults.</summary>
     public SDLRenderer(IntPtr renderer, string? fontName, int? fontSize)
+        : this(renderer, fontName, fontSize, FontFitMode.Condense) { }
+
+    /// <summary>Creates a text renderer that fits text into the cell by <paramref name="fontFit"/> (<c>[graphics] fontFit</c>).</summary>
+    public SDLRenderer(IntPtr renderer, string? fontName, int? fontSize, FontFitMode fontFit)
     {
         _renderer = renderer;
 
@@ -123,6 +135,9 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
 
             TryAddSymbolFallback(fontPtSize);
 
+            _cellGlyphs = new SdlCellGlyphRasterizer(
+                _font, fontPath, fontPtSize, _symbolFontPath, _cellWidth, _cellHeight, fontFit);
+
             _generatedGlyphs = new CellGlyphBitmapCache(
                 new Cp437GlyphGenerator(_cellWidth, _cellHeight));
 
@@ -150,7 +165,9 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
             $"[SDLRenderer] font='{_fontPath}' " +
             $"fontSize={fontPtSize}pt " +
             $"cell={_cellWidth}x{_cellHeight}px " +
-            $"ascent={_ascent} descent={_descent} fontH={_fontHeight} lineSkip={_lineSkip}");
+            $"ascent={_ascent} descent={_descent} fontH={_fontHeight} lineSkip={_lineSkip} " +
+            $"textBaseline={_cellGlyphs?.TextBaseline} " +
+            $"fontFit={_cellGlyphs?.FontFit} textSize={_cellGlyphs?.UniformPointSize}pt");
 
     }
 
@@ -278,8 +295,6 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
         if (_glyphCache.Count >= MaxCacheEntries)
             ClearGlyphCache();
 
-        SDL3.SDL.Color color = ToSdlColor(fgArgb);
-
         if (SdlRendererPerformanceDiagnostics.Enabled && cls != SdlGlyphRenderClass.Space)
         {
             if (cls == SdlGlyphRenderClass.Generated)
@@ -291,8 +306,7 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
         IntPtr texture = cls switch
         {
             SdlGlyphRenderClass.Generated => CreateGeneratedTexture(ch, fgArgb, phase),
-            SdlGlyphRenderClass.FontCell  => CreateFontCellTexture((uint)ch, color),
-            SdlGlyphRenderClass.Natural   => CreateNaturalTexture((uint)ch, color),
+            SdlGlyphRenderClass.FontCell or SdlGlyphRenderClass.Natural => CreateFontTexture(ch, fgArgb),
             _                             => IntPtr.Zero,
         };
 
@@ -368,104 +382,24 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Font-cell texture (shade / block / unsupported box drawing)
+    // Font glyph texture (text, other box drawing and block elements)
     // ─────────────────────────────────────────────────────────────────────────
 
-    private IntPtr CreateFontCellTexture(uint codepoint, SDL3.SDL.Color color)
+    /// <summary>
+    /// Tints the cell-sized mask from the shared <see cref="SdlCellGlyphRasterizer"/> into a
+    /// texture, so this back-end and SDLGpuRenderer put every font glyph on the same pixels.
+    /// </summary>
+    private IntPtr CreateFontTexture(char ch, uint fgArgb)
     {
-        IntPtr canvas = CreateFontCellSurface(codepoint, color);
-        if (canvas == IntPtr.Zero)
+        byte[]? alpha = _cellGlyphs?.Rasterize(ch);
+        if (alpha == null)
             return IntPtr.Zero;
 
-        try
-        {
-            SDL3.SDL.SetSurfaceBlendMode(canvas, SDL3.SDL.BlendMode.Blend);
-
-            IntPtr tex = CreateTextureFromSurface(canvas);
-            if (tex != IntPtr.Zero)
-            {
-                SDL3.SDL.SetTextureBlendMode(tex, SDL3.SDL.BlendMode.Blend);
-                _diagnostics.RecordNormalGlyphCreated();
-            }
-            return tex;
-        }
-        finally
-        {
-            SDL3.SDL.DestroySurface(canvas);
-        }
+        IntPtr tex = AlphaBitmapToTexture(new AlphaBitmap(_cellWidth, _cellHeight, alpha), fgArgb);
+        if (tex != IntPtr.Zero)
+            _diagnostics.RecordNormalGlyphCreated();
+        return tex;
     }
-
-    private IntPtr CreateFontCellSurface(uint codepoint, SDL3.SDL.Color color)
-    {
-        IntPtr glyphSurf = SDL3.TTF.RenderGlyphBlended(_font, (ushort)codepoint, color);
-        if (glyphSurf == IntPtr.Zero)
-            return IntPtr.Zero;
-
-        IntPtr canvas = SDL3.SDL.CreateSurface(_cellWidth, _cellHeight,
-            SDL3.SDL.PixelFormat.ARGB8888);
-        if (canvas == IntPtr.Zero)
-        {
-            SDL3.SDL.DestroySurface(glyphSurf);
-            return IntPtr.Zero;
-        }
-
-        try
-        {
-            SDL3.SDL.FillSurfaceRect(canvas, IntPtr.Zero, 0u);
-            SDL3.SDL.SetSurfaceBlendMode(glyphSurf, SDL3.SDL.BlendMode.None);
-            GetCellBlitPlacement(codepoint, out int srcClipTop, out int dstX);
-            BlitGlyphToCanvas(glyphSurf, canvas, srcClipTop, dstX, dstY: 0);
-            return canvas;
-        }
-        catch
-        {
-            SDL3.SDL.DestroySurface(canvas);
-            throw;
-        }
-        finally
-        {
-            SDL3.SDL.DestroySurface(glyphSurf);
-        }
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Natural text texture
-    // ─────────────────────────────────────────────────────────────────────────
-
-    private IntPtr CreateNaturalTexture(uint codepoint, SDL3.SDL.Color color)
-    {
-        IntPtr surface = SDL3.TTF.RenderGlyphBlended(_font, (ushort)codepoint, color);
-        if (surface == IntPtr.Zero)
-            return IntPtr.Zero;
-
-        try
-        {
-            IntPtr tex = CreateTextureFromSurface(surface);
-            if (tex != IntPtr.Zero)
-            {
-                SDL3.SDL.SetTextureBlendMode(tex, SDL3.SDL.BlendMode.Blend);
-                _diagnostics.RecordNormalGlyphCreated();
-            }
-            return tex;
-        }
-        finally
-        {
-            SDL3.SDL.DestroySurface(surface);
-        }
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Cell blit helpers
-    // ─────────────────────────────────────────────────────────────────────────
-    // Placement maths and the clipped blit live in SdlFontCellPlacement, shared with
-    // SDLGpuRenderer so both back-ends place font glyphs identically.
-
-    private void GetCellBlitPlacement(uint codepoint, out int srcClipTop, out int dstX) =>
-        SdlFontCellPlacement.Compute(_font, codepoint, _ascent, out srcClipTop, out dstX);
-
-    private static void BlitGlyphToCanvas(
-        IntPtr glyphSurf, IntPtr canvas, int srcClipTop, int dstX, int dstY) =>
-        SdlFontCellPlacement.BlitToCanvas(glyphSurf, canvas, srcClipTop, dstX, dstY);
 
     // ─────────────────────────────────────────────────────────────────────────
     // Shared texture creation (with optional diagnostics timing)
@@ -482,19 +416,6 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
         _diagnostics.RecordCreateTextureFromSurface(sw.Elapsed);
         return tex;
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Colour helpers
-    // ─────────────────────────────────────────────────────────────────────────
-
-    private static SDL3.SDL.Color ToSdlColor(uint argb) =>
-        new()
-        {
-            R = (byte)((argb >> 16) & 0xFF),
-            G = (byte)((argb >>  8) & 0xFF),
-            B = (byte)( argb        & 0xFF),
-            A = 255,
-        };
 
     // ─────────────────────────────────────────────────────────────────────────
     // Cache management
@@ -606,8 +527,7 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
                     continue;
 
                 // All glyph textures are rendered into the logical cell rect, 1:1.
-                // Generated and composed box textures are exactly CellWidth × CellHeight.
-                // Natural text textures are scaled to cell size at render time.
+                // Generated graphics and shared font masks are exactly CellWidth × CellHeight.
                 SDL3.SDL.RenderTexture(_renderer, texture, IntPtr.Zero, in cellRect);
             }
         }
@@ -654,6 +574,9 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
         if (disposing)
         {
             ClearGlyphCache();
+
+            _cellGlyphs?.Dispose();
+            _cellGlyphs = null;
 
             if (_symbolFont != IntPtr.Zero)
             {

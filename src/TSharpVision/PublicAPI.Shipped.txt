@@ -1295,7 +1295,12 @@ TSharpVision.Config.DriverConfiguration
 TSharpVision.Config.DriverConfiguration.DriverConfiguration() -> void
 TSharpVision.Config.DriverConfiguration.Name.get -> string?
 TSharpVision.Config.DriverConfiguration.Name.init -> void
+TSharpVision.Config.FontFitMode
+TSharpVision.Config.FontFitMode.Condense = 0 -> TSharpVision.Config.FontFitMode
+TSharpVision.Config.FontFitMode.Uniform = 1 -> TSharpVision.Config.FontFitMode
 TSharpVision.Config.GraphicsDriverConfiguration
+TSharpVision.Config.GraphicsDriverConfiguration.FontFit.get -> TSharpVision.Config.FontFitMode
+TSharpVision.Config.GraphicsDriverConfiguration.FontFit.init -> void
 TSharpVision.Config.GraphicsDriverConfiguration.FontName.get -> string?
 TSharpVision.Config.GraphicsDriverConfiguration.FontName.init -> void
 TSharpVision.Config.GraphicsDriverConfiguration.FontSize.get -> int?

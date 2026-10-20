@@ -11,10 +11,10 @@ internal enum SdlGlyphRenderClass
     /// <summary>CP437 B0–DF, drawn from cell-derived geometry rather than the font.</summary>
     Generated,
 
-    /// <summary>Box drawing outside B0–DF — SDL_ttf glyph fitted to the cell.</summary>
+    /// <summary>Box drawing and block elements outside B0–DF — SDL_ttf glyph on the font baseline, clipped to the cell.</summary>
     FontCell,
 
-    /// <summary>Normal text — natural SDL_ttf glyph.</summary>
+    /// <summary>Normal text — SDL_ttf glyph on the shared text baseline, fitted into the cell.</summary>
     Natural,
 }
 
@@ -32,9 +32,10 @@ internal static class SdlGlyphRenderPolicy
         if (Cp437GlyphGenerator.IsGenerated(ch))
             return SdlGlyphRenderClass.Generated;
 
-        // Box drawing outside B0–DF still comes from the font, fitted to the cell rather than
-        // stretched, so neighbouring cells line up as well as the face allows.
-        if ((uint)ch is >= 0x2500 and <= 0x257F)
+        // Box drawing and block elements outside B0–DF still come from the font, on the font
+        // baseline and clipped rather than fitted, so neighbouring cells line up as well as the
+        // face allows (same rule as SdlCellGlyphRasterizer.ModeFor).
+        if ((uint)ch is >= 0x2500 and <= 0x259F)
             return SdlGlyphRenderClass.FontCell;
 
         return SdlGlyphRenderClass.Natural;

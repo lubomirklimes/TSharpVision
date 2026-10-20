@@ -92,7 +92,9 @@ public class TFrame : TView
                 b.putChar(width - i + j, num[j]);
         }
 
-        if (owner != null)
+        // l is the title budget left between the buttons and the number; it reaches zero or below on narrow
+        // frames (16 columns with close and zoom), where no title is drawn.
+        if (owner != null && l > 0)
         {
             string? title = win?.GetTitle((short)l);
             if (!string.IsNullOrEmpty(title))
@@ -100,11 +102,18 @@ public class TFrame : TView
                 int ls = title.Length;
                 if (ls > l)
                 {
-                    i = (width - l) >> 1;
-                    b.moveBuf(i - 1, " ..", cTitle, 3);
-                    b.moveBuf(i + 2, title.AsSpan(ls - l + 2), cTitle, l);
-                    b.putChar(i + l, ' ');
-                    b.putChar(i + l + 1, ' ');
+                    // " .." followed by the last l - 2 UTF-16 units; a budget under two cannot hold the marker.
+                    if (l >= 2)
+                    {
+                        int start = ls - l + 2;
+                        if (start < ls && char.IsLowSurrogate(title[start])) start++;
+                        i = (width - l) >> 1;
+                        b.moveBuf(i - 1, " ..", cTitle, 3);
+                        b.moveChar(i + 2, ' ', cTitle, l - 2);
+                        b.moveBuf(i + 2, title.AsSpan(start), cTitle, l);
+                        b.putChar(i + l, ' ');
+                        b.putChar(i + l + 1, ' ');
+                    }
                 }
                 else
                 {

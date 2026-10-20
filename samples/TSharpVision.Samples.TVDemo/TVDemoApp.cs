@@ -36,6 +36,8 @@ public partial class TVDemoApp : TApplication
 
     public TVDemoApp() : base()
     {
+        // Code editor windows use the standard save/discard/cancel prompts.
+        TEditorDialogHelper.Install(DeskTop);
         OpenWelcomeWindow();
         LoadPalette();
     }

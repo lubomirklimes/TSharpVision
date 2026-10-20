@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
+using TSharpVision.Config;
 using System.Runtime.InteropServices;
 using TSharpVision.Drivers.SDL.Rendering.Fonts;
 using TSharpVision.Drivers.SDL.Rendering.GlyphComposition;
@@ -32,10 +33,15 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
     // Font params (passed in from SDLGpuDriver / ScreenDriverFactory)
     private readonly string? _fontName;
     private readonly int?    _fontSize;
+    private readonly FontFitMode _fontFit;
 
     // Font / cell metrics (populated in Initialize)
     private IntPtr _font       = IntPtr.Zero;
     private IntPtr _symbolFont = IntPtr.Zero;
+    private string? _symbolFontPath;
+
+    // Font glyph → cell mask, shared placement with SDLRenderer.
+    private SdlCellGlyphRasterizer? _cellGlyphs;
     private int    _cellWidth  = 8;
     private int    _cellHeight = 16;
     private int    _ascent;
@@ -83,24 +89,28 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
     // ─────────────────────────────────────────────────────────────────────────
 
     internal SDLGpuRenderer(IntPtr window, SDLGpuOptions options)
-        : this(window, options, null, null, new SDLGpuPerformanceDiagnostics(options)) { }
+        : this(window, options, null, null, FontFitMode.Condense, new SDLGpuPerformanceDiagnostics(options)) { }
 
     internal SDLGpuRenderer(IntPtr window, SDLGpuOptions options, string? fontName, int? fontSize)
-        : this(window, options, fontName, fontSize, new SDLGpuPerformanceDiagnostics(options)) { }
+        : this(window, options, fontName, fontSize, FontFitMode.Condense, new SDLGpuPerformanceDiagnostics(options)) { }
+
+    internal SDLGpuRenderer(IntPtr window, SDLGpuOptions options, string? fontName, int? fontSize, FontFitMode fontFit)
+        : this(window, options, fontName, fontSize, fontFit, new SDLGpuPerformanceDiagnostics(options)) { }
 
     // Used by unit tests with injectable diagnostics.
     internal SDLGpuRenderer(IntPtr window, SDLGpuOptions options, SDLGpuPerformanceDiagnostics diag)
-        : this(window, options, null, null, diag) { }
+        : this(window, options, null, null, FontFitMode.Condense, diag) { }
 
     private SDLGpuRenderer(
         IntPtr window, SDLGpuOptions options,
-        string? fontName, int? fontSize,
+        string? fontName, int? fontSize, FontFitMode fontFit,
         SDLGpuPerformanceDiagnostics diag)
     {
         _window   = window;
         _options  = options;
         _fontName = fontName;
         _fontSize = fontSize;
+        _fontFit  = fontFit;
         _diag     = diag;
     }
 
@@ -119,6 +129,7 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
         if (_symbolFont == IntPtr.Zero) return;
 
         SDL3.TTF.AddFallbackFont(_font, _symbolFont);
+        _symbolFontPath = symbolPath;
         if (_options.DiagnosticsEnabled)
             Console.Error.WriteLine($"[SDLGpu] symbolFallback='{symbolPath}'");
     }
@@ -238,6 +249,14 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
                     $"cell={_cellWidth}x{_cellHeight} ascent={_ascent}");
 
             TryAddSymbolFallback(ptSize);
+
+            _cellGlyphs = new SdlCellGlyphRasterizer(
+                _font, fontPath, ptSize, _symbolFontPath, _cellWidth, _cellHeight, _fontFit);
+            if (_options.DiagnosticsEnabled)
+                Console.Error.WriteLine(
+                    $"[SDLGpu] textBaseline={_cellGlyphs.TextBaseline} " +
+                    $"descenderDepth={_cellGlyphs.DescenderDepth} accentOverflow={_cellGlyphs.AccentOverflow} " +
+                    $"fontFit={_cellGlyphs.FontFit} textSize={_cellGlyphs.UniformPointSize}pt");
 
             _generatedGlyphs = new CellGlyphBitmapCache(
                 new Cp437GlyphGenerator(_cellWidth, _cellHeight));
@@ -759,56 +778,12 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
         return bitmap.Alpha;
     }
 
-    private byte[]? RenderGlyphToAlpha(char ch)
-    {
-        if (_font == IntPtr.Zero) return null;
-
-        // Render with white so the alpha channel carries the pure glyph shape.
-        // Foreground colour is applied at blend time — one cached shape serves all 16 VGA colours.
-        SDL3.SDL.Color white = new() { R = 255, G = 255, B = 255, A = 255 };
-        IntPtr glyphSurf = SDL3.TTF.RenderGlyphBlended(_font, (ushort)ch, white);
-        if (glyphSurf == IntPtr.Zero) return null;
-
-        IntPtr canvas = SDL3.SDL.CreateSurface(_cellWidth, _cellHeight, SDL3.SDL.PixelFormat.ARGB8888);
-        if (canvas == IntPtr.Zero) { SDL3.SDL.DestroySurface(glyphSurf); return null; }
-
-        try
-        {
-            SDL3.SDL.FillSurfaceRect(canvas, IntPtr.Zero, 0u);
-            SDL3.SDL.SetSurfaceBlendMode(glyphSurf, SDL3.SDL.BlendMode.None);
-
-            // Same cell placement SDLRenderer uses, so both back-ends agree about where a font
-            // glyph sits in its cell. Generated B0-DF glyphs never reach this method.
-            SdlFontCellPlacement.Compute(_font, ch, _ascent, out int srcClipTop, out int dstX);
-            SdlFontCellPlacement.BlitToCanvas(glyphSurf, canvas, srcClipTop, dstX, dstY: 0);
-
-            if (!SDL3.SDL.LockSurface(canvas)) return null;
-
-            SDL3.SDL.Surface surfData = Marshal.PtrToStructure<SDL3.SDL.Surface>(canvas);
-            IntPtr pixelPtr = surfData.Pixels;
-            int pitch = surfData.Pitch;
-
-            // Copy the whole surface at once, then extract the alpha channel.
-            // ARGB8888 on little-endian (x86/ARM64): memory order is B, G, R, A per pixel,
-            // so alpha is at byte offset 3 within each 4-byte pixel.
-            int totalBytes = pitch * _cellHeight;
-            byte[] raw = new byte[totalBytes];
-            Marshal.Copy(pixelPtr, raw, 0, totalBytes);
-            SDL3.SDL.UnlockSurface(canvas);
-
-            byte[] alpha = new byte[_cellWidth * _cellHeight];
-            for (int y = 0; y < _cellHeight; y++)
-                for (int x = 0; x < _cellWidth; x++)
-                    alpha[y * _cellWidth + x] = raw[y * pitch + x * 4 + 3];
-
-            return alpha;
-        }
-        finally
-        {
-            SDL3.SDL.DestroySurface(canvas);
-            SDL3.SDL.DestroySurface(glyphSurf);
-        }
-    }
+    /// <summary>
+    /// Cell-sized font glyph mask from the shared <see cref="SdlCellGlyphRasterizer"/>: the same
+    /// bytes SDLRenderer tints, so both back-ends agree about where a font glyph sits in its cell.
+    /// Generated B0-DF glyphs never reach this method.
+    /// </summary>
+    private byte[]? RenderGlyphToAlpha(char ch) => _cellGlyphs?.Rasterize(ch);
 
     // ─────────────────────────────────────────────────────────────────────────
     // GPU screen texture management
@@ -1069,6 +1044,9 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
 
         _termPipeline?.Dispose();
         _termPipeline = null;
+
+        _cellGlyphs?.Dispose();
+        _cellGlyphs = null;
 
         if (_symbolFont != IntPtr.Zero)
         {

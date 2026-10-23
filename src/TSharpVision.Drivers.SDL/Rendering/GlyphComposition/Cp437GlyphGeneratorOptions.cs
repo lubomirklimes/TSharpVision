@@ -16,4 +16,11 @@ internal sealed record Cp437GlyphGeneratorOptions
 
     /// <summary>How B0/B1/B2 are rendered.</summary>
     public ShadingMode ShadingMode { get; init; } = ShadingMode.PhasedDither;
+
+    /// <summary>
+    /// Size of one dither dot in cell pixels under <see cref="ShadingMode.PhasedDither"/>. 1 at 1×;
+    /// the renderers pass the integral pixel density on a HiDPI drawable so the pattern keeps its
+    /// 1× dot pitch. Ignored (treated as 1) when the cell is not divisible by it.
+    /// </summary>
+    public int ShadingDotSize { get; init; } = 1;
 }

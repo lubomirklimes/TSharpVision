@@ -22,6 +22,10 @@ namespace TSharpVision.Drivers.SDL;
 ///   renderer, as cell-sized masks drawn 1:1.
 ///   5. Space / NUL: background only, no glyph texture.
 ///
+/// Cells are drawn in drawable (output) pixels. On a HiDPI window the cell is the logical cell
+/// scaled by the pixel density (<see cref="SdlCellMetrics"/>) and the font is rasterised at
+/// <c>pointSize × density</c>, so the renderer emits native-resolution pixels.
+///
 /// Glyph textures carry foreground ink on a transparent background (alpha-only).
 /// Background colour is painted separately per cell.
 /// Rendering is dirty/on-demand: <see cref="Render"/> is only called when the
@@ -41,6 +45,7 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
 
     private int _cellWidth  = 12;
     private int _cellHeight = 20;
+    private int _underlineHeight = SdlCellMetrics.LogicalUnderlineHeight;
     private int _ascent     = 15;
     private int _descent;
     private int _fontHeight;
@@ -58,6 +63,19 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
     /// <inheritdoc />
     public int CellHeight => _cellHeight;
 
+    // Font configuration kept for re-rasterising on a pixel-density change.
+    private int         _fontPtSize = DefaultFontPtSize;
+    private FontFitMode _fontFit;
+    private int         _logicalCellWidth;
+    private int         _logicalCellHeight;
+    private SdlCellMetrics _metrics;
+
+    /// <summary>Logical (1×) and drawable cell size.</summary>
+    internal SdlCellMetrics Metrics => _metrics;
+
+    /// <summary>Times the font and glyph caches were rebuilt for a new density. Diagnostics and tests.</summary>
+    internal int DensityRebuilds { get; private set; }
+
     // Fallback symbol font (kept open alongside the primary font to provide
     // coverage for emoji / symbol codepoints absent from monospace fonts).
     private IntPtr _symbolFont = IntPtr.Zero;
@@ -70,7 +88,7 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
     // Font probing
     // ─────────────────────────────────────────────────────────────────────────
 
-    private void TryAddSymbolFallback(int fontPtSize)
+    private void TryAddSymbolFallback(float fontPtSize)
     {
         string? symbolPath = SdlFontLocator.ProbeSymbolFontPath();
         if (symbolPath == null) return;
@@ -100,8 +118,16 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
 
     /// <summary>Creates a text renderer that fits text into the cell by <paramref name="fontFit"/> (<c>[graphics] fontFit</c>).</summary>
     public SDLRenderer(IntPtr renderer, string? fontName, int? fontSize, FontFitMode fontFit)
+        : this(renderer, fontName, fontSize, fontFit, 1f) { }
+
+    /// <summary>
+    /// Creates a text renderer whose cells and glyphs are sized for a drawable of
+    /// <paramref name="pixelDensity"/> pixels per window coordinate (1 on a standard display).
+    /// </summary>
+    public SDLRenderer(IntPtr renderer, string? fontName, int? fontSize, FontFitMode fontFit, float pixelDensity)
     {
         _renderer = renderer;
+        _fontFit  = fontFit;
 
         if (!SDL3.TTF.Init())
             throw new Exception("SDL_ttf could not initialize! " + SDL3.SDL.GetError());
@@ -120,29 +146,17 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
             if (fontPath == null)
                 throw new Exception("[SDLRenderer] No suitable monospace font found on this system.");
 
-            int fontPtSize = fontSize ?? DefaultFontPtSize;
-            _font = SDL3.TTF.OpenFont(fontPath, fontPtSize);
-            if (_font == IntPtr.Zero)
-                throw new Exception($"[SDLRenderer] Failed to load font '{fontPath}': " + SDL3.SDL.GetError());
-
+            _fontPtSize = fontSize ?? DefaultFontPtSize;
             _fontPath   = fontPath;
-            SdlFontMetrics.ComputeMetrics(_font, out _cellWidth, out _cellHeight);
 
-            _ascent     = SDL3.TTF.GetFontAscent(_font);
-            _descent    = SDL3.TTF.GetFontDescent(_font);
-            _fontHeight = SDL3.TTF.GetFontHeight(_font);
-            _lineSkip   = SDL3.TTF.GetFontLineSkip(_font);
+            // The logical cell comes from the font at its configured size (1×), measured once.
+            IntPtr logicalFont = SDL3.TTF.OpenFont(fontPath, _fontPtSize);
+            if (logicalFont == IntPtr.Zero)
+                throw new Exception($"[SDLRenderer] Failed to load font '{fontPath}': " + SDL3.SDL.GetError());
+            SdlFontMetrics.ComputeMetrics(logicalFont, out _logicalCellWidth, out _logicalCellHeight);
+            SDL3.TTF.CloseFont(logicalFont);
 
-            TryAddSymbolFallback(fontPtSize);
-
-            _cellGlyphs = new SdlCellGlyphRasterizer(
-                _font, fontPath, fontPtSize, _symbolFontPath, _cellWidth, _cellHeight, fontFit);
-
-            _generatedGlyphs = new CellGlyphBitmapCache(
-                new Cp437GlyphGenerator(_cellWidth, _cellHeight));
-
-            if (SdlRendererPerformanceDiagnostics.Enabled)
-                LogStartupDiagnostics(fontPtSize);
+            LoadFont(pixelDensity);
         }
         catch
         {
@@ -151,11 +165,82 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
         }
     }
 
+    /// <summary>
+    /// Opens the font at <c>pointSize × density</c> and builds the rasteriser and generated-glyph
+    /// cache for the drawable-pixel cell of that density.
+    /// </summary>
+    private void LoadFont(float density)
+    {
+        _metrics         = SdlCellMetrics.ForDensity(_logicalCellWidth, _logicalCellHeight, density);
+        _cellWidth       = _metrics.PixelWidth;
+        _cellHeight      = _metrics.PixelHeight;
+        _underlineHeight = _metrics.UnderlineHeight;
+
+        float rasterPt = _metrics.RasterPointSize(_fontPtSize);
+        _font = SDL3.TTF.OpenFont(_fontPath, rasterPt);
+        if (_font == IntPtr.Zero)
+            throw new Exception($"[SDLRenderer] Failed to load font '{_fontPath}': " + SDL3.SDL.GetError());
+
+        _ascent     = SDL3.TTF.GetFontAscent(_font);
+        _descent    = SDL3.TTF.GetFontDescent(_font);
+        _fontHeight = SDL3.TTF.GetFontHeight(_font);
+        _lineSkip   = SDL3.TTF.GetFontLineSkip(_font);
+
+        TryAddSymbolFallback(rasterPt);
+
+        _cellGlyphs = new SdlCellGlyphRasterizer(
+            _font, _fontPath, rasterPt, _symbolFontPath, _cellWidth, _cellHeight, _fontFit);
+
+        _generatedGlyphs = new CellGlyphBitmapCache(
+            new Cp437GlyphGenerator(_cellWidth, _cellHeight,
+                Cp437GlyphGeneratorOptions.Default with { ShadingDotSize = _metrics.ShadingDotSize }));
+
+        if (SdlRendererPerformanceDiagnostics.Enabled)
+            LogStartupDiagnostics(rasterPt);
+    }
+
+    /// <summary>Closes the fonts and rasteriser opened by <see cref="LoadFont"/>; SDL_ttf stays initialised.</summary>
+    private void UnloadFont()
+    {
+        _cellGlyphs?.Dispose();
+        _cellGlyphs = null;
+
+        if (_font != IntPtr.Zero)
+        {
+            SDL3.TTF.ClearFallbackFonts(_font);
+            SDL3.TTF.CloseFont(_font);
+            _font = IntPtr.Zero;
+        }
+        if (_symbolFont != IntPtr.Zero)
+        {
+            SDL3.TTF.CloseFont(_symbolFont);
+            _symbolFont = IntPtr.Zero;
+        }
+        _symbolFontPath = null;
+    }
+
+    /// <summary>
+    /// Switches to <paramref name="density"/> (the window moved to a display with another pixel
+    /// density): drops every glyph texture and re-rasterises the font for the new drawable cell.
+    /// A no-op when the density is unchanged, so it never runs per frame.
+    /// </summary>
+    internal SdlCellMetrics SetPixelDensity(float density)
+    {
+        float normalized = SdlDisplayScale.NormalizeDensity(density);
+        if (normalized == _metrics.Density) return _metrics;
+
+        ClearGlyphCache();
+        UnloadFont();
+        LoadFont(normalized);
+        DensityRebuilds++;
+        return _metrics;
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Startup / window diagnostics (opt-in; logged to stderr)
     // ─────────────────────────────────────────────────────────────────────────
 
-    private void LogStartupDiagnostics(int fontPtSize)
+    private void LogStartupDiagnostics(float fontPtSize)
     {
         Console.Error.WriteLine(
             $"[SDLRenderer] platform={RuntimeInformation.OSDescription} " +
@@ -163,8 +248,8 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
 
         Console.Error.WriteLine(
             $"[SDLRenderer] font='{_fontPath}' " +
-            $"fontSize={fontPtSize}pt " +
-            $"cell={_cellWidth}x{_cellHeight}px " +
+            $"fontSize={_fontPtSize}pt rasterSize={fontPtSize:0.##}pt " +
+            $"cell={_cellWidth}x{_cellHeight}px {_metrics.Describe()} " +
             $"ascent={_ascent} descent={_descent} fontH={_fontHeight} lineSkip={_lineSkip} " +
             $"textBaseline={_cellGlyphs?.TextBaseline} " +
             $"fontFit={_cellGlyphs?.FontFit} textSize={_cellGlyphs?.UniformPointSize}pt");
@@ -196,7 +281,12 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
 
         float density = SDL3.SDL.GetWindowPixelDensity(window);
         float scale   = SDL3.SDL.GetWindowDisplayScale(window);
-        Console.Error.WriteLine($"[SDLRenderer] pixelDensity={density:F2} displayScale={scale:F2}");
+        bool  hiDpi   = (SDL3.SDL.GetWindowFlags(window) & SDL3.SDL.WindowFlags.HighPixelDensity) != 0;
+        Console.Error.WriteLine(
+            $"[SDLRenderer] pixelDensity={density:F2} displayScale={scale:F2} highPixelDensity={(hiDpi ? "on" : "off")}");
+
+        SDL3.SDL.GetCurrentRenderOutputSize(renderer, out int outW, out int outH);
+        Console.Error.WriteLine($"[SDLRenderer] renderOutput={outW}x{outH}px {_metrics.Describe()}");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -204,6 +294,15 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
     // ─────────────────────────────────────────────────────────────────────────
 
     private int _vsyncValue = int.MinValue; // int.MinValue = never queried
+
+    // TSHARPVISION_SDL_VSYNC, matched like the SDL GPU switches: trimmed and case-insensitive.
+    internal static int? ParseVSyncRequest(string value) => value.Trim().ToLowerInvariant() switch
+    {
+        "0" or "off" or "false" => SDL3.SDL.RendererVSyncDisabled,
+        "1" or "on" or "true"   => 1,
+        "adaptive"              => SDL3.SDL.RendererVSyncAdaptive,
+        _                       => null,
+    };
 
     private void ApplyVSync(IntPtr renderer)
     {
@@ -220,16 +319,12 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
         }
 
         string? envVal = Environment.GetEnvironmentVariable("TSHARPVISION_SDL_VSYNC");
-        if (string.IsNullOrEmpty(envVal))
+        if (string.IsNullOrWhiteSpace(envVal))
             return;
 
         int requested;
-        if (envVal is "0" or "off" or "false")
-            requested = SDL3.SDL.RendererVSyncDisabled;
-        else if (envVal is "1" or "on" or "true")
-            requested = 1;
-        else if (string.Equals(envVal, "adaptive", StringComparison.OrdinalIgnoreCase))
-            requested = SDL3.SDL.RendererVSyncAdaptive;
+        if (ParseVSyncRequest(envVal) is int parsed)
+            requested = parsed;
         else
         {
             Console.Error.WriteLine(
@@ -495,7 +590,7 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
                 // 1. Background — solid rectangle, no gaps.
                 DrawCellBackground(cellRect, bgArgb);
 
-                // Underline cursor: restore original colours and draw a 2-px bar.
+                // Underline cursor: restore original colours and draw a 2-logical-px bar.
                 if (isCursorCell && _cursorType < 100)
                 {
                     var (origFg, origBg) = SdlPalette.DecodeAttr(attrByte);
@@ -504,9 +599,9 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
                     var underline = new SDL3.SDL.FRect
                     {
                         X = cellRect.X,
-                        Y = cellRect.Y + cellRect.H - 2,
+                        Y = cellRect.Y + cellRect.H - _underlineHeight,
                         W = cellRect.W,
-                        H = 2,
+                        H = _underlineHeight,
                     };
                     DrawCellBackground(underline, origFg);
                     fgArgb = origFg;
@@ -521,7 +616,7 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
                 // 3. Get (or lazily create and cache) the glyph texture.
                 // Phase is the cell's grid position modulo the shading lattice period; it is only
                 // consulted for CP437 B0-DF under PhasedDither (see SdlGlyphTextureKey.Create).
-                GlyphPhase phase = GlyphPhase.ForCell((int)x, (int)y, _cellWidth, _cellHeight);
+                GlyphPhase phase = _generatedGlyphs.Generator.PhaseForCell((int)x, (int)y);
                 IntPtr texture = GetOrCreateGlyphTexture(ch, fgArgb, phase);
                 if (texture == IntPtr.Zero)
                     continue;
@@ -574,21 +669,7 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
         if (disposing)
         {
             ClearGlyphCache();
-
-            _cellGlyphs?.Dispose();
-            _cellGlyphs = null;
-
-            if (_symbolFont != IntPtr.Zero)
-            {
-                SDL3.TTF.CloseFont(_symbolFont);
-                _symbolFont = IntPtr.Zero;
-            }
-
-            if (_font != IntPtr.Zero)
-            {
-                SDL3.TTF.CloseFont(_font);
-                _font = IntPtr.Zero;
-            }
+            UnloadFont();
 
             SDL3.TTF.Quit();
         }

@@ -5,7 +5,7 @@ Install the .NET 10 SDK and create an application:
 ```shell
 dotnet new console -n HelloTSharpVision -f net10.0
 cd HelloTSharpVision
-dotnet add package TSharpVision.Drivers.Console --prerelease
+dotnet add package TSharpVision.Drivers.Console
 ```
 
 Use `TSharpVision.Drivers.Console` for Windows, `TSharpVision.Drivers.Terminal` for Linux/macOS terminals, or `TSharpVision.Drivers.SDL` for a desktop window. Each driver depends on core. Core alone supplies the headless `NullDriver`.
@@ -16,7 +16,7 @@ For local nupkg files, register their directory and keep nuget.org enabled for u
 dotnet nuget add source C:\packages\tsharpvision --name TSharpVisionLocal
 ```
 
-Use an absolute directory on Linux/macOS too. Select an available preview with `--prerelease`, or use `--version` with the exact version in your feed.
+Use an absolute directory on Linux/macOS too. Use `--version` to select an exact version from your feed, and `--prerelease` only for a prerelease build.
 
 ## Run an application
 
@@ -42,7 +42,7 @@ sealed class HelloApp : TApplication
 }
 ```
 
-Run `dotnet run` in an attached console. Alt+X exits; closing the greeting window leaves the application running. For an ANSI terminal select `AnsiTerminalDriver`; for SDL select `SDLDriver`.
+Run `dotnet run` in an attached console. Alt+X exits; closing the greeting window leaves the application running. For an ANSI terminal select `AnsiTerminalDriver`; for an SDL window select `sdl` (the GPU driver, `SDLGpuDriver`) or `SDLDriver`. The aliases `console` and `terminal` pick the native text driver on any OS.
 
 Bounds use character cells relative to the owner. `DeskTop.Insert` attaches the window to the desktop.
 

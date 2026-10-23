@@ -69,7 +69,9 @@ internal sealed class SDLGpuOptions
     internal static uint? ParseAllowedFrames(string? value)
     {
         if (value is null) return null;
-        if (uint.TryParse(value, out uint frames) && frames >= 1 && frames <= 3)
+        if (uint.TryParse(value, System.Globalization.NumberStyles.Integer,
+                System.Globalization.CultureInfo.InvariantCulture, out uint frames)
+            && frames >= 1 && frames <= 3)
             return frames;
         return null;
     }

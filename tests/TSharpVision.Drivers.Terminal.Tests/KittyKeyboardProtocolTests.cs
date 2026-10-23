@@ -33,7 +33,7 @@ public sealed class KittyKeyboardProtocolTests
         decoder.Feed("\x1b[?31u"u8, output.Add);
         Assert.Equal(
             KeyboardCapabilities.KeyReleaseEvents | KeyboardCapabilities.StandaloneModifierTransitions
-                | KeyboardCapabilities.DistinctNumericKeypad,
+                | KeyboardCapabilities.DistinctNumericKeypad | KeyboardCapabilities.StandaloneMetaTransitions,
             decoder.KeyboardCapabilities);
         Assert.Equal(KittyNegotiationState.Active, decoder.NegotiationState);
         Assert.False(decoder.TryRead(out _));
@@ -131,7 +131,7 @@ public sealed class KittyKeyboardProtocolTests
 
         Assert.Equal(
             KeyboardCapabilities.KeyReleaseEvents | KeyboardCapabilities.StandaloneModifierTransitions
-                | KeyboardCapabilities.DistinctNumericKeypad,
+                | KeyboardCapabilities.DistinctNumericKeypad | KeyboardCapabilities.StandaloneMetaTransitions,
             driver.KeyboardCapabilities);
     }
 

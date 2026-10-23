@@ -235,7 +235,7 @@ internal static class AnsiKeyDecoder
             return 3;
         }
 
-        // A well-formed SS3 key whose modifier is not one of xterm's 1..8 is consumed without a key.
+        // A well-formed SS3 key whose modifier is not one of xterm's 1..16 is consumed without a key.
         if (!TryParseSs3Modifier(param, out int mod)) return i + 1;
         uint sh = ModToShift(mod);
         bool functionKey = c is (byte)'P' or (byte)'Q' or (byte)'R' or (byte)'S';
@@ -243,14 +243,18 @@ internal static class AnsiKeyDecoder
         return i + 1;
     }
 
-    // "<mod>" or "1;<mod>", with <mod> the xterm modifier parameter 1..8.
+    // "<mod>" or "1;<mod>", with <mod> the xterm modifier parameter 1..16.
     private static bool TryParseSs3Modifier(ReadOnlySpan<byte> param, out int mod)
     {
         mod = 0;
         if (param.Length > 2 && param[0] == (byte)'1' && param[1] == (byte)';') param = param[2..];
-        if (param.Length != 1 || param[0] is < (byte)'1' or > (byte)'8') return false;
-        mod = param[0] - '0';
-        return true;
+        if (param.Length is < 1 or > 2 || param[0] == (byte)'0') return false;
+        foreach (byte digit in param)
+        {
+            if (digit is < (byte)'0' or > (byte)'9') return false;
+            mod = mod * 10 + digit - '0';
+        }
+        return mod <= 16;
     }
 
     // ESC [ ... <final>  — full CSI parse. Supports arrow keys (`A`..`D`),
@@ -376,8 +380,10 @@ internal static class AnsiKeyDecoder
         return i + 1;
     }
 
-    // xterm modifier parameter: 1 = none, 2 = Shift, 3 = Alt, 4 = Shift+Alt,
-    // 5 = Ctrl, 6 = Ctrl+Shift, 7 = Ctrl+Alt, 8 = Ctrl+Alt+Shift.
+    // xterm modifier parameter: 1 + a bit set of Shift = 1, Alt = 2, Ctrl = 4, Meta = 8, so
+    // 2 = Shift, 3 = Alt, 5 = Ctrl, 9 = Meta, 14 = Ctrl+Meta+Shift. The Meta bit is what terminals
+    // send for Command/Super when they report it; only this explicit bit sets kbMetaShift.
+    // Higher bits (Kitty's Hyper, Meta and lock bits) are not Meta and are ignored.
     private static uint ModToShift(int mod)
     {
         if (mod < 2) return 0;
@@ -386,6 +392,7 @@ internal static class AnsiKeyDecoder
         if ((m & 0x01) != 0) s |= Keys.kbShift;
         if ((m & 0x02) != 0) s |= Keys.kbAltShift;
         if ((m & 0x04) != 0) s |= Keys.kbCtrlShift;
+        if ((m & 0x08) != 0) s |= Keys.kbMetaShift;
         return s;
     }
 

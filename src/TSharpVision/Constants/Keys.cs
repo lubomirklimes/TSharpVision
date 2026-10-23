@@ -378,4 +378,11 @@ public static class Keys
     public const uint kbCapsState   = 0x0040;
     /// <summary>Keyboard-state mask: Insert toggle is active.</summary>
     public const uint kbInsState    = 0x0080;
+    /// <summary>
+    /// Keyboard-state mask: the platform Meta modifier is pressed — Command on macOS, the Windows key, Super on Linux,
+    /// or the Super/Meta bit of a terminal protocol that reports it. A TSharpVision extension: left and right are not
+    /// distinguished, and no key code names it, so the key code keeps the Alt, Ctrl or Shift variant it would have
+    /// without Meta and this state carries the whole combination.
+    /// </summary>
+    public const uint kbMetaShift   = 0x0100;
 }

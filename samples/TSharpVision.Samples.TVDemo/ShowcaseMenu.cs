@@ -44,6 +44,7 @@ public partial class TVDemoApp
                 new TMenuItem("~R~esource dialog...", ShowcaseCmd.Resource, Keys.kbNoKey) +
             new TSubMenu("D~i~agnostics", Keys.kbAltI) +
                 new TMenuItem("~K~eyboard...", TVDemoCmd.cmKeyboardDlg, Keys.kbNoKey) +
+                new TMenuItem("~F~unction keys...", TVDemoCmd.cmFunctionKeysDlg, Keys.kbNoKey) +
                 new TMenuItem("~M~ouse...", TVDemoCmd.cmMouseDlg, Keys.kbNoKey) +
                 new TMenuItem("~H~eap / memory", TVDemoCmd.cmHeap, Keys.kbNoKey) +
             new TSubMenu("~O~ptions", Keys.kbAltO) +

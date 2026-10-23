@@ -361,7 +361,7 @@ public sealed class SequenceMatcherTests
         Assert.Equal(None, DiagnosticRun.KittyCapabilities(0));
         Assert.Equal(None, DiagnosticRun.KittyCapabilities(1 | 2 | 4));
         Assert.Equal(KeyboardCapabilities.DistinctNumericKeypad, DiagnosticRun.KittyCapabilities(8));
-        Assert.Equal(All, DiagnosticRun.KittyCapabilities(31));
+        Assert.Equal(All | KeyboardCapabilities.StandaloneMetaTransitions, DiagnosticRun.KittyCapabilities(31));
     }
 
     [Fact]

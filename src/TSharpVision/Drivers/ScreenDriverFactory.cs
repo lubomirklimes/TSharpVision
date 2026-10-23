@@ -180,55 +180,102 @@ public class ScreenDriverFactory
         throw new PlatformNotSupportedException("Unsupported platform.");
     }
 
+    /// <summary>The environment variable that overrides <c>[driver] name</c>.</summary>
+    internal const string DriverEnvironmentVariable = "TSHARPVISION_DRIVER";
+
     private static Type? GetDriverTypeForPlatform(Platform platform)
     {
-        // TSHARPVISION_DRIVER env var takes precedence over config (useful for CI/tests).
-        string? requested = Environment.GetEnvironmentVariable("TSHARPVISION_DRIVER");
-        if (string.IsNullOrWhiteSpace(requested))
-            requested = _configuration?.Driver.Name;
-
-        var candidates = DriverTypes
+        var registrations = DriverTypes
             .SelectMany(type => type
                 .GetCustomAttributes<ScreenDriverAttribute>()
-                .Select(attribute => new
-                {
-                    Type = type,
-                    Attribute = attribute
-                }))
-            .Where(x => x.Attribute.System == platform);
+                .Select(attribute => (type, attribute)));
 
-        if (!string.IsNullOrWhiteSpace(requested))
+        string? requested = SelectRequestedName(
+            Environment.GetEnvironmentVariable(DriverEnvironmentVariable),
+            _configuration?.Driver.Name);
+
+        return ResolveDriverType(platform, registrations, requested, Console.Error);
+    }
+
+    /// <summary>
+    /// The one requested driver name, wherever it came from: <c>TSHARPVISION_DRIVER</c> takes
+    /// precedence over <c>[driver] name</c> (useful for CI/tests). Both are trimmed; a blank
+    /// value means "not set". Null means automatic selection.
+    /// </summary>
+    internal static string? SelectRequestedName(string? environmentValue, string? configuredValue)
+    {
+        if (!string.IsNullOrWhiteSpace(environmentValue))
+            return environmentValue.Trim();
+        if (!string.IsNullOrWhiteSpace(configuredValue))
+            return configuredValue.Trim();
+        return null;
+    }
+
+    /// <summary>
+    /// Maps a portable alias to the exact driver name it stands for on <paramref name="platform"/>;
+    /// any other name is returned unchanged and is matched literally.
+    /// </summary>
+    /// <remarks>
+    /// <c>sdl</c> is the GPU SDL driver everywhere. <c>console</c> and <c>terminal</c> are the same
+    /// portable choice - the platform's native text driver - so one config file works on every OS.
+    /// Exact names are never reinterpreted: <c>Win32ConsoleDriver</c> does not become
+    /// <c>AnsiTerminalDriver</c> on Unix, nor the other way round.
+    /// </remarks>
+    internal static string ResolveAlias(Platform platform, string requested)
+    {
+        if (string.Equals(requested, "sdl", StringComparison.OrdinalIgnoreCase))
+            return "SDLGpuDriver";
+
+        if (string.Equals(requested, "console", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(requested, "terminal", StringComparison.OrdinalIgnoreCase))
+            return platform == Platform.Windows ? "Win32ConsoleDriver" : "AnsiTerminalDriver";
+
+        return requested;
+    }
+
+    /// <summary>
+    /// Picks the driver for <paramref name="platform"/> among <paramref name="registrations"/>.
+    /// A requested name (alias or exact, case-insensitive) wins when it is registered for the
+    /// platform; an unknown one is reported to <paramref name="warnings"/> and selection falls
+    /// back to the highest-priority registration, as it does when nothing is requested.
+    /// </summary>
+    internal static Type? ResolveDriverType(
+        Platform platform,
+        IEnumerable<(Type Type, ScreenDriverAttribute Attribute)> registrations,
+        string? requested,
+        TextWriter? warnings)
+    {
+        var candidates = registrations
+            .Where(x => x.Attribute.System == platform)
+            .ToList();
+
+        requested = requested?.Trim();
+        if (!string.IsNullOrEmpty(requested))
         {
-            if (string.Equals(requested, "sdl", StringComparison.OrdinalIgnoreCase))
-            {
-                requested = "SDLGpuDriver";
-            }
-            else if (string.Equals(requested, "console", StringComparison.OrdinalIgnoreCase))
-            {
-                return candidates
-                    .Where(x => !x.Attribute.Driver.StartsWith("SDL", StringComparison.OrdinalIgnoreCase))
-                    .OrderByDescending(x => x.Attribute.Priority)
-                    .FirstOrDefault()?.Type;
-            }
+            string driverName = ResolveAlias(platform, requested);
 
             var requestedType = candidates
                 .FirstOrDefault(x =>
                     string.Equals(
                         x.Attribute.Driver,
-                        requested,
+                        driverName,
                         StringComparison.OrdinalIgnoreCase))
-                ?.Type;
+                .Type;
 
             if (requestedType is not null)
                 return requestedType;
 
-            Console.Error.WriteLine(
-                $"Warning: no driver named '{requested}' found for platform {platform}; using default.");
+            string shown = string.Equals(driverName, requested, StringComparison.OrdinalIgnoreCase)
+                ? $"'{requested}'"
+                : $"'{requested}' ({driverName})";
+            warnings?.WriteLine(
+                $"Warning: no driver named {shown} found for platform {platform}; using default.");
         }
 
         return candidates
             .OrderByDescending(x => x.Attribute.Priority)
-            .FirstOrDefault()?.Type;
+            .FirstOrDefault()
+            .Type;
     }
 
     /// <summary>Constructs the selected driver for the current platform without initializing it; throws InvalidOperationException if none is available.</summary>

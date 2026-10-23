@@ -150,17 +150,13 @@ public sealed class SdlMouseTranslatorTests
     }
 
     [Theory]
-    [InlineData(1f, 0f, false, 0x20u)]
-    [InlineData(-1f, 0f, false, 0x10u)]
-    [InlineData(0f, 1f, false, 0x04u)]
-    [InlineData(0f, -1f, false, 0x08u)]
-    [InlineData(1f, 0f, true, 0x10u)]
-    [InlineData(0f, 1f, true, 0x08u)]
-    public void MakeWheelEvents_MapsAxesAndFlippedDirection(
-        float x, float y, bool flipped, uint expected)
+    [InlineData(1f, 0f, 0x20u)]
+    [InlineData(-1f, 0f, 0x10u)]
+    [InlineData(0f, 1f, 0x04u)]
+    [InlineData(0f, -1f, 0x08u)]
+    public void MakeWheelEvents_MapsAxes(float x, float y, uint expected)
     {
-        TEvent ev = Assert.Single(SdlMouseTranslator.MakeWheelEvents(
-            x, y, flipped, 4, 5));
+        TEvent ev = Assert.Single(SdlMouseTranslator.MakeWheelEvents(x, y, 4, 5));
         Assert.Equal(expected, ev.mouse.eventFlags);
         Assert.Equal(0, ev.mouse.buttons);
     }
@@ -169,7 +165,7 @@ public sealed class SdlMouseTranslatorTests
     public void MakeWheelEvents_DualAxisIsVerticalThenHorizontal()
     {
         TEvent[] events = SdlMouseTranslator.MakeWheelEvents(
-            2, -3, flipped: false, 4, 5,
+            2, -3, 4, 5,
             heldButtons: (byte)(Events.mbLeftButton | Events.mbButton4),
             controlKeyState: Keys.kbShift);
         Assert.Equal(2, events.Length);

@@ -39,7 +39,8 @@ internal sealed class KittyKeyboardNegotiator
             if ((ActiveFlags & (2 | 8)) == (2 | 8))
                 capabilities |= KeyboardCapabilities.KeyReleaseEvents;
             if ((ActiveFlags & (2 | 8)) == (2 | 8))
-                capabilities |= KeyboardCapabilities.StandaloneModifierTransitions;
+                capabilities |= KeyboardCapabilities.StandaloneModifierTransitions
+                    | KeyboardCapabilities.StandaloneMetaTransitions;
             // Text-producing keypad keys get dedicated codes only when all keys are
             // reported as escape codes; disambiguation alone covers just the others.
             if ((ActiveFlags & 8) != 0)
@@ -131,9 +132,11 @@ internal sealed class KittyKeyboardDecoder
     private const int LeftShift = 57441;
     private const int LeftControl = 57442;
     private const int LeftAlt = 57443;
+    private const int LeftSuper = 57444;
     private const int RightShift = 57447;
     private const int RightControl = 57448;
     private const int RightAlt = 57449;
+    private const int RightSuper = 57450;
 
     private static readonly ushort[] ControlLetters =
     [
@@ -321,6 +324,7 @@ internal sealed class KittyKeyboardDecoder
             LeftShift => 0, RightShift => 1,
             LeftControl => 2, RightControl => 3,
             LeftAlt => 4, RightAlt => 5,
+            LeftSuper => 6, RightSuper => 7,
             _ => -1,
         };
         if (bit < 0) return false;
@@ -340,7 +344,8 @@ internal sealed class KittyKeyboardDecoder
     }
 
     private static bool IsModifier(int key)
-        => key is LeftShift or LeftControl or LeftAlt or RightShift or RightControl or RightAlt;
+        => key is LeftShift or LeftControl or LeftAlt or LeftSuper
+            or RightShift or RightControl or RightAlt or RightSuper;
 
     private static uint ProjectModifiers(byte physical)
     {
@@ -348,9 +353,14 @@ internal sealed class KittyKeyboardDecoder
         if ((physical & 0b000011) != 0) result |= Keys.kbShift;
         if ((physical & 0b001100) != 0) result |= Keys.kbCtrlShift;
         if ((physical & 0b110000) != 0) result |= Keys.kbAltShift;
+        if ((physical & 0b11000000) != 0) result |= Keys.kbMetaShift;
         return result;
     }
 
+    // Kitty modifier bits: Shift 1, Alt 2, Ctrl 4, Super 8, Hyper 16, Meta 32, Caps Lock 64, Num Lock 128.
+    // Super is the platform GUI key (Command, Windows, Linux Super) and becomes kbMetaShift. Kitty's own
+    // "meta" (32) is the separate X11 Meta modifier, which many layouts put on the Alt key, and Hyper (16)
+    // has no portable meaning; neither is mapped, so Alt+F5 never turns into Alt+Meta+F5.
     private static uint DecodeModifiers(int encoded)
     {
         int bits = Math.Max(0, encoded - 1);
@@ -358,6 +368,7 @@ internal sealed class KittyKeyboardDecoder
         if ((bits & 1) != 0) result |= Keys.kbShift;
         if ((bits & 2) != 0) result |= Keys.kbAltShift;
         if ((bits & 4) != 0) result |= Keys.kbCtrlShift;
+        if ((bits & 8) != 0) result |= Keys.kbMetaShift;
         if ((bits & 64) != 0) result |= Keys.kbCapsState;
         if ((bits & 128) != 0) result |= Keys.kbNumState;
         return result;

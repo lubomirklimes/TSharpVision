@@ -12,7 +12,8 @@ public sealed class SdlModifierTransitionTests
     {
         KeyboardCapabilities expected = KeyboardCapabilities.KeyReleaseEvents
             | KeyboardCapabilities.StandaloneModifierTransitions
-            | KeyboardCapabilities.DistinctNumericKeypad;
+            | KeyboardCapabilities.DistinctNumericKeypad
+            | KeyboardCapabilities.StandaloneMetaTransitions;
         Assert.Equal(expected, new SDLDriver().KeyboardCapabilities);
         Assert.Equal(expected, new SDLGpuDriver().KeyboardCapabilities);
     }

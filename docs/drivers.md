@@ -1,6 +1,6 @@
 # Drivers
 
-Drivers render the core cell grid and translate host input. Select `TSHARPVISION_DRIVER` before runtime startup, or configure `[driver] name`. The environment takes precedence; otherwise the highest-priority installed driver for the OS is selected. An unavailable name prints a warning and falls back to the default, possibly `NullDriver`.
+Drivers render the core cell grid and translate host input. Select `TSHARPVISION_DRIVER` before runtime startup, or configure `[driver] name`; both accept the same names. The portable aliases `sdl` (`SDLGpuDriver`) and `console` or `terminal` (the native text driver: `Win32ConsoleDriver` on Windows, `AnsiTerminalDriver` on Linux and macOS) work on every OS, and an exact driver name selects exactly that driver. The environment takes precedence; otherwise the highest-priority installed driver for the OS is selected, preferring `SDLGpuDriver`, then `SDLDriver`, then the native text driver. An unavailable name prints a warning and falls back to the default, possibly `NullDriver`. See [Environment variables](environment-variables.md#tsharpvision_driver) for the full table.
 
 The runtime reads the user's `.tsvision.cfg`, then overlays `<AssemblyName>.cfg` beside the executable. Driver discovery expects ordinary assembly files in the application output.
 
@@ -49,7 +49,9 @@ Environment.SetEnvironmentVariable("TSHARPVISION_DRIVER", "SDLDriver");
 return TSharpVisionRuntime.Run(() => new TApplication(), "TSharpVision");
 ```
 
-`SDLDriver` uses SDL's renderer. `SDLGpuDriver` uses the GPU/shadercross path and needs suitable graphics support; select it by changing the name above. A failed GPU initialization does not guarantee fallback to another driver. SDL key events carry identity and repeat/release information, while TextInput supplies Unicode and IME text separately.
+`SDLDriver` uses SDL's renderer and is the compatibility path. `SDLGpuDriver` uses the GPU/shadercross path, needs suitable graphics support and is the preferred SDL driver: automatic selection and the `sdl` alias choose it; select it by changing the name above. A failed GPU initialization does not guarantee fallback to another driver. SDL key events carry identity and repeat/release information, while TextInput supplies Unicode and IME text separately.
+
+Both SDL drivers create high-pixel-density windows and render at the window's native pixel density, for example 2× on a Retina display. The grid, window size in points and `fontSize` keep their meaning: glyphs are rasterised at `fontSize` times the density, and a density change re-rasterises them without a restart. Command, the Windows key and Super are reported as `kbMetaShift`. Wheel and trackpad scrolling follow the operating system's scrolling preference, such as macOS natural scrolling.
 
 ### Fonts and font fitting
 

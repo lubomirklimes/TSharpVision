@@ -32,6 +32,31 @@ internal sealed class Cp437GlyphGenerator
     public int CellWidth  => _geometry.CellWidth;
     public int CellHeight => _geometry.CellHeight;
 
+    /// <summary>
+    /// Effective dither dot size: <see cref="Cp437GlyphGeneratorOptions.ShadingDotSize"/> when both
+    /// cell dimensions are multiples of it, otherwise 1. Divisibility is what lets every cell origin
+    /// fall on a dot boundary, so the pattern stays continuous across cells.
+    /// </summary>
+    public int ShadingDotSize
+    {
+        get
+        {
+            int dot = Math.Max(1, _options.ShadingDotSize);
+            return CellWidth % dot == 0 && CellHeight % dot == 0 ? dot : 1;
+        }
+    }
+
+    /// <summary>
+    /// Lattice phase of the cell at grid position (<paramref name="column"/>, <paramref name="row"/>),
+    /// measured in dither dots. The single phase formula the renderers use; equal to
+    /// <see cref="GlyphPhase.ForCell"/> on the cell size when the dot is one pixel.
+    /// </summary>
+    public GlyphPhase PhaseForCell(int column, int row)
+    {
+        int dot = ShadingDotSize;
+        return GlyphPhase.ForCell(column, row, CellWidth / dot, CellHeight / dot);
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Queries
     // ─────────────────────────────────────────────────────────────────────────
@@ -122,15 +147,17 @@ internal sealed class Cp437GlyphGenerator
             return;
         }
 
-        // Phase-correct dither: sample the infinite lattice in absolute screen pixels.
-        // phase is the cell's own origin modulo the lattice period, so cell (c, r) and cell
-        // (c + 1, r) continue the same pattern even when cellWidth is odd.
+        // Phase-correct dither: sample the infinite lattice in absolute dither dots (one dot is
+        // ShadingDotSize pixels square; 1 at 1×). phase is the cell's own origin modulo the
+        // lattice period, in dots, so cell (c, r) and cell (c + 1, r) continue the same pattern
+        // even when the cell is an odd number of dots wide.
+        int dot = ShadingDotSize;
         for (int y = 0; y < cell.Height; y++)
         {
-            int absoluteY = phase.Y + y;
+            int absoluteY = phase.Y + y / dot;
             for (int x = 0; x < cell.Width; x++)
             {
-                if (Cp437ShadingLattice.HasInk(code, phase.X + x, absoluteY))
+                if (Cp437ShadingLattice.HasInk(code, phase.X + x / dot, absoluteY))
                     cell.SetAlpha(x, y, Cp437ShadingLattice.InkAlpha);
             }
         }

@@ -12,7 +12,7 @@ During `ExecView`, the executing modal view becomes the shared routing root. Nes
 
 ## Keyboard
 
-There are three keyboard event kinds. `evKeyDown` is the initial press and each native repeat; there is no separate repeat event and no framework repeat timer. `evKeyUp` is the release of an ordinary key, on drivers that advertise `KeyReleaseEvents`. `evModifierChanged` is a Shift, Ctrl or Alt transition reported on its own, on drivers that advertise `StandaloneModifierTransitions`. Modifier releases are reported only as `evModifierChanged`, never as `evKeyUp`. The historical `evKeyboard` mask still covers `evKeyDown` alone, so a view opts in to the other two.
+There are three keyboard event kinds. `evKeyDown` is the initial press and each native repeat; there is no separate repeat event and no framework repeat timer. `evKeyUp` is the release of an ordinary key, on drivers that advertise `KeyReleaseEvents`. `evModifierChanged` is a Shift, Ctrl or Alt transition reported on its own, on drivers that advertise `StandaloneModifierTransitions`, and a Meta transition on drivers that also advertise `StandaloneMetaTransitions`. Modifier releases are reported only as `evModifierChanged`, never as `evKeyUp`. The historical `evKeyboard` mask still covers `evKeyDown` alone, so a view opts in to the other two.
 
 ### Identity and text
 
@@ -29,6 +29,8 @@ which is complete and intentional, not an unmapped key. Handle shortcuts by `key
 `charScan.scanCode` is the scan component of the packed historical identity, the high byte of `keyCode`. `raw_scanCode` is a different thing: an optional backend-native scan byte that a driver fills in when its host supplies one. It is not a portable physical-key identifier and is zero when not supplied.
 
 `controlKeyState` holds the logical modifier and lock state when the host supplies it.
+
+`kbMetaShift` (0x0100) is the platform Meta modifier: Command on macOS, the Windows key, Super on Linux, and the Super/Meta bit of a terminal protocol that reports one explicitly (xterm modifier parameter bit 8, Kitty Super). Left and right are not distinguished. There are no Meta key codes: Meta+F5 is `kbF5`, Ctrl+Meta+F5 is `kbCtrlF5`, and `controlKeyState` carries the whole combination. ESC-prefixed terminal text is Alt, never Meta; Kitty's separate Hyper and Meta bits are not mapped. The Win32 console reports no Meta state.
 
 ### Releases
 
@@ -94,14 +96,15 @@ Drivers differ in what they can report. `IDriver.KeyboardCapabilities` states wh
 | `KeyReleaseEvents` | Releases of ordinary keys arrive as `evKeyUp`. |
 | `StandaloneModifierTransitions` | Shift, Ctrl and Alt transitions arrive as `evModifierChanged`. |
 | `DistinctNumericKeypad` | Keypad keys are reported with identities separate from the corresponding main-keyboard keys. |
+| `StandaloneMetaTransitions` | Meta (Command, Windows, Super) transitions arrive as `evModifierChanged`. |
 
-`Win32ConsoleDriver`, `SDLDriver` and `SDLGpuDriver` advertise all three. `AnsiTerminalDriver` advertises what the terminal has confirmed, and the value can change after startup once the negotiation reply has been read.
+`SDLDriver` and `SDLGpuDriver` advertise all four. `Win32ConsoleDriver` advertises the first three. `AnsiTerminalDriver` advertises what the terminal has confirmed, and the value can change after startup once the negotiation reply has been read.
 
 ### Terminals
 
 Plain ANSI input is text and escape sequences. It cannot reliably expose key releases, standalone modifiers, the physical origin of a key or a distinct keypad, so the capabilities are `None`, input arrives as key-down events only, and keypad keys are reported as their main-keyboard aliases.
 
-The terminal driver requests the Kitty keyboard protocol at startup and reads the reply asynchronously; capabilities stay `None` until it is confirmed. What is then available depends on the confirmed flags. `KeyReleaseEvents` and `StandaloneModifierTransitions` need both event-type reporting and all-keys reporting, and `DistinctNumericKeypad` needs all-keys reporting, so a partial confirmation can leave some or all of them unavailable. The text of an event is the associated text the terminal reports. A Kitty key identity alone is not turned into generated text. Shutdown disables the negotiated modes and restores the terminal state.
+The terminal driver requests the Kitty keyboard protocol at startup and reads the reply asynchronously; capabilities stay `None` until it is confirmed. What is then available depends on the confirmed flags. `KeyReleaseEvents`, `StandaloneModifierTransitions` and `StandaloneMetaTransitions` need both event-type reporting and all-keys reporting, and `DistinctNumericKeypad` needs all-keys reporting, so a partial confirmation can leave some or all of them unavailable. The text of an event is the associated text the terminal reports. A Kitty key identity alone is not turned into generated text. Shutdown disables the negotiated modes and restores the terminal state.
 
 ## Mouse
 

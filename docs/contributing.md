@@ -11,4 +11,4 @@ dotnet build TSharpVision.slnx -c Release
 dotnet test TSharpVision.slnx -c Release --no-build
 ```
 
-For runnable Markdown examples, `tools/docs/validate_snippets.py` restores and builds consumers against an exact local package feed. Supply `--feed` and `--version`; the feed must include upstream dependencies. Its default output is ignored under `obj/`.
+For runnable Markdown examples, `python scripts/validate-doc-snippets.py --feed PATH --version VERSION` restores and builds consumers against an exact local package feed. Supply `--feed` and `--version`; the feed must include upstream dependencies. Its default output is ignored under `obj/`.

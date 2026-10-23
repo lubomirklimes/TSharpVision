@@ -8,7 +8,7 @@ The Console driver requires Windows console handles. The ANSI Terminal driver ta
 
 Historical Windows x64 package-only restore/build evidence covered core and the three driver packages, not the current eight-package set. It also covered headless lifecycle execution and Console key translation. SDL native loading and shadercross compilation ran in build/publish layouts; that was not a clean-machine package-only graphical test.
 
-This evidence does not establish interactive rendering, input, resize and shutdown across hosts. Interactive Console and Linux/macOS ANSI sessions need matching-host validation. No Windows arm64, macOS or Linux runtime validation is claimed here. Managed build/unit-test results and native-asset availability should be recorded separately from manually exercised UI behavior.
+This evidence does not establish interactive rendering, input, resize and shutdown across hosts. Interactive Console and Linux ANSI sessions need matching-host validation. For 1.0.0, macOS on Apple Silicon was exercised interactively: TVDemo with `SDLDriver` and `SDLGpuDriver` on Retina and external HiDPI displays (rendering, mouse, wheel and trackpad, keyboard including Command) and with `AnsiTerminalDriver` in Apple Terminal. No Windows arm64, macOS Intel or Linux runtime validation is claimed here. Managed build/unit-test results and native-asset availability should be recorded separately from manually exercised UI behavior.
 
 ## SDL deployment
 

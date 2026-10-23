@@ -20,6 +20,8 @@ public static class TVDemoCmd
     public const ushort cmClock       = 307;
     public const ushort cmHeap        = 308;
     public const ushort cmKeyboardDlg = 309;
+    public const ushort cmFunctionKeysDlg = 310;
+    public const ushort cmFunctionKeysReset = 311;
 }
 
 // ---------------------------------------------------------------------------
@@ -111,6 +113,11 @@ public partial class TVDemoApp : TApplication
 
             case TVDemoCmd.cmKeyboardDlg:
                 OpenKeyboardDlg();
+                ClearEvent(ref ev);
+                break;
+
+            case TVDemoCmd.cmFunctionKeysDlg:
+                OpenFunctionKeyDiagnostics();
                 ClearEvent(ref ev);
                 break;
 

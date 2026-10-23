@@ -1,8 +1,57 @@
 # Changelog
 
-## 1.0.0-rc.4
+## 1.0.0
 
-Pending release.
+First stable release of TSharpVision. It contains everything in the 1.0.0 release candidates below, and the public
+API baseline of all eight packages is now shipped, with no pending Unshipped entries. Changes since 1.0.0-rc.4:
+
+### Keyboard and input
+
+- Added a cross-platform Meta modifier: `Keys.kbMetaShift` (0x0100) in `controlKeyState` represents Command on macOS,
+  the Windows key and Linux Super. It combines with Shift, Ctrl, Alt and the lock states; there is no separate Meta
+  key-code family, so Meta+F5 is `kbF5` and Ctrl+Meta+F5 is `kbCtrlF5`, each with the full modifier state. Existing
+  key codes, masks and the Alt > Ctrl > Shift key-code precedence are unchanged.
+- Added `KeyboardCapabilities.StandaloneMetaTransitions`: a driver that advertises it reports Meta presses and
+  releases on their own as `evModifierChanged`.
+- SDL: left and right GUI keys (Command / Windows / Super) set `kbMetaShift`, including standalone transitions, on
+  both `SDLDriver` and `SDLGpuDriver`.
+- ANSI terminal: an xterm/CSI modifier parameter with the Meta bit (8), including SS3 function keys, and Kitty's
+  Super modifier set `kbMetaShift`; with the full Kitty protocol, standalone Super transitions are reported too.
+  ESC-prefixed text is still Alt, and Kitty's separate Hyper and Meta modifiers are not mapped. The Win32 console
+  reports no Meta state.
+- The opt-in input trace is enabled by `TSHARPVISION_TRACE_INPUT=1`, as documented (the mixed-case name it read
+  before is still accepted), and always writes `tsharpvision-input-trace.log`, in lowercase, in the working directory.
+
+### SDL
+
+- Both SDL drivers render at the display's native pixel density (Retina / HiDPI). Glyphs are rasterised at the
+  configured font size times the density, and box drawing, shading, cursor and underline are drawn at drawable
+  resolution, so text and frames are sharp instead of being magnified from a 1× surface. The column/row grid, window
+  size in points and the meaning of `fontSize` are unchanged.
+- When the window's pixel density changes, for example on a display with a different scale, the drivers
+  re-rasterise glyphs without a restart; mouse positions are converted from window coordinates to cells at the
+  current density.
+- Mouse-wheel and trackpad scrolling follow the operating system's scrolling preference, such as macOS natural
+  scrolling, vertically and horizontally. Previously, the SDL drivers reversed the direction whenever SDL reported a
+  flipped device. Both drivers share the same wheel translation; scrolling speed is unchanged.
+- Environment variables are documented in `docs/environment-variables.md`. `TSHARPVISION_SDL_VSYNC` now accepts its
+  values in any case, `TSHARPVISION_DRIVER` ignores surrounding whitespace, and the SDL headless switch is spelled
+  `TSHARPVISION_NO_SDL` (the mixed-case name is still accepted).
+
+### Driver selection
+
+- Driver selection is the same for `TSHARPVISION_DRIVER` and `[driver] name`: `sdl` selects `SDLGpuDriver`, and
+  `console` and `terminal` select the platform's native text driver (`Win32ConsoleDriver` on Windows,
+  `AnsiTerminalDriver` on Linux and macOS), so one configuration file works on every OS. Exact driver names select
+  exactly that driver. Automatic selection now prefers `SDLGpuDriver` over `SDLDriver`; `SDLDriver` stays available
+  by name.
+
+### Samples
+
+- TVDemo: Diagnostics > Function keys shows which of F1–F10 arrive with no modifier, Shift, Ctrl, Alt/Option and
+  Cmd/Meta on the active driver, with live event details, so a terminal's keyboard limits are easy to see.
+
+## 1.0.0-rc.4
 
 - TFrame: fix title rendering at very small widths, including bounds safety and Unicode surrogate-safe truncation.
 - TMenuView: fix menu command enable/disable synchronization, including broadcasts and initial state refresh when opening menus.

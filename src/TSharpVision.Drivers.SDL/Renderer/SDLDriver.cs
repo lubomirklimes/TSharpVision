@@ -4,19 +4,19 @@ using System.Runtime.InteropServices;
 
 namespace TSharpVision.Drivers.SDL;
 
-// NOTE: priority intentionally lower than the platform-native console
-// drivers so headless CI keeps using NullDriver / Win32 console / ANSI.
-// Set TSHARPVISION_DRIVER=SDLDriver to force the SDL window.
+// The SDL_Renderer compatibility path: below SDLGpuDriver (300), above the native
+// text drivers (50). Set TSHARPVISION_DRIVER=SDLDriver to select it explicitly.
 /// <summary>Windowed character-cell backend using the SDL renderer and font rasterization.</summary>
-[ScreenDriver(System = Platform.Windows, Driver = nameof(SDLDriver), Priority = 300)]
-[ScreenDriver(System = Platform.Linux,   Driver = nameof(SDLDriver), Priority = 300)]
-[ScreenDriver(System = Platform.MacOS,   Driver = nameof(SDLDriver), Priority = 300)]
+[ScreenDriver(System = Platform.Windows, Driver = nameof(SDLDriver), Priority = 200)]
+[ScreenDriver(System = Platform.Linux,   Driver = nameof(SDLDriver), Priority = 200)]
+[ScreenDriver(System = Platform.MacOS,   Driver = nameof(SDLDriver), Priority = 200)]
 public class SDLDriver : IDisposable, IDriver, IIdleWaitDriver
 {
-    // Cell metrics are derived from the loaded font at runtime.
-    // These defaults are used only if Initialize() is never called (headless).
-    private int _cellWidth  = 12;
-    private int _cellHeight = 26;
+    // Cell metrics are derived from the loaded font at runtime, in logical (1×) and drawable
+    // pixels; the defaults are used only if Initialize() is never called (headless). Rendering,
+    // the grid and mouse hit-testing all work in drawable pixels.
+    private SdlCellMetrics  _metrics = SdlCellMetrics.ForDensity(12, 26, 1f);
+    private SdlDisplayScale _scale   = SdlDisplayScale.Identity;
 
     // ── Dirty rendering ──────────────────────────────────────────────────────
     // Only call Render/Present when the screen buffer or cursor state changed.
@@ -91,7 +91,7 @@ public class SDLDriver : IDisposable, IDriver, IIdleWaitDriver
     /// <inheritdoc />
     public KeyboardCapabilities KeyboardCapabilities =>
         KeyboardCapabilities.KeyReleaseEvents | KeyboardCapabilities.StandaloneModifierTransitions
-        | KeyboardCapabilities.DistinctNumericKeypad;
+        | KeyboardCapabilities.DistinctNumericKeypad | KeyboardCapabilities.StandaloneMetaTransitions;
 
     /// <summary>Optional rendering callback invoked while pumping messages; initialization installs a callback that renders the screen buffer.</summary>
     public Action<IRenderer>? MessageLoop { get; set; }
@@ -114,9 +114,9 @@ public class SDLDriver : IDisposable, IDriver, IIdleWaitDriver
         // Headless guard: skip SDL when explicitly disabled (e.g., during
         // smoke tests). Actual startup failures propagate after cleanup.
         if (_attached) return;
-        if (Environment.GetEnvironmentVariable("TSharpVision_NO_SDL") == "1")
+        if (SdlHeadlessOptOut.IsRequested())
         {
-            Console.Error.WriteLine("[SDL] Initialization explicitly disabled by TSharpVision_NO_SDL=1; driver remains detached.");
+            Console.Error.WriteLine($"[SDL] Initialization explicitly disabled by {SdlHeadlessOptOut.EnvironmentVariable}=1; driver remains detached.");
             return;
         }
 
@@ -128,11 +128,14 @@ public class SDLDriver : IDisposable, IDriver, IIdleWaitDriver
             initializeVideo();
             sdlInitialized = true;
 
-            int w = _cellWidth  * GetCols();
-            int h = _cellHeight * GetRows();
+            int w = _metrics.LogicalWidth  * GetCols();
+            int h = _metrics.LogicalHeight * GetRows();
 
+            // HighPixelDensity: on a Retina / HiDPI display the renderer output gets the native
+            // backing resolution instead of a 1× surface the compositor would magnify.
             string windowTitle = ScreenDriverFactory.WindowTitle ?? "TSharpVision";
-            if (!SDL3.SDL.CreateWindowAndRenderer(windowTitle, w, h, SDL3.SDL.WindowFlags.Resizable, out window, out renderer))
+            var windowFlags = SDL3.SDL.WindowFlags.Resizable | SDL3.SDL.WindowFlags.HighPixelDensity;
+            if (!SDL3.SDL.CreateWindowAndRenderer(windowTitle, w, h, windowFlags, out window, out renderer))
             {
                 SDL3.SDL.LogError(SDL3.SDL.LogCategory.Application,
                     $"Error creating window and renderer: {SDL3.SDL.GetError()}");
@@ -142,15 +145,15 @@ public class SDLDriver : IDisposable, IDriver, IIdleWaitDriver
             // SDLRenderer construction may throw (font not found).
             // Clean up window, renderer, and SDL state on failure so nothing leaks.
             var graphics = ScreenDriverFactory.Configuration?.Graphics;
-            sdlRenderer = new SDLRenderer(renderer, graphics?.FontName, graphics?.FontSize, FontFit);
+            _scale = SdlDisplayScale.Query(window);
+            sdlRenderer = new SDLRenderer(renderer, graphics?.FontName, graphics?.FontSize, FontFit, _scale.Density);
 
-            // Adopt font-derived cell dimensions from the renderer,
-            // then resize the window so the grid fills the screen correctly.
-            _cellWidth  = sdlRenderer.CellWidth;
-            _cellHeight = sdlRenderer.CellHeight;
-            int finalW = _cellWidth  * GetCols();
-            int finalH = _cellHeight * GetRows();
+            // Adopt font-derived cell dimensions from the renderer, then resize the window so
+            // its drawable holds exactly the grid of drawable cells.
+            _metrics = sdlRenderer.Metrics;
+            var (finalW, finalH) = _metrics.WindowSizeForGrid(GetCols(), GetRows(), _scale);
             SDL3.SDL.SetWindowSize(window, finalW, finalH);
+            _scale = SdlDisplayScale.Query(window);
 
             // Log SDL window / display diagnostics and apply VSync configuration.
             sdlRenderer.LogWindowDiagnostics(window, renderer);
@@ -310,8 +313,7 @@ public class SDLDriver : IDisposable, IDriver, IIdleWaitDriver
             {
                 var kind = eventType == SDL3.SDL.EventType.MouseButtonDown
                     ? SdlMouseEventKind.Down : SdlMouseEventKind.Up;
-                var cell = SdlMouseTranslator.PixelToCell(
-                    (int)e.Button.X, (int)e.Button.Y, _cellWidth, _cellHeight);
+                var cell = WindowToCell(e.Button.X, e.Button.Y);
                 var mev = SdlMouseTranslator.MakeEvent(
                     kind, e.Button.Button, cell.x, cell.y, e.Button.Clicks,
                     controlKeyState: _modifierTranslator.LogicalState);
@@ -335,9 +337,10 @@ public class SDLDriver : IDisposable, IDriver, IIdleWaitDriver
                 // FlushPendingMotion() emits at most one TEvent after the whole
                 // queue is drained, so the framework only processes the latest
                 // cursor position per drain cycle.
+                // The coalescer holds drawable pixels; SDL reports window coordinates.
+                var (px, py) = _scale.WindowToPixel(e.Motion.X, e.Motion.Y);
                 bool overwritten = _coalescer.Accumulate(
-                    (int)e.Motion.X, (int)e.Motion.Y, _heldButtons,
-                    _modifierTranslator.LogicalState);
+                    px, py, _heldButtons, _modifierTranslator.LogicalState);
 
                 _drainMotionReceived++;
                 if (_heldButtons != 0) _drainMotionDuringDrag++;
@@ -349,24 +352,23 @@ public class SDLDriver : IDisposable, IDriver, IIdleWaitDriver
 
             case SDL3.SDL.EventType.MouseWheel:
             {
-                var cell = SdlMouseTranslator.PixelToCell(
-                    (int)e.Wheel.MouseX, (int)e.Wheel.MouseY, _cellWidth, _cellHeight);
                 FlushPendingMotion();
-                foreach (TEvent wev in SdlMouseTranslator.MakeWheelEvents(
-                    e.Wheel.X, e.Wheel.Y,
-                    e.Wheel.Direction == SDL3.SDL.MouseWheelDirection.Flipped,
-                    cell.x, cell.y, _heldButtons, _modifierTranslator.LogicalState))
+                foreach (TEvent wev in TranslateWheel(e.Wheel))
                     TEventQueue.Enqueue(wev);
                 MarkDirty(SdlDirtyReason.MouseButton);
                 break;
             }
 
+            // Size or pixel density changed: a resize, or the window moved to a display with
+            // another scale. Both re-derive the grid from drawable pixels.
             case SDL3.SDL.EventType.WindowResized:
+            case SDL3.SDL.EventType.WindowPixelSizeChanged:
+            case SDL3.SDL.EventType.WindowDisplayScaleChanged:
+            case SDL3.SDL.EventType.WindowDisplayChanged:
             {
                 FlushPendingMotion();
-                if (SDL3.SDL.GetCurrentRenderOutputSize(renderer, out int pw, out int ph))
-                    HandleWindowResize(pw, ph);
-                // _dirty / MarkDirty called inside HandleWindowResize
+                RefreshDisplayScale();
+                // _dirty / MarkDirty called inside ApplyDisplayScale / HandleWindowResize
                 break;
             }
 
@@ -392,7 +394,7 @@ public class SDLDriver : IDisposable, IDriver, IIdleWaitDriver
                 out int px, out int py, out byte held, out uint controlKeyState))
             return;
 
-        var cell = SdlMouseTranslator.PixelToCell(px, py, _cellWidth, _cellHeight);
+        var cell = SdlMouseTranslator.PixelToCell(px, py, _metrics.PixelWidth, _metrics.PixelHeight);
         var mev  = SdlMouseTranslator.MakeEvent(
             SdlMouseEventKind.Move, 0, cell.x, cell.y,
             heldButtons: held, controlKeyState: controlKeyState);
@@ -427,17 +429,64 @@ public class SDLDriver : IDisposable, IDriver, IIdleWaitDriver
         _pendingReasons |= reason;
     }
 
+    /// <summary>Translates an SDL wheel event at its window position into framework wheel events.</summary>
+    internal TEvent[] TranslateWheel(in SDL3.SDL.MouseWheelEvent wheel)
+    {
+        var cell = WindowToCell(wheel.MouseX, wheel.MouseY);
+        return SdlMouseTranslator.MakeWheelEvents(
+            wheel, cell.x, cell.y, _heldButtons, _modifierTranslator.LogicalState);
+    }
+
+    /// <summary>Cell under an SDL mouse position given in window coordinates.</summary>
+    private TPoint WindowToCell(float x, float y)
+    {
+        var (px, py) = _scale.WindowToPixel(x, y);
+        return SdlMouseTranslator.PixelToCell(px, py, _metrics.PixelWidth, _metrics.PixelHeight);
+    }
+
+    /// <summary>
+    /// Re-reads the window's size and pixel density and the renderer's output size, then applies
+    /// them (<see cref="ApplyDisplayScale"/>).
+    /// </summary>
+    private void RefreshDisplayScale()
+    {
+        if (!_attached || window == IntPtr.Zero) return;
+        SdlDisplayScale scale = SdlDisplayScale.Query(window);
+        // The renderer output is the drawable SDLRenderer actually draws into.
+        if (renderer != IntPtr.Zero && SDL3.SDL.GetCurrentRenderOutputSize(renderer, out int pw, out int ph))
+            scale = scale with { PixelWidth = pw, PixelHeight = ph };
+        ApplyDisplayScale(scale);
+    }
+
+    /// <summary>
+    /// A density change re-rasterises the font and glyph textures for the new drawable cell and
+    /// forces a redraw; then the grid is recomputed from the drawable size. Internal so unit
+    /// tests can drive it with synthetic scales.
+    /// </summary>
+    internal void ApplyDisplayScale(SdlDisplayScale scale)
+    {
+        _scale = scale;
+        if (scale.Density != _metrics.Density)
+        {
+            _metrics = sdlRenderer?.SetPixelDensity(scale.Density)
+                ?? SdlCellMetrics.ForDensity(_metrics.LogicalWidth, _metrics.LogicalHeight, scale.Density);
+            MarkDirty(SdlDirtyReason.WindowEvent);
+            if (Renderer.SdlRendererPerformanceDiagnostics.Enabled)
+                Console.Error.WriteLine($"[SDLRenderer] displayScale change {scale.Describe()} → {_metrics.Describe()}");
+        }
+        HandleWindowResize(scale.PixelWidth, scale.PixelHeight);
+    }
+
     /// <summary>
     /// Called when the SDL window is resized. Recalculates the character grid
-    /// from the new pixel dimensions, updates TScreen, reallocates the screen
+    /// from the new drawable pixel dimensions, updates TScreen, reallocates the screen
     /// buffer, forces an immediate redraw, and enqueues cmScreenResized.
     /// </summary>
     private void HandleWindowResize(int pixelW, int pixelH)
     {
-        if (!_attached || _cellWidth <= 0 || _cellHeight <= 0) return;
+        if (!_attached || pixelW <= 0 || pixelH <= 0) return;
 
-        ushort newCols = (ushort)Math.Max(2, pixelW / _cellWidth);
-        ushort newRows = (ushort)Math.Max(1, pixelH / _cellHeight);
+        var (newCols, newRows) = _metrics.GridForDrawable(pixelW, pixelH);
 
         if (newCols == _cols && newRows == _rows) return; // no change
 
@@ -619,6 +668,27 @@ public class SDLDriver : IDisposable, IDriver, IIdleWaitDriver
     }
 
     // ── Internal helpers for unit tests (no SDL required) ───────────────────
+
+    /// <summary>Current cell metrics (logical and drawable).</summary>
+    internal SdlCellMetrics CellMetrics => _metrics;
+
+    /// <summary>Current window/drawable coordinate scale.</summary>
+    internal SdlDisplayScale DisplayScale => _scale;
+
+    /// <summary>Puts the driver in the attached state with the given metrics, without SDL.</summary>
+    internal void AttachForTest(SdlCellMetrics metrics, SdlDisplayScale scale, ushort cols, ushort rows)
+    {
+        _metrics  = metrics;
+        _scale    = scale;
+        _cols     = cols;
+        _rows     = rows;
+        _attached = true;
+        TScreen.ScreenWidth  = cols;
+        TScreen.ScreenHeight = rows;
+    }
+
+    /// <summary>Cell for a window-coordinate mouse position, as button events compute it.</summary>
+    internal TPoint WindowToCellForTest(float x, float y) => WindowToCell(x, y);
 
     /// <summary>Current dirty state — true means a render is pending.</summary>
     internal bool IsDirty => _dirty;

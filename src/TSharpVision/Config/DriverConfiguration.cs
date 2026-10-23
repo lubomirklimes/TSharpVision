@@ -5,6 +5,6 @@ namespace TSharpVision.Config;
 /// </summary>
 public sealed class DriverConfiguration
 {
-    /// <summary>Driver to use: "sdl", "console", or a driver class name. Null = auto.</summary>
+    /// <summary>Driver to use: the alias "sdl", "console" or "terminal", or an exact driver name such as "SDLDriver". Null = auto.</summary>
     public string? Name { get; init; }
 }

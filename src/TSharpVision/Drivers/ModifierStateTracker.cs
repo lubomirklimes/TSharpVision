@@ -10,9 +10,11 @@ internal enum PhysicalModifier
     RightCtrl,
     LeftAlt,
     RightAlt,
+    LeftMeta,
+    RightMeta,
 }
 
-/// <summary>Projects six physical modifier keys onto the three logical Turbo Vision flags.</summary>
+/// <summary>Projects eight physical modifier keys onto the logical Shift, Ctrl, Alt and Meta flags.</summary>
 internal sealed class ModifierStateTracker
 {
     private byte _physicalState;
@@ -43,6 +45,7 @@ internal sealed class ModifierStateTracker
         if ((physicalState & 0b000011) != 0) state |= Keys.kbShift;
         if ((physicalState & 0b001100) != 0) state |= Keys.kbCtrlShift;
         if ((physicalState & 0b110000) != 0) state |= Keys.kbAltShift;
+        if ((physicalState & 0b11000000) != 0) state |= Keys.kbMetaShift;
         return state;
     }
 }

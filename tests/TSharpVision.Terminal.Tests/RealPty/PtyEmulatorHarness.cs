@@ -55,14 +55,18 @@ internal sealed class PtyEmulatorHarness : IDisposable
     [SupportedOSPlatform("linux")]
     [SupportedOSPlatform("macos")]
     public static PtyEmulatorHarness Posix(string fileName, string arguments = "", int columns = 80, int rows = 24,
-        string? workingDirectory = null)
+        string? workingDirectory = null, IReadOnlyDictionary<string, string?>? environment = null)
         => new(new PosixPtyTerminalSession(new PosixPtyTerminalSessionOptions
         {
             FileName = fileName,
             Arguments = arguments,
             WorkingDirectory = workingDirectory ?? Path.GetTempPath(),
             InitialSize = new TerminalSize(columns, rows),
-            Environment = PosixEnvironment,
+            Environment = environment is null
+                ? PosixEnvironment
+                : PosixEnvironment.Concat(environment)
+                    .GroupBy(pair => pair.Key)
+                    .ToDictionary(group => group.Key, group => group.Last().Value),
         }), columns, rows);
 
     [SupportedOSPlatform("windows10.0.17763")]

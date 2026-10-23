@@ -129,7 +129,7 @@ internal static class SdlMouseTranslator
         float deltaY, int cellX, int cellY, out TEvent ev, uint controlKeyState = 0)
     {
         TEvent[] events = MakeWheelEvents(
-            0, deltaY, flipped: false, cellX, cellY, heldButtons: 0, controlKeyState);
+            0, deltaY, cellX, cellY, heldButtons: 0, controlKeyState);
         if (events.Length == 0)
         {
             ev = default;
@@ -140,24 +140,43 @@ internal static class SdlMouseTranslator
     }
 
     /// <summary>
-    /// Translates an SDL3 wheel payload. Flipped axes are normalized, vertical
-    /// output precedes horizontal output, and each result carries one direction.
+    /// Translates an SDL3 wheel event; both SDL drivers route their wheel events through here.
+    /// SDL3 already reports X/Y in the direction the user's system preference asks for
+    /// (macOS natural scrolling, an inverted Wayland axis). <see cref="SDL3.SDL.MouseWheelEvent.Direction"/>
+    /// only records that this is opposite to the physical device motion, so the deltas are used as
+    /// reported: undoing <see cref="SDL3.SDL.MouseWheelDirection.Flipped"/> would restore the physical
+    /// direction and reverse scrolling for users with natural scrolling enabled.
     /// </summary>
     public static TEvent[] MakeWheelEvents(
-        float deltaX,
-        float deltaY,
-        bool flipped,
+        in SDL3.SDL.MouseWheelEvent wheel,
         int cellX,
         int cellY,
         byte heldButtons = 0,
         uint controlKeyState = 0)
     {
-        if (flipped)
-        {
-            deltaX = -deltaX;
-            deltaY = -deltaY;
-        }
+        TEvent[] events = MakeWheelEvents(
+            wheel.X, wheel.Y, cellX, cellY, heldButtons, controlKeyState);
+        if (InputTrace.Enabled)
+            InputTrace.Log("SDL wheel",
+                $"x={wheel.X:R} y={wheel.Y:R} direction={wheel.Direction} " +
+                $"integer=({wheel.IntegerX},{wheel.IntegerY}) cell=({cellX},{cellY}) -> " +
+                (events.Length == 0 ? "none" : string.Join(",", Array.ConvertAll(events, WheelName))));
+        return events;
+    }
 
+    /// <summary>
+    /// Translates wheel deltas that already follow the user's scrolling preference
+    /// (positive Y = <see cref="Events.meWheelUp"/>, positive X = <see cref="Events.meWheelRight"/>).
+    /// Vertical output precedes horizontal output, and each result carries one direction.
+    /// </summary>
+    public static TEvent[] MakeWheelEvents(
+        float deltaX,
+        float deltaY,
+        int cellX,
+        int cellY,
+        byte heldButtons = 0,
+        uint controlKeyState = 0)
+    {
         int count = (deltaY != 0 ? 1 : 0) + (deltaX != 0 ? 1 : 0);
         if (count == 0) return [];
 
@@ -173,6 +192,15 @@ internal static class SdlMouseTranslator
                 cellX, cellY, heldButtons, controlKeyState);
         return events;
     }
+
+    private static string WheelName(TEvent ev) => ev.mouse.eventFlags switch
+    {
+        Events.meWheelUp => "WheelUp",
+        Events.meWheelDown => "WheelDown",
+        Events.meWheelLeft => "WheelLeft",
+        Events.meWheelRight => "WheelRight",
+        var flags => $"0x{flags:X}",
+    };
 
     private static TEvent MakeWheel(
         uint direction, int cellX, int cellY, byte heldButtons, uint controlKeyState)

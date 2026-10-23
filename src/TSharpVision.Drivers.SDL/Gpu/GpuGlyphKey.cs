@@ -53,4 +53,12 @@ internal interface IGpuGlyphSource
     /// <c>cellWidth * cellHeight</c> bytes; <see cref="TerminalAtlas"/> enforces this.
     /// </summary>
     byte[]? GetAlpha(GpuGlyphKey key);
+
+    /// <summary>
+    /// Shading-lattice phase of the cell at (<paramref name="column"/>, <paramref name="row"/>).
+    /// The default is the pixel phase of a <paramref name="cellWidth"/> × <paramref name="cellHeight"/>
+    /// cell; a source whose dither dot is larger than one pixel (HiDPI) measures it in dots.
+    /// </summary>
+    GlyphPhase PhaseForCell(int column, int row, int cellWidth, int cellHeight) =>
+        GlyphPhase.ForCell(column, row, cellWidth, cellHeight);
 }

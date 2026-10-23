@@ -74,9 +74,19 @@ internal sealed class SDLGpuPerformanceDiagnostics : IDisposable
         {
             // Write to a file — stderr is lost when the TUI takes over the terminal.
             string path = Path.Combine(Path.GetTempPath(), "sdlgpu_diag.log");
-            _output     = new StreamWriter(path, append: false) { AutoFlush = true };
-            _ownsWriter = true;
-            Console.Error.WriteLine($"[SDLGpu] Diagnostics → {path}");
+            try
+            {
+                _output     = new StreamWriter(path, append: false) { AutoFlush = true };
+                _ownsWriter = true;
+                Console.Error.WriteLine($"[SDLGpu] Diagnostics → {path}");
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // A diagnostics switch must not stop the driver, e.g. when a second instance holds the file.
+                _output     = Console.Error;
+                _ownsWriter = false;
+                Console.Error.WriteLine($"[SDLGpu] Diagnostics log '{path}' unavailable ({ex.Message}); writing to stderr.");
+            }
         }
         else
         {

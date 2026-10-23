@@ -208,7 +208,31 @@ public sealed class RealPtyEmulatorTests : IDisposable
         if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
 
         LinesFile(3);
-        using var h = PtyEmulatorHarness.Posix(mc!, $"--nosubshell --nocolor {_directory} {_directory}", 100, 30, _directory);
+        // mc reads (and on exit writes) the developer's own configuration: a skin chosen there - a
+        // 256-colour one, say - opens a dialog instead of the panels. An empty configuration of its
+        // own and the default skin make the probe the same on every machine.
+        string home = Directory.CreateTempSubdirectory("u1b-mc-").FullName;
+        try
+        {
+            await MidnightCommander(mc!, new Dictionary<string, string?>
+            {
+                ["XDG_CONFIG_HOME"] = Path.Combine(home, "config"),
+                ["XDG_DATA_HOME"] = Path.Combine(home, "data"),
+                ["XDG_CACHE_HOME"] = Path.Combine(home, "cache"),
+                ["MC_SKIN"] = "default",
+            });
+        }
+        finally
+        {
+            try { Directory.Delete(home, recursive: true); } catch { }
+        }
+    }
+
+    [SupportedOSPlatform("linux")]
+    [SupportedOSPlatform("macos")]
+    private async Task MidnightCommander(string mc, IReadOnlyDictionary<string, string?> environment)
+    {
+        using var h = PtyEmulatorHarness.Posix(mc, $"--nosubshell --nocolor {_directory} {_directory}", 100, 30, _directory, environment);
         await h.StartAsync();
         await h.WaitForAsync(e => e.IsAlternateScreenActive, "the alternate screen");
         await h.WaitForTextAsync("lines.txt");

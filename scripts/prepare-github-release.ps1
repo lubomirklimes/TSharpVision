@@ -72,8 +72,9 @@ are self-contained and do not require a separately installed .NET runtime.
 SHA256SUMS.txt contains SHA-256 checksums for all four demo archives.
 
 macOS binaries are unsigned/not notarized; Gatekeeper may warn. Windows binaries
-are unsigned and SmartScreen may warn. Graphical SDL drivers require a compatible
-display and system graphics libraries; the bundled configuration selects the console/terminal driver.
+are unsigned and SmartScreen may warn. The bundled configuration selects the SDL driver, which
+requires a compatible display and system graphics libraries; set TSHARPVISION_DRIVER to
+Win32ConsoleDriver (Windows) or AnsiTerminalDriver (Linux/macOS) to run in a console or terminal.
 
 Built from tagged commit $commit.
 "@

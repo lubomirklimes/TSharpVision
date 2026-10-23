@@ -12,8 +12,8 @@ namespace TSharpVision.Drivers.SDL.Rendering.GlyphComposition;
 /// </para>
 /// <para>
 /// The key includes everything that can change the pixels:
-/// codepoint, cell width, cell height, shading mode and lattice phase. Phase is part of the key
-/// because a phase-correct dither genuinely differs between cells; it contributes at most
+/// codepoint, cell width, cell height, shading mode, dither dot size and lattice phase. Phase is
+/// part of the key because a phase-correct dither genuinely differs between cells; it contributes at most
 /// <see cref="GlyphPhase.Combinations"/> entries and only for the three shading characters —
 /// every other glyph is stored once, at phase (0, 0).
 /// </para>
@@ -66,7 +66,7 @@ internal sealed class CellGlyphBitmapCache
         GlyphPhase effective = _generator.RequiresPhase(ch) ? phase.Normalized() : GlyphPhase.Zero;
 
         var key = new Key(ch, _generator.CellWidth, _generator.CellHeight,
-                          _generator.Options.ShadingMode, effective.X, effective.Y);
+                          _generator.Options.ShadingMode, _generator.ShadingDotSize, effective.X, effective.Y);
 
         bitmap = _entries.GetOrAdd(key, static (k, gen) => gen.Generate(k.Character, new GlyphPhase(k.PhaseX, k.PhaseY)), _generator);
         return true;
@@ -80,6 +80,7 @@ internal sealed class CellGlyphBitmapCache
         int         CellWidth,
         int         CellHeight,
         ShadingMode ShadingMode,
+        int         ShadingDotSize,
         int         PhaseX,
         int         PhaseY);
 }

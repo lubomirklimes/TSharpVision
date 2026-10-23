@@ -321,7 +321,8 @@ public sealed class DiagnosticRun
     {
         KeyboardCapabilities capabilities = KeyboardCapabilities.None;
         if ((flags & (2 | 8)) == (2 | 8))
-            capabilities |= KeyboardCapabilities.KeyReleaseEvents | KeyboardCapabilities.StandaloneModifierTransitions;
+            capabilities |= KeyboardCapabilities.KeyReleaseEvents | KeyboardCapabilities.StandaloneModifierTransitions
+                | KeyboardCapabilities.StandaloneMetaTransitions;
         if ((flags & 8) != 0) capabilities |= KeyboardCapabilities.DistinctNumericKeypad;
         return capabilities;
     }

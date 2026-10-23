@@ -2,7 +2,7 @@
 
 ## Application starts but no UI appears
 
-Check that you installed a UI driver package and selected its exact name before calling `TSharpVisionRuntime.Run`: `Win32ConsoleDriver`, `AnsiTerminalDriver` or `SDLDriver`. Core alone includes NullDriver, which intentionally produces no UI. An unknown driver name prints a warning and uses the default instead; read stderr.
+Check that you installed a UI driver package and selected it before calling `TSharpVisionRuntime.Run`, by exact name (`Win32ConsoleDriver`, `AnsiTerminalDriver`, `SDLGpuDriver` or `SDLDriver`) or by a portable alias (`sdl`, `console` or `terminal`). Core alone includes NullDriver, which intentionally produces no UI. An unknown driver name prints a warning and uses the default instead; read stderr.
 
 Run Console/Terminal applications in an interactive terminal, not an IDE output panel, service, pipe or redirected session. Console can remain unattached with redirected handles; Terminal can remain unattached without a usable TTY. Installing the Terminal package on Windows does not make it a working interactive Windows driver. Use Console there.
 
@@ -38,4 +38,4 @@ Use NuGet restore/publish to supply matching files. Avoid absolute paths into a 
 
 ## Package version cannot be found
 
-Preview candidates are not necessarily published on NuGet.org. Confirm the version exists on your configured feed and include `--prerelease` when selecting a preview. If using local nupkg files, register their directory and keep nuget.org available for SDL3-CS dependencies.
+Confirm the version exists on your configured feed; NuGet.org carries published releases only, and local or prerelease builds may exist only on your own feed. Include `--prerelease` when selecting a prerelease version. If using local nupkg files, register their directory and keep nuget.org available for SDL3-CS dependencies.

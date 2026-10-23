@@ -170,7 +170,7 @@ public sealed class KeyboardClosureTests
 
     /// <summary>A well-formed SS3 key with a modifier the xterm scheme does not define is consumed without a key.</summary>
     [Theory]
-    [InlineData("\u001bO9P")]
+    [InlineData("\u001bO17P")]
     [InlineData("\u001bO0Q")]
     [InlineData("\u001bO1;17R")]
     [InlineData("\u001bO2;2S")]

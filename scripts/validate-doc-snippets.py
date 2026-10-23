@@ -1,6 +1,6 @@
 """Compile consumer Markdown examples against an exact local NuGet feed.
 
-Usage: python tools/docs/validate_snippets.py --feed PATH --version VERSION
+Usage: python scripts/validate-doc-snippets.py --feed PATH --version VERSION
 The feed must contain the four TSharpVision nupkg files and their upstream
 dependencies. Output defaults to ignored obj/docs-validation and must be fresh.
 No repository ProjectReferences or network package sources are used.
@@ -14,7 +14,7 @@ import re
 import subprocess
 from xml.sax.saxutils import escape
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def main():
@@ -37,22 +37,51 @@ def main():
                      '<config><add key="globalPackagesFolder" value="' +
                      escape(str(output / 'packages'), {'"': '&quot;'}) +
                      '"/></config></configuration>')
-    specs = [('README.md', ['TSharpVision.Drivers.Console']),
-             ('docs/getting-started.md', ['TSharpVision.Drivers.Console']),
-             ('docs/drivers.md', ['TSharpVision.Drivers.Console', 'TSharpVision.Drivers.Terminal',
-                                  'TSharpVision.Drivers.SDL', 'TSharpVision']),
-             ('docs/dialogs-and-controls.md', ['TSharpVision'] * 6)]
+    # Each entry names the snippet, its consumer package and a distinguishing
+    # source fragment. Check both count and order so doc edits cannot silently
+    # redirect the derived GPU variant or Console lifecycle probe.
+    specs = [
+        ('README.md', [
+            ('quick-start', 'TSharpVision.Drivers.Console', 'new HelloApp()')]),
+        ('docs/getting-started.md', [
+            ('getting-started', 'TSharpVision.Drivers.Console', 'new HelloApp()')]),
+        ('docs/drivers.md', [
+            ('console', 'TSharpVision.Drivers.Console', '"Win32ConsoleDriver"'),
+            ('terminal', 'TSharpVision.Drivers.Terminal', '"AnsiTerminalDriver"'),
+            ('sdl', 'TSharpVision.Drivers.SDL', '"SDLDriver"'),
+            ('typed-config', 'TSharpVision', 'GraphicsDriverConfiguration graphics ='),
+            ('config-override', 'TSharpVision', 'TSharpVisionConfiguration loaded ='),
+            ('headless', 'TSharpVision', 'new HeadlessApp()')]),
+        ('docs/dialogs-and-controls.md', [
+            ('name-dialog', 'TSharpVision', 'static class NameDialog'),
+            ('output-dialog', 'TSharpVision', 'static class OutputDialog'),
+            ('checklist-dialog', 'TSharpVision', 'static class ChecklistDialog'),
+            ('language-dialog', 'TSharpVision', 'static class LanguageDialog'),
+            ('project-dialog', 'TSharpVision', 'static class ProjectDialog'),
+            ('edit-popup', 'TSharpVision', 'static class EditPopup')])]
     examples = []
-    for document, packages in specs:
+    named_examples = {}
+    for document, coverage in specs:
         blocks = re.findall(r'```csharp\r?\n(.*?)```', (ROOT / document).read_text(encoding='utf-8'), re.S)
-        if len(blocks) != len(packages):
-            raise SystemExit(f'Update validation coverage for {document}: unexpected C# block count')
-        examples += [(document, i + 1, package, code) for i, (package, code) in enumerate(zip(packages, blocks))]
-    sdl = examples[4]
+        if len(blocks) != len(coverage):
+            raise SystemExit(f'Update validation coverage for {document}: '
+                             f'expected {len(coverage)} C# blocks, found {len(blocks)}')
+        for i, ((name, package, marker), code) in enumerate(zip(coverage, blocks), 1):
+            if marker not in code:
+                raise SystemExit(f'Update validation mapping for {document} #{i}: expected {name}')
+            if name == 'config-override':
+                # This is a continuation of Typed configuration. Supply only
+                # its namespace context; compile the documented body unchanged.
+                code = ('using TSharpVision;\nusing TSharpVision.Config;\n'
+                        'using TSharpVision.Drivers;\n' + code)
+            example = (document, i, package, code)
+            examples.append(example)
+            named_examples[name] = example
+    sdl = named_examples['sdl']
     examples.append((sdl[0], 'gpu-variant', sdl[2], sdl[3].replace('"SDLDriver"', '"SDLGpuDriver"')))
     # A separate bounded probe runs the documented Console bootstrap in a
     # noninteractive host. It is not claimed as execution of the interactive snippet.
-    probe = examples[2][3].replace('new TApplication()', 'new ConsoleSmoke()') + '''
+    probe = named_examples['console'][3].replace('new TApplication()', 'new ConsoleSmoke()') + '''
 sealed class ConsoleSmoke : TApplication
 {
     public override void Idle()
@@ -101,8 +130,11 @@ sealed class ConsoleSmoke : TApplication
         assert f'{package}/{args.version}' in assets['libraries']
         assert f'TSharpVision/{args.version}' in assets['libraries']
         runtime = ('Not run: composition helper requires an active application' if composition
+                   else 'Not run: requires configured application context'
+                   if (document, block) in {named_examples[name][:2]
+                                            for name in ('typed-config', 'config-override')}
                    else 'Not run: requires interactive matching host')
-        if (package == 'TSharpVision' and not composition) or (block == 'console-headless' and os.name == 'nt'):
+        if (document, block) == named_examples['headless'][:2] or (block == 'console-headless' and os.name == 'nt'):
             run('run', ['dotnet', 'run', '-c', 'Release', '--no-build', '--no-restore'])
             runtime = 'Passed: headless lifecycle'
         results.append({'document': document, 'block': block, 'package': package,

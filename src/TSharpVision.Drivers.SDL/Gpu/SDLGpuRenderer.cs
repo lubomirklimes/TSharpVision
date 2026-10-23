@@ -42,12 +42,30 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
 
     // Font glyph → cell mask, shared placement with SDLRenderer.
     private SdlCellGlyphRasterizer? _cellGlyphs;
+    private string _fontPath = string.Empty;
     private int    _cellWidth  = 8;
     private int    _cellHeight = 16;
+    private int    _underlineHeight = SdlCellMetrics.LogicalUnderlineHeight;
     private int    _ascent;
 
+    // Cell size at 1× (measured once from the configured font size) and at the active pixel
+    // density. _cellWidth/_cellHeight are the drawable-pixel cell the render thread draws with.
+    private int            _logicalCellWidth;
+    private int            _logicalCellHeight;
+    private SdlCellMetrics _metrics;
+
+    // Pixel density: requested by the driver (main thread), applied by the render thread before
+    // its next frame, which re-rasterises the font and rebuilds the atlas at the new size.
+    private volatile float _requestedDensity = 1f;
+    private float          _activeDensity    = 1f;
+
+    /// <summary>Cell width in drawable pixels at the density the renderer was initialised with.</summary>
     public int CellWidth  => _cellWidth;
+    /// <summary>Cell height in drawable pixels at the density the renderer was initialised with.</summary>
     public int CellHeight => _cellHeight;
+
+    /// <summary>Logical (1×) and drawable cell size after <see cref="Initialize"/>.</summary>
+    internal SdlCellMetrics Metrics => _metrics;
 
     // GPU device
     private IntPtr _device      = IntPtr.Zero;
@@ -120,7 +138,7 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
     // Font path lookup lives in SdlFontLocator and cell metrics in SdlFontMetrics, shared with
     // SDLRenderer and the glyph-diagnostic tool.
 
-    private void TryAddSymbolFallback(int ptSize)
+    private void TryAddSymbolFallback(float ptSize)
     {
         string? symbolPath = SdlFontLocator.ProbeSymbolFontPath();
         if (symbolPath == null) return;
@@ -181,8 +199,11 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
         if (_options.PresentMode is SDL3.SDL.GPUPresentMode presentMode)
             ApplyPresentMode(presentMode);
 
-        // Font
-        LoadFont();
+        // Font, rasterised at the window's native pixel density.
+        float density = SdlDisplayScale.Query(_window).Density;
+        LoadFont(density);
+        _activeDensity    = _metrics.Density;
+        _requestedDensity = _metrics.Density;
 
         // GPU shader pipeline (optional; falls back to CPU compositing on failure)
         TryCreateGpuPipeline();
@@ -195,7 +216,7 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
         {
             _termPipeline = new TerminalGpuPipeline(
                 _device, _window, _cellWidth, _cellHeight,
-                glyphSource: this);
+                glyphSource: this, underlineHeight: _underlineHeight);
             if (_options.DiagnosticsEnabled)
                 Console.Error.WriteLine("[SDLGpu] GPU pipeline active (shader-based rendering).");
         }
@@ -207,51 +228,75 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
         }
     }
 
-    private void LoadFont()
+    /// <summary>
+    /// Opens the configured font for <paramref name="density"/>. The cell's logical size comes from
+    /// the font at its configured point size (measured once); glyphs are rasterised from a handle at
+    /// <c>pointSize × density</c> into the drawable-pixel cell, so text keeps its visual size and is
+    /// rendered natively instead of being magnified by the compositor.
+    /// </summary>
+    private void LoadFont(float density)
     {
         try
         {
-            if (!SDL3.TTF.Init())
+            if (!_ttfInitialized)
             {
-                throw new InvalidOperationException($"SDL_ttf init failed: {SDL3.SDL.GetError()}");
-            }
-
-            _ttfInitialized = true;
-            string? fontPath = null;
-            if (!string.IsNullOrWhiteSpace(_fontName))
-            {
-                fontPath = SdlFontLocator.ProbeFontPathByName(_fontName);
-                if (fontPath == null)
-                    Console.Error.WriteLine(
-                        $"[SDLGpu] Font '{_fontName}' not found; falling back to default.");
-            }
-            fontPath ??= SdlFontLocator.ProbeFontPath();
-
-            if (fontPath == null)
-            {
-                throw new InvalidOperationException("No suitable monospace font found.");
+                if (!SDL3.TTF.Init())
+                    throw new InvalidOperationException($"SDL_ttf init failed: {SDL3.SDL.GetError()}");
+                _ttfInitialized = true;
             }
 
             int ptSize = _fontSize ?? DefaultFontPtSize;
-            _font = SDL3.TTF.OpenFont(fontPath, ptSize);
+            if (_logicalCellWidth == 0)
+            {
+                string? fontPath = null;
+                if (!string.IsNullOrWhiteSpace(_fontName))
+                {
+                    fontPath = SdlFontLocator.ProbeFontPathByName(_fontName);
+                    if (fontPath == null)
+                        Console.Error.WriteLine(
+                            $"[SDLGpu] Font '{_fontName}' not found; falling back to default.");
+                }
+                fontPath ??= SdlFontLocator.ProbeFontPath();
+
+                if (fontPath == null)
+                {
+                    throw new InvalidOperationException("No suitable monospace font found.");
+                }
+
+                IntPtr logicalFont = SDL3.TTF.OpenFont(fontPath, ptSize);
+                if (logicalFont == IntPtr.Zero)
+                {
+                    throw new InvalidOperationException(
+                        $"[SDLGpu] Could not open font '{fontPath}': {SDL3.SDL.GetError()}");
+                }
+                SdlFontMetrics.ComputeMetrics(logicalFont, out _logicalCellWidth, out _logicalCellHeight);
+                SDL3.TTF.CloseFont(logicalFont);
+                _fontPath = fontPath;
+            }
+
+            _metrics         = SdlCellMetrics.ForDensity(_logicalCellWidth, _logicalCellHeight, density);
+            _cellWidth       = _metrics.PixelWidth;
+            _cellHeight      = _metrics.PixelHeight;
+            _underlineHeight = _metrics.UnderlineHeight;
+
+            float rasterPt = _metrics.RasterPointSize(ptSize);
+            _font = SDL3.TTF.OpenFont(_fontPath, rasterPt);
             if (_font == IntPtr.Zero)
             {
                 throw new InvalidOperationException(
-                    $"[SDLGpu] Could not open font '{fontPath}': {SDL3.SDL.GetError()}");
+                    $"[SDLGpu] Could not open font '{_fontPath}': {SDL3.SDL.GetError()}");
             }
-
-            SdlFontMetrics.ComputeMetrics(_font, out _cellWidth, out _cellHeight);
             _ascent = SDL3.TTF.GetFontAscent(_font);
 
             if (_options.DiagnosticsEnabled)
                 Console.Error.WriteLine(
-                    $"[SDLGpu] font='{fontPath}' ptSize={ptSize} " +
-                    $"cell={_cellWidth}x{_cellHeight} ascent={_ascent}");
+                    $"[SDLGpu] font='{_fontPath}' ptSize={ptSize} rasterPt={rasterPt:0.##} " +
+                    $"cell={_cellWidth}x{_cellHeight} ascent={_ascent} {_metrics.Describe()}");
 
-            TryAddSymbolFallback(ptSize);
+            TryAddSymbolFallback(rasterPt);
 
             _cellGlyphs = new SdlCellGlyphRasterizer(
-                _font, fontPath, ptSize, _symbolFontPath, _cellWidth, _cellHeight, _fontFit);
+                _font, _fontPath, rasterPt, _symbolFontPath, _cellWidth, _cellHeight, _fontFit);
             if (_options.DiagnosticsEnabled)
                 Console.Error.WriteLine(
                     $"[SDLGpu] textBaseline={_cellGlyphs.TextBaseline} " +
@@ -259,12 +304,78 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
                     $"fontFit={_cellGlyphs.FontFit} textSize={_cellGlyphs.UniformPointSize}pt");
 
             _generatedGlyphs = new CellGlyphBitmapCache(
-                new Cp437GlyphGenerator(_cellWidth, _cellHeight));
+                new Cp437GlyphGenerator(_cellWidth, _cellHeight,
+                    Cp437GlyphGeneratorOptions.Default with { ShadingDotSize = _metrics.ShadingDotSize }));
         }
         catch (Exception ex)
         {
             throw new InvalidOperationException($"[SDLGpu] Font load failed: {ex.Message}", ex);
         }
+    }
+
+    /// <summary>Closes the fonts and rasteriser opened by <see cref="LoadFont"/>; SDL_ttf stays initialised.</summary>
+    private void UnloadFont()
+    {
+        _cellGlyphs?.Dispose();
+        _cellGlyphs = null;
+
+        if (_font != IntPtr.Zero)
+        {
+            SDL3.TTF.ClearFallbackFonts(_font);
+            SDL3.TTF.CloseFont(_font);
+            _font = IntPtr.Zero;
+        }
+        if (_symbolFont != IntPtr.Zero)
+        {
+            SDL3.TTF.CloseFont(_symbolFont);
+            _symbolFont = IntPtr.Zero;
+        }
+        _symbolFontPath = null;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Pixel density changes (window moved to a display with another scale)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Asks the render thread to switch to <paramref name="density"/> before its next frame and
+    /// returns the cell metrics it will use, so the driver can recompute the grid and mouse
+    /// mapping immediately on the main thread. No SDL_ttf or GPU call happens here.
+    /// </summary>
+    internal SdlCellMetrics RequestPixelDensity(float density)
+    {
+        SdlCellMetrics next = SdlCellMetrics.ForDensity(_logicalCellWidth, _logicalCellHeight, density);
+        _requestedDensity = next.Density;
+        return next;
+    }
+
+    /// <summary>Times the font and atlas were rebuilt for a new density. Diagnostics and tests.</summary>
+    internal int DensityRebuilds { get; private set; }
+
+    /// <summary>
+    /// Render thread: re-rasterises the font and rebuilds the glyph cache and atlas when the
+    /// requested density differs from the active one. Runs only on a change, never per frame.
+    /// </summary>
+    private void ApplyPendingDensity()
+    {
+        float requested = _requestedDensity;
+        if (requested == _activeDensity || _device == IntPtr.Zero) return;
+
+        SDL3.SDL.WaitForGPUIdle(_device);
+        _termPipeline?.Dispose();
+        _termPipeline = null;
+        _glyphCache.Clear();
+        UnloadFont();
+
+        LoadFont(requested);
+        TryCreateGpuPipeline();
+        _activeDensity = requested;
+        DensityRebuilds++;
+
+        if (_options.DiagnosticsEnabled)
+            Console.Error.WriteLine(
+                $"[SDLGpu] pixelDensity change → {_metrics.Describe()} " +
+                $"atlas={_termPipeline?.AtlasSize ?? 0}px/{_termPipeline?.AtlasCapacity ?? 0} slots");
     }
 
     private void ApplyPresentMode(SDL3.SDL.GPUPresentMode presentMode)
@@ -301,7 +412,9 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
         Console.Error.WriteLine(
             $"[SDLGpu] window logical={logW}x{logH} pixels={pixW}x{pixH} " +
             $"density={SDL3.SDL.GetWindowPixelDensity(window):F2} " +
-            $"scale={SDL3.SDL.GetWindowDisplayScale(window):F2}");
+            $"scale={SDL3.SDL.GetWindowDisplayScale(window):F2} " +
+            $"highPixelDensity={((SDL3.SDL.GetWindowFlags(window) & SDL3.SDL.WindowFlags.HighPixelDensity) != 0 ? "on" : "off")}");
+        Console.Error.WriteLine($"[SDLGpu] {_metrics.Describe()}");
 
         Console.Error.WriteLine(
             $"[SDLGpu] mode={(_options.Continuous ? "continuous" : "on-demand")} " +
@@ -313,7 +426,8 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
 
         if (_termPipeline != null)
             Console.Error.WriteLine(
-                $"[SDLGpu] atlas capacity={_termPipeline.AtlasCapacity} slots at {_cellWidth}x{_cellHeight}");
+                $"[SDLGpu] atlas size={_termPipeline.AtlasSize}x{_termPipeline.AtlasSize} " +
+                $"capacity={_termPipeline.AtlasCapacity} slots at {_cellWidth}x{_cellHeight}");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -436,6 +550,8 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
         uint regionX, uint regionY, uint regionWidth, uint regionHeight)
     {
         if (_device == IntPtr.Zero) return;
+
+        ApplyPendingDensity();
 
         var frameSw = _options.DiagnosticsEnabled ? Stopwatch.StartNew() : null;
 
@@ -628,8 +744,7 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
 
                 // Same shared phase helper, same key construction and same cache as the shader
                 // path — there is one generated-glyph implementation, not one per path.
-                GlyphPhase phase =
-                    GlyphPhase.ForCell((int)col, (int)row, _cellWidth, _cellHeight);
+                GlyphPhase phase = _generatedGlyphs.Generator.PhaseForCell((int)col, (int)row);
 
                 byte[]? alphaGlyph = GetOrCreateGlyphAlpha(ch, phase);
                 if (alphaGlyph != null)
@@ -668,10 +783,10 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
         byte b = (byte)( argb        & 0xFF);
 
         int x0 = (int)(col * (uint)_cellWidth);
-        int y0 = (int)(row * (uint)_cellHeight) + _cellHeight - 2;
+        int y0 = (int)(row * (uint)_cellHeight) + _cellHeight - _underlineHeight;
         int totalBytes = _cpuPixels.Length;
 
-        for (int dy = 0; dy < 2; dy++)
+        for (int dy = 0; dy < _underlineHeight; dy++)
         {
             int rowBase = ((y0 + dy) * (int)screenW + x0) * 4;
             if (rowBase < 0 || rowBase >= totalBytes) continue;
@@ -737,6 +852,9 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
     /// depend on it — only the three shading characters vary with phase, so everything else keeps
     /// one atlas slot per codepoint.
     /// </summary>
+    public GlyphPhase PhaseForCell(int column, int row, int cellWidth, int cellHeight) =>
+        _generatedGlyphs.Generator.PhaseForCell(column, row);
+
     public GpuGlyphKey CreateKey(char ch, GlyphPhase phase)
     {
         if (!_generatedGlyphs.Generator.RequiresPhase(ch))
@@ -1045,20 +1163,7 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
         _termPipeline?.Dispose();
         _termPipeline = null;
 
-        _cellGlyphs?.Dispose();
-        _cellGlyphs = null;
-
-        if (_symbolFont != IntPtr.Zero)
-        {
-            SDL3.TTF.CloseFont(_symbolFont);
-            _symbolFont = IntPtr.Zero;
-        }
-
-        if (_font != IntPtr.Zero)
-        {
-            SDL3.TTF.CloseFont(_font);
-            _font = IntPtr.Zero;
-        }
+        UnloadFont();
         if (_ttfInitialized)
         {
             SDL3.TTF.Quit();

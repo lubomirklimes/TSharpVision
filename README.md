@@ -19,7 +19,7 @@ T# Vision is a text-mode UI framework for C# and .NET, with Turbo Vision-style w
 
 Install one driver package; it brings in `TSharpVision` transitively, including the public core APIs used below. A separate core reference is only needed for a core-only/headless application or when intentionally managing its version directly.
 
-Package metadata currently defaults to `1.0.0-rc.4`. This does not imply a NuGet.org publication. Use an available prerelease from your configured feed; see [Getting Started](https://github.com/lubomirklimes/TSharpVision/blob/main/docs/getting-started.md) for local-feed setup.
+The current stable version is `1.0.0`; all eight packages share one version, and its public API is the 1.0 baseline. Packages are published on NuGet.org; see [Getting Started](https://github.com/lubomirklimes/TSharpVision/blob/main/docs/getting-started.md) for using a local package feed instead.
 
 ## Requirements
 
@@ -27,12 +27,12 @@ Use the **.NET 10 SDK** to build (`net10.0`) and a matching .NET 10 runtime to r
 
 ## Quick Start
 
-In a Windows console, create a project and install the Console driver from your configured package feed:
+In a Windows console, create a project and install the Console driver:
 
 ```shell
 dotnet new console -n HelloTSharpVision -f net10.0
 cd HelloTSharpVision
-dotnet add package TSharpVision.Drivers.Console --prerelease
+dotnet add package TSharpVision.Drivers.Console
 ```
 
 Replace `Program.cs` with:
@@ -62,6 +62,8 @@ Run `dotnet run`. You should see a window with a greeting; press **Alt+X** to ex
 ## Drivers
 
 Select a driver before starting the runtime. The examples choose an exact driver name to avoid depending on automatic selection. See [Drivers](https://github.com/lubomirklimes/TSharpVision/blob/main/docs/drivers.md) for Console, Terminal, SDL and headless examples.
+
+On macOS, the SDL drivers render at the display's native Retina resolution and report Command as the Meta modifier (`kbMetaShift`). In a terminal, which modifier and function-key combinations arrive depends on the emulator: terminals that support the Kitty keyboard protocol, such as iTerm2, can report more than Apple Terminal, which cannot send every combination distinctly.
 
 ## Documentation
 

@@ -2792,3 +2792,5 @@ TSharpVision.KeyDownEvent.keypadKey -> ushort
 TSharpVision.KeypadKeys
 virtual TSharpVision.TProgram.NormalizeKeyEvent(ref TSharpVision.TEvent event) -> void
 static TSharpVision.KeyText.IsNamedSpecialKey(ushort keyCode) -> bool
+const TSharpVision.Constants.Keys.kbMetaShift = 256 -> uint
+TSharpVision.Drivers.KeyboardCapabilities.StandaloneMetaTransitions = 8 -> TSharpVision.Drivers.KeyboardCapabilities

@@ -45,6 +45,10 @@ internal static class SdlKeyTranslator
     public const ushort SDL_KMOD_LALT   = 0x0100;
     /// <summary>SDL modifier mask for right Alt being pressed.</summary>
     public const ushort SDL_KMOD_RALT   = 0x0200;
+    /// <summary>SDL modifier mask for left GUI (Command, Windows, Super) being pressed.</summary>
+    public const ushort SDL_KMOD_LGUI   = 0x0400;
+    /// <summary>SDL modifier mask for right GUI (Command, Windows, Super) being pressed.</summary>
+    public const ushort SDL_KMOD_RGUI   = 0x0800;
 
     /// <summary>SDL modifier mask for Num Lock being active.</summary>
     public const ushort SDL_KMOD_NUM    = 0x1000;
@@ -59,6 +63,8 @@ internal static class SdlKeyTranslator
     public const ushort SDL_KMOD_CTRL  = SDL_KMOD_LCTRL  | SDL_KMOD_RCTRL;
     /// <summary>SDL modifier mask for either Alt key being pressed.</summary>
     public const ushort SDL_KMOD_ALT   = SDL_KMOD_LALT   | SDL_KMOD_RALT;
+    /// <summary>SDL modifier mask for either GUI key being pressed.</summary>
+    public const ushort SDL_KMOD_GUI   = SDL_KMOD_LGUI   | SDL_KMOD_RGUI;
 
     // SDL3 SDLK_* constants (only the keys we map). The high bit 0x40000000
     // is the SDL "scancode mask" that distinguishes named keys from ASCII.
@@ -126,12 +132,16 @@ internal static class SdlKeyTranslator
     public const uint SDLK_LSHIFT = 0x400000E1;
     /// <summary>SDL key code for left Alt; pass as the keycode argument to translation.</summary>
     public const uint SDLK_LALT   = 0x400000E2;
+    /// <summary>SDL key code for left GUI (Command, Windows, Super); pass as the keycode argument to translation.</summary>
+    public const uint SDLK_LGUI   = 0x400000E3;
     /// <summary>SDL key code for right Control; pass as the keycode argument to translation.</summary>
     public const uint SDLK_RCTRL  = 0x400000E4;
     /// <summary>SDL key code for right Shift; pass as the keycode argument to translation.</summary>
     public const uint SDLK_RSHIFT = 0x400000E5;
     /// <summary>SDL key code for right Alt; pass as the keycode argument to translation.</summary>
     public const uint SDLK_RALT   = 0x400000E6;
+    /// <summary>SDL key code for right GUI (Command, Windows, Super); pass as the keycode argument to translation.</summary>
+    public const uint SDLK_RGUI   = 0x400000E7;
 
     /// <summary>
     /// Translate an SDL_KEYDOWN into a tvision <see cref="TEvent"/>.
@@ -151,7 +161,8 @@ internal static class SdlKeyTranslator
         // Drop bare modifier presses.
         if (keycode == SDLK_LCTRL || keycode == SDLK_RCTRL ||
             keycode == SDLK_LSHIFT || keycode == SDLK_RSHIFT ||
-            keycode == SDLK_LALT || keycode == SDLK_RALT)
+            keycode == SDLK_LALT || keycode == SDLK_RALT ||
+            keycode == SDLK_LGUI || keycode == SDLK_RGUI)
             return false;
 
         uint shift = ToShiftState(modState);
@@ -262,13 +273,15 @@ internal static class SdlKeyTranslator
         return false;
     }
 
-    /// <summary>Maps SDL Shift, Control, Alt, and lock modifier bits to framework keyboard-state masks.</summary>
+    /// <summary>Maps SDL Shift, Control, Alt, GUI, and lock modifier bits to framework keyboard-state masks.</summary>
     public static uint ToShiftState(ushort modState)
     {
         uint s = 0;
         if ((modState & SDL_KMOD_SHIFT) != 0) s |= Keys.kbShift;
         if ((modState & SDL_KMOD_CTRL)  != 0) s |= Keys.kbCtrlShift;
         if ((modState & SDL_KMOD_ALT)   != 0) s |= Keys.kbAltShift;
+        // Both GUI keys are one Meta flag, as both Ctrl and both Alt keys are one flag each.
+        if ((modState & SDL_KMOD_GUI)   != 0) s |= Keys.kbMetaShift;
         if ((modState & SDL_KMOD_NUM) != 0) s |= Keys.kbNumState;
         if ((modState & SDL_KMOD_CAPS) != 0) s |= Keys.kbCapsState;
         if ((modState & SDL_KMOD_SCROLL) != 0) s |= Keys.kbScrollState;

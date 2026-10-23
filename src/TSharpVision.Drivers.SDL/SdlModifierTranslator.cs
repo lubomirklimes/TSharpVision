@@ -13,7 +13,8 @@ internal sealed class SdlModifierTranslator
     public static bool IsModifierKey(uint keycode)
         => keycode is SdlKeyTranslator.SDLK_LSHIFT or SdlKeyTranslator.SDLK_RSHIFT
             or SdlKeyTranslator.SDLK_LCTRL or SdlKeyTranslator.SDLK_RCTRL
-            or SdlKeyTranslator.SDLK_LALT or SdlKeyTranslator.SDLK_RALT;
+            or SdlKeyTranslator.SDLK_LALT or SdlKeyTranslator.SDLK_RALT
+            or SdlKeyTranslator.SDLK_LGUI or SdlKeyTranslator.SDLK_RGUI;
 
     public bool TryTranslate(uint keycode, bool down, out TEvent ev)
     {
@@ -46,6 +47,8 @@ internal sealed class SdlModifierTranslator
             SdlKeyTranslator.SDLK_RCTRL => PhysicalModifier.RightCtrl,
             SdlKeyTranslator.SDLK_LALT => PhysicalModifier.LeftAlt,
             SdlKeyTranslator.SDLK_RALT => PhysicalModifier.RightAlt,
+            SdlKeyTranslator.SDLK_LGUI => PhysicalModifier.LeftMeta,
+            SdlKeyTranslator.SDLK_RGUI => PhysicalModifier.RightMeta,
             _ => default,
         };
         return IsModifierKey(keycode);

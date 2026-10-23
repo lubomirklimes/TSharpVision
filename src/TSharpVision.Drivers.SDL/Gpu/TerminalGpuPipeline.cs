@@ -36,6 +36,7 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
     private readonly IntPtr _device;
     private readonly int    _cellWidth;
     private readonly int    _cellHeight;
+    private readonly int    _underlineHeight;
     private readonly IGpuGlyphSource _glyphSource;
 
     private readonly TerminalAtlas _atlas;
@@ -63,11 +64,13 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
         IntPtr window,
         int    cellWidth,
         int    cellHeight,
-        IGpuGlyphSource glyphSource)
+        IGpuGlyphSource glyphSource,
+        int    underlineHeight = SdlCellMetrics.LogicalUnderlineHeight)
     {
         _device      = device;
         _cellWidth   = cellWidth;
         _cellHeight  = cellHeight;
+        _underlineHeight = Math.Clamp(underlineHeight, 1, cellHeight);
         _glyphSource = glyphSource;
 
         _maxBgBytes    = (_maxCells + 1) * 6 * sizeof(BgVertex);
@@ -338,6 +341,9 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
     /// <summary>Glyph slots the atlas can hold at the current cell size. Diagnostics only.</summary>
     internal int AtlasCapacity => _atlas.Capacity;
 
+    /// <summary>Atlas side in pixels. Diagnostics only.</summary>
+    internal int AtlasSize => _atlas.Size;
+
     /// <summary>Glyph slots allocated so far. Diagnostics only.</summary>
     internal int AtlasAllocatedSlots => _atlas.AllocatedSlots;
 
@@ -421,8 +427,8 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
 
                 if (underlineCursor)
                 {
-                    // 2-pixel tall underline bar inside the cell (bottom 2 rows)
-                    float barY0 = cy0 - (_cellHeight - 2) * (invH);
+                    // Underline bar inside the cell: 2 logical pixels, scaled to the drawable.
+                    float barY0 = cy0 - (_cellHeight - _underlineHeight) * (invH);
                     EmitQuad(bgPtr, ref bgCount, cx0, barY0, cx1, cy1, cellFgR, cellFgG, cellFgB);
                 }
 
@@ -433,7 +439,7 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
                     // single phase formula in the codebase; CreateKey then normalises it away for
                     // every glyph that cannot depend on it, so only B0/B1/B2 gain extra slots.
                     GlyphPhase phase =
-                        GlyphPhase.ForCell((int)col, (int)row, _cellWidth, _cellHeight);
+                        _glyphSource.PhaseForCell((int)col, (int)row, _cellWidth, _cellHeight);
                     GpuGlyphKey glyphKey = _glyphSource.CreateKey(ch, phase);
 
                     var (u0, v0, u1, v1) = _atlas.GetOrAllocateSlot(glyphKey, _glyphSource.GetAlpha);

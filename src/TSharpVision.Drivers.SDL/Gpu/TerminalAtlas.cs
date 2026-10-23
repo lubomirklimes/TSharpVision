@@ -3,6 +3,8 @@
 namespace TSharpVision.Drivers.SDL.Gpu;
 
 // R8Unorm glyph atlas: one slot per GpuGlyphKey, cellWidth×cellHeight pixels each.
+// The cell is in drawable pixels, so on a HiDPI window the atlas grows (ChooseSize) to keep
+// roughly the slot count it has at 1×.
 // The CPU buffer is kept in sync with allocated slots. UploadIfDirty copies it
 // to the GPU texture inside an already-open copy pass.
 //
@@ -12,8 +14,17 @@ namespace TSharpVision.Drivers.SDL.Gpu;
 // generation is deterministic in any case.
 internal sealed class TerminalAtlas : IDisposable
 {
-    private const int AtlasWidth  = 1024;
-    private const int AtlasHeight = 1024;
+    /// <summary>Atlas side at 1× cell sizes, and the floor for any cell size.</summary>
+    internal const int MinAtlasSize = 1024;
+
+    /// <summary>Largest atlas side (16 MiB of R8); every SDL_GPU backend supports 4096² textures.</summary>
+    internal const int MaxAtlasSize = 4096;
+
+    /// <summary>Slots the atlas aims to hold before it stops growing.</summary>
+    internal const int TargetSlots = 2048;
+
+    private readonly int _atlasWidth;
+    private readonly int _atlasHeight;
 
     private readonly IntPtr _device;
     private readonly int    _cellWidth;
@@ -40,14 +51,33 @@ internal sealed class TerminalAtlas : IDisposable
     /// <summary>Slots allocated so far. Diagnostics only.</summary>
     internal int AllocatedSlots => _nextSlot;
 
+    /// <summary>
+    /// Smallest power-of-two side from <see cref="MinAtlasSize"/> up to <see cref="MaxAtlasSize"/>
+    /// that holds <see cref="TargetSlots"/> cells of the given size. A 12×24 cell keeps the 1024²
+    /// atlas it always had; its 2× counterpart (24×48) gets 2048², the same 3570 slots.
+    /// </summary>
+    internal static int ChooseSize(int cellWidth, int cellHeight)
+    {
+        int size = MinAtlasSize;
+        while (size < MaxAtlasSize &&
+               (size / Math.Max(1, cellWidth)) * (size / Math.Max(1, cellHeight)) < TargetSlots)
+            size *= 2;
+        return size;
+    }
+
+    /// <summary>Atlas side in pixels (square).</summary>
+    internal int Size => _atlasWidth;
+
     internal TerminalAtlas(IntPtr device, int cellWidth, int cellHeight)
     {
         _device        = device;
         _cellWidth     = cellWidth;
         _cellHeight    = cellHeight;
-        _atlasColCount = AtlasWidth  / cellWidth;
-        _atlasRowCount = AtlasHeight / cellHeight;
-        _cpu           = new byte[AtlasWidth * AtlasHeight];
+        _atlasWidth     = ChooseSize(cellWidth, cellHeight);
+        _atlasHeight    = _atlasWidth;
+        _atlasColCount = _atlasWidth  / cellWidth;
+        _atlasRowCount = _atlasHeight / cellHeight;
+        _cpu           = new byte[_atlasWidth * _atlasHeight];
         _slots         = new Dictionary<GpuGlyphKey, int>();
         try
         {
@@ -68,8 +98,8 @@ internal sealed class TerminalAtlas : IDisposable
             Type              = SDL3.SDL.GPUTextureType.TextureType2D,
             Format            = SDL3.SDL.GPUTextureFormat.R8Unorm,
             Usage             = SDL3.SDL.GPUTextureUsageFlags.Sampler,
-            Width             = (uint)AtlasWidth,
-            Height            = (uint)AtlasHeight,
+            Width             = (uint)_atlasWidth,
+            Height            = (uint)_atlasHeight,
             LayerCountOrDepth = 1,
             NumLevels         = 1,
             SampleCount       = SDL3.SDL.GPUSampleCount.SampleCount1,
@@ -90,7 +120,7 @@ internal sealed class TerminalAtlas : IDisposable
         var xferInfo = new SDL3.SDL.GPUTransferBufferCreateInfo
         {
             Usage = SDL3.SDL.GPUTransferBufferUsage.Upload,
-            Size  = (uint)(AtlasWidth * AtlasHeight),
+            Size  = (uint)(_atlasWidth * _atlasHeight),
         };
         _transferBuf = SDL3.SDL.CreateGPUTransferBuffer(_device, in xferInfo);
         if (_texture == IntPtr.Zero || _sampler == IntPtr.Zero || _transferBuf == IntPtr.Zero)
@@ -120,7 +150,7 @@ internal sealed class TerminalAtlas : IDisposable
 
     private void BlitGlyphToAtlas(int slot, byte[] alpha, GpuGlyphKey key)
     {
-        // The copy below walks cellHeight rows of cellWidth bytes into a shared 1024x1024
+        // The copy below walks cellHeight rows of cellWidth bytes into the shared atlas
         // buffer, so a wrong length reads past the source or writes into a neighbouring slot.
         GeneratedGlyphValidator.EnsureExpectedLength(alpha, _cellWidth, _cellHeight, key.Codepoint);
 
@@ -131,7 +161,7 @@ internal sealed class TerminalAtlas : IDisposable
 
         for (int y = 0; y < _cellHeight; y++)
         {
-            int dstBase = (yOff + y) * AtlasWidth + xOff;
+            int dstBase = (yOff + y) * _atlasWidth + xOff;
             int srcBase = y * _cellWidth;
             alpha.AsSpan(srcBase, _cellWidth).CopyTo(_cpu.AsSpan(dstBase));
         }
@@ -141,10 +171,10 @@ internal sealed class TerminalAtlas : IDisposable
     {
         int col = slot % _atlasColCount;
         int row = slot / _atlasColCount;
-        float u0 = (float)(col * _cellWidth)  / AtlasWidth;
-        float v0 = (float)(row * _cellHeight) / AtlasHeight;
-        float u1 = u0 + (float)_cellWidth  / AtlasWidth;
-        float v1 = v0 + (float)_cellHeight / AtlasHeight;
+        float u0 = (float)(col * _cellWidth)  / _atlasWidth;
+        float v0 = (float)(row * _cellHeight) / _atlasHeight;
+        float u1 = u0 + (float)_cellWidth  / _atlasWidth;
+        float v1 = v0 + (float)_cellHeight / _atlasHeight;
         return (u0, v0, u1, v1);
     }
 
@@ -163,8 +193,8 @@ internal sealed class TerminalAtlas : IDisposable
         {
             TransferBuffer = _transferBuf,
             Offset         = 0,
-            PixelsPerRow   = (uint)AtlasWidth,
-            RowsPerLayer   = (uint)AtlasHeight,
+            PixelsPerRow   = (uint)_atlasWidth,
+            RowsPerLayer   = (uint)_atlasHeight,
         };
         var dst = new SDL3.SDL.GPUTextureRegion
         {
@@ -172,8 +202,8 @@ internal sealed class TerminalAtlas : IDisposable
             MipLevel = 0,
             Layer    = 0,
             X = 0, Y = 0, Z = 0,
-            W = (uint)AtlasWidth,
-            H = (uint)AtlasHeight,
+            W = (uint)_atlasWidth,
+            H = (uint)_atlasHeight,
             D = 1,
         };
         SDL3.SDL.UploadToGPUTexture(copyPass, in src, in dst, false);

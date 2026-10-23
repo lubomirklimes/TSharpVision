@@ -23,9 +23,20 @@ public static class InputTrace
     // ---- public API -------------------------------------------------------
 
     /// <summary>True when TSHARPVISION_TRACE_INPUT=1 was set at process start.</summary>
-    public static readonly bool Enabled = 
-        string.Equals(Environment.GetEnvironmentVariable("TSharpVision_TRACE_INPUT"),
-                      "1", StringComparison.Ordinal);
+    public static readonly bool Enabled = IsEnabled(Environment.GetEnvironmentVariable);
+
+    /// <summary>The documented variable name; environment names are case-sensitive on macOS and Linux.</summary>
+    internal const string EnvironmentVariable = "TSHARPVISION_TRACE_INPUT";
+    // The mixed-case spelling the implementation once read, still honoured when the documented name is unset.
+    internal const string LegacyEnvironmentVariable = "TSharpVision_TRACE_INPUT";
+    // Lowercase, so the name is the same on case-sensitive and case-insensitive file systems.
+    internal const string LogFileName = "tsharpvision-input-trace.log";
+
+    internal static bool IsEnabled(Func<string, string?> getVariable)
+    {
+        string? value = getVariable(EnvironmentVariable) ?? getVariable(LegacyEnvironmentVariable);
+        return string.Equals(value, "1", StringComparison.Ordinal);
+    }
 
     /// <summary>Write a free-form log line.</summary>
     public static void Log(string stage, string detail)
@@ -125,7 +136,7 @@ public static class InputTrace
         try
         {
             _writer = new StreamWriter(
-                path: "TSharpVision-input-trace.log",
+                path: LogFileName,
                 append: false,
                 encoding: Encoding.UTF8)
             { AutoFlush = true };

@@ -122,20 +122,21 @@ public sealed class ChDirLayoutTests
     {
         using var temp = new TempDirectory(); using var scope = new DemoTestScope();
         Directory.SetCurrentDirectory(temp.Path);
-        string child = Directory.CreateDirectory(Path.Combine(temp.Path, "short")).FullName;
+        string currentDirectory = Directory.GetCurrentDirectory();
+        string child = Directory.CreateDirectory(Path.Combine(currentDirectory, "short")).FullName;
         Directory.CreateDirectory(Path.Combine(child, new string('q', 100)));
         var dialog = new DemoDirectoryDialog(); scope.App.DeskTop!.Insert(dialog);
         var tree = dialog.dirList!;
         int childIndex = Enumerable.Range(0, tree.range).Single(i => tree.List()!.At(i).Dir().TrimEnd('/', '\\').Replace('\\', '/') == child.Replace('\\', '/'));
         tree.FocusItem(childIndex);
         var command = ScriptedDemoApp.CommandEvent(Views.cmChangeDir); dialog.HandleEvent(ref command);
-        Assert.Equal(temp.Path, Directory.GetCurrentDirectory());
+        Assert.Equal(currentDirectory, Directory.GetCurrentDirectory());
         Assert.Equal(child, Path.GetFullPath(dialog.dirInput!.Data));
         int longest = Enumerable.Range(0, tree.range).Max(i => tree.List()!.At(i).Text().Length);
         Assert.Equal(longest - (tree.size.x - 1), tree.hScrollBar!.maxVal);
         Assert.True(tree.hScrollBar.maxVal > 0); tree.hScrollBar.SetValue(tree.hScrollBar.maxVal);
         command = ScriptedDemoApp.CommandEvent(Views.cmRevert); dialog.HandleEvent(ref command);
-        Assert.Equal(temp.Path, dialog.dirInput.Data); Assert.Equal(temp.Path, Directory.GetCurrentDirectory());
+        Assert.Equal(currentDirectory, dialog.dirInput.Data); Assert.Equal(currentDirectory, Directory.GetCurrentDirectory());
         longest = Enumerable.Range(0, tree.range).Max(i => tree.List()!.At(i).Text().Length);
         Assert.Equal(Math.Max(0, longest - (tree.size.x - 1)), tree.hScrollBar.maxVal);
         Assert.Equal(0, tree.hScrollBar.value); CheckBars(tree);
@@ -147,7 +148,9 @@ public sealed class ChDirLayoutTests
     public void RelocatedButtonsWorkThroughMouseAndMnemonics(bool mouse)
     {
         using var temp = new TempDirectory(); using var scope = new DemoTestScope();
-        string child = temp.CreateSubDir("child"); Directory.SetCurrentDirectory(temp.Path);
+        Directory.SetCurrentDirectory(temp.Path);
+        string currentDirectory = Directory.GetCurrentDirectory();
+        string child = Directory.CreateDirectory(Path.Combine(currentDirectory, "child")).FullName;
         var app = scope.App; DemoDirectoryDialog? dialog = null;
         app.Step(() =>
         {
@@ -158,13 +161,13 @@ public sealed class ChDirLayoutTests
         });
         app.Step(() =>
         {
-            Assert.Equal(temp.Path, Directory.GetCurrentDirectory());
+            Assert.Equal(currentDirectory, Directory.GetCurrentDirectory());
             Assert.Equal(child, Path.GetFullPath(dialog!.dirInput!.Data));
             Activate(Views.cmRevert, Keys.kbAltR);
         });
         app.Step(() =>
         {
-            Assert.Equal(temp.Path, dialog!.dirInput!.Data);
+            Assert.Equal(currentDirectory, dialog!.dirInput!.Data);
             dialog.dirInput.SetData(child); Activate(Views.cmOK, Keys.kbAltO);
         });
         app.DismissResult("Directory accepted");

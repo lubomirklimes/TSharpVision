@@ -172,7 +172,7 @@ public sealed class FileDialogWildcardFilteringTests : IDisposable
             {
                 dlg.SetData(Path.Combine("nested", "*.twproj"));
                 Assert.Equal(new[] { "delta.twproj" }, Files(dlg));
-                Assert.Equal(Dir(Path.Combine(_tmp.Path, "nested")), dlg.Directory);
+                Assert.Equal(Dir(Path.Combine(Environment.CurrentDirectory, "nested")), dlg.Directory);
             });
         }
         finally { Environment.CurrentDirectory = saved; }

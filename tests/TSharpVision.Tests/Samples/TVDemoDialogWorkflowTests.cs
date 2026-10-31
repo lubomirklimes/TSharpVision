@@ -183,10 +183,11 @@ public sealed class TVDemoDialogWorkflowTests
     public void DirectoryBrowseRevertAndAcceptOrCancelHaveDistinctCwdEffects(bool cancel)
     {
         using var temp = new TempDirectory();
-        string child = Path.Combine(temp.Path, "child");
-        Directory.CreateDirectory(child);
         using var scope = new DemoTestScope(); // captures CWD before the change, restores before temp disposal
         Directory.SetCurrentDirectory(temp.Path);
+        string currentDirectory = Directory.GetCurrentDirectory();
+        string child = Path.Combine(currentDirectory, "child");
+        Directory.CreateDirectory(child);
         var app = scope.App;
         DemoDirectoryDialog? dialog = null;
         app.Step(() =>
@@ -201,13 +202,13 @@ public sealed class TVDemoDialogWorkflowTests
         });
         app.Step(() =>
         {
-            Assert.Equal(temp.Path, Directory.GetCurrentDirectory());
+            Assert.Equal(currentDirectory, Directory.GetCurrentDirectory());
             Assert.Equal(child, Path.GetFullPath(dialog!.dirInput!.Data));
             ScriptedDemoApp.Button(dialog, Views.cmRevert).Press();
         });
         app.Step(() =>
         {
-            Assert.Equal(temp.Path, dialog!.dirInput!.Data);
+            Assert.Equal(currentDirectory, dialog!.dirInput!.Data);
             dialog.dirInput.SetData(child);
             if (cancel) ComboInput.Send(ComboInput.Key(Keys.kbEsc));
             else ScriptedDemoApp.Button(dialog, Views.cmOK).Press();
@@ -216,12 +217,12 @@ public sealed class TVDemoDialogWorkflowTests
         {
             string text = ScriptedDemoApp.Text(app.Modal<TDialog>());
             Assert.Contains(cancel ? "cancelled" : "accepted", text);
-            Assert.Contains("Previous: " + temp.Path, text);
-            Assert.Contains("Current: " + (cancel ? temp.Path : child), text);
+            Assert.Contains("Previous: " + currentDirectory, text);
+            Assert.Contains("Current: " + (cancel ? currentDirectory : child), text);
             ComboInput.Send(ComboInput.Key(Keys.kbEsc));
         });
         app.RunCommand(ShowcaseCmd.ChangeDirectory);
-        Assert.Equal(cancel ? temp.Path : child, Directory.GetCurrentDirectory());
+        Assert.Equal(cancel ? currentDirectory : child, Directory.GetCurrentDirectory());
         Assert.Null(dialog!.dirList);
     }
 

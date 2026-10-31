@@ -146,7 +146,9 @@ public sealed class RealPtyEmulatorTests : IDisposable
 
         await h.TypeAsync("hi nano ✓");
         await h.KeyAsync(Keys.kbCtrlO, Keys.kbLeftCtrl);
-        await h.WaitForTextAsync("File Name to Write");
+        await h.WaitForAsync(e => Enumerable.Range(0, e.Rows).Any(r =>
+            e.GetRowText(r).Contains("File Name to Write", StringComparison.Ordinal)
+            || e.GetRowText(r).Contains("Write to File:", StringComparison.Ordinal)), "nano's write prompt");
         await h.KeyAsync(Keys.kbEnter);
         await h.WaitForTextAsync("Wrote");
         await h.KeyAsync(Keys.kbCtrlX, Keys.kbLeftCtrl);

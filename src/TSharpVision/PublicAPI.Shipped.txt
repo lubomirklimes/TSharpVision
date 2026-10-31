@@ -620,6 +620,7 @@ override TSharpVision.TDialog.HandleEvent(ref TSharpVision.TEvent event) -> void
 override TSharpVision.TDialog.Read(TSharpVision.Ipstream! isStream) -> object!
 override TSharpVision.TDialog.Valid(ushort command) -> bool
 override TSharpVision.TDialog.Write(TSharpVision.Opstream! os) -> void
+override TSharpVision.TDirListBox.ChangeBounds(TSharpVision.TRect bounds) -> void
 override TSharpVision.TDirListBox.DataSize() -> ushort
 override TSharpVision.TDirListBox.GetData(ref object! rec) -> void
 override TSharpVision.TDirListBox.GetText(int item, int maxChars) -> string!
@@ -729,6 +730,7 @@ override TSharpVision.THistory.Draw() -> void
 override TSharpVision.THistory.GetPalette() -> TSharpVision.TPalette!
 override TSharpVision.THistory.HandleEvent(ref TSharpVision.TEvent event) -> void
 override TSharpVision.THistory.Read(TSharpVision.Ipstream! isStream) -> object!
+override TSharpVision.THistory.SetState(ushort aState, bool enable) -> void
 override TSharpVision.THistory.ShutDown() -> void
 override TSharpVision.THistory.Write(TSharpVision.Opstream! os) -> void
 override TSharpVision.THistoryViewer.GetPalette() -> TSharpVision.TPalette!
@@ -1141,6 +1143,7 @@ static TSharpVision.TEventQueue.RepeatDelay -> int
 static TSharpVision.TEventQueue.Resume() -> void
 static TSharpVision.TEventQueue.Suspend() -> void
 static TSharpVision.TEventQueue.UiThreadId.get -> int
+static TSharpVision.TEventQueue.WakeEventLoop() -> void
 static TSharpVision.Text.LegacyTextEncodings.Register(string! name, TSharpVision.Text.ILegacyTextEncoding! encoding) -> void
 static TSharpVision.Text.LegacyTextEncodings.RegisterSingleByte(string! name, System.Collections.Generic.IReadOnlyList<char>! byteToChar) -> void
 static TSharpVision.Text.LegacyTextEncodings.TryGet(string! name, out TSharpVision.Text.ILegacyTextEncoding? encoding) -> bool
@@ -1360,6 +1363,12 @@ TSharpVision.Drivers.IDriver.SupportsMouse.get -> bool
 TSharpVision.Drivers.IDriver.SupportsTrueColor.get -> bool
 TSharpVision.Drivers.IDriver.Suspend() -> void
 TSharpVision.Drivers.IDriver.WriteBuf(int x, int y, int w, int h, System.Span<TSharpVision.TScreenChar> buf) -> void
+TSharpVision.Drivers.IDriverDecorator
+TSharpVision.Drivers.IDriverDecorator.Decorate(TSharpVision.Drivers.IDriver! backend, string? requestedBackend) -> TSharpVision.Drivers.IDriver!
+TSharpVision.Drivers.IEventLoopObserver
+TSharpVision.Drivers.IEventLoopObserver.OnIdleBoundary(TSharpVision.TProgram! application) -> void
+TSharpVision.Drivers.IGridSizeDriver
+TSharpVision.Drivers.IGridSizeDriver.SetGridSize(ushort columns, ushort rows) -> void
 TSharpVision.Drivers.IIdleWaitDriver
 TSharpVision.Drivers.IIdleWaitDriver.WaitForEvent(int timeoutMilliseconds, System.Threading.WaitHandle! wakeSignal) -> void
 TSharpVision.Drivers.IRenderer
@@ -2794,3 +2803,84 @@ virtual TSharpVision.TProgram.NormalizeKeyEvent(ref TSharpVision.TEvent event) -
 static TSharpVision.KeyText.IsNamedSpecialKey(ushort keyCode) -> bool
 const TSharpVision.Constants.Keys.kbMetaShift = 256 -> uint
 TSharpVision.Drivers.KeyboardCapabilities.StandaloneMetaTransitions = 8 -> TSharpVision.Drivers.KeyboardCapabilities
+TSharpVision.TComboBox
+TSharpVision.TComboBox.CloseDropDown() -> void
+TSharpVision.TComboBox.IsDropDownOpen.get -> bool
+TSharpVision.TComboBox.IsEditable.get -> bool
+TSharpVision.TComboBox.Items.get -> System.Collections.Generic.IReadOnlyList<string!>!
+TSharpVision.TComboBox.MaxDropDownRows.get -> int
+TSharpVision.TComboBox.MaxDropDownRows.set -> void
+TSharpVision.TComboBox.MaxLength.get -> int
+TSharpVision.TComboBox.SelectedIndex.get -> int
+TSharpVision.TComboBox.SelectedIndex.set -> void
+TSharpVision.TComboBox.SelectedItem.get -> string?
+TSharpVision.TComboBox.SelectionChanged -> System.EventHandler?
+TSharpVision.TComboBox.SetItems(System.Collections.Generic.IEnumerable<string!>! items) -> void
+TSharpVision.TComboBox.TComboBox(TSharpVision.TRect bounds, System.Collections.Generic.IEnumerable<string!>! items, bool editable = false, int maxLength = 255) -> void
+TSharpVision.TComboBox.Text.get -> string!
+TSharpVision.TComboBox.Text.set -> void
+TSharpVision.TComboBox.TextChanged -> System.EventHandler?
+const TSharpVision.TComboBox.DefaultMaxDropDownRows = 8 -> int
+const TSharpVision.TComboBox.DefaultMaxLength = 255 -> int
+override TSharpVision.TComboBox.ChangeBounds(TSharpVision.TRect bounds) -> void
+override TSharpVision.TComboBox.DataSize() -> ushort
+override TSharpVision.TComboBox.GetData(ref object! rec) -> void
+override TSharpVision.TComboBox.HandleEvent(ref TSharpVision.TEvent event) -> void
+override TSharpVision.TComboBox.SetData(object! rec) -> void
+override TSharpVision.TComboBox.SetState(ushort aState, bool enable) -> void
+override TSharpVision.TComboBox.ShutDown() -> void
+override TSharpVision.TComboBox.StreamableName() -> string!
+override TSharpVision.TComboBox.Write(TSharpVision.Opstream! os) -> void
+static readonly TSharpVision.TComboBox.Name -> string!
+virtual TSharpVision.TComboBox.OnSelectionChanged() -> void
+virtual TSharpVision.TComboBox.OnTextChanged() -> void
+virtual TSharpVision.TComboBox.OpenDropDown() -> bool
+TSharpVision.TProgressBar
+TSharpVision.TProgressBar.ActivityStep.get -> long
+TSharpVision.TProgressBar.Advance() -> void
+TSharpVision.TProgressBar.BarWidth.get -> int
+TSharpVision.TProgressBar.FilledCells.get -> int
+TSharpVision.TProgressBar.GetActivityCells() -> (int Start, int Length)
+TSharpVision.TProgressBar.IsIndeterminate.get -> bool
+TSharpVision.TProgressBar.IsIndeterminate.set -> void
+TSharpVision.TProgressBar.Maximum.get -> long
+TSharpVision.TProgressBar.Maximum.set -> void
+TSharpVision.TProgressBar.Minimum.get -> long
+TSharpVision.TProgressBar.Minimum.set -> void
+TSharpVision.TProgressBar.Percent.get -> int
+TSharpVision.TProgressBar.Reset() -> void
+TSharpVision.TProgressBar.SetRange(long minimum, long maximum) -> void
+TSharpVision.TProgressBar.ShowPercentage.get -> bool
+TSharpVision.TProgressBar.ShowPercentage.set -> void
+TSharpVision.TProgressBar.TProgressBar(TSharpVision.TRect bounds) -> void
+TSharpVision.TProgressBar.TProgressBar(TSharpVision.TRect bounds, long minimum, long maximum) -> void
+TSharpVision.TProgressBar.Value.get -> long
+TSharpVision.TProgressBar.Value.set -> void
+const TSharpVision.TProgressBar.ActivityLength = 3 -> int
+const TSharpVision.TProgressBar.EmptyChar = '░' -> char
+const TSharpVision.TProgressBar.FilledChar = '█' -> char
+const TSharpVision.TProgressBar.PercentageWidth = 5 -> int
+override TSharpVision.TProgressBar.Draw() -> void
+override TSharpVision.TProgressBar.GetPalette() -> TSharpVision.TPalette!
+override TSharpVision.TProgressBar.SetState(ushort aState, bool enable) -> void
+override TSharpVision.TProgressBar.StreamableName() -> string!
+override TSharpVision.TProgressBar.Write(TSharpVision.Opstream! os) -> void
+static readonly TSharpVision.TProgressBar.Name -> string!
+TSharpVision.TGroupBox
+TSharpVision.TGroupBox.ContentRect.get -> TSharpVision.TRect
+TSharpVision.TGroupBox.ShowBorder.get -> bool
+TSharpVision.TGroupBox.ShowBorder.set -> void
+TSharpVision.TGroupBox.TGroupBox(TSharpVision.TRect bounds, string! title) -> void
+TSharpVision.TGroupBox.Title.get -> string!
+TSharpVision.TGroupBox.Title.set -> void
+TSharpVision.TGroupBox.TitleAlignment.get -> TSharpVision.TGroupBoxTitleAlignment
+TSharpVision.TGroupBox.TitleAlignment.set -> void
+TSharpVision.TGroupBoxTitleAlignment
+TSharpVision.TGroupBoxTitleAlignment.Center = 1 -> TSharpVision.TGroupBoxTitleAlignment
+TSharpVision.TGroupBoxTitleAlignment.Left = 0 -> TSharpVision.TGroupBoxTitleAlignment
+TSharpVision.TGroupBoxTitleAlignment.Right = 2 -> TSharpVision.TGroupBoxTitleAlignment
+override TSharpVision.TGroupBox.Draw() -> void
+override TSharpVision.TGroupBox.HandleEvent(ref TSharpVision.TEvent event) -> void
+override TSharpVision.TGroupBox.SetState(ushort aState, bool enable) -> void
+override TSharpVision.TGroupBox.StreamableName() -> string!
+override TSharpVision.TGroupBox.Write(TSharpVision.Opstream! os) -> void

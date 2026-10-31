@@ -22,7 +22,11 @@ public class TEventQueue : IDisposable
     // that have no queued payload (EndModal, shutdown, and pending-slot changes).
     private static readonly ManualResetEvent _wake = new(false);
     private static long _wakeGeneration;
+    internal static bool HasPendingWork { get { lock (_lock) return _queue.Count != 0 || _posts.Count != 0; } }
     internal static long WakeGeneration { get { lock (_lock) return _wakeGeneration; } }
+    /// <summary>Wakes an event-loop waiter without synthesizing an input event.</summary>
+    public static void WakeEventLoop() => Wake();
+
     internal static void Wake()
     {
         lock (_lock) { _wakeGeneration++; _wake.Set(); }

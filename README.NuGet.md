@@ -68,3 +68,7 @@ Run `dotnet run` in an attached Windows console.
 - [Samples](https://github.com/lubomirklimes/TSharpVision/tree/main/samples)
 - [Source and issues](https://github.com/lubomirklimes/TSharpVision)
 - [Releases](https://github.com/lubomirklimes/TSharpVision/releases)
+
+## New in 1.1.0
+
+Core includes `TComboBox` for editable or list-only selection, `TProgressBar` for determinate and activity feedback, and `TGroupBox` for titled, clipped containers. They use existing dialog/window palettes and are constructed in code; streaming is not supported. Worker progress reaches the UI through `TView.Post`. See [controls](https://github.com/lubomirklimes/TSharpVision/blob/main/docs/dialogs-and-controls.md) for examples.

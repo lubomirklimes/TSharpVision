@@ -362,8 +362,10 @@ public sealed class KeyboardProfileConformanceTests
             uint keycode = NamedKeycodes[step.Key!.Value];
             bool keypad = step.Suite == "keypad";
 
-            Assert.True(rig.Down(keycode, keypad ? Num : (ushort)0));
-            // With Num Lock on, the layout commits the keypad key's character as separate text.
+            // A keypad digit or decimal press waits for the commit that may follow it; every other key is published.
+            bool waits = keypad && keycode is >= 0x40000059 and <= 0x40000063;
+            Assert.Equal(!waits, rig.Down(keycode, keypad ? Num : (ushort)0));
+            // With Num Lock on, the layout commits the keypad key's character, which the press then carries.
             if (step.Key is >= PhysicalKey.Numpad0 and <= PhysicalKey.Numpad9)
                 rig.Text(((char)('0' + (step.Key.Value - PhysicalKey.Numpad0))).ToString(), Num);
             Assert.True(rig.Up(keycode, keypad ? Num : (ushort)0));

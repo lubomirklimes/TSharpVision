@@ -219,21 +219,20 @@ public partial class TVDemoApp : TApplication
     // -----------------------------------------------------------------------
     private void OpenFileViewer()
     {
-        var fd = new TFileDialog("*.*", "View File", "~F~ile name",
-                                 FileDialogOptions.fdOpenButton, 0);
-        if (ValidView(fd) == null) return;
-
-        ushort result = DeskTop!.ExecView(fd);
-        if (result == Views.cmOK)
+        if (DeskTop == null) return;
+        var result = ChooseDemoFile(save: false, viewer: true);
+        if (result.Path == null) return;
+        try
         {
-            fd.GetData(out string path);
-            if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
-            {
-                var win = new FileViewerWindow(path);
-                var wv  = ValidView(win);
-                if (wv != null)
-                    DeskTop!.Insert(wv);
-            }
+            // Load here so read/access errors produce feedback rather than an
+            // empty viewer. FileViewerWindow's existing constructors stay intact.
+            string[] lines = File.ReadAllLines(result.Path);
+            var window = new FileViewerWindow(Path.GetFileName(result.Path), lines);
+            if (ValidView(window) != null) DeskTop.Insert(window);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            ShowDemoResult(DeskTop, $"Cannot read file:\n{result.Path}\n{ex.Message}", MsgBox.mfError);
         }
     }
 

@@ -235,7 +235,7 @@ public sealed class InputLineListBoxHistoryTests : IDisposable
         Assert.Equal(7, h.HistoryId);
         Assert.True((h.options & Views.ofPostProcess) != 0);
         Assert.True((h.eventMask & Events.evBroadcast) != 0);
-        Assert.Equal(0x16, h.GetPalette()[1]);
+        Assert.Equal(0x0A, h.GetPalette()[1]);
     }
 
     [Fact]

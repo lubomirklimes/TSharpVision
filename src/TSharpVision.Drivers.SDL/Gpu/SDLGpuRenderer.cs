@@ -21,7 +21,7 @@ namespace TSharpVision.Drivers.SDL.Gpu;
 ///      (format-converting blit; no custom shaders required).
 ///   5. Submit the command buffer.
 /// </summary>
-internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
+internal sealed partial class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
 {
     private const int DefaultFontPtSize   = 20;
     private const int MaxGlyphCacheSize   = 4096;
@@ -132,6 +132,12 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
         _diag     = diag;
     }
 
+    /// <summary>How text is fitted into the cell (<c>[graphics] fontFit</c>).</summary>
+    internal FontFitMode FontFit => _fontFit;
+
+    /// <summary>The shared glyph rasteriser (fit mode, common text size, baseline) for qualification.</summary>
+    internal SdlCellGlyphRasterizer? GlyphsForTesting => _cellGlyphs;
+
     // ─────────────────────────────────────────────────────────────────────────
     // Font probing / metrics
     // ─────────────────────────────────────────────────────────────────────────
@@ -214,6 +220,8 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
         if (_font == IntPtr.Zero) return;
         try
         {
+            if (SimulatePipelineFailureForTesting)
+                throw new InvalidOperationException("shader pipeline disabled by native-pixel qualification");
             _termPipeline = new TerminalGpuPipeline(
                 _device, _window, _cellWidth, _cellHeight,
                 glyphSource: this, underlineHeight: _underlineHeight);
@@ -459,6 +467,7 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
     private ScreenBuffer?   _snap;
     private uint            _snapCols;
     private uint            _snapRows;
+    private long            _snapFrame;  // frames submitted so far; identifies the snapshot
 
     // Private render-thread buffer — populated from snapshot; main thread never touches it.
     private ScreenBuffer? _privateBuf;
@@ -491,6 +500,8 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
             for (uint row = 0; row < rows; row++)
                 for (uint col = 0; col < cols; col++)
                     _snap.SetChar(col, row, screenBuffer.GetChar(col, row));
+            _snapFrame++;
+            PinCaptureFrame(cols, rows);
         }
         if (_frameReady.CurrentCount == 0)
         {
@@ -531,6 +542,7 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
                         _privateBuf.SetChar(col, row, _snap!.GetChar(col, row));
             }
             RenderSync(_privateBuf!, 0, 0, cols, rows);
+            ServeCaptureRequest();
         }
     }
 
@@ -577,6 +589,7 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
             {
                 SDL3.SDL.SubmitGPUCommandBuffer(cmdBuf);
                 _diag.RecordSwapchainSkipped();
+                Interlocked.Increment(ref _framesSkipped);
                 return;
             }
             if (swapSw != null) _diag.RecordAcquireSwapchain(swapSw.Elapsed);
@@ -600,6 +613,7 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
             SDL3.SDL.SubmitGPUCommandBuffer(cmdBuf);
             submitSw?.Stop();
             if (submitSw != null) _diag.RecordSubmit(submitSw.Elapsed);
+            Interlocked.Increment(ref _framesPresented);
 
             frameSw?.Stop();
             if (frameSw != null) _diag.RecordFrame(frameSw.Elapsed);
@@ -637,6 +651,7 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
             // GPU error or window minimized — no swapchain image to render into.
             SDL3.SDL.SubmitGPUCommandBuffer(cmdBuf2);
             _diag.RecordSwapchainSkipped();
+            Interlocked.Increment(ref _framesSkipped);
             return;
         }
 
@@ -644,14 +659,7 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
 
         // Step 3: upload CPU pixels → screen texture; clear the target; blit 1:1 → swapchain.
         var passSw2 = _options.DiagnosticsEnabled ? Stopwatch.StartNew() : null;
-        UploadScreenTexture(cmdBuf2, screenW, screenH);
-
-        GpuGridLayout fallbackLayout = GpuGridLayout.Compute(
-            (int)swapW2, (int)swapH2, (int)regionWidth, (int)regionHeight, _cellWidth, _cellHeight);
-        LogGridScalingIfChanged(fallbackLayout, regionWidth, regionHeight, "cpu-fallback");
-
-        ClearSwapchain(cmdBuf2, swapTex2);
-        BlitToSwapchain(cmdBuf2, swapTex2, in fallbackLayout);
+        RecordFallbackFrame(cmdBuf2, swapTex2, swapW2, swapH2, regionWidth, regionHeight, screenW, screenH);
         passSw2?.Stop();
         if (passSw2 != null) _diag.RecordRenderPass(passSw2.Elapsed);
 
@@ -660,10 +668,30 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
         SDL3.SDL.SubmitGPUCommandBuffer(cmdBuf2);
         submitSw2?.Stop();
         if (submitSw2 != null) _diag.RecordSubmit(submitSw2.Elapsed);
+        Interlocked.Increment(ref _framesPresented);
 
         frameSw?.Stop();
         if (frameSw != null) _diag.RecordFrame(frameSw.Elapsed);
         _diag.MaybeReportSummary();
+    }
+
+    /// <summary>
+    /// Records the CPU-fallback presentation of an already composited frame into
+    /// <paramref name="target"/> (the swapchain texture, or a readable texture of the same format
+    /// for native-pixel qualification): upload, full clear, 1:1 blit.
+    /// </summary>
+    private void RecordFallbackFrame(
+        IntPtr cmdBuf, IntPtr target, uint targetW, uint targetH,
+        uint regionWidth, uint regionHeight, uint screenW, uint screenH)
+    {
+        UploadScreenTexture(cmdBuf, screenW, screenH);
+
+        GpuGridLayout fallbackLayout = GpuGridLayout.Compute(
+            (int)targetW, (int)targetH, (int)regionWidth, (int)regionHeight, _cellWidth, _cellHeight);
+        LogGridScalingIfChanged(fallbackLayout, regionWidth, regionHeight, "cpu-fallback");
+
+        ClearSwapchain(cmdBuf, target);
+        BlitToSwapchain(cmdBuf, target, in fallbackLayout);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -712,10 +740,36 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
     // CPU compositing
     // ─────────────────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Opens the font and builds the glyph generator exactly as <see cref="Initialize"/> does, but
+    /// without a GPU device, so the glyph source, the vertex build and the CPU-compositing fallback
+    /// can run for driver-output qualification.
+    /// </summary>
+    internal void LoadFontForTesting() => LoadFont(1f);
+
+    /// <summary>
+    /// Runs the CPU-compositing fallback for a full frame into a fresh pixel buffer and returns it
+    /// (RGBA8, <c>cols * CellWidth</c> pixels wide). No GPU upload happens. For driver-output qualification.
+    /// </summary>
+    internal byte[] CompositeForTesting(ScreenBuffer buf, uint cols, uint rows)
+    {
+        uint screenW = cols * (uint)_cellWidth;
+        _cpuPixels = new byte[screenW * rows * (uint)_cellHeight * 4];
+        CompositeScreen(buf, 0, 0, cols, rows, screenW);
+        return _cpuPixels;
+    }
+
     private void CompositeScreen(
         ScreenBuffer buf,
         uint regionX, uint regionY, uint regionWidth, uint regionHeight,
-        uint screenW)
+        uint screenW) =>
+        CompositeScreen(buf, regionX, regionY, regionWidth, regionHeight, screenW,
+            _cursorX, _cursorY, _cursorType);
+
+    private void CompositeScreen(
+        ScreenBuffer buf,
+        uint regionX, uint regionY, uint regionWidth, uint regionHeight,
+        uint screenW, int cursorX, int cursorY, ushort cursorType)
     {
         for (uint row = regionY; row < regionY + regionHeight; row++)
         {
@@ -725,13 +779,13 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
                 byte attr = (byte)(cell.Attr & 0xFF);
                 var (fgArgb, bgArgb) = DecodeAttr(attr);
 
-                bool isCursor = _cursorType != 0 && (int)col == _cursorX && (int)row == _cursorY;
+                bool isCursor = cursorType != 0 && (int)col == cursorX && (int)row == cursorY;
                 if (isCursor) (fgArgb, bgArgb) = (bgArgb, fgArgb);
 
                 // Use absolute col/row for pixel addressing — _cpuPixels spans the full screen.
                 FillCellRect(col, row, bgArgb, screenW);
 
-                if (isCursor && _cursorType < 100)
+                if (isCursor && cursorType < 100)
                 {
                     var (origFg, origBg) = DecodeAttr(attr);
                     FillCellRect(col, row, origBg, screenW);
@@ -1150,6 +1204,7 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
     {
         if (_disposed) return;
 
+        CancelDiagnosticCapture();
         // Stop the render thread before releasing any GPU or TTF resources.
         _renderCts.Cancel();
         try { _frameReady.Release(); } catch (SemaphoreFullException) { }
@@ -1173,6 +1228,8 @@ internal sealed class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
         if (_device != IntPtr.Zero)
         {
             SDL3.SDL.WaitForGPUIdle(_device);
+            // Captures whose completion was uncertain are safe to free only now.
+            ReleaseRetainedCapturesAfterIdle();
 
             if (_screenTex != IntPtr.Zero)
             {

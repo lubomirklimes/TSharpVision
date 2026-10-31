@@ -204,9 +204,15 @@ public class TCluster : TView
                             && char.ToUpperInvariant((char)@event.keyDown.charScan.charCode) == c;
                         if (altMatch || asciiMatch)
                         {
-                            if (!ButtonState(i))
+                            // A hidden cluster, or one in a hidden group, leaves the key to the other views.
+                            if (!ButtonState(i) || !IsShownAndEnabled())
                                 return;
-                            Select();
+                            // As a click would: the view being left may refuse, and then nothing is pressed.
+                            if (!Focus())
+                            {
+                                ClearEvent(ref @event);
+                                return;
+                            }
                             sel = i;
                             MovedTo(sel);
                             Press(sel);

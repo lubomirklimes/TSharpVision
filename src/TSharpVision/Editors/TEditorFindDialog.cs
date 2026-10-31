@@ -72,7 +72,7 @@ public static class TEditorFindDialog
         // Checkboxes: bit 0 = case-sensitive (efCaseSensitive = 0x01),
         //             bit 1 = whole words only (efWholeWordsOnly = 0x02).
         checkBoxes = new TCheckBoxes(new TRect(3, 5, 35, 7),
-            new TSItem(TSharpVisionIntl.Get("Edit_Chk_CaseSensitive", "~C~ase sensitive"),
+            new TSItem(TSharpVisionIntl.Get("Edit_Chk_CaseSensitive", "Case ~s~ensitive"),
             new TSItem(TSharpVisionIntl.Get("Edit_Chk_WholeWords",    "~W~hole words only"), null)));
         checkBoxes.value = (uint)((rec?.Options ?? 0)
             & (Views.efCaseSensitive | Views.efWholeWordsOnly));
@@ -81,7 +81,7 @@ public static class TEditorFindDialog
         dlg.Insert(new TButton(new TRect(14, 9, 24, 11),
             TSharpVisionIntl.Get("Btn_OK", "~O~K"), Views.cmOK, ButtonConstants.bfDefault));
         dlg.Insert(new TButton(new TRect(26, 9, 36, 11),
-            TSharpVisionIntl.Get("Btn_Cancel", "Cancel"), Views.cmCancel, ButtonConstants.bfNormal));
+            TSharpVisionIntl.Get("Btn_Cancel", "~C~ancel"), Views.cmCancel, ButtonConstants.bfNormal));
 
         dlg.SelectNext(false);
         return dlg;

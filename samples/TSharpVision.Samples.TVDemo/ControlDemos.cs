@@ -23,17 +23,17 @@ public partial class TVDemoApp
     private void OpenSelectionDemo()
     {
         if (DeskTop == null) return;
-        var dlg = new TDialog(DemoBounds(54, 17), "Selection Controls");
+        var dlg = new TDialog(DemoBounds(54, 13), "Selection Controls");
         dlg.Insert(new TStaticText(new TRect(2, 1, 50, 3),
             "Cycle each item: [ ] off, [~] planned, [x] done."));
         var states = new TMultiCheckBoxes(new TRect(2, 4, 27, 8),
-            new TSItem("~D~esign", new TSItem("~C~ode", new TSItem("~T~est", null))),
+            new TSItem("~D~esign", new TSItem("C~o~de", new TSItem("~T~est", null))),
             3, TMultiCheckBoxes.cfTwoBits, " ~x");
         states.value = 0b10_01_00;
         dlg.Insert(states);
         dlg.Insert(new TStaticText(new TRect(30, 4, 50, 8),
             "Space cycles the focused\nitem through three states.\nArrow keys move focus."));
-        dlg.Insert(new TButton(new TRect(20, 12, 32, 14), "~C~lose", Views.cmCancel,
+        dlg.Insert(new TButton(new TRect(20, 9, 32, 11), "~C~lose", Views.cmCancel,
             ButtonConstants.bfDefault));
         DemoButtonLayout.CenterRows(dlg);
         dlg.SelectNext(false);

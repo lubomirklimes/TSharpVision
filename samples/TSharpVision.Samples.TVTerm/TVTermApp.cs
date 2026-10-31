@@ -596,7 +596,7 @@ public sealed class TVTermApp : TApplication
             if (editedPalette == null) return;
             System.Array.Copy(editedPalette.Data, live.Data,
                 System.Math.Min(editedPalette.Data.Length, live.Data.Length));
-            DrawView();
+            Redraw();
         }
     }
 

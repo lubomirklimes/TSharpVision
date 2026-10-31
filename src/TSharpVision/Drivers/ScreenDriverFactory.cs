@@ -194,6 +194,15 @@ public class ScreenDriverFactory
             Environment.GetEnvironmentVariable(DriverEnvironmentVariable),
             _configuration?.Driver.Name);
 
+        // Diagnostic activation must never qualify an unintended fallback backend.
+        if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(DecoratorEnvironmentVariable))
+            && requested is not null)
+        {
+            string name = ResolveAlias(platform, requested);
+            return registrations.FirstOrDefault(x => x.attribute.System == platform
+                && string.Equals(x.attribute.Driver, name, StringComparison.OrdinalIgnoreCase)).type
+                ?? throw new InvalidOperationException($"Requested backend '{requested}' is unavailable; no fallback performed.");
+        }
         return ResolveDriverType(platform, registrations, requested, Console.Error);
     }
 
@@ -288,10 +297,46 @@ public class ScreenDriverFactory
         {
             object instance = Activator.CreateInstance(driverType)
                 ?? throw new InvalidOperationException($"Driver type '{driverType.FullName}' could not be constructed.");
-            return instance as IDriver
-                ?? throw new InvalidOperationException($"Driver type '{driverType.FullName}' does not implement IDriver.");
+            if (instance is not IDriver backend)
+            {
+                (instance as IDisposable)?.Dispose();
+                throw new InvalidOperationException($"Driver type '{driverType.FullName}' does not implement IDriver.");
+            }
+            string? providerName = Environment.GetEnvironmentVariable(DecoratorEnvironmentVariable);
+            if (string.IsNullOrWhiteSpace(providerName)) return backend;
+            // Resolve only after ordinary backend selection; no recursive factory call.
+            return Decorate(backend, providerName, SelectRequestedName(
+                Environment.GetEnvironmentVariable(DriverEnvironmentVariable), _configuration?.Driver.Name));
         }
 
         throw new InvalidOperationException($"No screen driver found for platform {platform}.");
+    }
+
+    /// <summary>The environment variable naming an <see cref="IDriverDecorator"/> provider type.</summary>
+    internal const string DecoratorEnvironmentVariable = "TSHARPVISION_DRIVER_DECORATOR";
+
+    /// <summary>
+    /// Hands <paramref name="backend"/> to the named provider. Ownership moves only when a non-null driver
+    /// comes back; on every failure the never-initialized backend is disposed here and the error rethrown.
+    /// </summary>
+    internal static IDriver Decorate(IDriver backend, string providerName, string? requestedBackend)
+    {
+        try
+        {
+            Type providerType = Type.GetType(providerName.Trim(), throwOnError: true)!;
+            var provider = Activator.CreateInstance(providerType) as IDriverDecorator
+                ?? throw new InvalidOperationException("Driver decorator must implement IDriverDecorator.");
+            return provider.Decorate(backend, requestedBackend)
+                ?? throw new InvalidOperationException("Driver decorator returned null.");
+        }
+        catch (Exception failure)
+        {
+            try { (backend as IDisposable)?.Dispose(); }
+            catch (Exception cleanup)
+            {
+                throw new AggregateException("Driver decoration and backend cleanup failed.", failure, cleanup);
+            }
+            throw;
+        }
     }
 }

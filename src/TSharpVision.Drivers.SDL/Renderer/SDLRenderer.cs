@@ -559,6 +559,9 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
     {
         var frameSw = SdlRendererPerformanceDiagnostics.Enabled ? Stopwatch.StartNew() : null;
 
+        Trace?.Record(new SdlRenderOp(SdlRenderOpKind.BeginFrame,
+            (int)regionX, (int)regionY, (int)regionWidth, (int)regionHeight, 0xFF000000));
+
         SDL3.SDL.SetRenderDrawColor(_renderer, 0, 0, 0, 255);
         SDL3.SDL.RenderClear(_renderer);
 
@@ -619,13 +622,25 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
                 GlyphPhase phase = _generatedGlyphs.Generator.PhaseForCell((int)x, (int)y);
                 IntPtr texture = GetOrCreateGlyphTexture(ch, fgArgb, phase);
                 if (texture == IntPtr.Zero)
+                {
+                    Trace?.Record(new SdlRenderOp(SdlRenderOpKind.GlyphMissing,
+                        (int)cellRect.X, (int)cellRect.Y, (int)cellRect.W, (int)cellRect.H,
+                        fgArgb, ch, SdlGlyphRenderPolicy.Classify(ch)));
                     continue;
+                }
 
                 // All glyph textures are rendered into the logical cell rect, 1:1.
                 // Generated graphics and shared font masks are exactly CellWidth × CellHeight.
+                Trace?.Record(new SdlRenderOp(SdlRenderOpKind.Glyph,
+                    (int)cellRect.X, (int)cellRect.Y, (int)cellRect.W, (int)cellRect.H,
+                    fgArgb, ch, SdlGlyphRenderPolicy.Classify(ch)));
                 SDL3.SDL.RenderTexture(_renderer, texture, IntPtr.Zero, in cellRect);
             }
         }
+
+        // Native-pixel qualification reads the finished frame back here: after SDL_RenderPresent
+        // the back buffer contents are undefined.
+        BeforePresentForTesting?.Invoke(_renderer);
 
         if (SdlRendererPerformanceDiagnostics.Enabled)
         {
@@ -638,6 +653,7 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
         {
             SDL3.SDL.RenderPresent(_renderer);
         }
+        Trace?.Record(new SdlRenderOp(SdlRenderOpKind.Present, 0, 0, 0, 0, 0));
 
         if (frameSw != null)
         {
@@ -648,8 +664,23 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
         _diagnostics.MaybeReportSummary();
     }
 
+    /// <summary>Records the renderer-facing operations of each frame when set. Null in normal operation.</summary>
+    internal SdlRenderTrace? Trace { get; set; }
+
+    /// <summary>
+    /// Called with the SDL renderer handle once the whole frame is drawn and before
+    /// <c>SDL_RenderPresent</c>, so native-pixel qualification can read the real target back
+    /// (<c>SDL_RenderReadPixels</c>). Null in normal operation.
+    /// </summary>
+    internal Action<IntPtr>? BeforePresentForTesting { get; set; }
+
+    /// <summary>The shared glyph rasteriser (fit mode, common text size, baseline) for qualification.</summary>
+    internal SdlCellGlyphRasterizer? GlyphsForTesting => _cellGlyphs;
+
     private void DrawCellBackground(SDL3.SDL.FRect rect, uint argb)
     {
+        Trace?.Record(new SdlRenderOp(SdlRenderOpKind.Fill,
+            (int)rect.X, (int)rect.Y, (int)rect.W, (int)rect.H, argb));
         SDL3.SDL.SetRenderDrawColor(_renderer,
             (byte)((argb >> 16) & 0xFF),
             (byte)((argb >>  8) & 0xFF),

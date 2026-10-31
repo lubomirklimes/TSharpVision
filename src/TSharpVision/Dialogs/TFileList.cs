@@ -159,8 +159,9 @@ public class TFileList : TSortedListBox
                 }
                 else
                 {
-                    dirPart = path.Substring(0, sep);
-                    if (dirPart.Length == 0) dirPart = Path.DirectorySeparatorChar.ToString();
+                    // Keep the separator of a bare root: "C:" alone is drive-relative, not "C:\".
+                    string head = path.Substring(0, sep + 1);
+                    dirPart = Path.GetPathRoot(head) == head ? head : path.Substring(0, sep);
                     pattern = path.Substring(sep + 1);
                 }
             }

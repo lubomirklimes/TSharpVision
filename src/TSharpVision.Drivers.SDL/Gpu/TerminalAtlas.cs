@@ -1,4 +1,4 @@
-﻿using TSharpVision.Drivers.SDL.Rendering.GlyphComposition;
+using TSharpVision.Drivers.SDL.Rendering.GlyphComposition;
 
 namespace TSharpVision.Drivers.SDL.Gpu;
 
@@ -69,16 +69,9 @@ internal sealed class TerminalAtlas : IDisposable
     internal int Size => _atlasWidth;
 
     internal TerminalAtlas(IntPtr device, int cellWidth, int cellHeight)
+        : this(cellWidth, cellHeight)
     {
-        _device        = device;
-        _cellWidth     = cellWidth;
-        _cellHeight    = cellHeight;
-        _atlasWidth     = ChooseSize(cellWidth, cellHeight);
-        _atlasHeight    = _atlasWidth;
-        _atlasColCount = _atlasWidth  / cellWidth;
-        _atlasRowCount = _atlasHeight / cellHeight;
-        _cpu           = new byte[_atlasWidth * _atlasHeight];
-        _slots         = new Dictionary<GpuGlyphKey, int>();
+        _device = device;
         try
         {
             CreateGpuResources();
@@ -89,6 +82,49 @@ internal sealed class TerminalAtlas : IDisposable
             throw;
         }
         _dirty = true;
+    }
+
+    /// <summary>
+    /// A CPU-only atlas: slot allocation and glyph placement work, but there is no GPU texture,
+    /// so <see cref="UploadIfDirty"/> must not be called. Lets the vertex build run without a GPU
+    /// device for driver-output qualification.
+    /// </summary>
+    internal TerminalAtlas(int cellWidth, int cellHeight)
+    {
+        _cellWidth     = cellWidth;
+        _cellHeight    = cellHeight;
+        _atlasWidth = ChooseSize(cellWidth, cellHeight);
+        _atlasHeight = _atlasWidth;
+        _atlasColCount = _atlasWidth / cellWidth;
+        _atlasRowCount = _atlasHeight / cellHeight;
+        _cpu           = new byte[_atlasWidth * _atlasHeight];
+        _slots         = new Dictionary<GpuGlyphKey, int>();
+    }
+
+    /// <summary>The slot already allocated to <paramref name="key"/>, if any. Diagnostics only.</summary>
+    internal bool TryGetSlot(GpuGlyphKey key, out int slot) => _slots.TryGetValue(key, out slot);
+
+    /// <summary>The key that owns <paramref name="slot"/>, if the slot is allocated. Diagnostics only.</summary>
+    internal bool TryGetKey(int slot, out GpuGlyphKey key)
+    {
+        foreach (var (candidate, owned) in _slots)
+            if (owned == slot) { key = candidate; return true; }
+        key = default;
+        return false;
+    }
+
+    /// <summary>Glyph slots per atlas row. Diagnostics only.</summary>
+    internal int SlotColumns => _atlasColCount;
+
+    /// <summary>The alpha mask stored in <paramref name="slot"/>, cellWidth × cellHeight bytes. Diagnostics only.</summary>
+    internal byte[] ReadSlot(int slot)
+    {
+        var alpha = new byte[_cellWidth * _cellHeight];
+        int xOff = slot % _atlasColCount * _cellWidth;
+        int yOff = slot / _atlasColCount * _cellHeight;
+        for (int y = 0; y < _cellHeight; y++)
+            _cpu.AsSpan((yOff + y) * _atlasWidth + xOff, _cellWidth).CopyTo(alpha.AsSpan(y * _cellWidth));
+        return alpha;
     }
 
     private void CreateGpuResources()

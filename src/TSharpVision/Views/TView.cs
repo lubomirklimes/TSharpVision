@@ -157,7 +157,7 @@ public class TView : TStreamable, IInfo, IDisposable
     {
         TRect clip = GetBounds();
         if (owner != null)
-            clip.Intersect(owner.clip);
+            clip.Intersect(owner.ChildClip);
         clip.Move(-origin.x, -origin.y);
         return clip;
     }
@@ -199,7 +199,7 @@ public class TView : TStreamable, IInfo, IDisposable
         }
     }
 
-    /// <summary>Interactively moves or resizes the view within cell-coordinate limits; Escape restores the original keyboard-drag bounds.</summary>
+    /// <summary>Interactively moves or resizes the view within cell-coordinate limits; from the keyboard, arrows move and Shift+arrows resize, Enter accepts and Escape restores the original bounds.</summary>
     public virtual void DragView(TEvent ev, byte mode, ref TRect limits, TPoint minSize, TPoint maxSize)
     {
         TPoint p, s;
@@ -242,20 +242,24 @@ public class TView : TStreamable, IInfo, IDisposable
                 p = origin;
                 s = size;
                 KeyEvent(ref ev);
+                // Shift+arrow arrives as the plain arrow code with kbShift in controlKeyState on every driver.
+                uint shift = ev.keyDown.controlKeyState & Keys.kbShift;
                 switch (ev.keyDown.keyCode)
                 {
-                    case Keys.kbLeft:      Change(mode, goLeft,      ref p, ref s, 0); break;
-                    case Keys.kbRight:     Change(mode, goRight,     ref p, ref s, 0); break;
-                    case Keys.kbUp:        Change(mode, goUp,        ref p, ref s, 0); break;
-                    case Keys.kbDown:      Change(mode, goDown,      ref p, ref s, 0); break;
-                    case Keys.kbCtrlLeft:  Change(mode, goCtrlLeft,  ref p, ref s, 0); break;
-                    case Keys.kbCtrlRight: Change(mode, goCtrlRight, ref p, ref s, 0); break;
-                    // Shifted variants (kbShLeft/kbShRight/...) 
+                    case Keys.kbLeft:      Change(mode, goLeft,      ref p, ref s, shift); break;
+                    case Keys.kbRight:     Change(mode, goRight,     ref p, ref s, shift); break;
+                    case Keys.kbUp:        Change(mode, goUp,        ref p, ref s, shift); break;
+                    case Keys.kbDown:      Change(mode, goDown,      ref p, ref s, shift); break;
+                    case Keys.kbCtrlLeft:  Change(mode, goCtrlLeft,  ref p, ref s, shift); break;
+                    case Keys.kbCtrlRight: Change(mode, goCtrlRight, ref p, ref s, shift); break;
                     case Keys.kbHome: p.x = limits.a.x; break;
                     case Keys.kbEnd:  p.x = limits.b.x - s.x; break;
                     case Keys.kbPgUp: p.y = limits.a.y; break;
                     case Keys.kbPgDn: p.y = limits.b.y - s.y; break;
                 }
+                // Keyboard growth keeps the origin and stops at the bottom-right edge of the limits.
+                if (s.x > size.x) s.x = Math.Max(size.x, Math.Min(s.x, limits.b.x - p.x));
+                if (s.y > size.y) s.y = Math.Max(size.y, Math.Min(s.y, limits.b.y - p.y));
                 MoveGrow(p, s, limits, minSize, maxSize, mode);
             } while (ev.keyDown.keyCode != Keys.kbEsc &&
                      ev.keyDown.keyCode != Keys.kbEnter);
@@ -279,11 +283,12 @@ public class TView : TStreamable, IInfo, IDisposable
         Locate(r);
     }
 
-    private void Change(byte mode, TPoint delta, ref TPoint p, ref TPoint s, int grow)
+    // Unshifted keys move, shifted keys resize from the bottom-right edge (upstream change(..., getShiftState())).
+    private void Change(byte mode, TPoint delta, ref TPoint p, ref TPoint s, uint shift)
     {
-        if ((mode & Views.dmDragMove) != 0 && grow == 0)
+        if ((mode & Views.dmDragMove) != 0 && shift == 0)
             p += delta;
-        else if ((mode & Views.dmDragGrow) != 0 && grow != 0)
+        else if ((mode & Views.dmDragGrow) != 0 && shift != 0)
             s += delta;
     }
 
@@ -368,20 +373,34 @@ public class TView : TStreamable, IInfo, IDisposable
     /// </summary>
     public bool Focus()
     {
-        if ((state & (Views.sfSelected | Views.sfModal)) != 0)
+        if ((state & Views.sfModal) != 0 || owner == null)
             return true;
-        if (owner == null)
-            return true;
-        if (!owner.Focus())
+        // Already its owner's current view: focus follows once the owner chain is selected, as for the current
+        // child of a group box while a sibling group has the focus.
+        if ((state & Views.sfSelected) != 0)
+            return owner.FocusFor(this);
+        if (!owner.FocusFor(this))
             return false;
 
+        // An owner gaining focus may already have entered this view; it is the destination, not a view being left.
         TView? current = owner.current;
-        if (current != null
+        if (current != null && !ReferenceEquals(current, this)
             && (current.options & Views.ofValidate) != 0
             && !current.Valid(Views.cmReleasedFocus))
             return false;
 
         Select();
+        return true;
+    }
+
+    /// <summary>
+    /// Whether this view and every owner above it are visible and enabled, so that a key may act through it. A view
+    /// keeps <see cref="Views.sfVisible"/> while a group above it is hidden.
+    /// </summary>
+    internal bool IsShownAndEnabled()
+    {
+        for (TView? view = this; view != null; view = view.owner)
+            if ((view.state & (Views.sfVisible | Views.sfDisabled)) != Views.sfVisible) return false;
         return true;
     }
     /// <summary>Clears the visible state and updates affected drawing and selection.</summary>

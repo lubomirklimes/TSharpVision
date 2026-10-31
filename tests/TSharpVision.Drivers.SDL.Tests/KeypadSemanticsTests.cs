@@ -6,10 +6,13 @@ namespace TSharpVision.Drivers.SDL.Tests;
 
 /// <summary>
 /// KEYPAD-CLOSURE through SDL. SDL reports a keypad key press with its keycode and <c>SDL_KMOD_NUM</c>, and — when the
-/// key types — commits the text as a separate <c>SDL_EVENT_TEXT_INPUT</c>. The drivers publish both as they come
-/// (pinned by <see cref="KeypadConformanceTests"/>); these tests are about what the two mean together once
-/// <see cref="KeypadKeys.Normalize"/> has seen them: the identity event is navigation or nothing, the commit is the
-/// text, and nothing is typed twice.
+/// key types — commits the text as a separate <c>SDL_EVENT_TEXT_INPUT</c> right after it. Whether a digit or decimal
+/// key types is the platform's and layout's decision, not the lock bit's: macOS has no NumLock and commits digits
+/// with <c>SDL_KMOD_NUM</c> clear. So the drivers hold a digit or decimal press until its commit and publish one press
+/// carrying both the identity and the text, or, when no commit comes in that drain, the identity alone (pinned by
+/// <see cref="KeypadConformanceTests"/>). These tests are about what that means once <see cref="KeypadKeys.Normalize"/>
+/// has seen it: a key that types is its text and never also a cursor key, a key that does not type is navigation or
+/// nothing, and nothing is typed twice. The operators keep publishing identity and commit separately. TV-1.1-FIX-1.
 /// </summary>
 public sealed class KeypadSemanticsTests
 {
@@ -84,12 +87,56 @@ public sealed class KeypadSemanticsTests
         Assert.Equal(expected.Select(e => e.keyDown.charScan.ToUShort()), actual.Select(e => e.keyDown.charScan.ToUShort()));
     }
 
+    private static readonly (uint Keypad, ushort Identity, string Text)[] DigitKeys =
+    {
+        (Kp0, Keys.kbKeypad0, "0"), (Kp1, Keys.kbKeypad1, "1"), (Kp2, Keys.kbKeypad2, "2"), (Kp3, Keys.kbKeypad3, "3"),
+        (Kp4, Keys.kbKeypad4, "4"), (Kp5, Keys.kbKeypad5, "5"), (Kp6, Keys.kbKeypad6, "6"), (Kp7, Keys.kbKeypad7, "7"),
+        (Kp8, Keys.kbKeypad8, "8"), (Kp9, Keys.kbKeypad9, "9"),
+        (KpDecimal, Keys.kbKeypadDecimal, "."), (KpDecimal, Keys.kbKeypadDecimal, ","),
+        // A layout's separator need not be ASCII (the Arabic decimal separator); it is still only the commit's text.
+        (KpDecimal, Keys.kbKeypadDecimal, "٫"),
+    };
+
     public static IEnumerable<object[]> TextCases()
+    {
+        foreach (var key in DigitKeys)
+            foreach (ushort modifiers in new ushort[] { Num, 0 })
+                foreach (bool gpu in new[] { false, true })
+                    yield return new object[] { gpu, key.Keypad, key.Identity, key.Text, modifiers };
+    }
+
+    /// <summary>
+    /// Key down, the text commit, key up, with NumLock on (Windows, Linux) and with the lock bit clear as macOS reports
+    /// it. One press is published: it types the commit's text exactly once and is never a cursor key, and the physical
+    /// key stays in <see cref="KeyDownEvent.keypadKey"/>. The release pairs with it by that identity.
+    /// </summary>
+    [Theory, MemberData(nameof(TextCases))]
+    public void AKeypadKeyThatTypesIsOnePressCarryingItsTextWhateverTheLockBit(bool gpu, uint keypad, ushort identity, string text, ushort modifiers)
+    {
+        List<TEvent> events = Dispatched(gpu, (down, commit, up) =>
+        {
+            down(keypad, modifiers);
+            commit(text, modifiers);
+            up(keypad, modifiers);
+        });
+
+        Assert.Equal(new[] { Events.evKeyDown, Events.evKeyUp }, events.Select(e => e.What));
+        Assert.Equal(text, Typed(events));
+
+        TEvent press = events[0];
+        Assert.Equal(text, press.keyDown.text);
+        Assert.Equal(text.Length == 1 && text[0] <= 0x7F ? text[0] : 0, press.keyDown.keyCode);
+        Assert.Equal(identity, press.keyDown.keypadKey);
+        Assert.Equal(SdlKeyTranslator.ToShiftState(modifiers), press.keyDown.controlKeyState);
+
+        Assert.Equal(identity, events[1].keyDown.keypadKey);
+        Assert.Equal(string.Empty, events[1].keyDown.text);
+    }
+
+    public static IEnumerable<object[]> OperatorCases()
     {
         (uint Keypad, ushort Identity, string Text)[] keys =
         {
-            (Kp0, Keys.kbKeypad0, "0"), (Kp1, Keys.kbKeypad1, "1"), (Kp4, Keys.kbKeypad4, "4"), (Kp5, Keys.kbKeypad5, "5"),
-            (Kp9, Keys.kbKeypad9, "9"), (KpDecimal, Keys.kbKeypadDecimal, "."), (KpDecimal, Keys.kbKeypadDecimal, ","),
             (KpDivide, Keys.kbKeypadDivide, "/"), (KpMultiply, Keys.kbKeypadMultiply, "*"),
             (KpMinus, Keys.kbGrayMinus, "-"), (KpPlus, Keys.kbGrayPlus, "+"),
         };
@@ -99,11 +146,11 @@ public sealed class KeypadSemanticsTests
     }
 
     /// <summary>
-    /// NumLock on: key down, the text commit, key up. One character is typed — by the commit. The identity event is
-    /// not a cursor key and types nothing, also for + and −, whose legacy scan pair holds the character.
+    /// The operators are unchanged: key down, the text commit, key up. One character is typed — by the commit. The
+    /// identity event is not a cursor key and types nothing, also for + and −, whose legacy scan pair holds the character.
     /// </summary>
-    [Theory, MemberData(nameof(TextCases))]
-    public void WithNumLockOnTheIdentityAndItsTextCommitTypeTheCharacterOnce(bool gpu, uint keypad, ushort identity, string text)
+    [Theory, MemberData(nameof(OperatorCases))]
+    public void AnOperatorIdentityAndItsTextCommitTypeTheCharacterOnce(bool gpu, uint keypad, ushort identity, string text)
     {
         List<TEvent> events = Dispatched(gpu, (down, commit, up) =>
         {

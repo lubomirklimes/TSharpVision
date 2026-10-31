@@ -3,6 +3,7 @@ using TSharpVision.Constants;
 using TSharpVision.Drivers;
 using TSharpVision.Drivers.SDL;
 using TSharpVision.Drivers.SDL.Config;
+using TSharpVision.Drivers.SDL.Rendering.Fonts;
 using System.Runtime.InteropServices;
 
 namespace TSharpVision.Drivers.SDL.Gpu;
@@ -12,7 +13,7 @@ namespace TSharpVision.Drivers.SDL.Gpu;
 [ScreenDriver(System = Platform.Windows, Driver = nameof(SDLGpuDriver), Priority = 300)]
 [ScreenDriver(System = Platform.Linux,   Driver = nameof(SDLGpuDriver), Priority = 300)]
 [ScreenDriver(System = Platform.MacOS,   Driver = nameof(SDLGpuDriver), Priority = 300)]
-public class SDLGpuDriver : IDisposable, IDriver, IIdleWaitDriver
+public partial class SDLGpuDriver : IDisposable, IDriver, IIdleWaitDriver, IGridSizeDriver
 {
     private readonly SdlIdleWait _idleWait = new();
 
@@ -69,7 +70,10 @@ public class SDLGpuDriver : IDisposable, IDriver, IIdleWaitDriver
     /// <inheritdoc />
     public void Initialize() => Initialize(() =>
     {
-        // Prevent a synthesized second quit after native close; retain genuine OS quit events.
+        // One native close must reach the application as one cmQuit: by default SDL follows
+        // SDL_EVENT_WINDOW_CLOSE_REQUESTED on the last window with a synthesized SDL_EVENT_QUIT, and the
+        // second request would bypass an application's veto or quit confirmation. Genuine OS/signal
+        // quits still arrive as SDL_EVENT_QUIT.
         SDL3.SDL.SetHint(SDL3.SDL.Hints.QuitOnLastWindowClose, "0");
         if (!SDL3.SDL.Init(SDL3.SDL.InitFlags.Video))
             throw new InvalidOperationException($"SDL_Init failed: {SDL3.SDL.GetError()}");
@@ -88,6 +92,7 @@ public class SDLGpuDriver : IDisposable, IDriver, IIdleWaitDriver
         bool sdlInitialized = false;
         try
         {
+            // The typed [graphics] fontFit; the configuration loader already rejected invalid values.
             FontFit = ScreenDriverFactory.Configuration?.Graphics.FontFit ?? FontFitMode.Condense;
 
             initializeVideo();
@@ -95,7 +100,8 @@ public class SDLGpuDriver : IDisposable, IDriver, IIdleWaitDriver
 
             // HighPixelDensity: on a Retina / HiDPI display the swapchain gets the native backing
             // resolution instead of a 1× surface the compositor would magnify.
-            var windowFlags = SDL3.SDL.WindowFlags.Resizable | SDL3.SDL.WindowFlags.HighPixelDensity;
+            var windowFlags = SDL3.SDL.WindowFlags.Resizable | SDL3.SDL.WindowFlags.HighPixelDensity
+                | ExtraWindowFlagsForTesting;
 
             string windowTitle = ScreenDriverFactory.WindowTitle ?? "TSharpVision";
             _window = SDL3.SDL.CreateWindow(
@@ -116,7 +122,11 @@ public class SDLGpuDriver : IDisposable, IDriver, IIdleWaitDriver
             _gpuRenderer = new SDLGpuRenderer(
                 _window, options,
                 graphics?.FontName,
-                graphics?.FontSize, FontFit);
+                graphics?.FontSize,
+                FontFit)
+            {
+                SimulatePipelineFailureForTesting = SimulateShaderPipelineFailureForTesting,
+            };
             _gpuRenderer.Initialize();
 
             // Size the window so its drawable holds exactly the default grid of drawable cells.
@@ -161,6 +171,18 @@ public class SDLGpuDriver : IDisposable, IDriver, IIdleWaitDriver
     }
 
     /// <inheritdoc />
+    public void SetGridSize(ushort columns, ushort rows)
+    {
+        if (columns < 2 || rows < 1) throw new ArgumentOutOfRangeException(nameof(columns));
+        if (!_attached) { _cols = columns; _rows = rows; return; }
+        var (w, h) = _metrics.WindowSizeForGrid(columns, rows, _scale);
+        if (!SDL3.SDL.SetWindowSize(_window, w, h) || !SDL3.SDL.SyncWindow(_window))
+            throw new NotSupportedException("SDL window resize rejected: " + SDL3.SDL.GetError());
+        RefreshDisplayScale();
+        if (_cols != columns || _rows != rows)
+            throw new NotSupportedException("SDL host did not adopt the requested grid.");
+    }
+    /// <inheritdoc />
     public ushort GetCols()       => _cols;
     /// <inheritdoc />
     public ushort GetRows()       => _rows;
@@ -179,7 +201,7 @@ public class SDLGpuDriver : IDisposable, IDriver, IIdleWaitDriver
             wakeSignal.WaitOne(timeoutMilliseconds < 0 ? 100 : Math.Min(timeoutMilliseconds, 100));
             return;
         }
-        if (_dirty || _pendingKeys.Count != 0) return;
+        if (_dirty || _pendingKeys.Count != 0 || _heldKeys.HasPendingKeypadPress) return;
         _idleWait.Wait(timeoutMilliseconds, wakeSignal, ProcessSdlEvent);
         FlushPendingMotion();
     }
@@ -212,7 +234,7 @@ public class SDLGpuDriver : IDisposable, IDriver, IIdleWaitDriver
         {
             ProcessSdlEvent(e);
         }
-        FlushPendingMotion();
+        CompleteDrain();
     }
 
     private void ProcessSdlEvent(SDL3.SDL.Event e)
@@ -460,6 +482,23 @@ public class SDLGpuDriver : IDisposable, IDriver, IIdleWaitDriver
         return ev;
     }
 
+    // ── Native-pixel qualification seams (inert in normal operation) ─────────
+
+    /// <summary>The GPU renderer created by <see cref="Initialize()"/>, or null while detached.</summary>
+    internal SDLGpuRenderer? RendererForTesting => _gpuRenderer;
+
+    /// <summary>The SDL window, or zero while detached.</summary>
+    internal IntPtr WindowForTesting => _window;
+
+    /// <summary>Window flags added to the driver's own at creation (e.g. <c>Hidden</c>). None in normal operation.</summary>
+    internal SDL3.SDL.WindowFlags ExtraWindowFlagsForTesting { get; set; }
+
+    /// <summary>
+    /// Makes the renderer's shader-pipeline construction fail inside its own try block, so the real
+    /// production fallback (CPU compositing) is selected. False in normal operation.
+    /// </summary>
+    internal bool SimulateShaderPipelineFailureForTesting { get; set; }
+
     /// <inheritdoc />
     public void SetCursorType(ushort cursorType)
     {
@@ -536,6 +575,7 @@ public class SDLGpuDriver : IDisposable, IDriver, IIdleWaitDriver
     /// <inheritdoc />
     public bool ReadKeyEvent(out TEvent ev)
     {
+        if (_pendingKeys.Count == 0) PublishPendingKeypadPress();
         if (_pendingKeys.Count > 0) { ev = _pendingKeys.Dequeue(); return true; }
         ev = default;
         return false;
@@ -543,6 +583,7 @@ public class SDLGpuDriver : IDisposable, IDriver, IIdleWaitDriver
 
     internal bool ProcessModifierKey(uint keycode, bool down)
     {
+        PublishPendingKeypadPress();
         if (!_modifierTranslator.TryTranslate(keycode, down, out TEvent ev)) return false;
         FlushPendingMotion();
         _pendingKeys.Enqueue(ev);
@@ -552,7 +593,7 @@ public class SDLGpuDriver : IDisposable, IDriver, IIdleWaitDriver
 
     internal bool ProcessModifierFocusLost()
     {
-        bool changed = false;
+        bool changed = PublishPendingKeypadPress();
         foreach (TEvent release in _heldKeys.ReleaseAll(_modifierTranslator.LogicalState))
         {
             FlushPendingMotion();
@@ -574,16 +615,18 @@ public class SDLGpuDriver : IDisposable, IDriver, IIdleWaitDriver
         if (string.IsNullOrEmpty(text)) return;
         FlushPendingMotion();
         TEvent ev = SdlTextInput.CreateEvent(text, SdlKeyTranslator.ToShiftState(modifierState));
-        _heldKeys.TextCommitted(ev.keyDown);
+        ev.keyDown = _heldKeys.TextCommitted(ev.keyDown);
         _pendingKeys.Enqueue(ev);
         _dirty = true;
     }
 
     internal bool ProcessOrdinaryKeyUp(uint keycode, ushort modifierState)
     {
+        PublishPendingKeypadPress();
         if (!_heldKeys.TryKeyUp(keycode, modifierState, out TEvent deferredPress, out TEvent ev)) return false;
         FlushPendingMotion();
         // A Right Alt chord the layout turned into no text is published as the shortcut it was.
+        // (A waiting keypad press of this same key was already published above.)
         if (deferredPress.What != Events.evNothing) _pendingKeys.Enqueue(deferredPress);
         _pendingKeys.Enqueue(ev);
         _dirty = true;
@@ -592,8 +635,40 @@ public class SDLGpuDriver : IDisposable, IDriver, IIdleWaitDriver
 
     internal bool ProcessOrdinaryKeyDown(uint keycode, ushort modifierState)
     {
+        // A keypad press still waiting for text is followed by no commit once another key arrives.
+        PublishPendingKeypadPress();
         // Layout-correct printable input arrives later through SDL_TEXTINPUT.
         if (!_heldKeys.KeyDown(keycode, modifierState, out TEvent ev)) return false;
+        FlushPendingMotion();
+        _pendingKeys.Enqueue(ev);
+        _dirty = true;
+        return true;
+    }
+
+    // Everything a drain of SDL events leaves pending is published once the queue is empty.
+    private void CompleteDrain()
+    {
+        // A keypad press whose drain brought no text commit types nothing.
+        PublishPendingKeypadPress();
+        FlushPendingMotion();
+    }
+
+    /// <summary>
+    /// Processes <paramref name="events"/> as one drain of the SDL queue, exactly as <see cref="PumpMessages"/>
+    /// does, without SDL. For input qualification with native event structures.
+    /// </summary>
+    internal void DrainForTesting(params SDL3.SDL.Event[] events)
+    {
+        foreach (SDL3.SDL.Event e in events) ProcessSdlEvent(e);
+        CompleteDrain();
+    }
+
+    // A keypad digit or decimal press waits for the text commit SDL sends after it in the same drain, so a key that
+    // types is one press carrying its text, never a cursor key followed by the text. Without a commit it is published
+    // with its identity when the next key event arrives or the drain ends; it never outlives the drain.
+    private bool PublishPendingKeypadPress()
+    {
+        if (!_heldKeys.TryTakePendingKeypadPress(out TEvent ev)) return false;
         FlushPendingMotion();
         _pendingKeys.Enqueue(ev);
         _dirty = true;

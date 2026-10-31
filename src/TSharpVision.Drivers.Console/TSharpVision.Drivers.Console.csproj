@@ -13,6 +13,8 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="TSharpVision.Drivers.Console.Tests" />
+    <!-- Driver-output qualification (TW-4): observes the real translation through internal seams. -->
+    <InternalsVisibleTo Include="TSharpWorkbench.Diagnostics.DriverOutput" />
   </ItemGroup>
 
 </Project>

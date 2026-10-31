@@ -64,6 +64,10 @@ internal sealed class TextMateSyntaxClassifier : ISyntaxClassifier
     public SyntaxLineState InitialState => TextMateLineState.Initial;
 
     public SyntaxLineResult ClassifyLine(string lineText, SyntaxLineState startState)
+        => ClassifyLine(lineText, startState, LineTimeLimit);
+
+    // Semantic grammar tests use an unlimited budget; production always uses LineTimeLimit.
+    internal SyntaxLineResult ClassifyLine(string lineText, SyntaxLineState startState, TimeSpan timeLimit)
     {
         ArgumentNullException.ThrowIfNull(lineText);
         if (startState is not TextMateLineState state)
@@ -77,7 +81,7 @@ internal sealed class TextMateSyntaxClassifier : ISyntaxClassifier
             ITokenizeLineResult result;
             lock (_gate)
             {
-                result = _grammar.TokenizeLine(lineText, state.Stack, LineTimeLimit);
+                result = _grammar.TokenizeLine(lineText, state.Stack, timeLimit);
             }
 
             IReadOnlyList<SyntaxSpan> spans = TextMateScopeMapper.ToSpans(result.Tokens, lineText.Length);

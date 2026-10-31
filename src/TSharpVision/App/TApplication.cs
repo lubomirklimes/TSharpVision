@@ -51,6 +51,8 @@ public class TApplication : TProgram
         if (disposing)
         {
             // doneHistory() deferred.
+            // An application disposed without ShutDown has still ended: its unread pending event goes with it.
+            DiscardOwnPendingEvent();
             if (_teq != null)
             {
                 _teq.Dispose();

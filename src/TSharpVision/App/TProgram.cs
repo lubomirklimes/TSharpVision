@@ -61,6 +61,10 @@ public class TProgram : TGroup
     /// <summary>Single pending event returned before normal queued input.</summary>
     protected static TEvent Pending;
 
+    // The program whose PutEvent wrote Pending, or null once it is read or when a subclass wrote the slot itself.
+    // The slot is process-wide, but its event belongs to that program and ends with it (DiscardOwnPendingEvent).
+    private static TProgram? _pendingOwner;
+
     // Idle / CPU-throttle bookkeeping.
     /// <summary>Environment tick count, in milliseconds, at the last idle-time measurement.</summary>
     internal static int LastIdleClock;
@@ -150,6 +154,7 @@ public class TProgram : TGroup
         {
             @event = Pending;
             Pending.What = Events.evNothing;
+            _pendingOwner = null;
             if (InputTrace.Enabled)
                 InputTrace.LogEvent("Stage4-GetEvent(Pending)", @event);
         }
@@ -159,6 +164,7 @@ public class TProgram : TGroup
             if (@event.What == Events.evNothing)
             {
                 Idle();
+                NotifyIdleBoundary();
                 // All owning/modal loops retrieve through here. A direct non-loop probe
                 // remains nonblocking, as before. Finish the current Idle pass before waiting.
                 if (TGroup.EventLoopDepth != 0 && !deliveredPost && DoNotReleaseCPU == 0
@@ -208,6 +214,22 @@ public class TProgram : TGroup
             @event.What = Events.evNothing;
         }
 
+    }
+
+    // True while an IEventLoopObserver callback runs; loops it starts are not observed.
+    private bool _observingIdleBoundary;
+
+    // The opt-in observer boundary; IEventLoopObserver documents the contract enforced here.
+    private void NotifyIdleBoundary()
+    {
+        if (_observingIdleBoundary || TGroup.EventLoopDepth == 0 || _shutDown || endState != 0
+            || (ModalTopView is TGroup modal && modal.endState != 0)
+            || Pending.What != Events.evNothing || TEventQueue.HasPendingWork
+            || TScreen.ActiveDriver is not TSharpVision.Drivers.IEventLoopObserver observer)
+            return;
+        _observingIdleBoundary = true;
+        try { observer.OnIdleBoundary(this); }
+        finally { _observingIdleBoundary = false; }
     }
 
     /// <summary>
@@ -382,7 +404,27 @@ public class TProgram : TGroup
     public virtual void OutOfMemory() { /* empty by design */ }
 
     /// <inheritdoc />
-    public override void PutEvent(ref TEvent ev) { Pending = ev; TEventQueue.Wake(); }
+    /// <inheritdoc />
+    /// <remarks>A program that has shut down has no loop left to read the event, so the post is dropped rather than
+    /// left for the next program in the process.</remarks>
+    public override void PutEvent(ref TEvent ev)
+    {
+        if (_shutDown) return;
+        Pending = ev;
+        _pendingOwner = this;
+        TEventQueue.Wake();
+    }
+
+    // Ends this program's claim on the process-wide pending slot. An event another program wrote stays: only the
+    // writer's own end discards it. A slot with no recorded writer was set directly by a subclass; with one
+    // application at a time per process, the program that is ending is the one it was meant for.
+    internal void DiscardOwnPendingEvent()
+    {
+        if (Pending.What == Events.evNothing || (_pendingOwner != null && _pendingOwner != this))
+            return;
+        Pending = default;
+        _pendingOwner = null;
+    }
 
     /// <summary>Claims the calling thread as the UI thread and runs the modal application event loop until termination.</summary>
     public virtual void Run()
@@ -575,6 +617,8 @@ public class TProgram : TGroup
         // are the undeliverable ones. Dropping them releases the view tree without touching
         // posts that belong to another live application — the post queue is process-wide.
         TEventQueue.DropUndeliverablePosts();
+        // Likewise the pending slot: an event this program put there and never read is not the next program's.
+        DiscardOwnPendingEvent();
     }
 
     /// <summary>Hook for temporarily releasing application interaction with the host; the base program takes no action.</summary>

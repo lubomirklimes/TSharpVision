@@ -1,5 +1,39 @@
 # Changelog
 
+## 1.1.0
+
+Feature release with three new dialog controls, optional driver extension points, consistent keyboard window resizing, and focus, mnemonic and dialog fixes.
+
+### Added
+
+- `TComboBox`: editable and list-only modes, keyboard/mouse dropdown selection, cancellation, selection/text events and parent palette inheritance.
+- `TProgressBar`: exact `long` range arithmetic, optional percentage, explicit indeterminate activity steps and disabled rendering. Use `TView.Post` for UI-thread progress updates.
+- `TGroupBox` and `TGroupBoxTitleAlignment`: optional frame, aligned titles, content clipping, nested containers and Tab/Shift+Tab navigation. Child coordinates remain group-local.
+- Optional driver extension points: `IEventLoopObserver` observes empty-input passes on the UI thread; `IDriverDecorator` wraps and owns the selected uninitialized backend; `IGridSizeDriver` requests a character grid on both SDL drivers. `TEventQueue.WakeEventLoop` wakes the event loop without posting input. The assembly-qualified `TSHARPVISION_DRIVER_DECORATOR` setting opts into decoration and disables backend fallback.
+- TVDemo examples for the new controls, a palette gallery, character map, Open/Save filename selection (Save does not write), Change Directory, input/message boxes, validated inputs and multiline memos, plus control documentation, composition examples and refreshed help and keyboard guidance.
+
+### Changed
+
+- TVDemo's Demo menu is organized into Dialogs, Controls, and Views and tools.
+- Keyboard window resizing uses Shift+arrow in move/resize mode consistently across SDL, Win32 Console and ANSI/Kitty input.
+- History and directory-tree views use Unicode glyphs. Directory selection keeps its text caret hidden and updates horizontal scrolling with the viewport.
+
+### Fixed
+
+- SDL keypad digits and decimal input are paired with text from the same event drain, preventing navigation followed by an extra character on macOS. Without text, NumLock-off navigation is preserved; operators and keypad Enter are unchanged.
+- Group-box mnemonics reach eligible sibling and nested controls, focus their owner chain, and retain the focused group's priority. Re-entering a group restores its current child; visibility changes preserve an eligible current child.
+- Focus navigation and label/cluster mnemonics respect `ofValidate`, including nested group boxes. A refused cluster mnemonic does not toggle its item. `TGroup.SelectNext` and `TView.Select` retain their nonvalidating semantics.
+- Hidden or disabled default buttons, including those in hidden or disabled groups, no longer respond to Enter. Hidden button, label and cluster mnemonics are ignored; labels no longer focus hidden linked controls.
+- Live palette edits invalidate nested buffered views; the status line uses its sixth palette role. Cancel/Close mnemonics are corrected in dialogs and TVDemo.
+- File dialogs filter wildcard filenames and handle drive roots correctly; TVDemo's file-viewer Open workflow works again.
+- History dropdowns use the linked input's focus and disabled state when rendering, and disabled history/input controls do not open the dropdown.
+- `TProgram` discards its unread pending event on shutdown/disposal and ignores later `PutEvent` calls on that instance. Events belonging to another running program and nested modal delivery are preserved.
+
+### Compatibility
+
+- All eight packages and their internal package dependencies use 1.1.0. Existing 1.0 public declarations are retained, and packages are validated for binary compatibility with 1.0.0.
+- The three new controls are constructed programmatically and do not support object streaming. Existing applications do not need to implement the optional driver interfaces.
+
 ## 1.0.0
 
 First stable release of TSharpVision. It contains everything in the 1.0.0 release candidates below, and the public

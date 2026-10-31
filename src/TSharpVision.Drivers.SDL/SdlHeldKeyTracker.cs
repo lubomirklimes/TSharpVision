@@ -19,14 +19,32 @@ internal sealed class SdlHeldKeyTracker
     private readonly Dictionary<uint, KeyDownEvent> _deferred = new();
     // Chords that turned out to be ordinary Alt shortcuts; their repeats are shortcuts too.
     private readonly HashSet<uint> _chords = new();
+    // The one keypad press waiting for the text commit that may follow it in the same drain.
+    private uint? _keypadKey;
+    private KeyDownEvent _keypadPress;
     private uint? _awaitingText;
 
+    /// <summary>Whether a keypad press is waiting to learn whether it types.</summary>
+    public bool HasPendingKeypadPress => _keypadKey.HasValue;
+
     /// <summary>Records a native key press; returns true when <paramref name="ev"/> is to be published now.</summary>
+    /// <remarks>The caller publishes any waiting keypad press (<see cref="TryTakePendingKeypadPress"/>) first.</remarks>
     public bool KeyDown(uint keycode, ushort modifierState, out TEvent ev)
     {
         bool translated = SdlKeyTranslator.TryTranslate(keycode, modifierState, '\0', out ev);
         // A key without a translation can only ever be published by its text.
         SdlKeyIntent intent = translated ? SdlTextInput.Classify(keycode, modifierState) : SdlKeyIntent.Text;
+
+        if (intent == SdlKeyIntent.KeypadText)
+        {
+            // A repeat waits like the first press: each is followed by its own commit or by none.
+            _keypadKey = keycode;
+            _keypadPress = ev.keyDown;
+            _awaitingText = keycode;
+            ev = default;
+            return false;
+        }
+
         // The pure translator turns Alt plus punctuation into text; only a real shortcut may be deferred.
         if (intent == SdlKeyIntent.TextOrShortcut && ev.keyDown.text.Length != 0) intent = SdlKeyIntent.Text;
 
@@ -58,26 +76,60 @@ internal sealed class SdlHeldKeyTracker
         return false;
     }
 
-    /// <summary>Makes the awaited key release with the identity its text commit reported as the press.</summary>
-    public void TextCommitted(KeyDownEvent text)
+    /// <summary>
+    /// Makes the awaited key release with the identity its text commit reported as the press. Returns the press
+    /// to publish for the commit: the commit itself, or a waiting keypad press now carrying the committed text.
+    /// </summary>
+    public KeyDownEvent TextCommitted(KeyDownEvent text)
     {
-        if (_awaitingText is not uint keycode) return;
+        if (_awaitingText is not uint keycode) return text;
         _awaitingText = null;
+        if (_keypadKey == keycode)
+        {
+            // One press carries the keypad identity and the text, so KeypadKeys.Normalize makes it the text and
+            // never the cursor key. Its release reports the keypad identity the press reported.
+            KeyDownEvent press = _keypadPress;
+            press.text = text.text;
+            press.controlKeyState = text.controlKeyState;
+            _keypadKey = null;
+            if (!_held.ContainsKey(keycode)) _order.Add(keycode);
+            _held[keycode] = press;
+            return press;
+        }
         _unpublished.Remove(keycode);
         _deferred.Remove(keycode);
         // Unicode text reports no identity (keyCode 0); the key that typed it is still a held
         // key, and its release reports that same absence of identity.
         if (!_held.ContainsKey(keycode)) _order.Add(keycode);
         _held[keycode] = text;
+        return text;
     }
 
     /// <summary>
-    /// Releases a key. <paramref name="deferredPress"/> is the press of a Right Alt chord that was held
-    /// back for a text commit which never came; it is published first when its <c>What</c> is set.
+    /// Takes a waiting keypad press that no text commit followed, because its event drain ended or another key
+    /// event came first. It is published with its translated identity, which a release then reports.
+    /// </summary>
+    public bool TryTakePendingKeypadPress(out TEvent ev)
+    {
+        ev = default;
+        if (_keypadKey is not uint keycode) return false;
+        _keypadKey = null;
+        if (_awaitingText == keycode) _awaitingText = null;
+        ev.What = Events.evKeyDown;
+        ev.keyDown = _keypadPress;
+        if (!_held.ContainsKey(keycode)) _order.Add(keycode);
+        _held[keycode] = _keypadPress;
+        return true;
+    }
+
+    /// <summary>
+    /// Releases a key. <paramref name="deferredPress"/> is a press that was held back for a text commit which
+    /// never came (a Right Alt chord or a keypad key); it is published first when its <c>What</c> is set.
     /// </summary>
     public bool TryKeyUp(uint keycode, ushort modifierState, out TEvent deferredPress, out TEvent ev)
     {
         deferredPress = default;
+        if (_keypadKey == keycode) TryTakePendingKeypadPress(out deferredPress);
         if (_awaitingText == keycode) _awaitingText = null;
         _chords.Remove(keycode);
         uint state = SdlKeyTranslator.ToShiftState(modifierState);
@@ -101,7 +153,7 @@ internal sealed class SdlHeldKeyTracker
             // carried its translated identity may release with it; a text key's layout keycode
             // is not an identity any press reports.
             if (!SdlKeyTranslator.TryTranslate(keycode, modifierState, '\0', out ev)
-                || SdlTextInput.Classify(keycode, modifierState) != SdlKeyIntent.Shortcut)
+                || SdlTextInput.Classify(keycode, modifierState) is not (SdlKeyIntent.Shortcut or SdlKeyIntent.KeypadText))
             {
                 ev = default;
                 return false;
@@ -126,6 +178,7 @@ internal sealed class SdlHeldKeyTracker
         _unpublished.Clear();
         _deferred.Clear();
         _chords.Clear();
+        _keypadKey = null;
         _awaitingText = null;
         return releases;
     }

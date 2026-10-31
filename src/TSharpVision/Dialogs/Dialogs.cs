@@ -66,7 +66,7 @@ public static class MsgBox
     public const ushort mfOKCancel    = mfOKButton | mfCancelButton;
 
     private static readonly string[] ButtonNames =
-        { "~Y~es", "~N~o", "~O~K", "Cancel" };
+        { "~Y~es", "~N~o", "~O~K", "~C~ancel" };
     private static readonly ushort[] Commands =
         { Views.cmYes, Views.cmNo, Views.cmOK, Views.cmCancel };
     private static readonly string[] Titles =
@@ -198,7 +198,7 @@ public static class MsgBox
         dialog.Insert(new TButton(r, TSharpVisionIntl.Get("Btn_OK", "~O~K"), Views.cmOK,
             ButtonConstants.bfDefault));
         var r2 = new TRect(r.a.x + 12, r.a.y, r.b.x + 12, r.b.y);
-        dialog.Insert(new TButton(r2, TSharpVisionIntl.Get("Btn_Cancel", "Cancel"), Views.cmCancel,
+        dialog.Insert(new TButton(r2, TSharpVisionIntl.Get("Btn_Cancel", "~C~ancel"), Views.cmCancel,
             ButtonConstants.bfNormal));
 
         dialog.SelectNext(false);

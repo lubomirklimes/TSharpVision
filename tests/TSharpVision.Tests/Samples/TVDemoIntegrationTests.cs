@@ -35,6 +35,129 @@ public sealed class TVDemoIntegrationTests
     }
 
     [Fact]
+    public void ComboBoxDemoOffersASelectionAndAnEditableComboBox()
+    {
+        using var driver = new DriverScope();
+        using var registry = new StreamableRegistryScope();
+        var app = new TVDemoApp();
+        try
+        {
+            var dialog = app.BuildComboBoxDemoDialog(out var caseBox, out var encoding);
+            try
+            {
+                Assert.False(caseBox.IsEditable);
+                Assert.Equal(new[] { "Keep", "Lower", "Upper" }, caseBox.Items);
+                Assert.Equal("Keep", caseBox.Text);
+                Assert.True(encoding.IsEditable);
+                Assert.Equal(new[] { "UTF-8", "UTF-16 LE", "Windows-1250", "ISO-8859-2" }, encoding.Items);
+                Assert.Equal("UTF-8", encoding.Text);
+                Assert.Equal(0, encoding.SelectedIndex);
+                Assert.Same(caseBox, dialog.current);
+            }
+            finally { dialog.ShutDown(); }
+        }
+        finally { app.ShutDown(); }
+    }
+
+    [Fact]
+    public void ProgressDemoStepsResetsAndStopsItsWorker()
+    {
+        using var driver = new DriverScope();
+        using var registry = new StreamableRegistryScope();
+        var app = new TVDemoApp();
+        try
+        {
+            var dialog = app.BuildProgressDemoDialog();
+            try
+            {
+                Assert.False(dialog.Reading.IsIndeterminate);
+                Assert.True(dialog.Reading.ShowPercentage);
+                Assert.Equal(ProgressDemoDialog.TotalBytes, dialog.Reading.Maximum);
+                Assert.True(dialog.Activity.IsIndeterminate);
+
+                Command(dialog, ProgressDemoDialog.cmStep);
+                Command(dialog, ProgressDemoDialog.cmStep);
+                Assert.Equal(10, dialog.Reading.Percent);
+                Assert.Equal(2, dialog.Activity.ActivityStep);
+
+                Command(dialog, ProgressDemoDialog.cmTick);   // a tick without a running worker is ignored
+                Assert.Equal(10, dialog.Reading.Percent);
+
+                Command(dialog, ProgressDemoDialog.cmRun);
+                Assert.True(dialog.IsRunning);
+                Command(dialog, ProgressDemoDialog.cmTick);
+                Assert.Equal(11, dialog.Reading.Percent);
+                Command(dialog, ProgressDemoDialog.cmStop);
+                Assert.False(dialog.IsRunning);
+
+                Command(dialog, ProgressDemoDialog.cmReset);
+                Assert.Equal(0, dialog.Reading.Value);
+                Assert.Equal(0, dialog.Activity.ActivityStep);
+
+                Command(dialog, ProgressDemoDialog.cmRun);
+            }
+            finally { dialog.ShutDown(); }
+            Assert.False(dialog.IsRunning);
+        }
+        finally { app.ShutDown(); }
+
+        static void Command(TDialog dialog, ushort command)
+        {
+            var ev = new TEvent { What = Events.evCommand };
+            ev.message.command = command;
+            dialog.HandleEvent(ref ev);
+            Assert.Equal(Events.evNothing, ev.What);
+        }
+    }
+
+    [Fact]
+    public void ProgressDemoWorkerTicksReachTheModalDialogOnTheUiThread()
+    {
+        using var driver = new DriverScope(80, 25);
+        TSharpVision.Tests.Dialogs.ComboInput.ResetQueue();
+        var app = new TSharpVision.Tests.Dialogs.ComboApp();
+        var dialog = new ProgressDemoDialog(new TRect(5, 3, 63, 15));
+        int uiThread = Environment.CurrentManagedThreadId;
+        DateTime deadline = DateTime.UtcNow.AddSeconds(10);
+        try
+        {
+            app.Step(() =>
+            {
+                var run = new TEvent { What = Events.evCommand };
+                run.message.command = ProgressDemoDialog.cmRun;
+                TEventQueue.Enqueue(run);
+            });
+            Action? poll = null;
+            poll = () =>
+            {
+                Assert.Equal(uiThread, Environment.CurrentManagedThreadId);
+                if (dialog.Reading.Percent < 3 && DateTime.UtcNow < deadline)
+                {
+                    Thread.Sleep(10);
+                    app.Step(poll!);
+                    return;
+                }
+                Assert.True(dialog.IsRunning);
+                Assert.True(dialog.Reading.Percent >= 3, "the worker's ticks did not arrive");
+                Assert.True(dialog.Activity.ActivityStep >= 3);
+                TEventQueue.Enqueue(TSharpVision.Tests.Dialogs.ComboInput.Key(Keys.kbEsc));
+            };
+            app.Step(poll);
+
+            ushort result = app.DeskTop!.ExecView(dialog);
+            Assert.Equal(Views.cmCancel, result);
+            Assert.False(app.TimedOut);
+        }
+        finally
+        {
+            dialog.ShutDown();
+            Assert.False(dialog.IsRunning);
+            app.ShutDown();
+            TSharpVision.Tests.Dialogs.ComboInput.ResetQueue();
+        }
+    }
+
+    [Fact]
     public void ModelessDemosAndHelpWorkInCombinedApplication()
     {
         using var driver = new DriverScope();

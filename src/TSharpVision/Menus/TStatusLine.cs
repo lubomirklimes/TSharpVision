@@ -7,7 +7,7 @@ public class TStatusLine : TView
     /// <summary>Palette mapping for normal, disabled, highlighted, and selected status text.</summary>
     public const string cpStatusLine = "\x02\x03\x04\x05\x06\x07";
 
-    static TPalette palette = new TPalette(cpStatusLine, (ushort)(cpStatusLine.Length - 1 ));
+    static TPalette palette = new TPalette(cpStatusLine, cpStatusLine.Length);
 
     /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public new static readonly string Name = "TStatusLine";

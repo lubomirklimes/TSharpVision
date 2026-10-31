@@ -94,7 +94,7 @@ public class TColorDialog : TDialog
         Insert(new TButton(new TRect(46, 15, 59, 17),
             TSharpVisionIntl.Get("Btn_OK", "~O~K"), Views.cmOK, ButtonConstants.bfDefault));
         Insert(new TButton(new TRect(61, 15, 74, 17),
-            TSharpVisionIntl.Get("Btn_Cancel", "Cancel"), Views.cmCancel, ButtonConstants.bfNormal));
+            TSharpVisionIntl.Get("Btn_Cancel", "~C~ancel"), Views.cmCancel, ButtonConstants.bfNormal));
 
         SelectNext(false);
     }

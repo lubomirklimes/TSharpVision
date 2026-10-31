@@ -6,42 +6,70 @@ Use the {Index} to explore TVDemo demonstrations.
  {Main menu:MainMenu}
  {Welcome:WelcomeWindow}
  {Window management:WindowManagement}
- {Common controls:ControlsShowcase}
+ {Controls and dialogs:ControlsShowcase}
  {UI colors:ColorDialog}
- {Resource dialog:ResourceDialog}
- {Games}
+ {Resource-loaded dialog:ResourceDialog}
+ {Classic games:Games}
  {Other samples:OtherSamples}
 
 Tab selects links, Enter follows a link, Backspace returns, Esc closes help.
 
 .topic MainMenu=2
-File opens plain demonstration windows and a read-only file viewer. Demo contains common and selection controls, an outline, a popup menu, code editor, hex viewer, table viewer, terminal, input history and resource dialog.
+File opens demonstration windows (F4) and the read-only file viewer (F3). The normal Open button and double-click both open the selected file; unreadable or missing files report errors.
 
-Accessories contains ASCII table, calculator, calendar and clock. Games contains puzzle, Tetris and Sokoban. Diagnostics contains mouse and memory displays. Options edits UI colors. Window arranges and restores supported windows.
+Demo has three submenus: Dialogs, Controls, and Views and tools. Each example has one home. Options/UI colors is the application palette editor; the palette inheritance gallery is a different Controls lesson.
 
-F10 opens the menu; Alt+letter selects a menu. See {Window management:WindowManagement} and {Other samples:OtherSamples}.
+Demo/Dialogs contains Simple modal dialog, Open file dialog, Save file dialog, Change directory, Message boxes, Input box and Resource-loaded dialog. The Open and Save examples return an absolute filename. Save selects a name only: no file is written or overwritten.
+
+File dialogs: type *.txt or a path and wildcard, then Open/OK to filter. Enter a folder to browse, select a file to accept, or Esc/frame close to cancel. Open requires an existing file. Filename selection leaves process CWD unchanged. Open/Save and View File use the fixed Change Directory-sized layout; zoom and resize are disabled. Down or the arrow beside the name opens input history.
+
+Change directory contains a directory tree and path input. Chdir browses only. Revert refreshes from the current process directory. OK changes process CWD and reports the previous/current folders. Esc/frame close cancels without changing CWD. Later relative file paths use the accepted CWD.
+
+Message boxes lets you select information/warning/error/confirmation and OK, OK/Cancel or Yes/No/Cancel buttons; Show opens one box, then displays its actual response code. Input box uses the framework helper: accepting returns edited text; cancellation returns the original World value.
+
+The system-symbol menu (Alt+Space) holds ASCII table, calculator, calendar, clock, Puzzle and Tetris. Diagnostics contains Keyboard, Function keys, Mouse and Heap/memory. Window arranges and restores supported windows.
+
+F10 opens the menu; Alt+F/D/I/O/W/H opens the corresponding top menu. Arrow keys, Enter and caption letters navigate submenus; Esc backs out one level. Alt+X exits. See {Controls and dialogs:ControlsShowcase} and {Window management:WindowManagement}.
 
 .topic WelcomeWindow=3
-TSharpVision reimplements and extends Borland Turbo Vision in C#/.NET. This application demonstrates general controls, custom views and persistence. Use {Main menu:MainMenu} to explore.
+TSharpVision reimplements and extends Borland Turbo Vision in C#/.NET. TVDemo demonstrates controls, reusable dialogs, custom views and persistence. Open {Main menu:MainMenu} or {Controls and dialogs:ControlsShowcase} to explore.
 
 .topic WindowManagement=5
-F6 selects the next window; Shift+F6 selects the previous one. F5 zooms; Ctrl+F5 moves/resizes; Alt+F3 closes. Window offers Tile and Cascade.
+F6 selects the next window; Shift+F6 selects the previous one. F5 zooms; Ctrl+F5 moves/resizes (arrows move, Shift+arrows resize); Alt+F3 closes. Window offers Tile and Cascade.
 
-Save Desktop State writes plain demonstration windows and the application palette to tvdemo-desktop.tvr next to the executable. Unsupported games, accessories and viewers are reported and excluded. Load validates the snapshot before replacing supported windows; other windows remain open. Saved order is preserved among restored windows, which are placed above retained windows. Only the palette is restored automatically on startup.
+Save desktop state writes plain demonstration windows and the application palette to tvdemo-desktop.tvr next to the executable. Unsupported games, accessories and viewers are reported and excluded. Load validates the snapshot before replacing supported windows; other windows remain open. Saved order is preserved among restored windows, placed above retained windows. Only the palette is restored automatically at startup.
+
+Code editor close or application exit offers Save/Discard/Cancel for modified text. For an untitled editor, accepting Save opens the real editor Save As chooser; overwrite confirmation applies to existing destinations. This real file-writing workflow is distinct from Demo/Dialogs/Save file dialog (chooser-only).
 
 .topic ControlsShowcase=6
-Demo/Common Controls: use Tab/Shift+Tab to navigate input, check boxes, radio buttons and language list. OK reports selected values. Demo/Selection Controls cycles three states per item with Space. Demo/Outline navigates with arrows and expands or collapses with + and -. Demo/Popup Menu dispatches a chosen command.
+Demo/Controls/Common controls: Tab/Shift+Tab moves between input, checkboxes, radio buttons and the language list. OK reports selected values. Multi-state checkboxes cycles off/planned/done with Space; arrows move focus.
 
-Code Editor contains editable highlighted C# with scrollbars. Hex Viewer and Table Viewer show in-memory data; arrows and Page keys navigate. Terminal runs the platform shell in a PTY when available. Demo/Input History records submitted input and recalls it with the history button.
+Combo boxes has list-only Case and editable Encoding. Alt+Down or F4 opens the dropdown (Down also opens editable suggestions). Arrows choose a highlight; Enter commits without accepting the parent dialog. Esc or an outside click cancels the dropdown without changing its value. Tab/Shift+Tab commits and moves focus. A second Esc cancels the parent. F4 outside a combo retains File/New demonstration window.
+
+Progress bars shows determinate percentage over 250 MiB and indeterminate activity. Step advances both, Run posts background ticks applied on the UI thread, Stop pauses, Reset returns both to their start (Run remains active), Close stops the worker.
+
+Group boxes shows left/center/right titles, nesting and a borderless group. Tab/Shift+Tab moves through children. Alt+D selects the synthetic Data disk across groups; Alt+N focuses the nested Name field. Titles are presentation text, not mnemonics. No disk access occurs.
+
+Input history: enter a value and OK to record it. Reopen, then Down or the history arrow recalls entries; Enter selects and Esc closes the popup. Esc in the parent cancels. Shared history may also record when an input loses focus.
+
+Validated input demonstrates character filtering, range 1..100, picture ###-## and exact lookup Red/Green/Blue. Invalid characters are rejected; invalid complete values block OK and focus release (Tab/mnemonics), including the nested range group. Feedback identifies the rule. Correct the field or use Esc/Cancel to discard.
+
+Multiline memo uses TMemo and TMemoData, not a file editor. Enter inserts a line; Tab leaves the memo; scrollbars navigate. Capacity is 1024 UTF-16 units. OK transfers edited data; Cancel preserves the original record. Feedback shows the length and a short preview. No file is written.
+
+Palette inheritance gallery compares gray dialog, blue window and custom palette parents, plus a nested modal example. F6 or numbered-window keys switch parents. Popup menu reports its selected choice. {UI colors:ColorDialog} edits the actual application palette.
+
+Demo/Views and tools contains Outline, Code editor, Hex viewer, Table viewer and Terminal. Outline: arrows navigate; +, -, * expand/collapse. Hex/table use synthetic data. Terminal runs a PTY shell when available, otherwise a memory-session input example.
+
+Code editor contains editable highlighted C# with scrollbars. Ctrl+Q F opens Find; Ctrl+Q A opens Replace. The prefix means Ctrl+Q followed by F or A. To exercise Save As, edit the untitled example, close it and choose Yes to save. TVEdit owns the fuller editing/file workflow.
 
 .topic ColorDialog=7
-Options/UI Colors edits a copy of the live palette. OK applies it and redraws; Cancel discards changes. Window/Save Desktop State persists the palette. See {Window management:WindowManagement}.
+Options/UI colors edits a copy of the live palette. OK applies and redraws; Cancel discards changes. Try requests a color-update redraw; it does not commit the cloned palette. Window/Save desktop state persists the accepted palette. The palette inheritance gallery is under Demo/Controls. See {Window management:WindowManagement}.
 
 .topic ResourceDialog=8
-Demo/Resource Dialog creates tvdemo-dialog.tvr on first use, then loads a dialog from TResourceFile. It demonstrates serialization of a dialog, label, input and buttons. The resource is separate from {desktop snapshots:WindowManagement}.
+Demo/Dialogs/Resource-loaded dialog creates tvdemo-dialog.tvr on first use, then loads a dialog from TResourceFile. It demonstrates serialization of a dialog, label, input and buttons. New 1.1 controls are programmatic and are not added to this resource or desktop snapshot streaming. The resource is separate from {desktop snapshots:WindowManagement}.
 
 .topic Games=9
-Puzzle, Tetris and Sokoban demonstrate custom drawing and keyboard input. Tetris: arrows move/rotate, Space drops, P pauses. Game windows are excluded from desktop snapshots. Close timed games to stop their activity.
+Puzzle and Tetris are in the system-symbol menu (Alt+Space). They demonstrate custom drawing and keyboard input. Tetris: arrows move/rotate, Space drops, P pauses. Game windows are excluded from desktop snapshots. Close timed games to stop their activity.
 
 .topic OtherSamples=10
 TVEdit owns complete editing, file encoding selection, clipboard, undo and search/replace workflows. TVTerm owns TTerminal sessions, ANSI/Unicode output, selection, processes and PTY shells. TVBasic and TVIntl are separate specialized examples.

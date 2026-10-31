@@ -33,9 +33,9 @@ public sealed class FrameTitleGeometryTests
     private static string Row(TView view, int localY)
     {
         TPoint at = view.MakeGlobal(new TPoint(0, localY));
-        var cells = TScreen.ScreenBuffer!;
+        var cells = RootScreenCopy.CopyRoot();
         var chars = new char[view.size.x];
-        for (int x = 0; x < chars.Length; x++) chars[x] = cells.Data[at.y * TScreen.ScreenWidth + at.x + x].Character;
+        for (int x = 0; x < chars.Length; x++) chars[x] = cells[at.x + x, at.y].Character;
         return new string(chars);
     }
 

@@ -41,7 +41,7 @@ jobs:
           }
       - run: dotnet restore TSharpVision.slnx -p:TreatWarningsAsErrors=true
       - run: dotnet build TSharpVision.slnx -c Release -t:Rebuild --no-restore -v minimal -warnaserror
-      - run: dotnet test TSharpVision.slnx -c Release --no-build --no-restore -v minimal
+      - run: dotnet test TSharpVision.slnx -c Release --no-build --no-restore -v minimal --results-directory TestResults/ci/${{ github.run_id }}-${{ github.run_attempt }}
       - name: Pack and validate release packages
         id: packages
         env:

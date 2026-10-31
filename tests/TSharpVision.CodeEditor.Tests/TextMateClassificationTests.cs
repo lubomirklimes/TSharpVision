@@ -23,7 +23,9 @@ public sealed class TextMateClassificationTests
         for (int i = 0; i < lines.Length; i++)
         {
             string line = lines[i];
-            SyntaxLineResult classified = classifier.ClassifyLine(line, state);
+            // These assertions test grammar semantics, independently of machine load and
+            // cold regex compilation. Timeout behavior is covered separately.
+            SyntaxLineResult classified = ((TextMateSyntaxClassifier)classifier).ClassifyLine(line, state, TimeSpan.MaxValue);
             result[i] = classified.Spans.Select(s => (line.Substring(s.Start, s.Length), s.Class)).ToList();
             state = classified.EndState;
         }

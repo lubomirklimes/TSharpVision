@@ -387,6 +387,22 @@ public sealed class AnsiTerminalDriver : IDriver, IIdleWaitDriver, IDisposable
     internal void FeedInputForTesting(ReadOnlySpan<byte> bytes, Action<string> output)
         => _input.Feed(bytes, output);
 
+    /// <summary>
+    /// Marks the output side attached at a fixed size without touching the TTY, so output
+    /// methods write their real sequences to <see cref="Console.Out"/> for driver-output
+    /// qualification (which redirects it). Raw mode, keyboard negotiation and resize polling
+    /// are not started.
+    /// </summary>
+    internal void AttachOutputForTesting(ushort cols, ushort rows)
+    {
+        _cols = cols;
+        _rows = rows;
+        _attached = true;
+    }
+
+    /// <summary>Releases the attachment made by <see cref="AttachOutputForTesting"/>; nothing is written.</summary>
+    internal void DetachOutputForTesting() => _attached = false;
+
     // ---- helpers -------------------------------------------------------
 
     private static void Write(string s) => Console.Write(s);

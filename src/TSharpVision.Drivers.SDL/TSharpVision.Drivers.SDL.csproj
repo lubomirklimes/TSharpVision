@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <PackageId>TSharpVision.Drivers.SDL</PackageId>
@@ -28,6 +28,12 @@
   <ItemGroup>
     <InternalsVisibleTo Include="TSharpVision.Drivers.SDL.Tests" />
     <InternalsVisibleTo Include="TSharpVision.Diagnostics.SdlGlyphs" />
+    <!-- Driver-output qualification (TW-4): observes the real translation through internal seams. -->
+    <InternalsVisibleTo Include="TSharpWorkbench.Diagnostics.DriverOutput" />
+    <!-- Native-pixel qualification (TW-5A): framebuffer / GPU render-target readback seams. -->
+    <InternalsVisibleTo Include="TSharpWorkbench.Diagnostics.NativePixels" />
+    <!-- Borrowed capture only; Proxy remains the sole driver lifecycle owner. -->
+    <InternalsVisibleTo Include="TSharpWorkbench.Proxy" />
   </ItemGroup>
 
   <ItemGroup>

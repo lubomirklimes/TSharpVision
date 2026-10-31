@@ -81,7 +81,7 @@ What the drivers supply differs:
 | | Text of a typing keypad key | NumLock state | Consequence |
 |---|---|---|---|
 | Console | In the same event | yes | One event per key. |
-| SDL | A separate text event after the key event | yes (`SDL_KMOD_NUM`) | The key event is the identity (navigation, or nothing with NumLock on); the text event that follows types, and has no keypad identity. |
+| SDL | A separate text event after the key event; the driver joins them | yes (`SDL_KMOD_NUM`), but macOS reports it clear and still sends digits | A digit or decimal press waits for the text event SDL sends after it in the same drain and is published as one event with the identity and the text, so it types and is never also a cursor key. Without text in that drain it is published as the identity alone (navigation, or nothing with NumLock on). Operators and Enter are published at once; their text event types and has no keypad identity. |
 | Kitty | In the same event when the terminal reports associated text | yes | Without associated text a typing keypad key types nothing. |
 | Plain ANSI | — | no | The keypad sends what the main keys send; there is nothing to normalize. |
 

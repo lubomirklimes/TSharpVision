@@ -19,14 +19,14 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
     private int _maxCells = 256 * 100;
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    private struct BgVertex    // 12 bytes
+    internal struct BgVertex    // 12 bytes
     {
         public float X, Y;
         public byte  R, G, B, A;
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    private struct GlyphVertex  // 20 bytes
+    internal struct GlyphVertex  // 20 bytes
     {
         public float X, Y;
         public float U, V;
@@ -366,9 +366,6 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
         GpuGridLayout layout = GpuGridLayout.Compute(
             (int)swapW, (int)swapH, (int)cols, (int)rows, _cellWidth, _cellHeight);
 
-        float invW = 2f / (cols * _cellWidth);
-        float invH = 2f / (rows * _cellHeight);
-
         // Map staging buffers
         BgVertex*    bgPtr    = (BgVertex*)   SDL3.SDL.MapGPUTransferBuffer(_device, _bgTransferBuf,    true);
         GlyphVertex* glyphPtr = (GlyphVertex*)SDL3.SDL.MapGPUTransferBuffer(_device, _glyphTransferBuf, true);
@@ -379,76 +376,9 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
             return (TimeSpan.Zero, TimeSpan.Zero);
         }
 
-        int bgCount    = 0;
-        int glyphCount = 0;
-
-        for (uint row = 0; row < rows; row++)
-        {
-            for (uint col = 0; col < cols; col++)
-            {
-                TScreenChar cell = buf.GetChar(col, row);
-                byte attr = (byte)(cell.Attr & 0xFF);
-                (byte fgR, byte fgG, byte fgB) = ArgbToRgb(Vga16[attr & 0x0F]);
-                (byte bgR, byte bgG, byte bgB) = ArgbToRgb(Vga16[(attr >> 4) & 0x0F]);
-
-                bool isCursor = cursorType != 0
-                    && (int)col == cursorX && (int)row == cursorY;
-
-                byte cellBgR, cellBgG, cellBgB;
-                byte cellFgR, cellFgG, cellFgB;
-                bool underlineCursor = false;
-
-                if (isCursor && cursorType >= 100)
-                {
-                    // Block cursor: invert fg/bg
-                    cellBgR = fgR; cellBgG = fgG; cellBgB = fgB;
-                    cellFgR = bgR; cellFgG = bgG; cellFgB = bgB;
-                }
-                else if (isCursor)
-                {
-                    // Underline cursor: normal bg, but add underline bar in fg color
-                    cellBgR = bgR; cellBgG = bgG; cellBgB = bgB;
-                    cellFgR = fgR; cellFgG = fgG; cellFgB = fgB;
-                    underlineCursor = true;
-                }
-                else
-                {
-                    cellBgR = bgR; cellBgG = bgG; cellBgB = bgB;
-                    cellFgR = fgR; cellFgG = fgG; cellFgB = fgB;
-                }
-
-                // Clip-space cell rect
-                float cx0 = col  * _cellWidth  * invW - 1f;
-                float cy0 = 1f - row  * _cellHeight * invH;
-                float cx1 = cx0 + _cellWidth  * invW;
-                float cy1 = cy0 - _cellHeight * invH;
-
-                EmitQuad(bgPtr, ref bgCount, cx0, cy0, cx1, cy1, cellBgR, cellBgG, cellBgB);
-
-                if (underlineCursor)
-                {
-                    // Underline bar inside the cell: 2 logical pixels, scaled to the drawable.
-                    float barY0 = cy0 - (_cellHeight - _underlineHeight) * (invH);
-                    EmitQuad(bgPtr, ref bgCount, cx0, barY0, cx1, cy1, cellFgR, cellFgG, cellFgB);
-                }
-
-                char ch = cell.Character;
-                if (ch is not (' ' or '\0'))
-                {
-                    // PhasedDither needs the cell's grid position. The shared helper is the
-                    // single phase formula in the codebase; CreateKey then normalises it away for
-                    // every glyph that cannot depend on it, so only B0/B1/B2 gain extra slots.
-                    GlyphPhase phase =
-                        _glyphSource.PhaseForCell((int)col, (int)row, _cellWidth, _cellHeight);
-                    GpuGlyphKey glyphKey = _glyphSource.CreateKey(ch, phase);
-
-                    var (u0, v0, u1, v1) = _atlas.GetOrAllocateSlot(glyphKey, _glyphSource.GetAlpha);
-                    if (u0 != u1)  // valid atlas slot
-                        EmitGlyphQuad(glyphPtr, ref glyphCount, cx0, cy0, cx1, cy1,
-                            u0, v0, u1, v1, cellFgR, cellFgG, cellFgB);
-                }
-            }
-        }
+        BuildVertices(bgPtr, glyphPtr, buf, cols, rows, _cellWidth, _cellHeight,
+            cursorX, cursorY, cursorType, _glyphSource, _atlas, out int bgCount, out int glyphCount,
+            _underlineHeight);
 
         SDL3.SDL.UnmapGPUTransferBuffer(_device, _bgTransferBuf);
         SDL3.SDL.UnmapGPUTransferBuffer(_device, _glyphTransferBuf);
@@ -541,6 +471,106 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
         return (
             System.Diagnostics.Stopwatch.GetElapsedTime(t0, t1),
             System.Diagnostics.Stopwatch.GetElapsedTime(t1, t2));
+    }
+
+    // ─── Vertex build ────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Translates the cell grid into the two vertex streams the render pass draws: one opaque
+    /// background quad per cell (plus a bar for an underline cursor) and one blended glyph quad per
+    /// non-space cell. Writes into caller-provided memory, so the translation is the same whether
+    /// the destination is a mapped GPU transfer buffer or ordinary memory.
+    /// </summary>
+    internal static void BuildVertices(
+        BgVertex*       bgPtr,
+        GlyphVertex*    glyphPtr,
+        ScreenBuffer    buf,
+        uint            cols,
+        uint            rows,
+        int             cellWidth,
+        int             cellHeight,
+        int             cursorX,
+        int             cursorY,
+        ushort          cursorType,
+        IGpuGlyphSource glyphSource,
+        TerminalAtlas   atlas,
+        out int         bgCount,
+        out int         glyphCount,
+        int             underlineHeight = 2)
+    {
+        float invW = 2f / (cols * cellWidth);
+        float invH = 2f / (rows * cellHeight);
+
+        bgCount    = 0;
+        glyphCount = 0;
+
+        for (uint row = 0; row < rows; row++)
+        {
+            for (uint col = 0; col < cols; col++)
+            {
+                TScreenChar cell = buf.GetChar(col, row);
+                byte attr = (byte)(cell.Attr & 0xFF);
+                (byte fgR, byte fgG, byte fgB) = ArgbToRgb(Vga16[attr & 0x0F]);
+                (byte bgR, byte bgG, byte bgB) = ArgbToRgb(Vga16[(attr >> 4) & 0x0F]);
+
+                bool isCursor = cursorType != 0
+                    && (int)col == cursorX && (int)row == cursorY;
+
+                byte cellBgR, cellBgG, cellBgB;
+                byte cellFgR, cellFgG, cellFgB;
+                bool underlineCursor = false;
+
+                if (isCursor && cursorType >= 100)
+                {
+                    // Block cursor: invert fg/bg
+                    cellBgR = fgR; cellBgG = fgG; cellBgB = fgB;
+                    cellFgR = bgR; cellFgG = bgG; cellFgB = bgB;
+                }
+                else if (isCursor)
+                {
+                    // Underline cursor: normal bg, but add underline bar in fg color
+                    cellBgR = bgR; cellBgG = bgG; cellBgB = bgB;
+                    cellFgR = fgR; cellFgG = fgG; cellFgB = fgB;
+                    underlineCursor = true;
+                }
+                else
+                {
+                    cellBgR = bgR; cellBgG = bgG; cellBgB = bgB;
+                    cellFgR = fgR; cellFgG = fgG; cellFgB = fgB;
+                }
+
+                // Clip-space cell rect
+                float cx0 = col  * cellWidth  * invW - 1f;
+                float cy0 = 1f - row  * cellHeight * invH;
+                float cx1 = cx0 + cellWidth  * invW;
+                float cy1 = cy0 - cellHeight * invH;
+
+                EmitQuad(bgPtr, ref bgCount, cx0, cy0, cx1, cy1, cellBgR, cellBgG, cellBgB);
+
+                if (underlineCursor)
+                {
+                    // Preserve the drawable-scaled underline used by the production renderer.
+                    float barY0 = cy0 - (cellHeight - underlineHeight) * (invH);
+                    EmitQuad(bgPtr, ref bgCount, cx0, barY0, cx1, cy1, cellFgR, cellFgG, cellFgB);
+                }
+
+                char ch = cell.Character;
+                if (ch is not (' ' or '\0'))
+                {
+                    // PhasedDither needs the cell's grid position. The shared helper is the
+                    // single phase formula in the codebase; CreateKey then normalises it away for
+                    // every glyph that cannot depend on it, so only B0/B1/B2 gain extra slots.
+                    GlyphPhase phase =
+                        glyphSource.PhaseForCell((int)col, (int)row, cellWidth, cellHeight);
+                    GpuGlyphKey glyphKey = glyphSource.CreateKey(ch, phase);
+
+                    var (u0, v0, u1, v1) = atlas.GetOrAllocateSlot(glyphKey, glyphSource.GetAlpha);
+                    if (u0 != u1)  // valid atlas slot
+                        EmitGlyphQuad(glyphPtr, ref glyphCount, cx0, cy0, cx1, cy1,
+                            u0, v0, u1, v1, cellFgR, cellFgG, cellFgB);
+                }
+            }
+        }
     }
 
     // ─── Vertex emit helpers ─────────────────────────────────────────────────

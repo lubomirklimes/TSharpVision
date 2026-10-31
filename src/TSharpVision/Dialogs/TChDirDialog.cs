@@ -48,39 +48,43 @@ public class TChDirDialog : TDialog
 
         dirInput = new TInputLine(
             new TRect(3, 3, 30, 4),
-            FileDialogConstants.MaxPathLen);
+            FileDialogConstants.MaxPathLen) { growMode = Views.gfGrowHiX };
         Insert(dirInput);
         Insert(new TLabel(
             new TRect(2, 2, 17, 3),
             TSharpVisionIntl.Get("ChDir_Label_DirectoryName", "Directory ~n~ame"),
             dirInput));
-        Insert(new THistory(new TRect(30, 3, 33, 4), dirInput, histId));
+        Insert(new THistory(new TRect(30, 3, 33, 4), dirInput, histId)
+            { growMode = Views.gfGrowLoX | Views.gfGrowHiX });
 
         var sbv = new TScrollBar(new TRect(32, 6, 33, 16));
         Insert(sbv);
         var sbh = new TScrollBar(new TRect(3, 16, 32, 17));
-        sbh.SetRange(0, 260);
-        sbh.SetStep(28, 1);
         Insert(sbh);
 
-        dirList = new TDirListBox(new TRect(3, 6, 32, 16), sbv, sbh);
+        dirList = new TDirListBox(new TRect(3, 6, 32, 16), sbv, sbh)
+            { growMode = Views.gfGrowHiX | Views.gfGrowHiY };
         Insert(dirList);
         Insert(new TLabel(
             new TRect(2, 5, 17, 6),
             TSharpVisionIntl.Get("ChDir_Label_DirectoryTree", "Directory ~t~ree"),
             dirList));
 
-        okButton = new TButton(new TRect(35, 6, 45, 8),
-                               TSharpVisionIntl.Get("Btn_OK", "~O~K"), Views.cmOK, ButtonConstants.bfDefault);
+        okButton = new TButton(new TRect(35, 3, 45, 5),
+                               TSharpVisionIntl.Get("Btn_OK", "~O~K"), Views.cmOK, ButtonConstants.bfDefault)
+            { growMode = Views.gfGrowLoX | Views.gfGrowHiX };
         Insert(okButton);
-        chDirButton = new TButton(new TRect(35, 9, 45, 11),
-                                  TSharpVisionIntl.Get("ChDir_Btn_Chdir", "~C~hdir"), Views.cmChangeDir, ButtonConstants.bfNormal);
+        chDirButton = new TButton(new TRect(35, 6, 45, 8),
+                                  TSharpVisionIntl.Get("ChDir_Btn_Chdir", "~C~hdir"), Views.cmChangeDir, ButtonConstants.bfNormal)
+            { growMode = Views.gfGrowLoX | Views.gfGrowHiX };
         Insert(chDirButton);
-        Insert(new TButton(new TRect(35, 12, 45, 14),
-                           TSharpVisionIntl.Get("ChDir_Btn_Revert", "~R~evert"), Views.cmRevert, ButtonConstants.bfNormal));
+        Insert(new TButton(new TRect(35, 9, 45, 11),
+                           TSharpVisionIntl.Get("ChDir_Btn_Revert", "~R~evert"), Views.cmRevert, ButtonConstants.bfNormal)
+            { growMode = Views.gfGrowLoX | Views.gfGrowHiX });
         if ((opts & ChDirDialogOptions.cdHelpButton) != 0)
-            Insert(new TButton(new TRect(35, 15, 45, 17),
-                               TSharpVisionIntl.Get("Btn_Help", "~H~elp"), Views.cmHelp, ButtonConstants.bfNormal));
+            Insert(new TButton(new TRect(35, 12, 45, 14),
+                               TSharpVisionIntl.Get("Btn_Help", "~H~elp"), Views.cmHelp, ButtonConstants.bfNormal)
+                { growMode = Views.gfGrowLoX | Views.gfGrowHiX });
 
         if ((opts & ChDirDialogOptions.cdNoLoadDir) == 0)
             SetUpDialog();

@@ -116,12 +116,12 @@ public class TFileDialog : TDialog, IFileDialogContext
         AddButton(FileDialogOptions.fdAddButton,     TSharpVisionIntl.Get("File_Btn_Add",     "~A~dd"),     Views.cmFileOpen);
         AddButton(FileDialogOptions.fdSelectButton,  TSharpVisionIntl.Get("File_Btn_Select",  "~S~elect"),  Views.cmFileSelect);
         AddButton(FileDialogOptions.fdReplaceButton, TSharpVisionIntl.Get("File_Btn_Replace", "~R~eplace"), Views.cmFileReplace);
-        AddButton(FileDialogOptions.fdClearButton,   TSharpVisionIntl.Get("File_Btn_Clear",   "~C~lear"),   Views.cmFileClear);
+        AddButton(FileDialogOptions.fdClearButton,   TSharpVisionIntl.Get("File_Btn_Clear",   "C~l~ear"),   Views.cmFileClear);
 
         bt = new TButton(r,
             (aOptions & FileDialogOptions.fdDoneButton) != 0
                 ? TSharpVisionIntl.Get("Btn_Done", "Done")
-                : TSharpVisionIntl.Get("Btn_Cancel", "Cancel"),
+                : TSharpVisionIntl.Get("Btn_Cancel", "~C~ancel"),
             Views.cmCancel, ButtonConstants.bfNormal);
         bt.growMode = (byte)(Views.gfGrowLoX | Views.gfGrowHiX);
         Insert(bt);
@@ -331,7 +331,8 @@ public class TFileDialog : TDialog, IFileDialogContext
                 directory = dir;
                 wildCard  = name;
                 if (command != Views.cmFileInit) fileList?.Select();
-                fileList?.ReadDirectory(fName, wildCard ?? string.Empty);
+                // fName already ends with the mask; pass the split directory so it is applied once.
+                fileList?.ReadDirectory(dir, wildCard ?? string.Empty);
                 LastError = fileList?.LastError ?? string.Empty;
             }
             return false;

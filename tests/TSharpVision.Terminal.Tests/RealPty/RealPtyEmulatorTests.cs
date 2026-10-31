@@ -296,7 +296,12 @@ public sealed class RealPtyEmulatorTests : IDisposable
     [SupportedOSPlatform("windows10.0.17763")]
     private async Task ConPtyLess(string less)
     {
-        using var h = PtyEmulatorHarness.ConPty(less, "lines.txt", 80, 24, _directory);
+        // ConPTY inherits the host environment. Give this child the terminal type our
+        // emulator implements, even when the test runner has TERM=dumb (or no TERM).
+        // Set it inside cmd so parallel tests and the parent environment are untouched.
+        string cmd = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "cmd.exe");
+        string arguments = $"/d /s /c \"set \"TERM={TTerminal.TermName}\"&&set \"COLORTERM=\"&&\"{less}\" lines.txt\"";
+        using var h = PtyEmulatorHarness.ConPty(cmd, arguments, 80, 24, _directory);
         LinesFile(300);
         await h.StartAsync();
         await h.WaitForTextAsync("line 1");

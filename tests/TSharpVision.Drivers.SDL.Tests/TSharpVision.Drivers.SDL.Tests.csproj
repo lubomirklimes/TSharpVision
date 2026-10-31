@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <IsPackable>false</IsPackable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <!-- The keyboard diagnostics project references every driver. Their namespaces must not leak
          into this project, where an unqualified Console has to stay System.Console. -->
     <DisableTransitiveProjectReferences>true</DisableTransitiveProjectReferences>

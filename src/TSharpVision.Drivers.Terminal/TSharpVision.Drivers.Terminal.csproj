@@ -13,6 +13,10 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="TSharpVision.Drivers.Terminal.Tests" />
+    <!-- Driver-output qualification (TW-4): observes the real translation through internal seams. -->
+    <InternalsVisibleTo Include="TSharpWorkbench.Diagnostics.DriverOutput" />
+    <!-- Native host rendering (TW-5B): the driver has no Windows TTY attach, so its real VT output is attached to stdout. -->
+    <InternalsVisibleTo Include="TSharpWorkbench.Diagnostics.NativeHosts" />
   </ItemGroup>
 
 </Project>

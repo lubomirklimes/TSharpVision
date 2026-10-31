@@ -187,7 +187,7 @@ public sealed class DialogLocalizationTests : IDisposable
     {
         var dlg = MsgBox.BuildInputBox(
             new TRect(5, 5, 45, 12), "Test", "~N~ame", "v", 40);
-        Assert.True(DialogContains(dlg, "Cancel"));
+        Assert.True(DialogContains(dlg, "~C~ancel"));
     }
 
     [Fact]
@@ -229,7 +229,7 @@ public sealed class DialogLocalizationTests : IDisposable
         var dlg = MsgBox.BuildInputBox(
             new TRect(5, 5, 45, 12), "Test", "~N~ame", "v", 40);
         Assert.True(DialogContains(dlg, "~O~K"));
-        Assert.True(DialogContains(dlg, "Cancel"));
+        Assert.True(DialogContains(dlg, "~C~ancel"));
     }
 
     // =========================================================================
@@ -257,7 +257,7 @@ public sealed class DialogLocalizationTests : IDisposable
     {
         var fdlg = new TFileDialog("*.*", "Open", "~N~ame",
             FileDialogOptions.fdOpenButton, 0);
-        Assert.True(DialogContains(fdlg, "Cancel"));
+        Assert.True(DialogContains(fdlg, "~C~ancel"));
     }
 
     [Fact]

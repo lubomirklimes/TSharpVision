@@ -5,7 +5,26 @@ namespace TSharpVision.Drivers.SDL.Tests;
 
 public sealed class KeypadConformanceTests
 {
+    // The operators, Enter and NumLock: published at once with their identity; a text commit is its own event.
     public static IEnumerable<object[]> Cases()
+    {
+        (uint Native, ushort Code)[] keys =
+        [
+            (0x40000054, Keys.kbKeypadDivide),
+            (0x40000055, Keys.kbKeypadMultiply),
+            (0x40000058, Keys.kbKeypadEnter),
+            (0x40000053, Keys.kbNumLock),
+            (0x40000056, Keys.kbGrayMinus),
+            (0x40000057, Keys.kbGrayPlus),
+        ];
+        foreach (var key in keys)
+            foreach (bool gpu in new[] { false, true })
+                foreach (ushort mod in new ushort[] { 0, 0x1000 })
+                    yield return new object[] { gpu, key.Native, key.Code, mod };
+    }
+
+    // The digits and the decimal key: each press waits for the commit that may follow it and carries its text.
+    public static IEnumerable<object[]> TextKeyCases()
     {
         (uint Native, ushort Code)[] keys =
         [
@@ -20,17 +39,36 @@ public sealed class KeypadConformanceTests
             (0x40000060, Keys.kbKeypad8),
             (0x40000061, Keys.kbKeypad9),
             (0x40000063, Keys.kbKeypadDecimal),
-            (0x40000054, Keys.kbKeypadDivide),
-            (0x40000055, Keys.kbKeypadMultiply),
-            (0x40000058, Keys.kbKeypadEnter),
-            (0x40000053, Keys.kbNumLock),
-            (0x40000056, Keys.kbGrayMinus),
-            (0x40000057, Keys.kbGrayPlus),
         ];
         foreach (var key in keys)
             foreach (bool gpu in new[] { false, true })
                 foreach (ushort mod in new ushort[] { 0, 0x1000 })
                     yield return new object[] { gpu, key.Native, key.Code, mod };
+    }
+
+    /// <summary>
+    /// Press, auto-repeat with a commit, release. The first press had no commit, so the repeat publishes it with
+    /// its identity; the repeat's commit becomes part of the repeat. The lock bit plays no part: macOS commits
+    /// keypad digits with SDL_KMOD_NUM clear.
+    /// </summary>
+    [Theory, MemberData(nameof(TextKeyCases))]
+    public void TextKeyPressRepeatReleaseAndText(bool gpu, uint native, ushort code, ushort mod)
+    {
+        var events = Run(gpu, (down, text, up) =>
+        {
+            Assert.False(down(native, mod));
+            Assert.False(down(native, mod));
+            text(",", mod);
+            Assert.True(up(native, mod));
+        });
+        Assert.Equal(new[] { Events.evKeyDown, Events.evKeyDown, Events.evKeyUp }, events.Select(e => e.What));
+        Assert.All(events, e =>
+        {
+            Assert.Equal(code, e.keyDown.keyCode);
+            Assert.Equal(new CharScanType(code).ToUShort(), e.keyDown.charScan.ToUShort());
+            Assert.Equal(mod == 0 ? 0u : Keys.kbNumState, e.keyDown.controlKeyState);
+        });
+        Assert.Equal(new[] { "", ",", "" }, events.Select(e => e.keyDown.text));
     }
     [Theory, MemberData(nameof(Cases))]
     public void NativePressRepeatReleaseAndText(bool gpu, uint native, ushort code, ushort mod)
@@ -154,7 +192,7 @@ public sealed class KeypadConformanceTests
             Assert.False(down('1', 0x1000));          // main 1: identity arrives with its text
             text("1", 0x1000);
             Assert.True(up('1', 0x1000));
-            Assert.True(down(0x40000059, 0x1000));    // KP1
+            Assert.False(down(0x40000059, 0x1000));   // KP1: waits for a commit; none comes before the release
             Assert.True(up(0x40000059, 0x1000));
             Assert.True(down(SdlKeyTranslator.SDLK_RETURN, 0));
             Assert.True(up(SdlKeyTranslator.SDLK_RETURN, 0));

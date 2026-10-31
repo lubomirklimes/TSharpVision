@@ -149,6 +149,105 @@ Eight entries share five visible rows. Arrow and page keys navigate; the scrollb
 
 After OK, read `list.focused` and `list.GetText(list.focused, 256)`. Call `NewList` again after changing the collection to refresh the range and reset focus. Direct data transfer uses `TListBoxRec`, pairing the collection with its selected index.
 
+## Combo boxes
+
+`TComboBox` offers a list of strings in a dropdown. A non-editable one chooses one item; an editable one is an input line with suggested values.
+
+```csharp
+using TSharpVision;
+using TSharpVision.Constants;
+
+static class EncodingDialog
+{
+    public static TDialog Create(out TComboBox caseBox, out TComboBox encoding)
+    {
+        var dialog = new TDialog(new TRect(2, 2, 46, 10), "Encoding");
+        caseBox = new TComboBox(new TRect(13, 2, 31, 3), new[] { "Keep", "Lower", "Upper" });
+        caseBox.SelectedIndex = 0;
+        encoding = new TComboBox(new TRect(13, 4, 35, 5),
+            new[] { "UTF-8", "UTF-16 LE", "Windows-1250", "ISO-8859-2" }, editable: true);
+        encoding.Text = "UTF-8";
+        dialog.Insert(new TLabel(new TRect(2, 2, 12, 3), "~C~ase:", caseBox));
+        dialog.Insert(caseBox);
+        dialog.Insert(new TLabel(new TRect(2, 4, 12, 5), "~E~ncoding:", encoding));
+        dialog.Insert(encoding);
+        dialog.Insert(new TButton(new TRect(16, 7, 30, 9), "~O~K",
+            Views.cmOK, ButtonConstants.bfDefault));
+        caseBox.Select();
+        return dialog;
+    }
+}
+```
+
+`SelectedIndex` is -1 when nothing is selected. Alt+Down or F4 (and Down in an editable box) opens the list; Enter commits the highlighted item without pressing the default button, and the first Escape only closes the list. After OK, read `caseBox.SelectedIndex` and `encoding.Text`. `SelectionChanged` and `TextChanged` report changes as they happen. See [combo boxes](views/combo-box.md) for keys, placement and limitations.
+
+## Progress bars
+
+`TProgressBar` is a one-row gauge. It is not selectable and handles no input; the dialog keeps the focus and the keys.
+
+```csharp
+using TSharpVision;
+using TSharpVision.Constants;
+
+sealed class CopyProgressDialog : TDialog
+{
+    public const ushort cmBytesCopied = 1000;   // posted by the worker; above 255, so it cannot be disabled
+    private readonly TProgressBar _bar;
+    private long _copied;
+
+    public CopyProgressDialog(long totalBytes) : base(new TRect(10, 5, 60, 12), "Copying")
+    {
+        Insert(new TStaticText(new TRect(2, 2, 48, 3), "Writing destination-file.raw"));
+        _bar = new TProgressBar(new TRect(2, 3, 48, 4), 0, totalBytes) { ShowPercentage = true };
+        Insert(_bar);
+        Insert(new TButton(new TRect(19, 4, 31, 6), "Cancel", Views.cmCancel, ButtonConstants.bfNormal));
+    }
+
+    // Any thread: hand the progress to the event loop; never touch the view here.
+    public void Report(long bytes)
+    {
+        Interlocked.Exchange(ref _copied, bytes);
+        Post(cmBytesCopied);
+    }
+
+    public override void HandleEvent(ref TEvent @event)
+    {
+        base.HandleEvent(ref @event);
+        if (@event.What == Events.evCommand && @event.message.command == cmBytesCopied)
+        {
+            _bar.Value = Interlocked.Read(ref _copied);   // UI thread
+            ClearEvent(ref @event);
+        }
+    }
+}
+```
+
+`Value` is clamped to `Minimum`..`Maximum` (both `long`, exact for byte counts); an empty range draws complete. Set `IsIndeterminate` when the total is unknown and call `Advance()` for each unit of activity: there is no timer, so the block moves only when you report work. See [progress bars](views/progress-bar.md) for range rules, drawing, palette and threading.
+
+## Group boxes
+
+Children use group-local coordinates, including the frame. See [group boxes](views/group-box.md) for clipping and focus rules. All three new controls are programmatic; streaming is not supported.
+
+```csharp
+using TSharpVision;
+
+static class GroupBoxDialog
+{
+    public static TDialog Create()
+    {
+        var dialog = new TDialog(new TRect(0, 0, 50, 12), "Options");
+        var group = new TGroupBox(new TRect(2, 2, 48, 9), "Encoding")
+        {
+            TitleAlignment = TGroupBoxTitleAlignment.Center,
+        };
+        group.Insert(new TComboBox(new TRect(2, 2, 40, 3),
+            new[] { "UTF-8", "UTF-16" }) { SelectedIndex = 0 });
+        dialog.Insert(group);
+        return dialog;
+    }
+}
+```
+
 ## Outline
 
 Build sibling chains first, then attach them as children. This tree has one Project root, a Source child containing Program.cs, and a Docs sibling.

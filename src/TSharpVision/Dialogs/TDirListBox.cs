@@ -11,19 +11,19 @@ public class TDirListBox : TListBox
     /// <summary>Type identifier used to register and restore this object in a stream.</summary>
     public new static readonly string Name = "TDirListBox";
 
-    // Tree-drawing primitives. Upstream uses CP437 box-drawing characters;
-    // ASCII fallbacks keep the same column width (3 chars per separator)
-    // so the offset arithmetic is preserved.
+    // Single BMP state markers: the current path is expanded; its immediate
+    // children are collapsed. Each default prefix is one glyph and one space;
+    // nesting indentation is separate, and filename offsets follow prefix length.
     /// <summary>Branch prefix used for ancestor path entries.</summary>
-    public static string PathDir   = "+- ";
+    public static string PathDir   = "\u229F ";
     /// <summary>Branch prefix used for the first directory entry.</summary>
-    public static string FirstDir  = "+- ";
+    public static string FirstDir  = "\u229E ";
     /// <summary>Branch prefix used for intermediate directory entries.</summary>
-    public static string MiddleDir = " +-";
+    public static string MiddleDir = "\u229E ";
     /// <summary>Branch prefix used for the final directory entry.</summary>
-    public static string LastDir   = " +-";
+    public static string LastDir   = "\u229E ";
     /// <summary>Characters used to recognize directory-tree decoration rather than filename text.</summary>
-    public static string Graphics  = "-++";
+    public static string Graphics  = "\u229E\u229F";
 
     // Current path (full directory name), index of the entry to render
     // with sfSelected, and the incremental-search cursor
@@ -37,18 +37,19 @@ public class TDirListBox : TListBox
     // The actual TDirCollection lives here (the base TListBox.items field
     // remains null — we override every accessor that touches it).
     private TDirCollection? _dirs;
+    private int _longestRow;
+    private bool _updatingHorizontal;
 
     /// <summary>Creates a directory tree at owner-relative cell bounds with separate vertical and horizontal scrollbars.</summary>
     public TDirListBox(TRect bounds, TScrollBar aVScrollBar, TScrollBar aHScrollBar)
         : base(bounds, 1, aVScrollBar)
     {
-        // TListBox(bounds, 1, aScrollBar) wires aScrollBar as the H bar
-        // because of its single-scroll-bar signature; rewire so that
-        // aHScrollBar is the horizontal one and aVScrollBar drives focus.
+        // TListBox supplies the vertical association; add the horizontal one.
         hScrollBar = aHScrollBar;
         cur = 0;
         incPos = 0;
-        ShowCursor();
+        HideCursor();
+        UpdateHorizontalScrollBar();
     }
 
     /// <inheritdoc />
@@ -66,16 +67,8 @@ public class TDirListBox : TListBox
     /// <summary>Returns the current directory-entry collection, which may be null before loading.</summary>
     public new TDirCollection? List() => _dirs;
 
-    /// <summary>Positions or hides the search caret according to the focused entry, indentation, and horizontal scroll offset.</summary>
-    public void UpdateCursorPos()
-    {
-        if (_dirs == null || focused < 0 || focused >= _dirs.Count) return;
-        int x = _dirs.At(focused).Offset() + 1;
-        if (incPos > 1) x += incPos - 1;
-        if (hScrollBar != null) x -= hScrollBar.value;
-        if (x <= 0) HideCursor();
-        else { SetCursor(x, focused - topItem); ShowCursor(); }
-    }
+    /// <summary>Keeps the directory-selection caret hidden; focus is indicated by the selected row.</summary>
+    public void UpdateCursorPos() => HideCursor();
 
     /// <inheritdoc />
     public override void HandleEvent(ref TEvent @event)
@@ -89,6 +82,10 @@ public class TDirListBox : TListBox
             return;
         }
         // SET-added incremental directory search is deferred (see header).
+        bool horizontalChanged = @event.What == Events.evBroadcast
+            && @event.message.command == Views.cmScrollBarChanged
+            && ReferenceEquals(@event.message.infoPtr, hScrollBar);
+        int oldScroll = hScrollBar?.value ?? 0;
         int oldFocused = focused;
         base.HandleEvent(ref @event);
         if (oldFocused != focused)
@@ -96,6 +93,7 @@ public class TDirListBox : TListBox
             incPos = 0;
             UpdateCursorPos();
         }
+        else if (horizontalChanged || oldScroll != (hScrollBar?.value ?? 0)) UpdateCursorPos();
     }
 
     /// <summary>Loads a directory tree for the supplied path and focuses its current-directory entry.</summary>
@@ -126,24 +124,70 @@ public class TDirListBox : TListBox
         }
         NewList(dirs);
         FocusItem(cur);
+        UpdateCursorPos();
     }
 
     /// <summary>References a new directory collection, resets the range and focus, and redraws the list.</summary>
     public virtual void NewList(TDirCollection aList)
     {
         _dirs = aList;
+        _longestRow = 0;
+        if (aList != null)
+            for (int i = 0; i < aList.Count; i++) _longestRow = Math.Max(_longestRow, aList.At(i).Text().Length);
         SetRange(aList?.Count ?? 0);
         if (range > 0) FocusItem(0);
+        UpdateHorizontalScrollBar(reset: true);
         DrawView();
+        UpdateCursorPos();
     }
 
     /// <inheritdoc />
     public override void SetState(ushort aState, bool enable)
     {
+        // This is a selection-only tree; do not let selection/redraw restore a text caret.
+        // Other state flags, including focus and row selection, retain their normal behavior.
+        if (enable) aState = (ushort)(aState & ~Views.sfCursorVis);
         base.SetState(aState, enable);
+        if ((aState & (Views.sfActive | Views.sfSelected | Views.sfVisible)) != 0) UpdateHorizontalScrollBar();
         if ((aState & Views.sfFocused) != 0)
             Message(owner, Events.evCommand, Views.cmDirSelection,
                     enable ? this : null);
+    }
+
+    /// <inheritdoc />
+    public override void ChangeBounds(TRect bounds)
+    {
+        base.ChangeBounds(bounds);
+        UpdateHorizontalScrollBar();
+        DrawView();
+        UpdateCursorPos();
+    }
+
+    private void UpdateHorizontalScrollBar(bool reset = false)
+    {
+        var bar = hScrollBar;
+        if (bar == null || _updatingHorizontal) return;
+        _updatingHorizontal = true;
+        try
+        {
+            // Also normalize restored scrollbars that retain the old growth flags.
+            // This viewport is the sole authority for horizontal-bar geometry.
+            bar.growMode = 0;
+            // TListViewer reserves cell zero as its leading selection margin.
+            int viewport = Math.Max(0, size.x - 1);
+            if (owner != null && ReferenceEquals(bar.owner, owner))
+            {
+                var bounds = new TRect(origin.x, origin.y + size.y, origin.x + size.x, origin.y + size.y + 1);
+                var old = bar.GetBounds();
+                if (old.a != bounds.a || old.b != bounds.b) bar.ChangeBounds(bounds);
+            }
+            int maximum = Math.Max(0, _longestRow - viewport);
+            bar.SetParams(reset ? 0 : bar.value, 0, maximum, Math.Max(1, viewport), 1);
+            // Keep overflow navigation available when focus moves to a button/input.
+            if (maximum > 0 && GetState((ushort)(Views.sfActive | Views.sfVisible))) bar.Show();
+            else bar.Hide();
+        }
+        finally { _updatingHorizontal = false; }
     }
 
     // -------------------------------------------------------------------

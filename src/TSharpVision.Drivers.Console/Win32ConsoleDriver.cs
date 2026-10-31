@@ -551,6 +551,26 @@ public sealed class Win32ConsoleDriver : IDriver, IIdleWaitDriver, IDisposable
     }
 
     /// <summary>
+    /// Attaches the output side to a caller-owned console screen buffer, as <see cref="Initialize"/>
+    /// would have attached it to the real one. Output then goes through the same kernel32 calls,
+    /// so driver-output qualification can read the console cells back. No input handle is taken.
+    /// </summary>
+    internal void AttachOutputForTesting(IntPtr output, ushort cols, ushort rows)
+    {
+        _hOut = output;
+        _cols = cols;
+        _rows = rows;
+        _attached = true;
+    }
+
+    /// <summary>Releases the attachment made by <see cref="AttachOutputForTesting"/> without restoring console modes.</summary>
+    internal void DetachOutputForTesting()
+    {
+        _attached = false;
+        _hOut = IntPtr.Zero;
+    }
+
+    /// <summary>
     /// Translate a Windows mouse record into a tvision mouse event.
     /// Public for unit tests; the driver itself only uses it internally.
     /// </summary>

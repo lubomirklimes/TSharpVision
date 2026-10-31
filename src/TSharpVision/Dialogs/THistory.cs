@@ -13,7 +13,8 @@ public class THistory : TView
     public ushort HistoryId;
 
     /// <summary>Text drawn for the history dropdown button.</summary>
-    protected static string Icon = " \x19 ";
+    // Use a Unicode cell glyph, not the legacy CP437 control byte 0x19.
+    protected static string Icon = " \u2193 ";
 
     /// <summary>Creates a history button at owner-relative cell bounds linked to an input and history ID.</summary>
     public THistory(TRect bounds, TInputLine aLink, ushort aHistoryId)
@@ -37,13 +38,26 @@ public class THistory : TView
     {
         Span<TScreenChar> row = stackalloc TScreenChar[size.x > 0 ? size.x : 1];
         var b = new TDrawBuffer(row);
-        b.moveCStr(0, Icon, GetColor(0x0102));
+        bool disabled = GetState(Views.sfDisabled) || Link?.GetState(Views.sfDisabled) == true;
+        ushort surface = GetColor(disabled ? (ushort)3 : (ushort)1);
+        ushort arrow = !disabled && Link?.GetState(Views.sfFocused) == true ? GetColor(2) : surface;
+        b.moveChar(0, ' ', surface, size.x);
+        b.moveCStr(0, Icon, surface);
+        if (size.x > 1) b.putAttribute(1, arrow);
         WriteLine(0, 0, size.x, size.y, b);
     }
 
-    private static readonly TPalette _palette = new TPalette("\x16\x17", 2);
+    // Same normal, highlighted and disabled button roles as TComboBox.
+    private static readonly TPalette _palette = new TPalette("\x0A\x0E\x1F", 3);
     /// <inheritdoc />
     public override TPalette GetPalette() => _palette;
+
+    /// <inheritdoc />
+    public override void SetState(ushort aState, bool enable)
+    {
+        base.SetState(aState, enable);
+        if ((aState & Views.sfDisabled) != 0) DrawView();
+    }
 
     private static ushort CtrlToArrow(ushort code) => code;
 
@@ -51,13 +65,16 @@ public class THistory : TView
     public override void HandleEvent(ref TEvent @event)
     {
         base.HandleEvent(ref @event);
+        if (@event.What == Events.evBroadcast && ReferenceEquals(@event.message.infoPtr, Link)
+            && @event.message.command is Views.cmReceivedFocus or Views.cmReleasedFocus)
+            DrawView();
         bool openHistory =
             @event.What == Events.evMouseDown
             || (@event.What == Events.evKeyDown
                 && CtrlToArrow(@event.keyDown.keyCode) == Keys.kbDown
                 && Link != null && (Link.state & Views.sfFocused) != 0);
 
-        if (openHistory)
+        if (openHistory && !GetState(Views.sfDisabled) && Link?.GetState(Views.sfDisabled) != true)
         {
             if (Link != null) Link.Select();
             if (Link != null) THistoryList.Add(HistoryId, Link.Data);

@@ -42,6 +42,10 @@ public class TGroup : TView
 
     /// <summary>Current drawing clip rectangle in group-local character cells.</summary>
     public TRect clip;
+
+    // Containers may reserve decoration outside the region available to children.
+    // Keep transient redraw clipping separate from that persistent content boundary.
+    internal virtual TRect ChildClip => clip;
     /// <summary>Current pre-process, focused, or post-process phase of event dispatch.</summary>
     public phaseType phase;
 
@@ -248,8 +252,11 @@ public class TGroup : TView
     /// <summary>Selects the first visible child that permits selection.</summary>
     public void ResetCurrent() 
     {
-        SetCurrent(FirstMatch(Views.sfVisible, Views.ofSelectable), selectMode.normalSelect);
+        SetCurrent(ResetCurrentTarget(), selectMode.normalSelect);
     }
+
+    /// <summary>The child <see cref="ResetCurrent"/> selects: the first visible child that permits selection.</summary>
+    internal virtual TView? ResetCurrentTarget() => FirstMatch(Views.sfVisible, Views.ofSelectable);
 
     private void FocusView(TView? p, bool enable)
     {
@@ -280,20 +287,42 @@ public class TGroup : TView
     }
 
     /// <summary>Selects the next eligible sibling; true follows Next links and false follows predecessor links.</summary>
-    public void SelectNext(bool forwards)
+    public void SelectNext(bool forwards) => FindNext(forwards)?.Select();
+
+    /// <summary>
+    /// Focuses the next eligible sibling as <see cref="SelectNext"/> would select it, but through <see cref="TView.Focus"/>,
+    /// so a current view marked <see cref="Views.ofValidate"/> may refuse to be left. Returns false on refusal.
+    /// </summary>
+    internal bool FocusNext(bool forwards)
     {
-        if (current == null) return;
+        TView? p = FindNext(forwards);
+        if (p == null || ReferenceEquals(p, current)) return true;
+        if (p.Focus()) return true;
+        // The Tab direction a group box recorded for this key was never consumed.
+        (p as TGroupBox)?.ForgetTabEntry();
+        return false;
+    }
+
+    private TView? FindNext(bool forwards)
+    {
+        if (current == null) return null;
         TView? p = current;
         do
         {
             p = forwards ? p.Next : p.Prev();
-            if (p is null) return;
+            if (p is null) return null;
         } while (!(
             (((p.state & (Views.sfVisible | Views.sfDisabled)) == Views.sfVisible)
              && (p.options & Views.ofSelectable) != 0)
             || p == current));
-        p.Select();
+        return p;
     }
+
+    /// <summary>
+    /// Focuses this group on behalf of <paramref name="child"/>, which <see cref="TView.Focus"/> is focusing. A group
+    /// that chooses which child to enter when it gains focus enters <paramref name="child"/>.
+    /// </summary>
+    internal virtual bool FocusFor(TView child) => Focus();
 
     /// <summary>Returns the first child satisfying the predicate, or null when none matches.</summary>
     public TView? FirstThat(Func<TView, object?, bool> func, object? args)
@@ -682,7 +711,7 @@ public class TGroup : TView
             if (LiveBuffer != null)
             {
                 lockFlag++;
-                Redraw();
+                DrawSubViews(First(), null);
                 lockFlag--;
             }
         }
@@ -694,15 +723,28 @@ public class TGroup : TView
         else
         {
             clip = GetClipRect();
-            Redraw();
+            DrawSubViews(First(), null);
             clip = GetExtent();
         }
     }
 
-    /// <summary>Requests drawing of all child views.</summary>
+    /// <summary>Repaints all child views, invalidating cached descendant compositions.</summary>
     public void Redraw() 
     {
+        InvalidateChildBuffers();
         DrawSubViews(First(), null);
+    }
+
+    private void InvalidateChildBuffers()
+    {
+        ForEachView(view =>
+        {
+            if (view is TGroup group)
+            {
+                group.InvalidateChildBuffers();
+                group.FreeBuffer();
+            }
+        });
     }
     /// <summary>Defers buffered display updates by increasing the lock count when buffering or a lock is active.</summary>
     public void Lock() 

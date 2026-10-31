@@ -42,7 +42,7 @@ public static class TEditorReplaceDialog
             Views.efCaseSensitive | Views.efWholeWordsOnly
             | Views.efPromptOnReplace | Views.efReplaceAll;
         checkBoxes = new TCheckBoxes(new TRect(3, 8, 37, 12),
-            new TSItem(TSharpVisionIntl.Get("Edit_Chk_CaseSensitive",   "~C~ase sensitive"),
+            new TSItem(TSharpVisionIntl.Get("Edit_Chk_CaseSensitive",   "Case ~s~ensitive"),
             new TSItem(TSharpVisionIntl.Get("Edit_Chk_WholeWords",      "~W~hole words only"),
             new TSItem(TSharpVisionIntl.Get("Edit_Chk_PromptOnReplace", "~P~rompt on replace"),
             new TSItem(TSharpVisionIntl.Get("Edit_Chk_ReplaceAll",      "Replace ~A~ll"), null)))));
@@ -52,7 +52,7 @@ public static class TEditorReplaceDialog
         dlg.Insert(new TButton(new TRect(17, 13, 27, 15),
             TSharpVisionIntl.Get("Btn_OK", "~O~K"), Views.cmOK, ButtonConstants.bfDefault));
         dlg.Insert(new TButton(new TRect(28, 13, 38, 15),
-            TSharpVisionIntl.Get("Btn_Cancel", "Cancel"), Views.cmCancel, ButtonConstants.bfNormal));
+            TSharpVisionIntl.Get("Btn_Cancel", "~C~ancel"), Views.cmCancel, ButtonConstants.bfNormal));
 
         dlg.SelectNext(false);
         return dlg;

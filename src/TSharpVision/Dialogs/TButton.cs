@@ -191,7 +191,8 @@ public class TButton : TView
                 bool focusedActivate = (state & Views.sfFocused) != 0
                                        && (@event.keyDown.charScan.charCode == ' '
                                            || @event.keyDown.keyCode == Keys.kbEnter);
-                if (altMatch || postProcMatch || focusedActivate)
+                // Pre- and post-processing reach hidden children too; a hidden button, or one in a hidden group, does not press.
+                if ((altMatch || postProcMatch || focusedActivate) && IsShownAndEnabled())
                 {
                     Press();
                     ClearEvent(ref @event);
@@ -203,7 +204,8 @@ public class TButton : TView
                 switch (@event.message.command)
                 {
                     case Views.cmDefault:
-                        if (AmDefault && (state & Views.sfDisabled) == 0)
+                        // A broadcast reaches hidden children and the children of disabled groups too.
+                        if (AmDefault && IsShownAndEnabled())
                         {
                             Press();
                             ClearEvent(ref @event);

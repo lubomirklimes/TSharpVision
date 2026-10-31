@@ -27,6 +27,7 @@ TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.Resume() -> void
 TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.SDLGpuDriver() -> void
 TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.SetCaretPosition(int x, int y) -> void
 TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.SetCursorType(ushort cursorType) -> void
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.SetGridSize(ushort columns, ushort rows) -> void
 TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.SetScreenMode(TSharpVision.TDisplay.SM mode) -> void
 TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.Shutdown() -> void
 TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.SupportsGraphics.get -> bool
@@ -60,6 +61,7 @@ TSharpVision.Drivers.SDL.SDLDriver.Resume() -> void
 TSharpVision.Drivers.SDL.SDLDriver.SDLDriver() -> void
 TSharpVision.Drivers.SDL.SDLDriver.SetCaretPosition(int x, int y) -> void
 TSharpVision.Drivers.SDL.SDLDriver.SetCursorType(ushort cursorType) -> void
+TSharpVision.Drivers.SDL.SDLDriver.SetGridSize(ushort columns, ushort rows) -> void
 TSharpVision.Drivers.SDL.SDLDriver.SetScreenMode(TSharpVision.TDisplay.SM mode) -> void
 TSharpVision.Drivers.SDL.SDLDriver.Shutdown() -> void
 TSharpVision.Drivers.SDL.SDLDriver.SupportsGraphics.get -> bool

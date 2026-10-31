@@ -79,7 +79,7 @@ public sealed class DefaultEnglishStringProvider : ITSharpVisionStringLookupProv
     {
         // Standard buttons
         ["Btn_OK"]              = "~O~K",
-        ["Btn_Cancel"]          = "Cancel",
+        ["Btn_Cancel"]          = "~C~ancel",
         ["Btn_Yes"]             = "~Y~es",
         ["Btn_No"]              = "~N~o",
         ["Btn_Help"]            = "~H~elp",
@@ -103,7 +103,7 @@ public sealed class DefaultEnglishStringProvider : ITSharpVisionStringLookupProv
         ["File_Btn_Add"]            = "~A~dd",
         ["File_Btn_Select"]         = "~S~elect",
         ["File_Btn_Replace"]        = "~R~eplace",
-        ["File_Btn_Clear"]          = "~C~lear",
+        ["File_Btn_Clear"]          = "C~l~ear",
         ["File_ConfirmOverwrite"]   = "File '{0}' already exists. Overwrite?",
         ["File_Err_InvalidFileName"]= "Invalid file name.",
         ["File_Err_InvalidDir"]     = "Invalid drive or directory.",
@@ -150,7 +150,7 @@ public sealed class DefaultEnglishStringProvider : ITSharpVisionStringLookupProv
         ["Edit_ReplaceTitle"]      = "Replace",
         ["Edit_FindText"]          = "~T~ext to find",
         ["Edit_ReplaceText"]       = "~R~eplace with",
-        ["Edit_Chk_CaseSensitive"] = "~C~ase sensitive",
+        ["Edit_Chk_CaseSensitive"] = "Case ~s~ensitive",
         ["Edit_Chk_WholeWords"]    = "~W~hole words only",
         ["Edit_Chk_PromptOnReplace"] = "~P~rompt on replace",
         ["Edit_Chk_ReplaceAll"]    = "Replace ~A~ll",

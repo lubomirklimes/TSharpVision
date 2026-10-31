@@ -373,7 +373,23 @@ public sealed class CustomLanguageFailureTests
         Assert.Equal(count, service.GetLanguages().Count);
         Assert.Equal("json", service.DetectLanguage("data.json", null).Id);
         ISyntaxClassifier json = service.CreateClassifier(service.DetectLanguage("data.json", null))!;
-        Assert.NotEmpty(json.ClassifyLine("{\"a\": 1}", json.InitialState).Spans);
+        SyntaxLineResult line = ClassifyToTheEnd(json, "{\"a\": 1}");
+        Assert.NotEqual(json.InitialState, line.EndState);
+        Assert.Equal(new[] { new SyntaxSpan(1, 3, SyntaxClass.Attribute), new SyntaxSpan(6, 1, SyntaxClass.Number) }, line.Spans);
+    }
+
+    /// <summary>
+    /// TextMate tokenizing is limited to one second of wall-clock time a line. A line it stops early keeps only the
+    /// spans it reached, which for a short line is none, and hands on its start state; a completed line hands on a
+    /// new one. Under a fully loaded parallel test run the thread can be descheduled for longer than the limit, so a
+    /// stopped line, recognisable by its unchanged state, is classified again a bounded number of times.
+    /// </summary>
+    private static SyntaxLineResult ClassifyToTheEnd(ISyntaxClassifier classifier, string text)
+    {
+        SyntaxLineResult line = classifier.ClassifyLine(text, classifier.InitialState);
+        for (int retry = 0; retry < 2 && Equals(line.EndState, classifier.InitialState); retry++)
+            line = classifier.ClassifyLine(text, classifier.InitialState);
+        return line;
     }
 
     [Fact]

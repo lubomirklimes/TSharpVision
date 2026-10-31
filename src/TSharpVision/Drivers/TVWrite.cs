@@ -109,12 +109,13 @@ public ref struct TVWrite
             wOffset += dest.origin.x; // sync with X but NOT clamped
 
             // Clip Y against the owner's clip rectangle.
-            if (owner.clip.a.y <= Y && Y < owner.clip.b.y)
+            TRect childClip = owner.ChildClip;
+            if (childClip.a.y <= Y && Y < childClip.b.y)
             {
                 // Clip the column range.  wOffset is intentionally NOT clamped
                 // so srcOffset = Max(0, X - wOffset) in L50 remains correct.
-                if (X < owner.clip.a.x) X = owner.clip.a.x;
-                if (Count > owner.clip.b.x) Count = owner.clip.b.x;
+                if (X < childClip.a.x) X = childClip.a.x;
+                if (Count > childClip.b.x) Count = childClip.b.x;
 
                 if (X < Count)
                     L20(owner.last); // start z-order occlusion walk at bottommost view

@@ -113,7 +113,10 @@ public sealed class MetaModifierContractTests
         string root = RepositoryRoot();
         string shipped = File.ReadAllText(Path.Combine(root, "src", "TSharpVision", "PublicAPI.Shipped.txt"));
         string[] unshipped = File.ReadAllLines(Path.Combine(root, "src", "TSharpVision", "PublicAPI.Unshipped.txt"));
-        Assert.Equal(["#nullable enable"], unshipped.Where(line => line.Length != 0));
+        // Meta is released API: nothing about it may be pending, while unrelated later additions may be.
+        Assert.Equal("#nullable enable", unshipped.FirstOrDefault());
+        Assert.DoesNotContain(unshipped, line => line.Contains("Meta", StringComparison.Ordinal)
+            || line.Contains("KeyboardCapabilities", StringComparison.Ordinal));
         Assert.Contains(
             "TSharpVision.Drivers.KeyboardCapabilities.StandaloneMetaTransitions = 8 -> TSharpVision.Drivers.KeyboardCapabilities",
             shipped);

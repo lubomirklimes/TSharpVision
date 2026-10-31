@@ -58,7 +58,7 @@ public class TLabel : TStaticText
     private bool ValidLink() =>
         Link != null
         && (Link.options & Views.ofSelectable) != 0
-        && (Link.state & Views.sfDisabled) == 0;
+        && Link.IsShownAndEnabled();
 
     /// <inheritdoc />
     public override void HandleEvent(ref TEvent @event)
@@ -66,7 +66,7 @@ public class TLabel : TStaticText
         base.HandleEvent(ref @event);
         if (@event.What == Events.evMouseDown)
         {
-            if (ValidLink() && Link is TView target) target.Select();
+            if (ValidLink()) Link!.Focus();
             ClearEvent(ref @event);
         }
         else if (@event.What == Events.evKeyDown)
@@ -76,9 +76,11 @@ public class TLabel : TStaticText
             bool asciiMatch = c != '\0'
                 && owner != null && owner.phase == TView.phaseType.phPostProcess
                 && char.ToUpperInvariant((char)@event.keyDown.charScan.charCode) == c;
-            if (altMatch || asciiMatch)
+            // A hidden label, or one in a hidden group, leaves its mnemonic to the other views.
+            if ((altMatch || asciiMatch) && IsShownAndEnabled())
             {
-                if (ValidLink() && Link is TView target) target.Select();
+                // Focus, not select: the view being left may refuse, and enclosing group boxes are entered on the way.
+                if (ValidLink()) Link!.Focus();
                 ClearEvent(ref @event);
             }
         }

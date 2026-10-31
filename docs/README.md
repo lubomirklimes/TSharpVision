@@ -7,6 +7,6 @@ These pages cover framework behavior and application development. Member signatu
 - Architecture: [views, focus and drawing](architecture/overview.md), [input and event routing](architecture/event-model.md), [lifecycle and ownership](architecture/lifecycle-and-ownership.md), [streaming and Awaken](architecture/streaming-and-awaken.md), and [group data transfer](architecture/data-transfer.md).
 - [Turbo Vision compatibility](compatibility/turbo-vision-compatibility.md).
 - [Dialogs and controls](dialogs-and-controls.md).
-- [Editors](editors/editor-architecture.md), [terminal widget and child sessions](terminal/terminal-widget.md), [outline views](views/outline.md), and [paged byte and table views](views/paged-views.md).
+- [Editors](editors/editor-architecture.md), [terminal widget and child sessions](terminal/terminal-widget.md), [outline views](views/outline.md), [combo boxes](views/combo-box.md), [progress bars](views/progress-bar.md), [group boxes](views/group-box.md), and [paged byte and table views](views/paged-views.md).
 - [Contributing](contributing.md).
 - [Diagnostics tools](diagnostics.md).

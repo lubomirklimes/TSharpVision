@@ -328,7 +328,7 @@ public sealed class FunctionKeyDiagnosticsTests
             var hotkeys = new List<char>();
             for (var item = diagnostics.SubMenu.Items; item != null; item = item.Next)
                 if (item.Name != null) { names.Add(item.Name); hotkeys.Add(char.ToUpperInvariant(item.HotChar())); }
-            Assert.Equal(new[] { "~K~eyboard...", "~F~unction keys...", "~M~ouse...", "~H~eap / memory" }, names);
+            Assert.Equal(new[] { "~C~haracter Map...", "~K~eyboard...", "~F~unction keys...", "~M~ouse...", "~H~eap / memory" }, names);
             Assert.Equal(hotkeys.Count, hotkeys.Distinct().Count());
             var buttons = new[] { "~R~eset", "~C~lose" };
             var dialog = new FunctionKeyDiagnosticsDialog(() => driver.Driver);

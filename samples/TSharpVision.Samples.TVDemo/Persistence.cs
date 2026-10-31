@@ -33,7 +33,7 @@ public partial class TVDemoApp
             for (int i = snapshot.Windows.Count - 1; i >= 0; i--) desktop.Insert(snapshot.Windows[i]);
             Array.Copy(snapshot.Palette, GetPalette().Data, snapshot.Palette.Length);
             _nextWinNum = (ushort)(snapshot.Windows.Select(w => (int)w.number).DefaultIfEmpty(0).Max() + 1);
-            DrawView();
+            Redraw();
             MsgBox.MessageBox(DeskTop, $"Restored {snapshot.Windows.Count} demonstration windows and palette.\nOther windows remain open.",
                 MsgBox.mfInformation | MsgBox.mfOKButton);
         }
@@ -50,7 +50,7 @@ public partial class TVDemoApp
             var snapshot = DesktopState.Load(DesktopPath, GetPalette().Data.Length);
             foreach (var window in snapshot.Windows) window.ShutDown();
             Array.Copy(snapshot.Palette, GetPalette().Data, snapshot.Palette.Length);
-            DrawView();
+            Redraw();
         }
         catch (Exception ex) { PersistenceError(ex); }
     }
@@ -81,6 +81,7 @@ public partial class TVDemoApp
                 dialog = resources.Get("dialog") as TDialog ?? throw new InvalidDataException("Resource dialog is missing.");
                 if (stream.In.Fail() != 0 || stream.Out.Fail() != 0) throw new InvalidDataException("Resource stream failed.");
             }
+            CompactLegacyResourceDialog(dialog);
             dialog.MoveTo((desktop.size.x - dialog.size.x) / 2, (desktop.size.y - dialog.size.y) / 2);
             DemoButtonLayout.CenterRows(dialog);
             dialog.helpCtx = DemoHelpCtx.ResourceDialog;

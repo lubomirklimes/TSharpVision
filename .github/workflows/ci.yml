@@ -28,10 +28,10 @@ jobs:
           dotnet-version: 10.0.x
       - run: dotnet restore TSharpVision.slnx
       - run: dotnet build TSharpVision.slnx -c Release -t:Rebuild --no-restore -v minimal
-      - run: dotnet test TSharpVision.slnx -c Release --no-build --no-restore -v minimal
+      - run: dotnet test TSharpVision.slnx -c Release --no-build --no-restore -v minimal --results-directory TestResults/ci/${{ github.run_id }}-${{ github.run_attempt }}
 
   pack:
-    name: Pack preview packages
+    name: Pack repository-version packages
     needs: build-test
     runs-on: ubuntu-latest
     steps:

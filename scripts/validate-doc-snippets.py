@@ -1,7 +1,7 @@
 """Compile consumer Markdown examples against an exact local NuGet feed.
 
 Usage: python scripts/validate-doc-snippets.py --feed PATH --version VERSION
-The feed must contain the four TSharpVision nupkg files and their upstream
+The feed must contain the TSharpVision nupkg files and their upstream
 dependencies. Output defaults to ignored obj/docs-validation and must be fresh.
 No repository ProjectReferences or network package sources are used.
 """
@@ -57,6 +57,9 @@ def main():
             ('output-dialog', 'TSharpVision', 'static class OutputDialog'),
             ('checklist-dialog', 'TSharpVision', 'static class ChecklistDialog'),
             ('language-dialog', 'TSharpVision', 'static class LanguageDialog'),
+            ('encoding-dialog', 'TSharpVision', 'static class EncodingDialog'),
+            ('copy-progress-dialog', 'TSharpVision', 'sealed class CopyProgressDialog'),
+            ('group-box-dialog', 'TSharpVision', 'static class GroupBoxDialog'),
             ('project-dialog', 'TSharpVision', 'static class ProjectDialog'),
             ('edit-popup', 'TSharpVision', 'static class EditPopup')])]
     examples = []

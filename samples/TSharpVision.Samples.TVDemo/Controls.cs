@@ -174,11 +174,11 @@ public partial class TVDemoApp
     {
         if (DeskTop == null) return;
 
-        var dlg = new TDialog(new TRect(0, 0, 50, 13), "Sample Dialog");
+        var dlg = new TDialog(new TRect(0, 0, 50, 9), "Sample Dialog");
         // Center it
-        dlg.MoveTo((DeskTop.size.x - 50) / 2, (DeskTop.size.y - 13) / 2);
+        dlg.MoveTo((DeskTop.size.x - 50) / 2, (DeskTop.size.y - 9) / 2);
 
-        dlg.Insert(new TStaticText(new TRect(2, 2, 46, 4),
+        dlg.Insert(new TStaticText(new TRect(2, 1, 46, 2),
             "Enter your name below:"));
 
         var input = new TInputLine(new TRect(2, 4, 46, 5), 60);
@@ -187,8 +187,8 @@ public partial class TVDemoApp
 
         dlg.Insert(new TLabel(new TRect(2, 3, 10, 4), "~N~ame:", input));
 
-        dlg.Insert(new TButton(new TRect(9,  9, 19, 11), "~O~K",     Views.cmOK,     ButtonConstants.bfDefault));
-        dlg.Insert(new TButton(new TRect(21, 9, 31, 11), "~C~ancel", Views.cmCancel, ButtonConstants.bfNormal));
+        dlg.Insert(new TButton(new TRect(9,  6, 19, 8), "~O~K",     Views.cmOK,     ButtonConstants.bfDefault));
+        dlg.Insert(new TButton(new TRect(21, 6, 31, 8), "~C~ancel", Views.cmCancel, ButtonConstants.bfNormal));
 
         DemoButtonLayout.CenterRows(dlg);
         dlg.SelectNext(false);
@@ -208,9 +208,9 @@ public partial class TVDemoApp
         const ushort HistDemoId = 1;
 
         // 52 wide × 8 tall — compact but comfortable.
-        var dlg = new TDialog(new TRect(0, 0, 52, 8), "Search History");
+        var dlg = new TDialog(new TRect(0, 0, 52, 9), "Search History");
         if (DeskTop != null)
-            dlg.MoveTo((DeskTop.size.x - 52) / 2, (DeskTop.size.y - 8) / 2);
+            dlg.MoveTo((DeskTop.size.x - 52) / 2, (DeskTop.size.y - 9) / 2);
 
         // ── Row 2: search label + input line + history button ────────────
         var input = new TInputLine(new TRect(11, 2, 47, 3), 80);
@@ -221,6 +221,8 @@ public partial class TVDemoApp
         var hist = new THistory(new TRect(47, 2, 50, 3), input, HistDemoId);
         dlg.Insert(hist);
 
+        dlg.Insert(new TStaticText(new TRect(2, 6, 50, 8),
+            "OK records; reopen, then Down recalls.\nEnter chooses history; Esc closes the list."));
         // ── Row 4-6: OK + Cancel buttons ─────────────────────────────────
         dlg.Insert(new TButton(new TRect(10, 4, 21, 6), "~O~K",     Views.cmOK,     ButtonConstants.bfDefault));
         dlg.Insert(new TButton(new TRect(23, 4, 34, 6), "~C~ancel", Views.cmCancel, ButtonConstants.bfNormal));
@@ -230,6 +232,47 @@ public partial class TVDemoApp
         return dlg;
     }
 
+    public TDialog BuildComboBoxDemoDialog(out TComboBox caseBox, out TComboBox encoding)
+    {
+        var dlg = new TDialog(new TRect(0, 0, 56, 13), "Combo Boxes");
+        if (DeskTop != null)
+            dlg.MoveTo((DeskTop.size.x - 56) / 2, (DeskTop.size.y - 13) / 2);
+
+        // Selection only: Up/Down/Home/End or a letter change the choice; Alt+Down, F4 or a click opens the list.
+        caseBox = new TComboBox(new TRect(13, 2, 31, 3), new[] { "Keep", "Lower", "Upper" });
+        caseBox.SelectedIndex = 0;
+        dlg.Insert(new TLabel(new TRect(2, 2, 12, 3), "C~a~se:", caseBox));
+        dlg.Insert(caseBox);
+
+        // Editable: type any encoding name, or pick one of the suggestions with Down, Alt+Down, F4 or the arrow.
+        encoding = new TComboBox(new TRect(13, 4, 35, 5),
+            new[] { "UTF-8", "UTF-16 LE", "Windows-1250", "ISO-8859-2" }, editable: true, maxLength: 40);
+        encoding.Text = "UTF-8";
+        dlg.Insert(new TLabel(new TRect(2, 4, 12, 5), "~E~ncoding:", encoding));
+        dlg.Insert(encoding);
+
+        dlg.Insert(new TStaticText(new TRect(2, 6, 54, 9),
+            "Alt+Down / F4 opens; Enter chooses.\nEsc cancels the list; Tab commits and moves focus.\nCase: choose only. Encoding: type your own text."));
+        dlg.Insert(new TButton(new TRect(10, 10, 21, 12), "~O~K",     Views.cmOK,     ButtonConstants.bfDefault));
+        dlg.Insert(new TButton(new TRect(23, 10, 34, 12), "~C~ancel", Views.cmCancel, ButtonConstants.bfNormal));
+
+        DemoButtonLayout.CenterRows(dlg);
+        caseBox.Select();
+        return dlg;
+    }
+
+    private void OpenComboBoxDemoDialog()
+    {
+        if (DeskTop == null) return;
+        var dlg = BuildComboBoxDemoDialog(out var caseBox, out var encoding);
+        if (ValidView(dlg) == null) return;
+        ushort result = DeskTop.ExecView(dlg);
+        string summary = $"Case: {caseBox.Text}\nEncoding: {encoding.Text}";
+        dlg.ShutDown();
+        if (result == Views.cmOK)
+            MsgBox.MessageBox(DeskTop, summary, MsgBox.mfInformation | MsgBox.mfOKButton);
+    }
+
     private void OpenHistoryDemoDialog()
     {
         if (DeskTop == null) return;
@@ -237,7 +280,8 @@ public partial class TVDemoApp
         if (ValidView(dlg) == null) return;
         // cmRecordHistory is broadcast by TButton.Press() when OK is clicked,
         // so THistory records the current input value automatically.
-        DeskTop.ExecView(dlg);
+        try { DeskTop.ExecView(dlg); }
+        finally { dlg.ShutDown(); }
     }
 }
 

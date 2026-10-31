@@ -78,7 +78,7 @@ public class TWindow : TGroup
 
     // Entries 1-8 are the classic window roles (frame passive/active/icons, scrollbar page/controls, scroller normal/
     // selected, reserved). Entries 9-32 give the dialog controls (TButton, TCluster, TInputLine, THistory, TListViewer,
-    // ...) the same role numbers they have in TDialog, so they resolve inside a plain window instead of
+    // TComboBox, ...) the same role numbers they have in TDialog, so they resolve inside a plain window instead of
     // falling out of range to errorAttr. They reuse existing application roles chosen for the window's surface, as in
     // Turbo Vision 2.0's blue and cyan dialogs: an input field is black on gray on blue, a cluster black on gray on cyan.
     // Only 63 application entries are standard (applications append their own from 65), so no new ones are introduced.
@@ -160,16 +160,17 @@ public class TWindow : TGroup
         {
             switch (@event.keyDown.keyCode)
             {
+                // Focus, not select: a current view marked ofValidate may refuse to be left.
                 case Keys.kbTab:
                 case Keys.kbDown:
                 case Keys.kbRight:
-                    SelectNext(false);
+                    FocusNext(false);
                     ClearEvent(ref @event);
                     break;
                 case Keys.kbShiftTab:
                 case Keys.kbUp:
                 case Keys.kbLeft:
-                    SelectNext(true);
+                    FocusNext(true);
                     ClearEvent(ref @event);
                     break;
             }

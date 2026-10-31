@@ -219,6 +219,8 @@ public class TDirListBox : TListBox
             string segment = remaining.Substring(0, sep);
             if (segment.Length > 0)
             {
+                if (!accumulated.EndsWith('/'))
+                    accumulated += "/";
                 accumulated += segment + "/";
                 string display = new string(' ', indent) + PathDir + segment;
                 dirs.Insert(new TDirEntry(display, accumulated, indent + lenSep));

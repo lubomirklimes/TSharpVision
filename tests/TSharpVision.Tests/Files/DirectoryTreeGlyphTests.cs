@@ -67,12 +67,16 @@ public sealed class DirectoryTreeGlyphTests
     {
         using var scope = new DemoTestScope();
         using var temp = new TempDirectory();
+        string childPath = Directory.CreateDirectory(Path.Combine(temp.Path, "child")).FullName;
         var dialog = new TChDirDialog(ChDirDialogOptions.cdNoLoadDir, 0);
         scope.App.DeskTop!.Insert(dialog);
         try
         {
             var list = dialog.dirList!;
             list.NewDirectory(temp.Path);
+            var child = Assert.Single(list.List()!.Items, entry =>
+                Path.GetFileName(entry.Dir().TrimEnd('/', '\\')) == "child");
+            Assert.Equal(Path.GetFullPath(childPath).Replace('\\', '/') + "/", child.Dir());
             int rootIndex = Path.DirectorySeparatorChar == '\\' ? 1 : 0;
             var root = list.List()!.At(rootIndex);
             Assert.Equal(2, root.Offset());

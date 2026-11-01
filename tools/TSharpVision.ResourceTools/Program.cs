@@ -1,6 +1,7 @@
 // TSharpVision Resource Tools
 // CLI entry point for svres: list / show / dump commands.
 using System;
+using System.Reflection;
 using TSharpVision.ResourceTools;
 
 const string Usage = @"svres — TSharpVision .tvr resource inspector
@@ -25,6 +26,20 @@ if (args.Length == 0)
 {
     Console.Error.WriteLine(Usage);
     return 1;
+}
+
+// Root-level --help or -h prints the usage to stdout and exits successfully.
+if (args.Length == 1 && args[0] is "--help" or "-h")
+{
+    Console.WriteLine(Usage);
+    return 0;
+}
+
+// Root-level --version prints only the tool name and version and does no work.
+if (args[0] == "--version")
+{
+    Console.WriteLine("TSharpVision ResourceTools " + ToolVersion());
+    return 0;
 }
 
 string command = args[0].ToLowerInvariant();
@@ -103,3 +118,14 @@ if (!string.IsNullOrEmpty(result.Output))
     Console.WriteLine(result.Output);
 
 return 0;
+
+// The package version: AssemblyInformationalVersion without the "+<commit>" build metadata SourceLink appends.
+static string ToolVersion()
+{
+    var assembly = typeof(Program).Assembly;
+    string version = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+        ?? assembly.GetName().Version?.ToString(3)
+        ?? "unknown";
+    int metadata = version.IndexOf('+');
+    return metadata < 0 ? version : version[..metadata];
+}

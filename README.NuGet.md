@@ -59,6 +59,33 @@ Run `dotnet run` in an attached Windows console.
 | `TSharpVision.HexView` | Read-only hexadecimal viewer |
 | `TSharpVision.TableView` | Paged table viewer |
 | `TSharpVision.Terminal` | Terminal widget, emulator and sessions |
+| `TSharpVision.Graphics` | Optional pixel graphics views and image preview |
+
+## Optional pixel graphics
+
+`TSharpVision.Graphics` is optional and depends only on the core package. `GWindow` hosts a `GView` display list of lines, shapes and images; `GImage` shows a `PixelImage` fitted or stretched, with nearest or linear sampling. It accepts decoded RGBA8888 pixels, not PNG, JPEG or WebP files: the application decodes them.
+
+- `TSharpVision.Graphics` alone, or on the Console, Terminal and Null drivers: the views show a text fallback message instead of pixels.
+- `TSharpVision.Graphics` + `TSharpVision.Drivers.SDL`: `SDLGpuDriver` and `SDLDriver` draw the pixels. The application references the SDL package itself; neither package depends on the other.
+
+See [showing an image in a window](https://github.com/lubomirklimes/TSharpVision/blob/main/docs/graphics/image-preview.md).
+
+## Command-line tools
+
+The resource compiler, help compiler and resource inspector are .NET tool packages:
+
+| Package | Command | Purpose |
+|---|---|---|
+| `TSharpVision.ResourceCompiler` | `svrc` | Compiles `.trc` resource scripts into `.tvr` files |
+| `TSharpVision.HelpCompiler` | `svhc` | Compiles help source text into `.hlp` files |
+| `TSharpVision.ResourceTools` | `svres` | Lists, shows, dumps and validates `.tvr` resources |
+
+```shell
+dotnet tool install --global TSharpVision.ResourceCompiler
+svrc compile app_en.trc app_en.tvr
+```
+
+See [command-line tools](https://github.com/lubomirklimes/TSharpVision/blob/main/docs/tools.md).
 
 ## Documentation
 
@@ -69,6 +96,13 @@ Run `dotnet run` in an attached Windows console.
 - [Source and issues](https://github.com/lubomirklimes/TSharpVision)
 - [Releases](https://github.com/lubomirklimes/TSharpVision/releases)
 
-## New in 1.1.0
+## New in 1.2.0
 
-Core includes `TComboBox` for editable or list-only selection, `TProgressBar` for determinate and activity feedback, and `TGroupBox` for titled, clipped containers. They use existing dialog/window palettes and are constructed in code; streaming is not supported. Worker progress reaches the UI through `TView.Post`. See [controls](https://github.com/lubomirklimes/TSharpVision/blob/main/docs/dialogs-and-controls.md) for examples.
+- `TProgram.SetAppPalette` switches a running program between the Color, BlackWhite and Monochrome palette families.
+- `SDLGpuDriver` adds physical palettes (Default, Green, Amber, Grayscale) and one display effect at a time (Scanlines, Glow, Curvature, ShadowMask), set with `[graphics] palette=` / `effect=` or at run time. Palettes recolour text colours only, never pixel graphics; other drivers are unaffected.
+- The new optional `TSharpVision.Graphics` package adds pixel graphics views, shapes and RGBA images (above).
+- Built-in framework translations (cs, de, es, fr, it, pl, sk beside English) with `[localization] language=` and runtime switching via `TSharpVisionIntl.UseBuiltInLanguage`.
+- Help search across several help files (`THelpCollection`), and file dialogs that start in the directory of the last file accepted in an Open dialog, for the rest of the session.
+- The command-line tools `svrc`, `svhc` and `svres` are available as .NET tool packages (above).
+
+All TSharpVision packages, the nine libraries and the three tools, share one version. See the [changelog](https://github.com/lubomirklimes/TSharpVision/blob/main/CHANGELOG.md).

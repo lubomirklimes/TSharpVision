@@ -22,6 +22,7 @@ public static class TVDemoCmd
     public const ushort cmKeyboardDlg = 309;
     public const ushort cmFunctionKeysDlg = 310;
     public const ushort cmFunctionKeysReset = 311;
+    public const ushort cmEditorOpen  = 312;
 }
 
 // ---------------------------------------------------------------------------
@@ -38,9 +39,13 @@ public partial class TVDemoApp : TApplication
 
     public TVDemoApp() : base()
     {
-        // Code editor windows use the standard save/discard/cancel prompts.
-        TEditorDialogHelper.Install(DeskTop);
+        // Code editor windows use the standard save/discard/cancel prompts; Save As offers Help and the output encoding.
+        TEditorDialogHelper.Install(DeskTop, DemoEditorFileDialog.SaveAsOptions, DemoHelpCtx.EditorFiles);
+        // An active code editor enables Save and Save As (TFileEditor.UpdateCommands).
+        DisableCommand(Views.cmSave);
+        DisableCommand(Views.cmSaveAs);
         OpenWelcomeWindow();
+        CapturePaletteTablesAtStart();
         LoadPalette();
     }
 
@@ -106,6 +111,11 @@ public partial class TVDemoApp : TApplication
                 ClearEvent(ref ev);
                 break;
 
+            case TVDemoCmd.cmEditorOpen:
+                OpenEditorFile();
+                ClearEvent(ref ev);
+                break;
+
             case TVDemoCmd.cmMouseDlg:
                 OpenMouseDlg();
                 ClearEvent(ref ev);
@@ -144,6 +154,8 @@ public partial class TVDemoApp : TApplication
     public override void Idle()
     {
         base.Idle();
+        UpdatePaletteModeIndicators();
+        UpdateDisplayPresetIndicators();
         // Every open instance must keep updating, not just the newest one.
         DeskTop?.ForEachView(view =>
         {

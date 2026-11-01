@@ -33,6 +33,23 @@ public static class TEditorDialogHelper
             MsgBox.mfWarning | MsgBox.mfYesNoCancel);
     }
 
+    // Index in EditorEncodingChoices.BuiltIn of the encoding the editor writes, or 0 (Auto) when none matches.
+    internal static int EncodingChoiceIndex(TFileEditor editor)
+    {
+        var choices = EditorEncodingChoices.BuiltIn;
+        for (int i = 1; i < choices.Count; i++)
+        {
+            var encoding = choices[i].Encoding;
+            bool match = editor.OriginalLegacyEncoding != null
+                ? ReferenceEquals(encoding.LegacyEncoding, editor.OriginalLegacyEncoding)
+                : editor.OriginalEncoding == EditorEncodingKind.Latin1
+                    ? ReferenceEquals(encoding.LegacyEncoding, TSharpVision.Text.LegacyTextEncodings.Latin1)
+                    : encoding.Mode == EditorTextEncodingMode.Utf8;
+            if (match) return i;
+        }
+        return 0;
+    }
+
     /// <summary>
     /// Installs the standard editor-dialog dispatcher into
     /// <see cref="TEditor.editorDialog"/>.  All modal UI is routed through
@@ -40,7 +57,20 @@ public static class TEditorDialogHelper
     /// dialog paths return <see cref="Views.cmCancel"/> without throwing.
     /// </summary>
     public static void Install(TDeskTop? deskTop)
+        => Install(deskTop, FileDialogOptions.fdOKButton, Views.hcNoContext);
+
+    /// <summary>
+    /// Installs the standard editor-dialog dispatcher with a configurable Save As chooser. <paramref name="saveAsOptions"/>
+    /// are <see cref="FileDialogOptions"/> flags (OK is added when neither OK nor Open is given), for example
+    /// <see cref="FileDialogOptions.fdHelpButton"/> and <see cref="FileDialogOptions.fdEncodingSelector"/>; the chooser
+    /// uses <paramref name="saveAsHelpContext"/> as its help context. With the encoding selector the chooser starts on
+    /// the document's encoding, and the accepted choice is the encoding written (<see cref="TFileEditor.SaveAsEncoding"/>;
+    /// Auto keeps the document's encoding).
+    /// </summary>
+    public static void Install(TDeskTop? deskTop, ushort saveAsOptions, ushort saveAsHelpContext)
     {
+        if ((saveAsOptions & (FileDialogOptions.fdOKButton | FileDialogOptions.fdOpenButton)) == 0)
+            saveAsOptions |= FileDialogOptions.fdOKButton;
         TEditor.editorDialog = (int dialog, object? info) =>
         {
             switch (dialog)
@@ -51,13 +81,18 @@ public static class TEditorDialogHelper
                     string initial = fe?.fileName ?? string.Empty;
                     var dlg = new TFileDialog("*.*",
                         TSharpVisionIntl.Get("File_Title_SaveAs", "Save File As"),
-                        TSharpVisionIntl.Get("File_Label_Name", "~N~ame"), FileDialogOptions.fdOKButton, 101);
+                        TSharpVisionIntl.Get("File_Label_Name", "~N~ame"), saveAsOptions, 101)
+                        { helpCtx = saveAsHelpContext };
                     dlg.SetData(initial);
+                    if (fe != null)
+                        dlg.encodingSelector?.SetData((ushort)EncodingChoiceIndex(fe));
                     if (deskTop == null) return Views.cmCancel;
                     ushort r = deskTop.ExecView(dlg);
                     if (r != Views.cmCancel && r != 0)
                     {
                         dlg.GetData(out string chosen);
+                        if (fe != null && dlg.encodingSelector != null)
+                            fe.SaveAsEncoding = dlg.SelectedEncoding;
                         if (!string.IsNullOrEmpty(chosen) && fe != null)
                         {
                             fe.fileName = chosen;

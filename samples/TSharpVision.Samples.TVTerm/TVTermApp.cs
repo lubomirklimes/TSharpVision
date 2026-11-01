@@ -288,7 +288,8 @@ public sealed class TVTermApp : TApplication
                                  FileDialogOptions.fdOpenButton, 0);
         if (ValidView(fd) == null) return;
         ushort res = DeskTop.ExecView(fd);
-        if (res != Views.cmOK) return;
+        // Open/OK end the dialog with cmFileOpen, a double-click with cmOK.
+        if (res is not (Views.cmFileOpen or Views.cmOK)) return;
         fd.GetData(out string path);
         if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
         {
@@ -324,7 +325,8 @@ public sealed class TVTermApp : TApplication
                                  FileDialogOptions.fdOKButton, 0);
         if (ValidView(fd) == null) return;
         ushort res = DeskTop.ExecView(fd);
-        if (res != Views.cmOK) return;
+        // Open/OK end the dialog with cmFileOpen, a double-click with cmOK.
+        if (res is not (Views.cmFileOpen or Views.cmOK)) return;
         fd.GetData(out string path);
         if (string.IsNullOrWhiteSpace(path)) return;
         try
@@ -589,15 +591,10 @@ public sealed class TVTermApp : TApplication
         var dlg = new TColorDialog(pal, groups);
         if (ValidView(dlg) == null) return;
 
-        if (DeskTop.ExecView(dlg) == Views.cmOK)
-        {
-            var live = GetPalette();
-            TPalette? editedPalette = dlg.Pal;
-            if (editedPalette == null) return;
-            System.Array.Copy(editedPalette.Data, live.Data,
-                System.Math.Min(editedPalette.Data.Length, live.Data.Length));
-            Redraw();
-        }
+        // Try previews on the live palette; OK keeps the edits; Cancel, Escape or the close box restore the
+        // palette captured here and repaint.
+        dlg.BindLivePalette(GetPalette(), Redraw);
+        DeskTop.ExecView(dlg);
     }
 
     private string DefaultShell()

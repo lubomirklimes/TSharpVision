@@ -3,7 +3,7 @@ namespace TSharpVision.Samples.TVDemo;
 internal static class DemoHelpCtx
 {
     public const ushort MainMenu = 2, WelcomeWindow = 3, WindowManagement = 5,
-        ControlsShowcase = 6, ColorDialog = 7, ResourceDialog = 8;
+        ControlsShowcase = 6, ColorDialog = 7, ResourceDialog = 8, EditorFiles = 11;
 }
 
 public partial class TVDemoApp
@@ -57,6 +57,7 @@ public partial class TVDemoApp
         _helpStream?.Close();
         _helpStream = null;
         _helpFile = null;
+        RestorePaletteTablesAtStart();
         base.ShutDown();
     }
 }

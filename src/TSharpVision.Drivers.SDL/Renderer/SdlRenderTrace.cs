@@ -15,6 +15,16 @@ internal enum SdlRenderOpKind
     GlyphMissing,
     /// <summary>The frame was presented.</summary>
     Present,
+    /// <summary>A pixel-graphics rectangle in device pixels, already clipped (IPixelGraphicsDriver layer). The
+    /// rectangles of one primitive and clip rectangle are consecutive and go to SDL as one SDL_RenderFillRects batch.</summary>
+    GraphicsFill,
+    /// <summary>A pixel-graphics image: X, Y, Width, Height is the visible (clipped) device rectangle, the alpha
+    /// byte of <see cref="SdlRenderOp.Argb"/> the opacity, plus <see cref="SdlRenderOp.ImageId"/> and
+    /// <see cref="SdlRenderOp.ImageFilter"/>.</summary>
+    GraphicsImage,
+    /// <summary>A pixel-graphics image that got no texture (over the size limit or budget, or creation failed), so
+    /// nothing was drawn; fields as for <see cref="GraphicsImage"/>.</summary>
+    GraphicsImageSkipped,
 }
 
 /// <summary>One renderer-facing operation, recorded beside the real SDL call that performs it.</summary>
@@ -26,7 +36,9 @@ internal readonly record struct SdlRenderOp(
     int Height,
     uint Argb,
     char Character = '\0',
-    SdlGlyphRenderClass GlyphClass = SdlGlyphRenderClass.Space);
+    SdlGlyphRenderClass GlyphClass = SdlGlyphRenderClass.Space,
+    long ImageId = 0,
+    GraphicsImageFilter ImageFilter = GraphicsImageFilter.Nearest);
 
 /// <summary>
 /// Opt-in record of what <see cref="SDLRenderer"/> asks SDL to draw. Null in normal operation;

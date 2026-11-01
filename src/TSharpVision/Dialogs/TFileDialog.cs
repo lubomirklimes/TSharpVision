@@ -70,6 +70,8 @@ public class TFileDialog : TDialog, IFileDialogContext
                        byte   histId)
         : base(DialogBounds(aOptions), aTitle)
     {
+        int infoTop = InfoPaneTop(aOptions);
+        _minHeight = infoTop + InfoPaneHeight + 1;
         options |= Views.ofCentered;
         growMode = Views.gfGrowAll;
         flags    = (byte)(flags | Views.wfGrow | Views.wfZoom);
@@ -89,9 +91,9 @@ public class TFileDialog : TDialog, IFileDialogContext
 
         // .NET always supports long file names; we mirror upstream's
         // longNames=1 layout (vertical scroll bar at column 34).
-        var sb = new TScrollBar(new TRect(34, 5, 35, 16));
+        var sb = new TScrollBar(new TRect(34, 5, 35, infoTop));
         Insert(sb);
-        fileList = new TFileList(new TRect(3, 5, 34, 16), sb);
+        fileList = new TFileList(new TRect(3, 5, 34, infoTop), sb);
         fileList.growMode = (byte)(Views.gfGrowHiX | Views.gfGrowHiY);
         Insert(fileList);
         Insert(new TLabel(new TRect(2, 4, 17, 5), TSharpVisionIntl.Get("File_Label_Files", "~F~iles"), fileList));
@@ -137,19 +139,24 @@ public class TFileDialog : TDialog, IFileDialogContext
 
         if ((aOptions & FileDialogOptions.fdEncodingSelector) != 0)
         {
-            Insert(new TLabel(
-                new TRect(35, 6, 49, 7),
-                TSharpVisionIntl.Get("File_Label_Encoding", "~E~ncoding"),
-                null));
+            // The choices start on the row after the last button (row 6 for the usual two buttons), so an optional
+            // Help or action button never sits under them. They start one blank column right of the list's
+            // scroll bar and reach the frame.
+            int labelY = EncodingLabelRow(aOptions);
             encodingSelector = new TRadioButtons(
-                new TRect(35, 7, 64, 15),
+                new TRect(EncodingLeft, labelY + 1, size.x - 1, labelY + 1 + EditorEncodingChoices.BuiltIn.Count),
                 EncodingChoiceItems());
             encodingSelector.growMode = (byte)(Views.gfGrowLoX | Views.gfGrowHiX);
             encodingSelector.SetData((ushort)0);
+            Insert(new TLabel(
+                new TRect(EncodingLeft, labelY, EncodingLeft + 14, labelY + 1),
+                TSharpVisionIntl.Get("File_Label_Encoding", "~E~ncoding"),
+                encodingSelector) { growMode = (byte)(Views.gfGrowLoX | Views.gfGrowHiX) });
             Insert(encodingSelector);
         }
 
-        var fip = new TFileInfoPane(new TRect(1, 16, 48, 19));
+        // The info pane spans the inner width; gfGrowHiX keeps it there when the dialog is resized.
+        var fip = new TFileInfoPane(new TRect(1, infoTop, size.x - 1, infoTop + InfoPaneHeight));
         fip.growMode = (byte)(Views.gfGrowHiX | Views.gfGrowHiY | Views.gfGrowLoY);
         Insert(fip);
 
@@ -158,12 +165,140 @@ public class TFileDialog : TDialog, IFileDialogContext
             ReadDirectory();
         else
             SetUpCurDir();
+
+        _dialogOptions = aOptions;
+        // A wildcard with a directory part is an explicit start location.
+        _explicitStart = aWildCard != null && (aWildCard.IndexOf('/') >= 0 || aWildCard.IndexOf('\\') >= 0);
+        _constructedDirectory = directory;
+        _sessionDirectoryPending = true;
     }
 
+    // ── Session directory ───────────────────────────────────────
+    // An Open dialog that ends with an accepted file name records that file's directory on its TProgram. A later file
+    // dialog of the same program starts there, unless its caller chose a start location: a wildcard or SetData value
+    // with a directory part, or a directory assigned before the dialog is shown. In memory only, per program.
+
+    private ushort _dialogOptions;
+    private bool _explicitStart;
+    private string? _constructedDirectory;
+    private bool _sessionDirectoryPending;
+
+    private TProgram? OwningProgram()
+    {
+        for (TGroup? g = owner; g != null; g = g.owner)
+            if (g is TProgram program) return program;
+        return null;
+    }
+
+    // Runs once, when the dialog is first shown inside a program and before it draws.
+    private void ApplySessionDirectory()
+    {
+        _sessionDirectoryPending = false;
+        if (_explicitStart || !string.Equals(directory, _constructedDirectory, StringComparison.Ordinal))
+            return;
+        string? remembered = OwningProgram()?.FileDialogSessionDirectory;
+        if (string.IsNullOrEmpty(remembered)) return;
+        try
+        {
+            // A directory that was deleted or became unreachable since leaves the original start in place.
+            if (!System.IO.Directory.Exists(remembered)) return;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            return;
+        }
+        directory = remembered;
+        if ((_dialogOptions & FileDialogOptions.fdNoLoadDir) == 0)
+        {
+            fileList?.ReadDirectory(remembered, wildCard ?? string.Empty);
+            LastError = fileList?.LastError ?? string.Empty;
+        }
+    }
+
+    private void RememberAcceptedDirectory()
+    {
+        var program = OwningProgram();
+        if (program == null) return;
+        GetFileName(out string accepted);
+        string? dir;
+        try
+        {
+            dir = System.IO.Path.GetDirectoryName(accepted);
+            if (string.IsNullOrEmpty(dir) || !System.IO.Directory.Exists(dir)) return;
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException
+                                       or NotSupportedException or System.Security.SecurityException)
+        {
+            return;
+        }
+        if (dir[dir.Length - 1] != System.IO.Path.DirectorySeparatorChar && dir[dir.Length - 1] != '/')
+            dir += System.IO.Path.DirectorySeparatorChar;
+        program.FileDialogSessionDirectory = dir;
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// The first time the dialog is shown inside a <see cref="TProgram"/>, it starts in the directory of the file last
+    /// accepted by an Open dialog of that program in this run, unless the caller supplied a start location.
+    /// </remarks>
+    public override void SetState(ushort aState, bool enable)
+    {
+        if (_sessionDirectoryPending && enable && (aState & Views.sfVisible) != 0 && owner != null)
+            ApplySessionDirectory();
+        base.SetState(aState, enable);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// When a dialog with the Open button ends with an accepted file name (<c>cmFileOpen</c> or <c>cmOK</c>, after
+    /// <see cref="Valid"/>), the file's directory is remembered for the owning program's later file dialogs. That is
+    /// acceptance by the dialog: whether the caller then reads the file is not known here. Cancel, Escape, rejected
+    /// names, Save-style dialogs and browsing change nothing.
+    /// </remarks>
+    public override ushort Execute()
+    {
+        ushort result = base.Execute();
+        if ((result == Views.cmFileOpen || result == Views.cmOK)
+            && (_dialogOptions & FileDialogOptions.fdOpenButton) != 0)
+            RememberAcceptedDirectory();
+        return result;
+    }
+
+    private const int InfoPaneHeight = 3;
+
+    // The list's scroll bar is column 34; column 35 stays empty between it and the encoding choices.
+    private const int EncodingLeft = 36;
+
+    // Number of stacked 2-row buttons: the optional action buttons, Cancel/Done, and Help.
+    private static int ButtonCount(ushort options)
+    {
+        int count = 1;
+        foreach (ushort flag in new[] { FileDialogOptions.fdOpenButton, FileDialogOptions.fdOKButton,
+                     FileDialogOptions.fdAddButton, FileDialogOptions.fdSelectButton, FileDialogOptions.fdReplaceButton,
+                     FileDialogOptions.fdClearButton, FileDialogOptions.fdHelpButton })
+            if ((options & flag) != 0) count++;
+        return count;
+    }
+
+    // First row below the button stack, which starts at row 2.
+    private static int EncodingLabelRow(ushort options) => 2 + 2 * ButtonCount(options);
+
+    // The file list ends and the info pane starts at row 16, or below the encoding choices when they reach further.
+    private static int InfoPaneTop(ushort options)
+        => (options & FileDialogOptions.fdEncodingSelector) == 0
+            ? 16
+            : Math.Max(16, EncodingLabelRow(options) + 1 + EditorEncodingChoices.BuiltIn.Count);
+
     private static TRect DialogBounds(ushort options)
-        => (options & FileDialogOptions.fdEncodingSelector) != 0
-            ? new TRect(8, 1, 73, 21)
-            : new TRect(15, 1, 64, 21);
+    {
+        int height = InfoPaneTop(options) + InfoPaneHeight + 1;
+        return (options & FileDialogOptions.fdEncodingSelector) != 0
+            ? new TRect(8, 1, 73, 1 + height)
+            : new TRect(15, 1, 64, 1 + height);
+    }
+
+    // Minimum height: the constructed height (20 unless the encoding choices need more rows).
+    private int _minHeight = 20;
 
     private static TSItem EncodingChoiceItems()
     {
@@ -193,7 +328,7 @@ public class TFileDialog : TDialog, IFileDialogContext
     {
         base.SizeLimits(ref min, ref max);
         min.x = encodingSelector == null ? 64 - 15 : 73 - 8;
-        min.y = 21 - 1;
+        min.y = _minHeight;
     }
 
     /// <inheritdoc />
@@ -220,9 +355,12 @@ public class TFileDialog : TDialog, IFileDialogContext
     }
 
     /// <inheritdoc />
+    /// <remarks>While the dialog is modal, its Help button and F1 open the program's help for the dialog's help context
+    /// as a modal window above it; closing help returns to the dialog unchanged.</remarks>
     public override void HandleEvent(ref TEvent @event)
     {
         base.HandleEvent(ref @event);
+        ModalDialogHelp.Handle(this, ref @event);
         if (@event.What == Events.evCommand)
         {
             switch (@event.message.command)
@@ -268,6 +406,9 @@ public class TFileDialog : TDialog, IFileDialogContext
     /// <inheritdoc />
     public override void SetData(object rec)
     {
+        // A value with a directory part chooses the start location over the session directory.
+        if (rec is string path && (path.IndexOf('/') >= 0 || path.IndexOf('\\') >= 0))
+            _explicitStart = true;
         if (rec is string s && s.Length > 0 && IsWild(s))
         {
             fileName?.SetData(s);

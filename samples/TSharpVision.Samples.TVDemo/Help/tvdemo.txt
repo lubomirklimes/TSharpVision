@@ -11,11 +11,12 @@ Use the {Index} to explore TVDemo demonstrations.
  {Resource-loaded dialog:ResourceDialog}
  {Classic games:Games}
  {Other samples:OtherSamples}
+ {Code editor files:EditorFiles}
 
 Tab selects links, Enter follows a link, Backspace returns, Esc closes help.
 
 .topic MainMenu=2
-File opens demonstration windows (F4) and the read-only file viewer (F3). The normal Open button and double-click both open the selected file; unreadable or missing files report errors.
+File opens demonstration windows (F4) and the read-only file viewer (F3), and opens and saves files in the code editor ({Code editor files:EditorFiles}). The normal Open button and double-click both open the selected file; unreadable or missing files report errors.
 
 Demo has three submenus: Dialogs, Controls, and Views and tools. Each example has one home. Options/UI colors is the application palette editor; the palette inheritance gallery is a different Controls lesson.
 
@@ -29,6 +30,8 @@ Message boxes lets you select information/warning/error/confirmation and OK, OK/
 
 The system-symbol menu (Alt+Space) holds ASCII table, calculator, calendar, clock, Puzzle and Tetris. Diagnostics contains Keyboard, Function keys, Mouse and Heap/memory. Window arranges and restores supported windows.
 
+Options/Framework palette selects the logical Color, Black and white or Monochrome family. When the display driver supports them (the SDL GPU driver), Options also offers Physical palette (Default, Green, Amber, Grayscale) and Display effect (Default, Scanlines, Glow, Curvature, ShadowMask). Default is the classic VGA 16-color mapping. One display effect is active at a time; choosing another replaces it. These are display output settings: they recolor or post-process what the driver shows and combine with any Framework palette. Default returns to the unmodified output. Curvature bends the image, and mouse clicks follow the bent image. They last for the session and are not saved with the desktop state; [graphics] palette= and effect= in the configuration file select the startup values. Other drivers do not show these submenus.
+
 F10 opens the menu; Alt+F/D/I/O/W/H opens the corresponding top menu. Arrow keys, Enter and caption letters navigate submenus; Esc backs out one level. Alt+X exits. See {Controls and dialogs:ControlsShowcase} and {Window management:WindowManagement}.
 
 .topic WelcomeWindow=3
@@ -37,7 +40,7 @@ TSharpVision reimplements and extends Borland Turbo Vision in C#/.NET. TVDemo de
 .topic WindowManagement=5
 F6 selects the next window; Shift+F6 selects the previous one. F5 zooms; Ctrl+F5 moves/resizes (arrows move, Shift+arrows resize); Alt+F3 closes. Window offers Tile and Cascade.
 
-Save desktop state writes plain demonstration windows and the application palette to tvdemo-desktop.tvr next to the executable. Unsupported games, accessories and viewers are reported and excluded. Load validates the snapshot before replacing supported windows; other windows remain open. Saved order is preserved among restored windows, placed above retained windows. Only the palette is restored automatically at startup.
+Save desktop state writes plain demonstration windows and the application palette to tvdemo-desktop.tvr next to the executable. Unsupported games, accessories and viewers are reported and excluded. Load validates the snapshot before replacing supported windows; other windows remain open. Saved order is preserved among restored windows, placed above retained windows. It also records the Framework palette family and each family's palette. Startup restores the palettes and family; Load also restores windows. Older snapshots load as the Color palette.
 
 Code editor close or application exit offers Save/Discard/Cancel for modified text. For an untitled editor, accepting Save opens the real editor Save As chooser; overwrite confirmation applies to existing destinations. This real file-writing workflow is distinct from Demo/Dialogs/Save file dialog (chooser-only).
 
@@ -60,7 +63,7 @@ Palette inheritance gallery compares gray dialog, blue window and custom palette
 
 Demo/Views and tools contains Outline, Code editor, Hex viewer, Table viewer and Terminal. Outline: arrows navigate; +, -, * expand/collapse. Hex/table use synthetic data. Terminal runs a PTY shell when available, otherwise a memory-session input example.
 
-Code editor contains editable highlighted C# with scrollbars. Ctrl+Q F opens Find; Ctrl+Q A opens Replace. The prefix means Ctrl+Q followed by F or A. To exercise Save As, edit the untitled example, close it and choose Yes to save. TVEdit owns the fuller editing/file workflow.
+Code editor contains editable highlighted C# with scrollbars. Ctrl+Q F opens Find; Ctrl+Q A opens Replace. The prefix means Ctrl+Q followed by F or A. To exercise Save As, edit the untitled example, close it and choose Yes to save, or use File/Save as. See {Code editor files:EditorFiles}. TVEdit owns the fuller editing/file workflow.
 
 .topic ColorDialog=7
 Options/UI colors edits a copy of the live palette. OK applies and redraws; Cancel discards changes. Try requests a color-update redraw; it does not commit the cloned palette. Window/Save desktop state persists the accepted palette. The palette inheritance gallery is under Demo/Controls. See {Window management:WindowManagement}.
@@ -73,3 +76,12 @@ Puzzle and Tetris are in the system-symbol menu (Alt+Space). They demonstrate cu
 
 .topic OtherSamples=10
 TVEdit owns complete editing, file encoding selection, clipboard, undo and search/replace workflows. TVTerm owns TTerminal sessions, ANSI/Unicode output, selection, processes and PTY shells. TVBasic and TVIntl are separate specialized examples.
+
+.topic EditorFiles=11
+File/Open in code editor opens an existing file in a new code editor window. File/Save (F2) writes the active code editor to its file; an untitled editor asks for a name first. File/Save as always asks for a name. Both choosers are the framework file dialog with its Help button and Encoding choices.
+
+Open: the selected Encoding decodes the file. Auto reads UTF-8 and falls back to Latin-1; the other choices decode exactly as named, and a file that is not valid UTF-8 under UTF-8 is reported. The window title shows the file name and the encoding the editor will write.
+
+Save as: the chooser starts on the document's encoding (new documents use UTF-8) and writes the selected one; Auto keeps the document's encoding. Later saves use the encoding last saved. If the text contains a character that encoding cannot represent, an error is shown and nothing is written; the file name and encoding stay as they were. UTF-8 keeps a byte-order mark only if the document had one. An existing destination asks before it is replaced. Cancel or Esc writes nothing.
+
+Help opens this topic; Esc closes it and returns to the chooser. Closing a modified editor still offers Save/Discard/Cancel. See {Main menu:MainMenu}.

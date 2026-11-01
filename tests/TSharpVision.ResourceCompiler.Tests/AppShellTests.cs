@@ -521,9 +521,10 @@ public sealed class AppShellRuntimeTests : IDisposable
 
 public sealed class AppShellSourceFileTests
 {
-    // The test binary output is bin/Debug/net8.0; the repo root is three levels up.
+    // This test project's directory, in the normal and the redirected (artifacts) output layout.
     private static string RepoRoot =>
-        Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", ".."));
+        Path.Combine(TSharpVision.Tests.Infrastructure.RepositoryLayout.Root(typeof(AppShellSourceFileTests).Assembly),
+            "tests", "TSharpVision.ResourceCompiler.Tests");
 
     private static string TrcPath =>
         Path.Combine(RepoRoot, "Fixtures", "app-shell.trc");

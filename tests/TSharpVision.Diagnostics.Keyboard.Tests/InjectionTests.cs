@@ -7,7 +7,7 @@ using TSharpVision.Drivers;
 namespace TSharpVision.Diagnostics.Keyboard.Tests;
 
 /// <summary>
-/// Phase 2 without a keyboard: source selection, the Level B / Level C distinction, layout
+/// Input injection without a keyboard: source
 /// verification, the foreground guard, the denylist and the native events that are injected.
 /// Nothing here calls SendInput, opens a window or writes to a console.
 /// </summary>

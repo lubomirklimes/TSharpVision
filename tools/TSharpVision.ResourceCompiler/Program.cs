@@ -11,6 +11,7 @@
 
 using System;
 using System.IO;
+using System.Reflection;
 using TSharpVision.ResourceCompiler;
 
 namespace TSharpVision.ResourceCompiler;
@@ -19,12 +20,26 @@ internal static class Program
 {
     private static int Main(string[] args)
     {
+        // Root-level --version prints only the tool name and version and does no work.
+        if (args.Length > 0 && args[0] == "--version")
+        {
+            Console.WriteLine("TSharpVision ResourceCompiler " + ToolVersion());
+            return 0;
+        }
+
         Console.WriteLine("TSharpVision Resource Compiler v1\n");
 
         if (args.Length < 1)
         {
             PrintUsage();
             return 1;
+        }
+
+        // Root-level --help or -h prints the same usage as no arguments, but exits successfully.
+        if (args.Length == 1 && args[0] is "--help" or "-h")
+        {
+            PrintUsage();
+            return 0;
         }
 
         return args[0].ToLowerInvariant() switch
@@ -73,6 +88,17 @@ internal static class Program
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    // The package version: AssemblyInformationalVersion without the "+<commit>" build metadata SourceLink appends.
+    private static string ToolVersion()
+    {
+        var assembly = typeof(Program).Assembly;
+        string version = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+            ?? assembly.GetName().Version?.ToString(3)
+            ?? "unknown";
+        int metadata = version.IndexOf('+');
+        return metadata < 0 ? version : version[..metadata];
+    }
 
     private static int UnknownCommand(string cmd)
     {

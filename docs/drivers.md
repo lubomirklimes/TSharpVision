@@ -53,6 +53,12 @@ return TSharpVisionRuntime.Run(() => new TApplication(), "TSharpVision");
 
 Both SDL drivers create high-pixel-density windows and render at the window's native pixel density, for example 2× on a Retina display. The grid, window size in points and `fontSize` keep their meaning: glyphs are rasterised at `fontSize` times the density, and a density change re-rasterises them without a restart. Command, the Windows key and Super are reported as `kbMetaShift`. Wheel and trackpad scrolling follow the operating system's scrolling preference, such as macOS natural scrolling.
 
+`SDLGpuDriver` can also recolour its output with a physical palette (`Default`, the classic VGA mapping, or a green, amber or grayscale monitor) and apply one display effect (`Scanlines`, `Glow`, `Curvature` or `ShadowMask`), selected with `[graphics] palette=` and `effect=` or at run time; see [physical palettes and display effects](views/display-presets.md).
+
+Only `SDLGpuDriver` implements these display presets (the optional `IPhysicalPaletteDriver` and `IDisplayEffectDriver` interfaces). `SDLDriver` ignores `palette=` and `effect=` and always draws `Default`; the text drivers and `NullDriver` are unaffected. A physical palette recolours only the 16 text attribute colours, never pixel graphics.
+
+Both SDL drivers implement the optional `IPixelGraphicsDriver` capability (new in 1.2.0): per-owner layers of lines, filled rectangles and decoded RGBA images, drawn over the cell grid and clipped to pixel rectangles. `SDLGpuDriver` draws them in an instanced GPU pass and `SDLDriver` with SDL's renderer. The Console, Terminal and Null drivers do not implement it, and a driver decorator hides it unless it forwards the interface. Applications normally use it through the optional `TSharpVision.Graphics` package, whose views show a text fallback on drivers without the capability; see [showing an image in a window](graphics/image-preview.md).
+
 ### Fonts and font fitting
 
 The `[graphics]` section selects the font for both SDL drivers. The font and size determine the cell size, and therefore the window size for a given grid:

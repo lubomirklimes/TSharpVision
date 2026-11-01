@@ -3,6 +3,11 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <AssemblyName>svres</AssemblyName>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>svres</ToolCommandName>
+    <PackageId>TSharpVision.ResourceTools</PackageId>
+    <Description>TSharpVision resource inspector (svres): lists, shows, dumps and validates the resources in .tvr files.</Description>
+    <PackageTags>tsharpvision;tui;resources;inspector;dotnet-tool</PackageTags>
     <RootNamespace>TSharpVision.ResourceTools</RootNamespace>
   </PropertyGroup>
 

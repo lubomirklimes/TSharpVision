@@ -47,11 +47,27 @@ dispatch SHA. Validated packages are retained as artifact `nuget-<version>`.
 
 Current packages are core `TSharpVision`, drivers `TSharpVision.Drivers.Console`,
 `TSharpVision.Drivers.SDL`, `TSharpVision.Drivers.Terminal`, and extensions
-`TSharpVision.CodeEditor`, `TSharpVision.HexView`, `TSharpVision.TableView`,
-`TSharpVision.Terminal`: eight `.nupkg` and eight matching `.snupkg`. All seven
-depend on core. The validated nuspec dependency graph determines publication
-order: core first, then alphabetical peers (CodeEditor, Console driver, SDL driver,
-Terminal driver, HexView, TableView, Terminal). Discovery/order/version are dynamic.
+`TSharpVision.CodeEditor`, `TSharpVision.Graphics`, `TSharpVision.HexView`,
+`TSharpVision.TableView`, `TSharpVision.Terminal`: nine `.nupkg` and nine matching
+`.snupkg`. All eight depend on core; `TSharpVision.Graphics` depends on core only,
+not on the SDL driver package. The validated nuspec dependency graph determines
+publication order: core first, then alphabetical peers (CodeEditor, Console driver,
+SDL driver, Terminal driver, Graphics, HexView, TableView, Terminal).
+Discovery/order/version are dynamic. `TSharpVision.Graphics` is a new package ID in
+1.2.0: the NuGet.org trusted-publishing policy must allow it before the first push.
+
+The three command-line tools are .NET tool packages (`PackAsTool`), listed separately
+in `Directory.Build.props` (`IsTSharpVisionTool`): `TSharpVision.ResourceCompiler`
+(`svrc`), `TSharpVision.HelpCompiler` (`svhc`) and `TSharpVision.ResourceTools`
+(`svres`). They share the version, repository, license and README metadata, but not
+the library rules: no public API analyzer or baseline, no package validation baseline
+and no `.snupkg`. A release therefore has twelve `.nupkg` (nine libraries, three
+tools) and nine `.snupkg`. Tools are validated by their own route: one `DotnetTool`
+command matching `ToolCommandName`, a framework-dependent payload under
+`tools/net10.0/any`, only the tool assembly and the TSharpVision assemblies it
+bundles through project references, and no NuGet dependencies. The release manifest
+lists the libraries in dependency order, then the tools. All three are new package
+IDs in 1.2.0 and need the same trusted-publishing allowance as `TSharpVision.Graphics`.
 
 ### Configure once, manually
 
@@ -178,7 +194,9 @@ for the final Actions job; do not use it during local validation.
 
 ## Stable 1.x releases
 
-The next release target is **1.1.0**, directly stable. A preview or RC cycle is optional and requires an explicit owner decision. All eight public packages use the repository version, and package validation compares their assemblies with released 1.0.0. Promote approved additive APIs into Shipped for release; keep all released declarations intact.
+The next release target is **1.2.0**, directly stable; 1.1.0 is the latest published release. A preview or RC cycle is optional and requires an explicit owner decision. All nine library packages and the three tool packages use the repository version. Package validation compares the eight previously released library packages with released 1.1.0 (`PackageValidationBaselineVersion` in `Directory.Build.props`). `TSharpVision.Graphics` is released for the first time and has no baseline yet (its project sets the baseline empty); after 1.2.0 is published, set its baseline to the first published Graphics version. Promote approved additive APIs into Shipped for release; keep all released declarations intact.
+
+Release scope: 1.2.0 is the display and graphics release (palette families, SDL GPU physical palettes and display effects, `TSharpVision.Graphics`, localization, Help search, the session file-dialog directory).
 
 Internal driver attachment, output tracing and pixel-readback seams remain in the driver assemblies because they exercise production rendering. Friend assembly grants to external Workbench diagnostics are intentional; they do not make Workbench projects, scenarios or orchestration part of this repository. The CPU-only atlas uses the same density-aware sizing as production; use its instance `Size` for its actual side length.
 

@@ -60,7 +60,13 @@ internal sealed class DemoCodeWindow : TCodeWindow
 {
     public DemoCodeWindow(TRect bounds, ushort number) : base(bounds, null, number) { }
 
-    public override string GetTitle(short maxSize) => "Code Editor (C#)";
+    public DemoCodeWindow(TRect bounds, ushort number, string fileName, TFileEditorOpenOptions openOptions)
+        : base(bounds, fileName, number, openOptions) { }
+
+    // A named document shows its file and the encoding the editor will write.
+    public override string GetTitle(short maxSize) => editor is { fileName.Length: > 0 } named
+        ? $"{Path.GetFileName(named.fileName)} [{TVDemoApp.EncodingLabel(named)}]"
+        : "Code Editor (C#)";
 }
 
 internal sealed class DemoHexSource : IHexDataSource

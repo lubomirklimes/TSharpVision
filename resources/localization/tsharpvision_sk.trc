@@ -107,6 +107,12 @@ resource strings "sharpvision.intl" {
 
   Help_WindowTitle = "Pomocník";
   Help_NoContext = "\n Pre tento kontext nie je pomocník k dispozícii.";
+  Help_Search_Title = "Hľadať v pomocníkovi";
+  Help_Search_Words = "~S~lová";
+  Help_Search_NoResults = "Žiadna téma pomocníka neobsahuje '{0}'.";
+  Help_Search_ResultsTitle = "Nájdené témy pomocníka";
+  Help_Search_Topics = "~T~émy ({0})";
+  Help_Search_Unavailable = "Tento súbor pomocníka už nie je k dispozícii.";
   List_Empty = "<prázdne>";
 
   Color_Title = "Farby";
@@ -117,4 +123,10 @@ resource strings "sharpvision.intl" {
   Color_Lbl_Color = "Farba";
   Color_PreviewText = "Text ";
   Color_Btn_Try = "S~k~úsiť";
+
+  Graphics_Unavailable = "Pixelová grafika vyžaduje ovládač displeja SDL.";
+
+  Table_Loading = "Načítava sa…";
+  Table_NoColumns = "<žiadne stĺpce>";
+  Table_RowUnavailable = "! riadok nebol dodaný";
 }

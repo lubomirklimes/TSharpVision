@@ -8,7 +8,7 @@ public sealed class ProvenanceResourcePackTests
     sealed class Payload : TStreamable
     {
         public string Text = "";
-        public override string streamableName => "Phase25cPayload";
+        public override string streamableName => "ProvenancePayload";
         public override void Write(Opstream stream) => stream.WriteString(Text);
         public override object Read(Ipstream stream)
         {
@@ -22,7 +22,7 @@ public sealed class ProvenanceResourcePackTests
     public void Pack_PreservesLiveBytesOrdersOffsetsTruncatesAndRepeats(bool empty)
     {
         using var registry = new StreamableRegistryScope(); using var temp = new TempDirectory();
-        new TStreamableClass("Phase25cPayload", () => new Payload(), 0);
+        new TStreamableClass("ProvenancePayload", () => new Payload(), 0);
         Pstream.RegisterType(TResourceCollection.StreamableClass);
         string path = Path.Combine(temp.Path, "pack.tvr");
         var stream = new Fpstream(path);

@@ -26,6 +26,22 @@ public sealed class GraphicsDriverConfiguration
     }
 
     /// <summary>
+    /// Physical palette id (<c>[graphics] palette</c>), e.g. "Amber". Ids are driver-defined
+    /// (see <see cref="Drivers.DisplayPresetNames"/>) and matched case-insensitively by the driver.
+    /// Null means "not set", i.e. <see cref="Drivers.DisplayPresetNames.Default"/>. Ignored by drivers
+    /// that do not implement <see cref="Drivers.IPhysicalPaletteDriver"/>.
+    /// </summary>
+    public string? Palette { get; init; }
+
+    /// <summary>
+    /// Display effect id (<c>[graphics] effect</c>), e.g. "Scanlines". Ids are driver-defined
+    /// (see <see cref="Drivers.DisplayPresetNames"/>) and matched case-insensitively by the driver.
+    /// Null means "not set", i.e. <see cref="Drivers.DisplayPresetNames.Default"/>. Ignored by drivers
+    /// that do not implement <see cref="Drivers.IDisplayEffectDriver"/>.
+    /// </summary>
+    public string? Effect { get; init; }
+
+    /// <summary>
     /// The <see cref="FontFit"/> value when it was set explicitly (by a .cfg file or by code), else null.
     /// Lets a higher-priority configuration layer that does not mention <c>fontFit</c> keep the lower one's.
     /// </summary>

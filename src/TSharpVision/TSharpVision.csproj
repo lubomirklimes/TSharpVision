@@ -10,4 +10,29 @@
     <InternalsVisibleTo Include="TSharpVision.Tests" />
     <InternalsVisibleTo Include="TSharpVision.Drivers.SDL" />
   </ItemGroup>
+
+  <!--
+    Built-in framework translations. resources/localization/tsharpvision_{lang}.trc is the source;
+    the .tvr beside it is its svrc output, committed because svrc itself references this assembly
+    (compiling it during this build would be a project cycle). Regenerate the images explicitly with
+    the CompileFrameworkLocalization target of tools/TSharpVision.ResourceCompiler (see
+    docs/localization.md). TSharpVision.ResourceCompiler.Tests recompiles every .trc and fails when a
+    committed .tvr is stale. The images are embedded, so the package layout stays
+    lib/net10.0/TSharpVision.dll and consumers need no copy step.
+  -->
+  <PropertyGroup>
+    <TSharpVisionLocalizationDir>$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)', '..', '..', 'resources', 'localization'))</TSharpVisionLocalizationDir>
+  </PropertyGroup>
+  <ItemGroup>
+    <TSharpVisionTranslationSource Include="$(TSharpVisionLocalizationDir)tsharpvision_*.trc" />
+    <EmbeddedResource Include="$(TSharpVisionLocalizationDir)tsharpvision_*.tvr"
+                      LogicalName="TSharpVision.Localization.%(Filename)%(Extension)"
+                      Link="Localization\%(Filename)%(Extension)" />
+  </ItemGroup>
+  <!-- Skipped only while CompileFrameworkLocalization builds svrc, so a new .trc can get its first .tvr. -->
+  <Target Name="VerifyTSharpVisionTranslations" BeforeTargets="BeforeBuild"
+          Condition="'$(CompilingFrameworkLocalization)' != 'true'">
+    <Error Condition="!Exists('$(TSharpVisionLocalizationDir)%(TSharpVisionTranslationSource.Filename).tvr')"
+           Text="Missing compiled translation '%(TSharpVisionTranslationSource.Filename).tvr' for '%(TSharpVisionTranslationSource.Identity)'. Regenerate it with: dotnet build tools/TSharpVision.ResourceCompiler -c Release -t:CompileFrameworkLocalization (see docs/localization.md)." />
+  </Target>
 </Project>

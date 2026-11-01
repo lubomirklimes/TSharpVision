@@ -4,7 +4,7 @@ using System.Text;
 
 namespace TSharpVision.Diagnostics.Keyboard.Sources;
 
-/// <summary>The Win32 calls of Phase 2. Every caller guards with <see cref="OperatingSystem.IsWindows()"/>.</summary>
+/// <summary>The Win32 calls used for input injection. Every
 [SupportedOSPlatform("windows")]
 internal static class WindowsNative
 {

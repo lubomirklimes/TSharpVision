@@ -535,6 +535,15 @@ public sealed class InputLineClipboardTests : IDisposable
         public override void PutEvent(ref TEvent e) => TEventQueue.Enqueue(e);
     }
 
+    // The shared input queue starts suspended and only an application (TApplication/TEventQueue) resumes it.
+    // Without this, the default button's cmOK never left the queue unless an earlier test had resumed it.
+    private static void ResetInputQueue()
+    {
+        TEventQueue.Resume();
+        TEvent ev = default;
+        do { TEventQueue.GetNextEvent(ref ev); } while (ev.What != Events.evNothing);
+    }
+
     [Fact]
     public void ModalDialog_InputLineReceivesPaste_WithoutApplicationHandling()
     {
@@ -555,7 +564,10 @@ public sealed class InputLineClipboardTests : IDisposable
             _driver.Driver.EnqueueKey(ev);
         }
 
-        ushort result = host.ExecView(dialog);
+        ResetInputQueue();
+        ushort result;
+        try { result = host.ExecView(dialog); }
+        finally { ResetInputQueue(); }
 
         Assert.Equal(Views.cmOK, result);
         Assert.Equal("C:\\Temp\\" + Czech, input.Data);

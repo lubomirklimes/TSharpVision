@@ -8,7 +8,7 @@ cd HelloTSharpVision
 dotnet add package TSharpVision.Drivers.Console
 ```
 
-Use `TSharpVision.Drivers.Console` for Windows, `TSharpVision.Drivers.Terminal` for Linux/macOS terminals, or `TSharpVision.Drivers.SDL` for a desktop window. Each driver depends on core. Core alone supplies the headless `NullDriver`.
+Use `TSharpVision.Drivers.Console` for Windows, `TSharpVision.Drivers.Terminal` for Linux/macOS terminals, or `TSharpVision.Drivers.SDL` for a desktop window. Each driver depends on core. Core alone supplies the headless `NullDriver`. Extensions are added the same way; for example the optional `TSharpVision.Graphics` package (new in 1.2.0) adds pixel graphics views, which draw pixels only together with `TSharpVision.Drivers.SDL` (see [showing an image in a window](graphics/image-preview.md)).
 
 For local nupkg files, register their directory and keep nuget.org enabled for upstream dependencies:
 

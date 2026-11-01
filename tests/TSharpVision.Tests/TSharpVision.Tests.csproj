@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\TSharpVision\TSharpVision.csproj" />
+    <ProjectReference Include="..\..\src\TSharpVision.Graphics\TSharpVision.Graphics.csproj" />
     <ProjectReference Include="..\..\extensions\TSharpVision.CodeEditor\TSharpVision.CodeEditor.csproj" />
     <ProjectReference Include="..\..\extensions\TSharpVision.HexView\TSharpVision.HexView.csproj" />
     <ProjectReference Include="..\..\extensions\TSharpVision.TableView\TSharpVision.TableView.csproj" />
@@ -33,6 +34,12 @@
              Link="Samples\TVDemo\%(Filename)%(Extension)" />
     <None Include="..\..\samples\TSharpVision.Samples.TVDemo\Help\tvdemo.hlp"
           Link="Help\tvdemo.hlp" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- RepositoryLayout (TestSupport) finds the repository from redirected output with this relative path. -->
+  <ItemGroup>
+    <AssemblyMetadata Include="TSharpVision.RepositoryRootFromOutput"
+                      Value="$([MSBuild]::MakeRelative($([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(OutDir)')), $([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '..', '..'))))" />
   </ItemGroup>
 
 </Project>

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using TSharpVision.Drivers.SDL.Graphics;
 
 namespace TSharpVision.Drivers.SDL.Gpu;
 
@@ -22,7 +23,8 @@ internal sealed record GpuFrameCapture(
     ushort CursorType,
     long   FramesPresented,
     long   FramesSkipped,
-    TimeSpan GpuWait);
+    TimeSpan GpuWait,
+    GpuDisplayEffect Effect = GpuDisplayEffect.Default);
 
 /// <summary>
 /// Native-pixel qualification seams. Nothing here runs unless a capture is requested: the render
@@ -78,7 +80,7 @@ internal sealed partial class SDLGpuRenderer
     }
 
     private sealed record PinnedFrame(ScreenBuffer Buffer, uint Columns, uint Rows, long Frame,
-        int CursorX, int CursorY, ushort CursorType);
+        int CursorX, int CursorY, ushort CursorType, PixelGraphicsFrame Graphics);
 
     private readonly record struct RetainedCapture(IntPtr Fence, IntPtr Texture, IntPtr Transfer);
 
@@ -164,7 +166,7 @@ internal sealed partial class SDLGpuRenderer
         for (uint row = 0; row < rows; row++)
             for (uint col = 0; col < cols; col++)
                 copy.SetChar(col, row, _snap!.GetChar(col, row));
-        request.Pinned = new PinnedFrame(copy, cols, rows, _snapFrame, _cursorX, _cursorY, _cursorType);
+        request.Pinned = new PinnedFrame(copy, cols, rows, _snapFrame, _cursorX, _cursorY, _cursorType, _snapGraphics);
     }
 
     private void ServeCaptureRequest()
@@ -190,11 +192,15 @@ internal sealed partial class SDLGpuRenderer
         catch (Exception ex) { request.Done.TrySetException(ex); }
     }
 
-    // Shared by native capture and device-free pixel regression tests.
+    // Shared by native capture and device-free pixel regression tests. Applies the display effect
+    // of the frame being presented (_frameEffect), exactly as the CPU-fallback presentation does.
     private void CompositeCapturedFrame(PinnedFrame pinned)
     {
+        uint screenW = pinned.Columns * (uint)_cellWidth;
         CompositeScreen(pinned.Buffer, 0, 0, pinned.Columns, pinned.Rows,
-            pinned.Columns * (uint)_cellWidth, pinned.CursorX, pinned.CursorY, pinned.CursorType);
+            screenW, pinned.CursorX, pinned.CursorY, pinned.CursorType);
+        RasterizeGraphics(pinned.Graphics, screenW, pinned.Rows * (uint)_cellHeight);
+        ApplyDisplayEffect(_frameEffect, screenW, pinned.Rows * (uint)_cellHeight);
     }
 
     private GpuFrameCapture CaptureFrame(CaptureRequest request, PinnedFrame pinned)
@@ -243,6 +249,7 @@ internal sealed partial class SDLGpuRenderer
         IntPtr download = SDL3.SDL.CreateGPUTransferBuffer(_device, in dlInfo);
         IntPtr cmdBuf = IntPtr.Zero;
         string mode;
+        GpuDisplayEffect drawnEffect = _frameEffect;
         CaptureGpuCalls calls = CaptureCallsForTesting;
         try
         {
@@ -255,15 +262,21 @@ internal sealed partial class SDLGpuRenderer
 
             if (_termPipeline != null)
             {
+                _termPipeline.SetGraphics(pinned.Graphics, GraphicsScale);
                 _termPipeline.RenderFrame(cmdBuf, target, w, h, buf, cols, rows,
-                    pinned.CursorX, pinned.CursorY, pinned.CursorType);
+                    pinned.CursorX, pinned.CursorY, pinned.CursorType, _physicalPalette,
+                    _frameEffect, _metrics.Density);
                 mode = "shader";
+                // The effect actually drawn: Default when the requested effect is unavailable or
+                // not implemented. Post effects are captured post-processed (same RenderFrame).
+                drawnEffect = _termPipeline.LastDrawnEffect;
             }
             else
             {
                 CompositeCapturedFrame(pinned);
                 RecordFallbackFrame(cmdBuf, target, w, h, cols, rows, screenW, screenH);
                 mode = "cpu-composite";
+                drawnEffect = CpuFallbackEffect(_frameEffect);
             }
 
             IntPtr copyPass = SDL3.SDL.BeginGPUCopyPass(cmdBuf);
@@ -295,7 +308,7 @@ internal sealed partial class SDLGpuRenderer
 
         return new GpuFrameCapture((int)w, (int)h, formatName, rgba, mode, _backend, pinned.Frame,
             (int)cols, (int)rows, pinned.CursorX, pinned.CursorY, pinned.CursorType,
-            FramesPresented, FramesSkipped, gpuWait);
+            FramesPresented, FramesSkipped, gpuWait, drawnEffect);
     }
 
     /// <summary>

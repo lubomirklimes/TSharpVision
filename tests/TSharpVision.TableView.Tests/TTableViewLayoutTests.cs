@@ -62,6 +62,17 @@ public sealed class TTableViewLayoutTests
         Assert.Empty(table.Requests);
     }
 
+    // The table strings were missing from the English inventory, so every built-in language showed English.
+    [Fact]
+    public void TheEmptyStatesFollowTheBuiltInLanguage()
+    {
+        using var scope = new IntlProviderScope(TSharpVisionIntl.CreateBuiltInProvider("cs")!);
+        using var h = new TableHarness(width: 30, height: 6);
+        h.Show(new SyntheticTable(0, 1000));
+
+        Assert.Equal("<žádné sloupce>", h.Rows[0]);
+    }
+
     [Fact]
     public void LongTextIsClippedToTheWidestColumnWithAnEllipsis()
     {

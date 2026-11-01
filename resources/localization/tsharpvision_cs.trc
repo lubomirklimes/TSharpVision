@@ -107,6 +107,12 @@ resource strings "sharpvision.intl" {
 
   Help_WindowTitle = "Nápověda";
   Help_NoContext = "\n Pro tento kontext není nápověda k dispozici.";
+  Help_Search_Title = "Hledat v nápovědě";
+  Help_Search_Words = "~S~lova";
+  Help_Search_NoResults = "Žádné téma nápovědy neobsahuje '{0}'.";
+  Help_Search_ResultsTitle = "Nalezená témata nápovědy";
+  Help_Search_Topics = "~T~émata ({0})";
+  Help_Search_Unavailable = "Tento soubor nápovědy už není k dispozici.";
 
   List_Empty = "<prázdné>";
 
@@ -118,4 +124,10 @@ resource strings "sharpvision.intl" {
   Color_Lbl_Color = "Barva";
   Color_PreviewText = "Text ";
   Color_Btn_Try = "~Z~kusit";
+
+  Graphics_Unavailable = "Pixelová grafika vyžaduje ovladač displeje SDL.";
+
+  Table_Loading = "Načítání…";
+  Table_NoColumns = "<žádné sloupce>";
+  Table_RowUnavailable = "! řádek nebyl dodán";
 }

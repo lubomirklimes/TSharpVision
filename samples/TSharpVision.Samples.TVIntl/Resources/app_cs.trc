@@ -45,6 +45,7 @@ resource strings "sharpvision.intl" {
   TVIntl_Menu_LangEnglish = "~A~nglicky";
   TVIntl_Menu_LangCzech = "~Č~esky";
   TVIntl_Menu_LangPseudo = "~P~seudo / Debug";
+  TVIntl_Menu_LangConfigured = "~V~ýchozí z konfigurace";
 
   TVIntl_Menu_Demos = "~U~kázky";
   TVIntl_Menu_MessageBox = "~Z~práva";
@@ -80,8 +81,10 @@ resource strings "sharpvision.intl" {
   TVIntl_Dlg_MissingKey_None = "Zatím nebyl zaznamenán žádný chybějící klíč.";
   TVIntl_Dlg_MissingKey_Recent = "Poslední chybějící klíče:";
   TVIntl_Dlg_Language_Title = "Jazyk";
-  TVIntl_Dlg_Language_Text = "Jazyk přepnut na {0}.";
+  TVIntl_Dlg_Language_Text = "Jazyk přepnut na {0}.\n\nMenu a stavový řádek byly znovu sestaveny. Otevřená okna si texty ponechají, dokud je znovu neotevřete.";
   TVIntl_Dlg_Language_Pseudo_Text = "Pseudo/debug provider je aktivní.";
+  TVIntl_Dlg_Language_Configured_Text = "Jazyk z konfigurace ([localization] language): {0}.";
+  TVIntl_Dlg_Language_NotConfigured = "nenastaven (angličtina)";
   TVIntl_Help_NotFound = "Soubor nápovědy nebyl nalezen.";
 
   TVIntl_Encoding_Title = "Ukázka kódování";

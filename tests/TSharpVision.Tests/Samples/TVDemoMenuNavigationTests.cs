@@ -30,8 +30,13 @@ public sealed class TVDemoMenuNavigationTests
         using var scope = new DemoTestScope();
         var menu = scope.App.MenuBar!.Menu!;
         var leaves = Walk(menu).ToArray();
-        Assert.Equal(48, leaves.Length); // Existing actions plus Character Map
-        Assert.Equal(48, leaves.Select(x => x.Item.Command).Distinct().Count());
+        Assert.Equal(55, leaves.Length); // Existing actions plus Character Map, the three framework palette modes, Help > Search (TV12l), STYX graphics (TV12n), Graphics gallery and Live chart (TV12o)
+        Assert.Equal(55, leaves.Select(x => x.Item.Command).Distinct().Count());
+        Assert.EndsWith(" > STYX graphics", leaves.Single(x => x.Item.Command == ShowcaseCmd.Styx).Path);
+        Assert.Equal($"{TSharpVisionGlyphs.SystemMenu} > Graphics gallery", leaves.Single(x => x.Item.Command == ShowcaseCmd.GraphicsGallery).Path);
+        Assert.Equal($"{TSharpVisionGlyphs.SystemMenu} > Live chart", leaves.Single(x => x.Item.Command == ShowcaseCmd.LiveChart).Path);
+        Assert.Equal("Help > Search...", leaves.Single(x => x.Item.Command == Views.cmHelpSearch).Path);
+        Assert.Equal("Options > Framework palette > (●) Color", leaves.Single(x => x.Item.Command == ShowcaseCmd.PaletteColor).Path);
         foreach (ushort code in Enumerable.Range(500, 7).Select(i => (ushort)i))
             Assert.Single(leaves, x => x.Item.Command == code);
         Assert.Equal("Demo > Dialogs > Open file dialog...", leaves.Single(x => x.Item.Command == 500).Path);

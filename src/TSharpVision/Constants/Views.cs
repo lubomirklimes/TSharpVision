@@ -117,6 +117,8 @@ public static class Views
     public const ushort cmHelpBack  = 67;  // Navigate back in help topic history
     /// <summary>Navigate to the help index topic.</summary>
     public const ushort cmHelpIndex = 68;  // Navigate to the help index topic
+    /// <summary>Search the help text: the help viewer asks for words and opens a matching topic (Alt+S in a help window).</summary>
+    public const ushort cmHelpSearch = 69;
 
     // Host console resize notification. Enqueued by the Win32
     // driver when a WINDOW_BUFFER_SIZE_EVENT is received; handled by TProgram.

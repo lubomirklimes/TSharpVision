@@ -1,0 +1,24 @@
+{
+  "version": "1.2.0",
+  "channel": "stable",
+  "changelog": "existing",
+  "summary": "TSharpVision 1.2.0 is the display and graphics release: runtime Color/BlackWhite/Monochrome palette switching, physical palettes and display effects on the SDL GPU driver, and the new optional TSharpVision.Graphics package for pixel graphics and decoded RGBA images.",
+  "changes": [
+    "Runtime switching between the Color, BlackWhite and Monochrome palette families (TProgram.SetAppPalette) and live colour-dialog preview.",
+    "SDLGpuDriver physical palettes (Default, Green, Amber, Grayscale) and display effects (Default, Scanlines, Glow, Curvature, ShadowMask); one effect at a time.",
+    "New optional package TSharpVision.Graphics (depends only on TSharpVision): GView/GWindow display lists, shapes, PixelImage/GImage with nearest or linear filtering; pixels with TSharpVision.Drivers.SDL, text fallback elsewhere.",
+    "TVDemo: STYX graphics, Graphics gallery and Live chart.",
+    "Built-in framework translations with runtime language switching, Help search across several help files, and a session-only file-dialog directory.",
+    "The command-line tools svrc, svhc and svres are published as the .NET tool packages TSharpVision.ResourceCompiler, TSharpVision.HelpCompiler and TSharpVision.ResourceTools."
+  ],
+  "compatibility": "Additive public API; the 1.0 and 1.1 declarations are retained. Package validation compares the eight established packages with 1.1.0; TSharpVision.Graphics and the three tool packages are new package IDs without a baseline.",
+  "limitations": [],
+  "scope": [
+    "Display and graphics release; see CHANGELOG.md section 1.2.0."
+  ],
+  "excluded_claims": [
+    "Editor v2 is included",
+    "multi-level undo is included"
+  ],
+  "readme_summary": "display and graphics release with SDL GPU palettes and effects, the optional TSharpVision.Graphics package, and the svrc, svhc and svres command-line tools as .NET tool packages."
+}

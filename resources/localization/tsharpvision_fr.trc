@@ -107,6 +107,12 @@ resource strings "sharpvision.intl" {
 
   Help_WindowTitle = "Aide";
   Help_NoContext = "\n Aucune aide disponible dans ce contexte.";
+  Help_Search_Title = "Rechercher dans l'aide";
+  Help_Search_Words = "~M~ots";
+  Help_Search_NoResults = "Aucune rubrique d'aide ne contient « {0} ».";
+  Help_Search_ResultsTitle = "Rubriques d'aide trouvées";
+  Help_Search_Topics = "~R~ubriques ({0})";
+  Help_Search_Unavailable = "Ce fichier d'aide n'est plus disponible.";
   List_Empty = "<vide>";
 
   Color_Title = "Couleurs";
@@ -117,4 +123,10 @@ resource strings "sharpvision.intl" {
   Color_Lbl_Color = "Couleur";
   Color_PreviewText = "Texte ";
   Color_Btn_Try = "~T~ester";
+
+  Graphics_Unavailable = "Les graphismes en pixels nécessitent un pilote d'affichage SDL.";
+
+  Table_Loading = "Chargement…";
+  Table_NoColumns = "<aucune colonne>";
+  Table_RowUnavailable = "! ligne non fournie";
 }

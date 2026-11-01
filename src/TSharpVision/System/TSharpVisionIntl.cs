@@ -193,6 +193,12 @@ public sealed class DefaultEnglishStringProvider : ITSharpVisionStringLookupProv
         // Help
         ["Help_WindowTitle"]    = "Help",
         ["Help_NoContext"]      = "\n No help available in this context.",
+        ["Help_Search_Title"] = "Search Help",
+        ["Help_Search_Words"] = "~W~ords",
+        ["Help_Search_NoResults"] = "No help topics contain '{0}'.",
+        ["Help_Search_ResultsTitle"] = "Help Topics Found",
+        ["Help_Search_Topics"] = "~T~opics ({0})",
+        ["Help_Search_Unavailable"] = "That help file is no longer available.",
 
         // Lists
         ["List_Empty"]          = "<empty>",
@@ -206,6 +212,14 @@ public sealed class DefaultEnglishStringProvider : ITSharpVisionStringLookupProv
         ["Color_Lbl_Color"]     = "Color",
         ["Color_PreviewText"]   = "Text ",
         ["Color_Btn_Try"]       = "~T~ry",
+
+        // Graphics (TSharpVision.Graphics: GView text-driver fallback)
+        ["Graphics_Unavailable"] = "Pixel graphics need an SDL display driver.",
+
+        // Table view (TSharpVision.TableView)
+        ["Table_Loading"]       = "Loading…",
+        ["Table_NoColumns"]     = "<no columns>",
+        ["Table_RowUnavailable"] = "! row not supplied",
     };
 
     /// <inheritdoc/>
@@ -216,6 +230,9 @@ public sealed class DefaultEnglishStringProvider : ITSharpVisionStringLookupProv
     /// <inheritdoc/>
     public bool TryGet(string key, [NotNullWhen(true)] out string? value)
         => _strings.TryGetValue(key, out value);
+
+    // English key inventory; translation parity checks compare against it.
+    internal static IReadOnlyDictionary<string, string> Entries => _strings;
 }
 
 /// <summary>
@@ -230,11 +247,79 @@ public sealed class DefaultEnglishStringProvider : ITSharpVisionStringLookupProv
 /// </summary>
 public static class TSharpVisionIntl
 {
+    // The stock provider instance. Configuration-driven localization only replaces
+    // Current while it is still this exact instance (or the provider configuration
+    // itself installed), so a provider assigned by the application always wins.
+    internal static readonly DefaultEnglishStringProvider BuiltInDefault = new();
+
     /// <summary>
     /// The active string provider. Replace to inject a locale or test stub.
+    /// <para>
+    /// <see cref="TSharpVisionRuntime.Configure"/> installs the translation named by the
+    /// <c>[localization] language</c> configuration key only while this property still
+    /// holds the built-in English provider; any provider assigned by the application
+    /// (including a new <see cref="DefaultEnglishStringProvider"/>, or one installed by
+    /// <see cref="UseBuiltInLanguage"/>) is never replaced.
+    /// </para>
     /// </summary>
     public static ITSharpVisionStringProvider Current { get; set; }
-        = new DefaultEnglishStringProvider();
+        = BuiltInDefault;
+
+    /// <summary>
+    /// Codes of the framework translations compiled into TSharpVision, in ordinal order:
+    /// <c>cs</c>, <c>de</c>, <c>en</c>, <c>es</c>, <c>fr</c>, <c>it</c>, <c>pl</c>, <c>sk</c>.
+    /// Each is accepted by <see cref="UseBuiltInLanguage"/> and <see cref="CreateBuiltInProvider"/>.
+    /// </summary>
+    public static IReadOnlyList<string> BuiltInLanguages => TSharpVisionLocalization.BuiltInLanguages;
+
+    /// <summary>
+    /// Switches the framework strings to a built-in translation now, replacing
+    /// <see cref="Current"/> whatever it holds.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The value is matched like the <c>[localization] language</c> configuration key: by its
+    /// primary subtag, case-insensitively (<c>cs</c>, <c>CS</c>, <c>cs-CZ</c> and
+    /// <c>cs_CZ.UTF-8</c> all select Czech). The operating-system culture is never consulted.
+    /// The installed provider is the one <see cref="CreateBuiltInProvider"/> returns, so an
+    /// optional <c>tsharpvision_{lang}.tvr</c> in <see cref="System.AppContext.BaseDirectory"/>
+    /// still overrides single keys, and keys missing from a translation show in English.
+    /// </para>
+    /// <para>
+    /// The choice counts as the application's own provider: a later
+    /// <see cref="TSharpVisionRuntime.Configure"/> does not replace it. <c>en</c> installs English
+    /// in the same way.
+    /// </para>
+    /// <para>
+    /// Only text looked up after the switch is translated. Views copy their text when they are
+    /// constructed, so open dialogs, menus and status lines keep their old captions until the
+    /// application recreates them. Call this on the UI thread, before the event loop starts or
+    /// between events.
+    /// </para>
+    /// </remarks>
+    /// <param name="language">Language code such as <c>de</c> or <c>de-AT</c>.</param>
+    /// <returns>
+    /// True when the translation is active; false when TSharpVision has no translation for
+    /// <paramref name="language"/> (unknown, blank or malformed), in which case
+    /// <see cref="Current"/> is left unchanged.
+    /// </returns>
+    public static bool UseBuiltInLanguage(string? language)
+        => TSharpVisionLocalization.UseLanguage(language);
+
+    /// <summary>
+    /// Creates a provider for a built-in translation without installing it, so an application
+    /// can put its own strings in front of it with <see cref="TSharpVisionStringProviderChain"/>.
+    /// </summary>
+    /// <remarks>
+    /// The provider consults, in order, an optional <c>tsharpvision_{lang}.tvr</c> in
+    /// <see cref="System.AppContext.BaseDirectory"/>, the translation embedded in TSharpVision,
+    /// and English. Language matching is the same as for <see cref="UseBuiltInLanguage"/>.
+    /// Each call returns a new instance.
+    /// </remarks>
+    /// <param name="language">Language code such as <c>de</c> or <c>de-AT</c>.</param>
+    /// <returns>The provider, or null when TSharpVision has no translation for <paramref name="language"/>.</returns>
+    public static ITSharpVisionStringProvider? CreateBuiltInProvider(string? language)
+        => TSharpVisionLocalization.CreateRuntimeProvider(language, System.AppContext.BaseDirectory);
 
     /// <summary>Raised synchronously when a lookup-capable current provider lacks a key, before its fallback is returned.</summary>
     public static event System.EventHandler<MissingLocalizationKeyEventArgs>? MissingKey;

@@ -18,8 +18,8 @@ T# Vision is a text-mode UI framework for C# and .NET 10, with Turbo Vision-styl
 - **Modern C# and .NET.** Targets `net10.0`, uses Unicode text and managed ownership, and tracks nullable-annotated public APIs against a public API baseline.
 - **One application, several drivers.** Console, ANSI terminal and SDL drivers render the same cell grid, and core includes a headless `NullDriver`.
 - **Composable controls.** Input lines, list boxes, checkboxes and radio buttons, history lists, file and directory dialogs, message and input boxes, and editors. Version 1.1 adds [`TComboBox`](docs/views/combo-box.md), [`TProgressBar`](docs/views/progress-bar.md) and [`TGroupBox`](docs/views/group-box.md).
-- **Customizable look.** Palette-based colors, a color dialog for live palette edits, and font and font-fitting settings for the SDL drivers.
-- **Optional extensions.** A TextMate-based code editor, paged hex and table views, and a terminal widget with ConPTY, POSIX PTY and pipe sessions.
+- **Customizable look.** Palette-based colors with Color, black-and-white and monochrome families that a running program can switch, a color dialog for live palette edits, and font and font-fitting settings for the SDL drivers. Version 1.2 adds [physical palettes and display effects](docs/views/display-presets.md) such as amber phosphor or scanlines on `SDLGpuDriver`.
+- **Optional extensions.** A TextMate-based code editor, paged hex and table views, a terminal widget with ConPTY, POSIX PTY and pipe sessions, and, new in 1.2, [pixel graphics and image views](docs/graphics/image-preview.md) drawn by the SDL drivers.
 - **Headless-friendly.** `NullDriver` lets core run without an interactive host, which is useful for automated tests and tooling.
 
 ## One framework, multiple drivers
@@ -41,7 +41,7 @@ The repository includes sample applications you can run from a clone with the .N
 
 | Sample | What it shows |
 |---|---|
-| [TVDemo](samples/TSharpVision.Samples.TVDemo) | The main showcase: dialogs and controls, file dialogs, palettes, a character map, the code editor, hex and table views, terminal windows, diagnostics and small games |
+| [TVDemo](samples/TSharpVision.Samples.TVDemo) | The main showcase: dialogs and controls, file dialogs, palettes and display presets, a character map, the code editor, hex and table views, terminal windows, help search, pixel graphics (STYX, a graphics gallery and a live chart), diagnostics and small games |
 | [TVEdit](samples/TSharpVision.Samples.TVEdit) | A standalone multi-window text editor built on `TEditorApp` (Windows Console driver) |
 | [TVTerm](samples/TSharpVision.Samples.TVTerm) | Terminal windows hosted on a T# Vision desktop, using the Terminal extension |
 | [TVIntl](samples/TSharpVision.Samples.TVIntl) | Localization with string resources, runtime language switching and explicit file encodings |
@@ -102,10 +102,13 @@ Use the **.NET 10 SDK** to build (`net10.0`) and a matching .NET 10 runtime to r
 | `TSharpVision.HexView` | Paged read-only hexadecimal view over a byte source |
 | `TSharpVision.TableView` | Paged read-only table view over a row source |
 | `TSharpVision.Terminal` | Terminal widget, emulator and byte-stream sessions, including ConPTY and POSIX PTY |
+| `TSharpVision.Graphics` | Optional pixel graphics views, shapes and decoded RGBA images; pixels need the SDL drivers (new in 1.2.0) |
+
+The command-line tools are .NET tool packages (new in 1.2.0): `TSharpVision.ResourceCompiler` (`svrc`, `.trc` to `.tvr`), `TSharpVision.HelpCompiler` (`svhc`, help text to `.hlp`) and `TSharpVision.ResourceTools` (`svres`, `.tvr` inspection). Install one with `dotnet tool install --global TSharpVision.ResourceCompiler --version 1.2.0`, or into a local tool manifest; see [Command-line tools](docs/tools.md).
 
 Install one driver package; it brings in `TSharpVision` transitively, including the public core APIs used in the Quick Start. A separate core reference is only needed for a core-only/headless application or when intentionally managing its version directly.
 
-The current stable version is `1.1.0`; all eight packages share one version, and its public API is the 1.1 baseline. Packages are published on NuGet.org; see the [changelog](CHANGELOG.md) for what is new, and [Getting Started](docs/getting-started.md) for using a local package feed instead.
+The latest stable version published on NuGet.org is `1.1.0`, with eight packages. Package metadata currently defaults to `1.2.0`. Version 1.2.0 is prepared in this repository but not yet published; it adds `TSharpVision.Graphics` and the three command-line tool packages, so all twelve packages (nine libraries and three .NET tools) share that one version; package validation compares the eight existing library packages with 1.1.0. See the [changelog](CHANGELOG.md) for what is new, and [Getting Started](docs/getting-started.md) for using a local package feed instead.
 
 ## Documentation
 
@@ -114,6 +117,7 @@ The current stable version is `1.1.0`; all eight packages share one version, and
 - [Drivers](docs/drivers.md) and [environment variables](docs/environment-variables.md)
 - [Dialogs and controls](docs/dialogs-and-controls.md)
 - [Platform Support](docs/platform-support.md)
+- [Command-line tools](docs/tools.md): `svrc`, `svhc` and `svres`
 - [Troubleshooting](docs/troubleshooting.md)
 - [Changelog](CHANGELOG.md)
 

@@ -146,10 +146,6 @@ public sealed class MetaModifierContractTests
     public void InputTraceWritesTheDocumentedLowercaseFileName()
         => Assert.Equal("tsharpvision-input-trace.log", InputTrace.LogFileName);
 
-    private static string RepositoryRoot()
-    {
-        for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir != null; dir = dir.Parent)
-            if (File.Exists(Path.Combine(dir.FullName, "TSharpVision.slnx"))) return dir.FullName;
-        throw new InvalidOperationException("repository root not found");
-    }
+    private static string RepositoryRoot() =>
+        TSharpVision.Tests.Infrastructure.RepositoryLayout.Root(typeof(MetaModifierContractTests).Assembly);
 }

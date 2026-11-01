@@ -152,7 +152,10 @@ public partial class SDLDriver : IDisposable, IDriver, IIdleWaitDriver, IGridSiz
             // Clean up window, renderer, and SDL state on failure so nothing leaks.
             var graphics = ScreenDriverFactory.Configuration?.Graphics;
             _scale = SdlDisplayScale.Query(window);
-            sdlRenderer = new SDLRenderer(renderer, graphics?.FontName, graphics?.FontSize, FontFit, _scale.Density);
+            sdlRenderer = new SDLRenderer(renderer, graphics?.FontName, graphics?.FontSize, FontFit, _scale.Density)
+            {
+                GraphicsFrame = _graphicsLayers.Frame,
+            };
 
             // Adopt font-derived cell dimensions from the renderer, then resize the window so
             // its drawable holds exactly the grid of drawable cells.
@@ -390,6 +393,15 @@ public partial class SDLDriver : IDisposable, IDriver, IIdleWaitDriver, IGridSiz
                 break;
             }
 
+            // The render device lost its textures: glyph and image textures are recreated on next use.
+            case SDL3.SDL.EventType.RenderDeviceReset:
+            case SDL3.SDL.EventType.RenderDeviceLost:
+                sdlRenderer?.HandleDeviceReset();
+                MarkDirty(SdlDirtyReason.WindowEvent);
+                break;
+
+            // Render-target contents were lost (no texture of ours is a target): just redraw.
+            case SDL3.SDL.EventType.RenderTargetsReset:
             // Expose / restore: redraw even if the buffer hasn't changed.
             case SDL3.SDL.EventType.WindowExposed:
             case SDL3.SDL.EventType.WindowShown:
@@ -565,6 +577,7 @@ public partial class SDLDriver : IDisposable, IDriver, IIdleWaitDriver, IGridSiz
     {
         _idleWait.Stop();
         TEventQueue.Wake();
+        _graphicsLayers.Clear();
         if (!_attached) return;
         try { sdlRenderer?.Dispose(); } catch { }
         sdlRenderer = null;

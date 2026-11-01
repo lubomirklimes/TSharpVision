@@ -36,16 +36,10 @@ public partial class TVDemoApp
         if (ValidView(dlg) != null)
         {
             dlg.helpCtx = DemoHelpCtx.ColorDialog;
-            if (DeskTop.ExecView(dlg) == Views.cmOK)
-            {
-                // Write the edited entries back into the live palette and repaint.
-                var live = GetPalette();
-                TPalette? editedPalette = dlg.Pal;
-                if (editedPalette == null) return;
-                System.Array.Copy(editedPalette.Data, live.Data,
-                    System.Math.Min(editedPalette.Data.Length, live.Data.Length));
-                Redraw();
-            }
+            // Try previews on the live palette of the family active now; OK keeps the edits, and Cancel, Escape or
+            // the close box restore the palette as it was when the dialog opened. Redraw also recomposes buffers.
+            dlg.BindLivePalette(GetPalette(), Redraw);
+            DeskTop.ExecView(dlg);
         }
     }
 }

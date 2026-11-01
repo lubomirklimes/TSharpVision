@@ -25,11 +25,10 @@ namespace TSharpVision.Tests.ResourceTools;
 
 file static class FidelityFixtures
 {
-    // Assembly lives at bin\Debug\net8.0; walk up 3 dirs to AVision root, then
-    // into the test project's Fixtures folder.
+    // The ResourceCompiler test fixtures, found from the repository root so that redirected
+    // build output (--artifacts-path) resolves them too.
     private static readonly string _dir = Path.Combine(
-        Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!,
-        "..", "..", "..", "..", "TSharpVision.ResourceCompiler.Tests", "Fixtures");
+        RepositoryLayout.Root(typeof(FidelityFixtures).Assembly), "tests", "TSharpVision.ResourceCompiler.Tests", "Fixtures");
 
     public static string FixturePath(string name) =>
         Path.GetFullPath(Path.Combine(_dir, name));
@@ -681,15 +680,135 @@ public sealed class ValidateCommandTests : IDisposable
     [Fact]
     public void Validate_InvalidFile_ReturnsError()
     {
-        // Write a file that is not a valid .tvr (random garbage content).
+        // TResourceFile reads a stream without a resource header as a new, empty container; validate used to
+        // report that as "Validated ... Resources: 0" with exit code 0.
         string bad = _tmp.CreateFile("bad.tvr", "This is not a TVR file\n");
-        // Opening it may succeed (TResourceFile creates a fresh index for unrecognised files),
-        // but validation of an empty resource list is still a "Validated" result with 0 items.
-        // The important thing is that it doesn't throw.
         var r = InspectorCommands.Validate(bad);
-        // Either success with 0 resources or failure — either is acceptable.
-        // The call must not throw.
-        Assert.NotNull(r);
+        Assert.False(r.Success);
+        Assert.Equal(1, r.ExitCode);
+        Assert.StartsWith("TRV0001: Cannot open file: Not a valid TSharpVision .tvr file (no resource header)", r.Error);
+        Assert.Equal("", r.Output);
+    }
+
+    // Each case damages a valid compiled file; validate must fail with an open error instead of a success.
+    public static TheoryData<string, string> CorruptFiles => new()
+    {
+        { "zero-length", "too short for a resource header" },
+        { "shorter than the header", "too short for a resource header" },
+        { "header only", "index offset" },
+        { "truncated data", "index offset" },
+        { "truncated index", "Truncated .tvr file" },
+        { "random bytes", "no resource header" },
+        { "wrong magic", "no resource header" },
+        { "index offset past the end", "index offset" },
+        { "unreadable index", "resource index cannot be read" },
+        { "entry outside the data area", "is outside the data area" },
+    };
+
+    [Theory]
+    [MemberData(nameof(CorruptFiles))]
+    public void Validate_CorruptFile_FailsWithOpenError(string damage, string message)
+    {
+        string tvr = Compile(FidelityFixtures.HelloTrc, "hello.tvr");
+        File.WriteAllBytes(tvr, Damage(File.ReadAllBytes(tvr), damage));
+
+        var r = InspectorCommands.Validate(tvr);
+
+        Assert.False(r.Success);
+        Assert.Equal(1, r.ExitCode);
+        Assert.StartsWith("TRV0001: Cannot open file: ", r.Error);
+        Assert.Contains(message, r.Error);
+        Assert.DoesNotContain("Validated", r.Error + r.Output);
+    }
+
+    [Theory]
+    [MemberData(nameof(CorruptFiles))]
+    public void ListShowDump_CorruptFile_FailWithOpenError(string damage, string message)
+    {
+        string tvr = Compile(FidelityFixtures.HelloTrc, "hello.tvr");
+        File.WriteAllBytes(tvr, Damage(File.ReadAllBytes(tvr), damage));
+
+        foreach (var r in new[]
+        {
+            InspectorCommands.List(tvr),
+            InspectorCommands.Show(tvr, "dialog.hello"),
+            InspectorCommands.Dump(tvr, "dialog.hello", hex: true),
+        })
+        {
+            Assert.Equal(1, r.ExitCode);
+            Assert.StartsWith("Cannot open file: ", r.Error);
+            Assert.Contains(message, r.Error);
+        }
+    }
+
+    // A container whose index holds no resources is a valid, empty .tvr.
+    [Fact]
+    public void Validate_ValidEmptyContainer_Succeeds()
+    {
+        string path = Path.Combine(_tmp.Path, "empty.tvr");
+        var fp = new Fpstream(path);
+        try
+        {
+            var rf = new TResourceFile(fp);
+            rf.Put(new TStringResource(), "temporary");
+            rf.Remove("temporary");
+            rf.Flush();
+        }
+        finally { fp.Close(); }
+
+        var r = InspectorCommands.Validate(path);
+
+        Assert.True(r.Success, r.Error);
+        Assert.Contains("Resources:   0", r.Output);
+        Assert.Contains("Errors:      0", r.Output);
+    }
+
+    [Fact]
+    public void Validate_CorruptResourcePayload_ReportsTheResource()
+    {
+        string tvr = Compile(FidelityFixtures.HelloTrc, "hello.tvr");
+        byte[] bytes = File.ReadAllBytes(tvr);
+        bytes[12] = 0; // the payload's ptObject tag
+        File.WriteAllBytes(tvr, bytes);
+
+        var r = InspectorCommands.Validate(tvr);
+
+        Assert.Equal(1, r.ExitCode);
+        Assert.Contains("TRV0003: Resource 'dialog.hello' has an unreadable type name", r.Error);
+    }
+
+    private static byte[] Damage(byte[] valid, string damage)
+    {
+        int indexPos = BitConverter.ToInt32(valid, 8);
+        byte[] copy = (byte[])valid.Clone();
+        switch (damage)
+        {
+            case "zero-length": return Array.Empty<byte>();
+            case "shorter than the header": return valid[..6];
+            case "header only": return valid[..12];
+            case "truncated data": return valid[..(indexPos - 1)];
+            case "truncated index": return valid[..^3];
+            case "random bytes":
+                var random = new byte[valid.Length];
+                new Random(42).NextBytes(random);
+                return random;
+            case "wrong magic":
+                copy[0] ^= 0xFF;
+                return copy;
+            case "index offset past the end":
+                BitConverter.GetBytes(valid.Length + 100).CopyTo(copy, 8);
+                return copy;
+            case "unreadable index":
+                copy[indexPos] = 0x99; // not a pointer tag
+                return copy;
+            case "entry outside the data area":
+                // Index item: pos, size, key (length byte + UTF-16LE); move the size past the index.
+                byte[] key = System.Text.Encoding.Unicode.GetBytes("dialog.hello");
+                int keyAt = valid.AsSpan(indexPos).IndexOf(key) + indexPos;
+                BitConverter.GetBytes(0x7FFFFF00).CopyTo(copy, keyAt - 1 - 4);
+                return copy;
+            default: throw new ArgumentOutOfRangeException(nameof(damage), damage, null);
+        }
     }
 
     [Fact]

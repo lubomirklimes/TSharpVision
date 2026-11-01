@@ -3,6 +3,11 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <AssemblyName>svrc</AssemblyName>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>svrc</ToolCommandName>
+    <PackageId>TSharpVision.ResourceCompiler</PackageId>
+    <Description>TSharpVision resource compiler (svrc): compiles .trc resource scripts into binary .tvr resource files for TSharpVision applications.</Description>
+    <PackageTags>tsharpvision;tui;resources;compiler;dotnet-tool</PackageTags>
     <RootNamespace>TSharpVision.ResourceCompiler</RootNamespace>
   </PropertyGroup>
 
@@ -13,5 +18,50 @@
   <ItemGroup>
     <InternalsVisibleTo Include="TSharpVision.ResourceCompiler.Tests" />
   </ItemGroup>
+
+  <!--
+    Built-in framework translations: resources/localization/tsharpvision_{lang}.trc compiles to the
+    committed tsharpvision_{lang}.tvr that TSharpVision.csproj embeds. Like the sample help files
+    (svhc), they are compiled by an Exec of the compiler, but explicitly, because svrc references
+    TSharpVision and the library build cannot run it:
+
+      dotnet build tools/TSharpVision.ResourceCompiler -c Release -t:CompileFrameworkLocalization
+
+    FrameworkLocalizationOutputDir redirects the images, e.g. to a temporary folder for comparison.
+    Every source compiles into obj first; the images are copied only when all of them succeeded.
+  -->
+  <PropertyGroup>
+    <FrameworkLocalizationDir>$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)', '..', '..', 'resources', 'localization'))</FrameworkLocalizationDir>
+    <FrameworkLocalizationOutputDir Condition="'$(FrameworkLocalizationOutputDir)' == ''">$(FrameworkLocalizationDir)</FrameworkLocalizationOutputDir>
+    <FrameworkLocalizationOutputDir>$([MSBuild]::EnsureTrailingSlash('$(FrameworkLocalizationOutputDir)'))</FrameworkLocalizationOutputDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkTranslation Include="$(FrameworkLocalizationDir)tsharpvision_*.trc" />
+  </ItemGroup>
+
+  <Target Name="CompileFrameworkLocalization">
+    <Error Condition="'@(FrameworkTranslation)' == ''" Text="No framework translations found in '$(FrameworkLocalizationDir)'." />
+
+    <!-- CompilingFrameworkLocalization lets TSharpVision build while a new .trc has no .tvr yet. -->
+    <MSBuild Projects="$(MSBuildProjectFullPath)" Targets="Build" Properties="CompilingFrameworkLocalization=true">
+      <Output TaskParameter="TargetOutputs" PropertyName="_FrameworkLocalizationCompiler" />
+    </MSBuild>
+
+    <!-- IntermediateOutputPath is relative by default but absolute under artifacts output (the artifacts-path option,
+         UseArtifactsOutput); NormalizeDirectory combines both correctly. -->
+    <PropertyGroup>
+      <_FrameworkLocalizationStaging>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)', 'framework-localization'))</_FrameworkLocalizationStaging>
+    </PropertyGroup>
+    <ItemGroup>
+      <_FrameworkLocalizationImage Include="@(FrameworkTranslation->'$(_FrameworkLocalizationStaging)%(Filename).tvr')" />
+    </ItemGroup>
+
+    <RemoveDir Directories="$(_FrameworkLocalizationStaging)" />
+    <MakeDir Directories="$(_FrameworkLocalizationStaging);$(FrameworkLocalizationOutputDir)" />
+    <Exec Command="dotnet &quot;$(_FrameworkLocalizationCompiler)&quot; compile &quot;%(FrameworkTranslation.FullPath)&quot; &quot;$(_FrameworkLocalizationStaging)%(FrameworkTranslation.Filename).tvr&quot;" />
+    <Copy SourceFiles="@(_FrameworkLocalizationImage)" DestinationFolder="$(FrameworkLocalizationOutputDir)" />
+    <Message Importance="high" Text="Framework translations: @(_FrameworkLocalizationImage->'%(Filename)%(Extension)', ', ') -> $(FrameworkLocalizationOutputDir)" />
+  </Target>
 
 </Project>

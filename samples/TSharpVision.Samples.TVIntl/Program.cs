@@ -3,7 +3,10 @@
 // Internationalization sample:
 // - Loc(...) fallback strings
 // - .tvr string resources
-// - runtime English/Czech/Pseudo switching
+// - built-in framework translations selected by [localization] language in
+//   TSharpVision.Samples.TVIntl.cfg (applied by TSharpVisionRuntime.Run)
+// - runtime switching between all built-in framework languages
+//   (TSharpVisionIntl.CreateBuiltInProvider, no framework .tvr files shipped) and Pseudo
 // - MissingKey diagnostics
 // - editor open with explicit file encoding
 using System.Text;
@@ -38,6 +41,8 @@ internal static class TVIntlCmd
     public const ushort EncodingSample = 708;
     public const ushort MissingKey = 709;
     public const ushort About = 710;
+    public const ushort LanguageConfigured = 711;
+    public const ushort LanguageOther = 712; // 712..717: entries of TVIntlApp.OtherLanguages
 }
 
 internal static class TVIntlHelpCtx
@@ -56,6 +61,19 @@ internal sealed class TVIntlApp : TApplication
 {
     private readonly List<string> _missingKeys = new();
     private readonly EventHandler<MissingLocalizationKeyEventArgs> _missingKeyHandler;
+    // Framework languages beyond English/Czech, with their names in their own language,
+    // so the labels need no translation.
+    private static readonly (string Code, string Label)[] OtherLanguages =
+    {
+        ("de", "~D~eutsch"),
+        ("es", "E~s~pañol"),
+        ("fr", "~F~rançais"),
+        ("it", "~I~taliano"),
+        ("pl", "P~o~lski"),
+        ("sk", "S~l~ovenčina"),
+    };
+
+    private readonly string? _configuredLanguage;
     private string _language = "en";
     private THelpFile? _helpFile;
     private Fpstream? _helpStream;
@@ -68,7 +86,12 @@ internal sealed class TVIntlApp : TApplication
             _missingKeys.Add($"{args.Key} -> {args.Fallback}");
         TSharpVisionIntl.MissingKey += _missingKeyHandler;
         THelpFile.RegisterStreamableTypes();
-        SetLanguage("en", showMessage: false);
+
+        // TSharpVisionRuntime.Run already applied [localization] language to the framework
+        // strings. The sample installs its own provider chain (app strings first), so it starts
+        // from the same configured language instead of forcing English.
+        _configuredLanguage = NormalizeLanguage(ScreenDriverFactory.Configuration?.Localization.Language);
+        SetLanguage(_configuredLanguage ?? "en", showMessage: false);
     }
 
     public override TMenuBar InitMenuBar(TRect r)
@@ -83,7 +106,11 @@ internal sealed class TVIntlApp : TApplication
             new TSubMenu(Loc("TVIntl_Menu_Language", "~L~anguage"), Keys.kbAltL) +
                 new TMenuItem(Loc("TVIntl_Menu_LangEnglish", "~E~nglish"), TVIntlCmd.LanguageEnglish, Keys.kbNoKey, TVIntlHelpCtx.Language) +
                 new TMenuItem(Loc("TVIntl_Menu_LangCzech", "~C~zech"), TVIntlCmd.LanguageCzech, Keys.kbNoKey, TVIntlHelpCtx.Language) +
+                OtherLanguageItem(0) + OtherLanguageItem(1) + OtherLanguageItem(2) +
+                OtherLanguageItem(3) + OtherLanguageItem(4) + OtherLanguageItem(5) +
                 new TMenuItem(Loc("TVIntl_Menu_LangPseudo", "~P~seudo / Debug"), TVIntlCmd.LanguagePseudo, Keys.kbNoKey, TVIntlHelpCtx.Language) +
+                TMenuItem.NewLine() +
+                new TMenuItem(Loc("TVIntl_Menu_LangConfigured", "~R~eset to configured"), TVIntlCmd.LanguageConfigured, Keys.kbNoKey, TVIntlHelpCtx.Language) +
             new TSubMenu(Loc("TVIntl_Menu_Demos", "~D~emos"), Keys.kbAltD) +
                 new TMenuItem(Loc("TVIntl_Menu_MessageBox", "~M~essage box"), TVIntlCmd.MessageBox, Keys.kbF2, Views.hcNoContext, "F2") +
                 new TMenuItem(Loc("TVIntl_Menu_InputBox", "~I~nput box"), TVIntlCmd.InputBox, Keys.kbNoKey) +
@@ -97,6 +124,9 @@ internal sealed class TVIntlApp : TApplication
         menu.helpCtx = TVIntlHelpCtx.MainMenu;
         return menu;
     }
+
+    private static TMenuItem OtherLanguageItem(int index)
+        => new(OtherLanguages[index].Label, (ushort)(TVIntlCmd.LanguageOther + index), Keys.kbNoKey, TVIntlHelpCtx.Language);
 
     public override TStatusLine InitStatusLine(TRect r)
     {
@@ -134,6 +164,17 @@ internal sealed class TVIntlApp : TApplication
                 break;
             case TVIntlCmd.LanguagePseudo:
                 SetPseudoLanguage();
+                ClearEvent(ref ev);
+                break;
+            case TVIntlCmd.LanguageConfigured:
+                SetLanguage(_configuredLanguage ?? "en", showMessage: false);
+                ShowInfo(Loc("TVIntl_Dlg_Language_Title", "Language"),
+                    string.Format(Loc("TVIntl_Dlg_Language_Configured_Text", "Configured language ([localization] language): {0}."),
+                        _configuredLanguage ?? Loc("TVIntl_Dlg_Language_NotConfigured", "not set (English)")));
+                ClearEvent(ref ev);
+                break;
+            case >= TVIntlCmd.LanguageOther and < TVIntlCmd.LanguageOther + 6:
+                SetLanguage(OtherLanguages[ev.message.command - TVIntlCmd.LanguageOther].Code);
                 ClearEvent(ref ev);
                 break;
             case TVIntlCmd.MessageBox:
@@ -180,21 +221,40 @@ internal sealed class TVIntlApp : TApplication
         base.ShutDown();
     }
 
+    // Lookup order: sample strings (app_{lang}.tvr, else app_en.tvr), then the framework
+    // translation built into TSharpVision.dll (CreateBuiltInProvider: an optional
+    // tsharpvision_{lang}.tvr override beside the executable, the embedded table, English).
+    // An app without its own strings would just call TSharpVisionIntl.UseBuiltInLanguage(language).
+    //
+    // Only text looked up from now on changes: RefreshChrome rebuilds the menu bar and status
+    // line, but windows and dialogs that are already open keep the captions they were built with.
     private void SetLanguage(string language, bool showMessage = true)
     {
         _language = language;
-        string basePath = Path.Combine(AppContext.BaseDirectory, "app.tvr");
-        string? resourcePath = LocalizedResourceResolver.Resolve(basePath, ".tvr", language);
-        var resourceProvider = TResourceStringProvider.TryLoad(resourcePath);
-        TSharpVisionIntl.Current = resourceProvider == null
-            ? new DefaultEnglishStringProvider()
-            : new TSharpVisionStringProviderChain(resourceProvider, new DefaultEnglishStringProvider());
+        string? appResourcePath = LocalizedResourceResolver.Resolve(
+            Path.Combine(AppContext.BaseDirectory, "app.tvr"), ".tvr", language);
+        var appStrings = TResourceStringProvider.TryLoad(appResourcePath);
+        // Null for a language TSharpVision does not ship (for example a configured "xx"):
+        // fall back to English, as configuration does.
+        var frameworkStrings = TSharpVisionIntl.CreateBuiltInProvider(language)
+            ?? new DefaultEnglishStringProvider();
+        TSharpVisionIntl.Current = new TSharpVisionStringProviderChain(appStrings, frameworkStrings);
 
         CloseHelpFile();
         RefreshChrome();
         if (showMessage)
             ShowInfo(Loc("TVIntl_Dlg_Language_Title", "Language"),
                 string.Format(Loc("TVIntl_Dlg_Language_Text", "Language switched to {0}."), language));
+    }
+
+    // "cs-CZ", "CS" and "cs_CZ.UTF-8" select "cs"; blank selects nothing.
+    private static string? NormalizeLanguage(string? language)
+    {
+        if (string.IsNullOrWhiteSpace(language))
+            return null;
+
+        string primary = language.Trim().Split('-', '_', '.', '@')[0].ToLowerInvariant();
+        return primary.Length >= 2 ? primary : null;
     }
 
     private void SetPseudoLanguage()
@@ -274,7 +334,8 @@ internal sealed class TVIntlApp : TApplication
             0);
 
         if (ValidView(dlg) == null) return;
-        if (desktop.ExecView(dlg) == Views.cmOK)
+        // Open/OK end the dialog with cmFileOpen, a double-click with cmOK.
+        if (desktop.ExecView(dlg) is Views.cmFileOpen or Views.cmOK)
         {
             dlg.GetData(out string path);
             ShowInfo(
@@ -295,7 +356,8 @@ internal sealed class TVIntlApp : TApplication
             0);
 
         if (ValidView(dlg) == null) return;
-        if (desktop.ExecView(dlg) == Views.cmOK)
+        // Open/OK end the dialog with cmFileOpen, a double-click with cmOK.
+        if (desktop.ExecView(dlg) is Views.cmFileOpen or Views.cmOK)
         {
             dlg.GetData(out string path);
             OpenText(dlg.SelectedEncoding, path);
@@ -352,7 +414,7 @@ internal sealed class TVIntlApp : TApplication
             0);
 
         if (ValidView(dlg) == null) return null;
-        if (desktop.ExecView(dlg) != Views.cmOK) return null;
+        if (desktop.ExecView(dlg) is not (Views.cmFileOpen or Views.cmOK)) return null;
         dlg.GetData(out string path);
         return path;
     }

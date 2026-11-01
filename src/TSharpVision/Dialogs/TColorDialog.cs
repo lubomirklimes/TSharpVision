@@ -116,12 +116,140 @@ public class TColorDialog : TDialog
         else if (@event.What == Events.evCommand
                  && @event.message.command == Views.cmTryColors)
         {
+            // Opted-in dialogs first copy the edited entries into the bound live palette.
+            bool applied = _live != null && !_live.Finished && Pal != null && _live.Apply(Pal);
             // Broadcast so any view that caches palette entries can refresh.
             TEvent upd = default;
             upd.What = Events.evBroadcast;
             upd.message.command = Views.cmUpdateColorsChanged;
             owner?.HandleEvent(ref upd);
+            if (applied) _live!.Repaint();
         }
+    }
+
+    // ── Live Try / OK / Cancel (opt-in) ─────────────────────────────────────
+
+    private LivePaletteBinding? _live;
+    private bool _repaintOnShutDown;
+
+    /// <summary>
+    /// Opts this dialog into live preview: <c>Try</c> copies the edited entries into <paramref name="livePalette"/> and
+    /// calls <paramref name="repaint"/>; ending the modal run with <c>OK</c> keeps the edited entries (with or without a
+    /// prior Try); any other ending (Cancel, Escape, the close box, quit) restores the exact bytes
+    /// <paramref name="livePalette"/> held when this method was called.
+    /// </summary>
+    /// <param name="livePalette">
+    /// The palette the application draws with, typically <see cref="TProgram.GetPalette"/>. Its bytes are captured now
+    /// and only this palette object is ever written, so a later change of <see cref="TProgram.AppPalette"/> cannot make
+    /// the dialog write into another family's table. <see cref="Pal"/> should be an independent copy (for example
+    /// <see cref="TPalette.Clone"/>) so edits stay invisible until Try or OK.
+    /// </param>
+    /// <param name="repaint">
+    /// Recomposes everything drawn with <paramref name="livePalette"/>, typically <see cref="TGroup.Redraw"/> of the
+    /// program, which also invalidates buffered groups. Called after Try, and after OK or a restore that changed bytes.
+    /// </param>
+    /// <remarks>
+    /// Call once, before the dialog runs. Without this call the dialog behaves exactly as before: it only edits
+    /// <see cref="Pal"/> and Try only broadcasts <see cref="Views.cmUpdateColorsChanged"/>. When an opted-in dialog is
+    /// used modelessly, closing it restores the snapshot and repaints; a shutdown without a close restores the bytes
+    /// only, because the views it would repaint are being torn down.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">An argument is null.</exception>
+    /// <exception cref="InvalidOperationException">The dialog is already bound or has no palette.</exception>
+    public void BindLivePalette(TPalette livePalette, Action repaint)
+    {
+        ArgumentNullException.ThrowIfNull(livePalette);
+        ArgumentNullException.ThrowIfNull(repaint);
+        if (Pal == null) throw new InvalidOperationException("The dialog has no palette to edit.");
+        if (_live != null) throw new InvalidOperationException("The dialog is already bound to a live palette.");
+        _live = new LivePaletteBinding(livePalette, repaint);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>A dialog bound with <see cref="BindLivePalette"/> commits on <see cref="Views.cmOK"/> and restores its snapshot on any other result.</remarks>
+    public override ushort Execute()
+    {
+        var live = _live;
+        if (live == null || live.Finished) return base.Execute();
+        ushort result = Views.cmCancel;
+        try
+        {
+            result = base.Execute();
+            return result;
+        }
+        finally
+        {
+            bool changed = result == Views.cmOK && Pal != null ? live.Commit(Pal) : live.Restore();
+            if (changed) live.Repaint();
+        }
+    }
+
+    /// <inheritdoc />
+    public override void Close()
+    {
+        bool prior = _repaintOnShutDown;
+        _repaintOnShutDown = true;
+        try { base.Close(); }
+        finally { _repaintOnShutDown = prior; }
+    }
+
+    /// <inheritdoc />
+    /// <remarks>An opted-in dialog that never finished restores the live palette snapshot (Cancel semantics).</remarks>
+    public override void ShutDown()
+    {
+        var live = _live;
+        bool changed = live != null && !live.Finished && live.Restore();
+        bool repaint = _repaintOnShutDown;
+        base.ShutDown();
+        if (changed && repaint) live!.Repaint();
+    }
+
+    // Owns the live target, its open-time snapshot and the finished flag. Only the captured target object is written.
+    private sealed class LivePaletteBinding
+    {
+        private readonly TPalette _target;
+        private readonly byte[] _snapshot;
+        private readonly Action _repaint;
+
+        internal LivePaletteBinding(TPalette target, Action repaint)
+        {
+            _target = target;
+            _snapshot = (byte[])target.Data.Clone();
+            _repaint = repaint;
+        }
+
+        internal bool Finished { get; private set; }
+
+        // Copies the edited mapping entries (never the size byte) into the target; true when a byte changed.
+        internal bool Apply(TPalette edited)
+        {
+            if (ReferenceEquals(edited.Data, _target.Data)) return true;
+            int count = Math.Min(edited.Data.Length, _target.Data.Length);
+            bool changed = false;
+            for (int i = 1; i < count; i++)
+            {
+                if (_target.Data[i] == edited.Data[i]) continue;
+                _target.Data[i] = edited.Data[i];
+                changed = true;
+            }
+            return changed;
+        }
+
+        internal bool Commit(TPalette edited)
+        {
+            Finished = true;
+            return Apply(edited);
+        }
+
+        internal bool Restore()
+        {
+            Finished = true;
+            bool changed = !_target.Data.AsSpan().SequenceEqual(_snapshot);
+            if (changed) Array.Copy(_snapshot, _target.Data, Math.Min(_snapshot.Length, _target.Data.Length));
+            return changed;
+        }
+
+        internal void Repaint() => _repaint();
     }
 
     /// <inheritdoc />

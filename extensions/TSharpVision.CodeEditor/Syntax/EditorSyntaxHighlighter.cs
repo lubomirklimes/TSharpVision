@@ -295,7 +295,8 @@ public sealed class EditorSyntaxHighlighter
     {
         TEditor editor = _editor;
         var buffer = new TDrawBuffer(cells);
-        int tab = (int)Math.Max(1, TEditor.tabSize);
+        // Tab stops as in TEditor.FormatLine: a zero tabSize means one column.
+        long tab = Math.Max(1L, TEditor.tabSize);
         int x = 0;
         uint p = linePtr;
         int index = 0;
@@ -311,7 +312,7 @@ public sealed class EditorSyntaxHighlighter
             }
 
             char c = editor.BufChar(p);
-            if (c is '\r' or '\n')
+            if (c == '\n')
             {
                 atEnd = true;
                 continue;
@@ -332,12 +333,13 @@ public sealed class EditorSyntaxHighlighter
 
             if (c == '\t')
             {
-                int next = x + tab - (x % tab);
+                long next = (x / tab + 1) * tab;
                 while (x < next && x < width) buffer.moveChar(x++, ' ', attr, 1);
             }
             else
             {
-                buffer.moveChar(x++, c, attr, 1);
+                // A CR is an ordinary one-column character of the line (the buffer is LF-only), drawn blank, as in TEditor.
+                buffer.moveChar(x++, c == '\r' ? ' ' : c, attr, 1);
             }
 
             p++;

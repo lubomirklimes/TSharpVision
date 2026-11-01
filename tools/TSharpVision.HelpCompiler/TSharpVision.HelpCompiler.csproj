@@ -3,6 +3,11 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <AssemblyName>svhc</AssemblyName>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>svhc</ToolCommandName>
+    <PackageId>TSharpVision.HelpCompiler</PackageId>
+    <Description>TSharpVision help compiler (svhc): compiles Turbo Vision-style help source text into .hlp help files and C# help-context constants for TSharpVision applications.</Description>
+    <PackageTags>tsharpvision;tui;help;compiler;dotnet-tool</PackageTags>
     <RootNamespace>TSharpVision.HelpCompiler</RootNamespace>
   </PropertyGroup>
 

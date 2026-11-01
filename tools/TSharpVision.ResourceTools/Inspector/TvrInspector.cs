@@ -20,6 +20,8 @@ public sealed class TvrInspector
     // are UTF-16 code units in little-endian order.
     private const byte NullLen = 0xFF;
     private const byte LongLen = 0xFE;
+    // Resource header: magic 'FBPR', lenRez (bytes from offset 8 to the end of the index), indexPos.
+    private const int HeaderSize = 12;
 
     /// <summary>Full path to the <c>.tvr</c> file.</summary>
     public string FilePath { get; }
@@ -57,9 +59,7 @@ public sealed class TvrInspector
         var fp = new Fpstream(tvrPath);
         try
         {
-            var rf = new TResourceFile(fp);
-            if (rf.Count() == 0 && fileSize < 12)
-                throw new InvalidDataException($"Not a valid TSharpVision .tvr file: {tvrPath}");
+            var rf = OpenResourceFile(fp, tvrPath, fileSize);
 
             var entries = new List<ResourceEntry>(rf.Count());
             for (int i = 0; i < rf.Count(); i++)
@@ -97,13 +97,55 @@ public sealed class TvrInspector
         var fp = new Fpstream(tvrPath);
         try
         {
-            var rf = new TResourceFile(fp);
+            var rf = OpenResourceFile(fp, tvrPath, new FileInfo(tvrPath).Length);
             return rf.GetRawBytes(key);
         }
         finally
         {
             fp.Close();
         }
+    }
+
+    /// <summary>
+    /// Opens the resource container and checks its structure. TResourceFile treats a stream without a
+    /// resource header as a new, empty container, so a file that is not a <c>.tvr</c> (or is truncated)
+    /// would otherwise read as one with no resources.
+    /// </summary>
+    /// <exception cref="InvalidDataException">The header, index or a resource entry is missing or out of range.</exception>
+    private static TResourceFile OpenResourceFile(Fpstream fp, string tvrPath, long fileSize)
+    {
+        if (fileSize < HeaderSize)
+            throw new InvalidDataException($"Not a valid TSharpVision .tvr file (too short for a resource header, {fileSize} bytes): {tvrPath}");
+
+        var rf = new TResourceFile(fp);
+        // Reading the index sets the stream's EOF bit when it runs past the end of the file, and its
+        // fail bit for an unknown or malformed object.
+        bool indexReadable = fp.In.Good();
+
+        long basePos = rf.BasePos;
+        if (basePos < 0 || basePos > fileSize - HeaderSize)
+            throw new InvalidDataException($"Not a valid TSharpVision .tvr file (no resource header): {tvrPath}");
+        fp.In.Clear();
+        fp.In.Seekg(basePos);
+        uint magic = fp.In.Read32();
+        long lenRez = fp.In.Read32();
+        long indexPos = fp.In.Read32();
+        if (magic != TResourceFile.rStreamMagic)
+            throw new InvalidDataException($"Not a valid TSharpVision .tvr file (no resource header): {tvrPath}");
+        if (indexPos < HeaderSize || basePos + indexPos >= fileSize)
+            throw new InvalidDataException($"Corrupt .tvr file (index offset {indexPos} is outside the file): {tvrPath}");
+        if (basePos + 8 + lenRez > fileSize)
+            throw new InvalidDataException($"Truncated .tvr file (header declares {basePos + 8 + lenRez} bytes, file has {fileSize}): {tvrPath}");
+        if (!indexReadable)
+            throw new InvalidDataException($"Corrupt .tvr file (the resource index cannot be read): {tvrPath}");
+
+        for (int i = 0; i < rf.Count(); i++)
+        {
+            var item = rf.ItemAt(i);
+            if (item.pos < HeaderSize || item.size <= 0 || item.pos + item.size > indexPos)
+                throw new InvalidDataException($"Corrupt .tvr file (resource '{item.key}' at {item.pos}, size {item.size}, is outside the data area): {tvrPath}");
+        }
+        return rf;
     }
 
     /// <summary>

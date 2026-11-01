@@ -158,6 +158,103 @@ public class TFileDialog : TDialog, IFileDialogContext
             ReadDirectory();
         else
             SetUpCurDir();
+
+        _dialogOptions = aOptions;
+        // A wildcard with a directory part is an explicit start location (TV12k).
+        _explicitStart = aWildCard != null && (aWildCard.IndexOf('/') >= 0 || aWildCard.IndexOf('\\') >= 0);
+        _constructedDirectory = directory;
+        _sessionDirectoryPending = true;
+    }
+
+    // ── Session directory (TV12k) ────────────────────────────────────────
+    // An Open dialog that ends with an accepted file name records that file's directory on its TProgram. A later file
+    // dialog of the same program starts there, unless its caller chose a start location: a wildcard or SetData value
+    // with a directory part, or a directory assigned before the dialog is shown. In memory only, per program.
+
+    private ushort _dialogOptions;
+    private bool _explicitStart;
+    private string? _constructedDirectory;
+    private bool _sessionDirectoryPending;
+
+    private TProgram? OwningProgram()
+    {
+        for (TGroup? g = owner; g != null; g = g.owner)
+            if (g is TProgram program) return program;
+        return null;
+    }
+
+    // Runs once, when the dialog is first shown inside a program and before it draws.
+    private void ApplySessionDirectory()
+    {
+        _sessionDirectoryPending = false;
+        if (_explicitStart || !string.Equals(directory, _constructedDirectory, StringComparison.Ordinal))
+            return;
+        string? remembered = OwningProgram()?.FileDialogSessionDirectory;
+        if (string.IsNullOrEmpty(remembered)) return;
+        try
+        {
+            // A directory that was deleted or became unreachable since leaves the original start in place.
+            if (!System.IO.Directory.Exists(remembered)) return;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            return;
+        }
+        directory = remembered;
+        if ((_dialogOptions & FileDialogOptions.fdNoLoadDir) == 0)
+        {
+            fileList?.ReadDirectory(remembered, wildCard ?? string.Empty);
+            LastError = fileList?.LastError ?? string.Empty;
+        }
+    }
+
+    private void RememberAcceptedDirectory()
+    {
+        var program = OwningProgram();
+        if (program == null) return;
+        GetFileName(out string accepted);
+        string? dir;
+        try
+        {
+            dir = System.IO.Path.GetDirectoryName(accepted);
+            if (string.IsNullOrEmpty(dir) || !System.IO.Directory.Exists(dir)) return;
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException
+                                       or NotSupportedException or System.Security.SecurityException)
+        {
+            return;
+        }
+        if (dir[dir.Length - 1] != System.IO.Path.DirectorySeparatorChar && dir[dir.Length - 1] != '/')
+            dir += System.IO.Path.DirectorySeparatorChar;
+        program.FileDialogSessionDirectory = dir;
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// The first time the dialog is shown inside a <see cref="TProgram"/>, it starts in the directory of the file last
+    /// accepted by an Open dialog of that program in this run, unless the caller supplied a start location.
+    /// </remarks>
+    public override void SetState(ushort aState, bool enable)
+    {
+        if (_sessionDirectoryPending && enable && (aState & Views.sfVisible) != 0 && owner != null)
+            ApplySessionDirectory();
+        base.SetState(aState, enable);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// When a dialog with the Open button ends with an accepted file name (<c>cmFileOpen</c> or <c>cmOK</c>, after
+    /// <see cref="Valid"/>), the file's directory is remembered for the owning program's later file dialogs. That is
+    /// acceptance by the dialog: whether the caller then reads the file is not known here. Cancel, Escape, rejected
+    /// names, Save-style dialogs and browsing change nothing.
+    /// </remarks>
+    public override ushort Execute()
+    {
+        ushort result = base.Execute();
+        if ((result == Views.cmFileOpen || result == Views.cmOK)
+            && (_dialogOptions & FileDialogOptions.fdOpenButton) != 0)
+            RememberAcceptedDirectory();
+        return result;
     }
 
     private static TRect DialogBounds(ushort options)
@@ -268,6 +365,9 @@ public class TFileDialog : TDialog, IFileDialogContext
     /// <inheritdoc />
     public override void SetData(object rec)
     {
+        // A value with a directory part chooses the start location over the session directory (TV12k).
+        if (rec is string path && (path.IndexOf('/') >= 0 || path.IndexOf('\\') >= 0))
+            _explicitStart = true;
         if (rec is string s && s.Length > 0 && IsWild(s))
         {
             fileName?.SetData(s);

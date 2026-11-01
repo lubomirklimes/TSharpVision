@@ -7,6 +7,11 @@ Discovers the packable projects in TSharpVision.slnx, builds them with one local
 version, packs them into artifacts/local-nuget, and validates package identity and
 internal TSharpVision dependency versions. Generated versions use UTC.
 
+Packable projects are libraries or .NET tool packages (PackAsTool). Libraries ship
+lib/<tfm> assemblies, NuGet dependencies on other TSharpVision packages and a snupkg.
+Tools bundle their referenced TSharpVision libraries, declare no dependencies and
+produce no snupkg; each is validated by its own route in verify-release-package.ps1.
+
 TSharpCommander workflow:
 1. Run this script and copy the emitted version.
 2. Configure artifacts/local-nuget as a NuGet source for TSharpCommander.
@@ -95,7 +100,10 @@ function Get-ProjectProperties {
         -getProperty:PackageLicenseExpression `
         -getProperty:PackageReadmeFile `
         -getProperty:IncludeSymbols `
-        -getProperty:SymbolPackageFormat
+        -getProperty:SymbolPackageFormat `
+        -getProperty:PackAsTool `
+        -getProperty:ToolCommandName `
+        -getProperty:AssemblyName
 
     if ($LASTEXITCODE -ne 0) {
         throw "Failed to evaluate MSBuild properties for '$ProjectPath'."
@@ -169,7 +177,10 @@ foreach ($projectPath in $projectPaths) {
             RepositoryVersion    = $properties.PackageVersion
             Properties           = $properties
             ProducesSymbolPackage = ($properties.IncludeSymbols -eq 'true' -and $properties.SymbolPackageFormat -eq 'snupkg')
+            IsTool               = ($properties.PackAsTool -eq 'true')
             InternalDependencies = @()
+            # Tools only: packable TSharpVision projects whose assemblies the tool package bundles.
+            BundledPackages      = @()
         }
     }
 }
@@ -234,7 +245,13 @@ foreach ($package in $packages) {
             $dependencies += $packageByProject[$referencedPath]
         }
     }
-    $package.InternalDependencies = @($dependencies | Sort-Object -Unique)
+    # A tool package bundles its project references instead of depending on their packages.
+    if ($package.IsTool) {
+        $package.BundledPackages = @($dependencies | Sort-Object -Unique)
+    }
+    else {
+        $package.InternalDependencies = @($dependencies | Sort-Object -Unique)
+    }
 }
 
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
@@ -314,7 +331,10 @@ foreach ($artifact in $producedArtifacts) {
     }
     if ($UseRepositoryVersion) {
         $package = $packages | Where-Object PackageId -eq $metadata.Id
-        if (-not $package.ProducesSymbolPackage) {
+        if ($package.IsTool -and $package.ProducesSymbolPackage) {
+            throw "Release tool package '$($package.PackageId)' must not produce a snupkg."
+        }
+        if (-not $package.IsTool -and -not $package.ProducesSymbolPackage) {
             throw "Release package '$($package.PackageId)' must produce a matching snupkg."
         }
         Assert-ReleasePackage -Package $package -Path $artifact -ExpectedCommit $ExpectedCommit
@@ -348,9 +368,10 @@ foreach ($package in $packages) {
 
 if ($ReleaseManifestPath) {
     if (-not $UseRepositoryVersion) { throw 'ReleaseManifestPath requires UseRepositoryVersion.' }
-    # Topological sort of validated nuspec dependencies, with alphabetical peers.
+    # Libraries: topological sort of validated nuspec dependencies, with alphabetical peers.
+    # Tools follow in alphabetical order; they have no package dependencies.
     $ordered = @()
-    $remaining = @($packages | Sort-Object PackageId)
+    $remaining = @($packages | Where-Object { -not $_.IsTool } | Sort-Object PackageId)
     while ($remaining.Count) {
         $ready = @($remaining | Where-Object {
             $metadata = Read-Nuspec -PackagePath (Join-Path $OutputDirectory "$($_.PackageId).$packageVersion.nupkg")
@@ -362,9 +383,13 @@ if ($ReleaseManifestPath) {
         $ordered += $ready
         $remaining = @($remaining | Where-Object PackageId -notin @($ordered | ForEach-Object PackageId))
     }
+    $tools = @($packages | Where-Object IsTool | Sort-Object PackageId)
     [pscustomobject]@{
         Version = $packageVersion
-        Packages = @($ordered | ForEach-Object { "$($_.PackageId).$packageVersion.nupkg" })
+        # Publication order: every package, libraries first.
+        Packages = @(@($ordered) + $tools | ForEach-Object { "$($_.PackageId).$packageVersion.nupkg" })
+        Libraries = @($ordered | ForEach-Object PackageId)
+        Tools = @($tools | ForEach-Object PackageId)
     } | ConvertTo-Json | Set-Content -LiteralPath $ReleaseManifestPath -Encoding utf8
     if ($env:GITHUB_OUTPUT) {
         "version=$packageVersion" | Add-Content -LiteralPath $env:GITHUB_OUTPUT -Encoding utf8
@@ -382,7 +407,8 @@ Write-Host "  $OutputDirectory"
 Write-Host ''
 Write-Host 'Packages:'
 foreach ($package in $packages | Sort-Object PackageId) {
-    Write-Host "  $($package.PackageId)"
+    $kind = if ($package.IsTool) { " (.NET tool: $($package.Properties.ToolCommandName))" } else { '' }
+    Write-Host "  $($package.PackageId)$kind"
 }
 Write-Host ''
 if (-not $UseRepositoryVersion) {

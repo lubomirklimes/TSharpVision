@@ -15,6 +15,9 @@ public sealed class TResourceStringProvider : ITSharpVisionStringLookupProvider
 
     private readonly Dictionary<string, string> _strings;
 
+    // Loaded table, for translation parity checks.
+    internal IReadOnlyDictionary<string, string> Entries => _strings;
+
     /// <summary>Copies a resource's strings into an ordinal lookup table; null creates an empty provider.</summary>
     public TResourceStringProvider(TStringResource? resource)
     {
@@ -59,6 +62,49 @@ public sealed class TResourceStringProvider : ITSharpVisionStringLookupProvider
             return Load(path, resourceKey);
         }
         catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Reads the string table <paramref name="resourceKey"/> from a .tvr image that starts at the
+    /// stream's current position (the layout svrc writes: resource magic at offset 0, no
+    /// executable prefix). Read-only and seek-only, so it works for manifest resources and
+    /// read-only files. Returns null when the image is not a resource container, lacks the key,
+    /// or is corrupt; the caller owns the stream.
+    /// </summary>
+    internal static TResourceStringProvider? TryLoadFromStream(Stream stream, string resourceKey = DefaultResourceKey)
+    {
+        try
+        {
+            StreamableRegistration.RegisterAll();
+
+            long basePos = stream.Position;
+            if (stream.Length - basePos < 12)
+                return null;
+
+            var input = new Ipstream(stream);
+            if (input.Read32() != TResourceFile.rStreamMagic)
+                return null;
+
+            input.Read32(); // lenRez
+            long indexPos = input.Read32();
+            input.Seekg(basePos + indexPos);
+            if (input.ReadPointer() is not TResourceCollection index
+                || !index.Search(resourceKey, out int i))
+            {
+                return null;
+            }
+
+            input.Seekg(basePos + index.At(i).pos);
+            return input.ReadPointer() is TStringResource table
+                ? new TResourceStringProvider(table)
+                : null;
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException
+                                       or ArgumentException or InvalidCastException
+                                       or IndexOutOfRangeException or EndOfStreamException)
         {
             return null;
         }

@@ -10,6 +10,7 @@ resource strings "sharpvision.intl" {
   TVIntl_Menu_LangEnglish = "~E~nglish";
   TVIntl_Menu_LangCzech = "~C~zech";
   TVIntl_Menu_LangPseudo = "~P~seudo / Debug";
+  TVIntl_Menu_LangConfigured = "~R~eset to configured";
 
   TVIntl_Menu_Demos = "~D~emos";
   TVIntl_Menu_MessageBox = "~M~essage box";
@@ -45,8 +46,10 @@ resource strings "sharpvision.intl" {
   TVIntl_Dlg_MissingKey_None = "No missing keys recorded.";
   TVIntl_Dlg_MissingKey_Recent = "Recent missing keys:";
   TVIntl_Dlg_Language_Title = "Language";
-  TVIntl_Dlg_Language_Text = "Language switched to {0}.";
+  TVIntl_Dlg_Language_Text = "Language switched to {0}.\n\nMenu bar and status line were rebuilt. Open windows keep their text until you reopen them.";
   TVIntl_Dlg_Language_Pseudo_Text = "Pseudo/debug provider is active.";
+  TVIntl_Dlg_Language_Configured_Text = "Configured language ([localization] language): {0}.";
+  TVIntl_Dlg_Language_NotConfigured = "not set (English)";
   TVIntl_Help_NotFound = "Help file was not found.";
 
   TVIntl_Encoding_Title = "Encoding sample";

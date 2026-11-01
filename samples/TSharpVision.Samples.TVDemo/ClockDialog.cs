@@ -18,6 +18,10 @@ internal sealed class ClockContentView : TView
 
     private string _lastTime = string.Empty;
 
+    // Static text role: classic gray (0x70) through ClockDialog in Color, the dialog palette otherwise.
+    private static readonly TPalette _palette = new TPalette("\x06", 1);
+    public override TPalette GetPalette() => _palette;
+
     public ClockContentView(TRect bounds) : base(bounds)
     {
         options |= Views.ofSelectable;
@@ -64,7 +68,8 @@ internal sealed class ClockContentView : TView
 // ---------------------------------------------------------------------------
 public sealed class ClockDialog : TDialog
 {
-    public override byte MapColor(int index) => DemoAppearance.GrayWindow(index);
+    public override byte MapColor(int index) =>
+        ShowcasePalette.IsClassic(this) ? DemoAppearance.GrayWindow(index) : base.MapColor(index);
     public const int DlgW = ClockContentView.ViewW + 4;   // 26
     public const int DlgH = ClockContentView.ViewH + 4;   // 6
 
@@ -84,4 +89,23 @@ public sealed class ClockDialog : TDialog
 
     // Allow smoke tests to check formatting.
     public string FormatTime(DateTime dt) => View.FormatTime(dt);
+}
+
+// ---------------------------------------------------------------------------
+// ShowcasePalette — palette family lookup shared by the TVDemo accessories and games (Clock, Calendar,
+// Calculator, Puzzle, ASCII chart, Tetris). Their classic literal colors apply in the Color family only; in
+// BlackWhite and Monochrome they resolve logical roles through the application palette instead. The family is
+// read at draw time, so TProgram.SetAppPalette (whose Redraw re-runs every Draw) updates an open view at once.
+// ---------------------------------------------------------------------------
+internal static class ShowcasePalette
+{
+    // Family of the program that owns the view; Color while the view is not inside a program.
+    public static TProgram.AP Family(TView view)
+    {
+        for (TView? v = view; v != null; v = v.owner)
+            if (v is TProgram program) return program.AppPalette;
+        return TProgram.AP.Color;
+    }
+
+    public static bool IsClassic(TView view) => Family(view) == TProgram.AP.Color;
 }

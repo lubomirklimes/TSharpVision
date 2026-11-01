@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using TSharpVision.Drivers.SDL.Graphics;
 using TSharpVision.Drivers.SDL.Rendering.GlyphComposition;
 
 namespace TSharpVision.Drivers.SDL.Gpu;
@@ -8,11 +9,24 @@ namespace TSharpVision.Drivers.SDL.Gpu;
 //   Pass 1 (background): one opaque quad per cell, vertex color = bg VGA color.
 //   Pass 2 (glyph):      one blended quad per non-space cell, UV into R8 atlas,
 //                         vertex color = fg VGA color; GPU blends via alpha.
+//   Optional pass 3 (GpuDisplayEffect.Scanlines only): translucent black strips over the
+//                         grid (Bg shaders, blended pipeline created lazily on first use).
+//                         The Default effect records exactly the two passes above.
+//   Optional graphics pass (IPixelGraphicsDriver layers, TerminalGpuPipeline.Graphics.cs): one blended
+//                         instance per Line/FillRect/Image primitive under per-clip scissors, after the
+//                         glyphs and before Scanlines; recorded only for a frame with a non-empty layer.
+//   Post-process effects (Glow, ...; GpuPostEffectCatalog): the passes above render into a
+//                         viewport-sized offscreen texture (GpuPostProcess), then a second render
+//                         pass clears the target and draws one full-screen triangle with the
+//                         effect's fragment shader sampling that texture, in the same viewport.
+//
+// No per-frame managed allocation on any path: bindings and colour targets are stack structs
+// passed by pointer, the glyph-alpha delegate is cached.
 //
 // Vertex data is rebuilt from the ScreenBuffer every frame and uploaded via
 // staging (transfer) buffers. The glyph atlas is uploaded only when new
 // codepoints are added.
-internal sealed unsafe class TerminalGpuPipeline : IDisposable
+internal sealed unsafe partial class TerminalGpuPipeline : IDisposable
 {
     // Current vertex buffer capacity in cells. Grows on demand (EnsureCapacity).
     // Initial value covers typical terminal sizes; 4K at 10×18 = 384×120 = 46 080.
@@ -56,6 +70,31 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
     private int _maxBgBytes;
     private int _maxGlyphBytes;
 
+    // Colour-target format the pipelines were built for (the swapchain's). Kept so the Scanlines
+    // pipeline can be created lazily with the same target description.
+    private readonly SDL3.SDL.GPUTextureFormat _colorTargetFormat;
+
+    // ── Scanlines display effect (GpuDisplayEffect.Scanlines) ─────────────────
+    // Nothing here exists until the first Scanlines frame: the Default effect creates no pipeline,
+    // no buffer, uploads nothing and draws nothing extra. See GpuScanlineGeometry.
+    private IntPtr _scanlinePipeline;
+    private IntPtr _scanlineVertexBuf;
+    private IntPtr _scanlineTransferBuf;
+    private int    _scanlineCapacityBytes;
+    private int    _scanlineVertexCount;
+    // Cache key of the strip vertices currently in _scanlineVertexBuf (viewport height, density).
+    private int    _scanlineKeyHeight = -1;
+    private float  _scanlineKeyDensity = float.NaN;
+    private bool   _scanlineUploadPending;
+    private string? _scanlinesUnavailableReason;
+
+    // ── Post-process display effects (GpuDisplayEffects.IsPostProcess) ─────────
+    // Created on the first post-effect frame; Default and Scanlines never touch it.
+    private GpuPostProcess? _post;
+
+    // Cached so the per-frame vertex build allocates no delegate per glyph.
+    private readonly Func<GpuGlyphKey, byte[]?> _getAlpha;
+
     private bool _disposed;
     private bool _shaderCrossInitialized;
 
@@ -72,8 +111,9 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
         _cellHeight  = cellHeight;
         _underlineHeight = Math.Clamp(underlineHeight, 1, cellHeight);
         _glyphSource = glyphSource;
+        _getAlpha    = glyphSource.GetAlpha;
 
-        _maxBgBytes    = (_maxCells + 1) * 6 * sizeof(BgVertex);
+        _maxBgBytes   = (_maxCells + 1) * 6 * sizeof(BgVertex);
         _maxGlyphBytes = _maxCells       * 6 * sizeof(GlyphVertex);
 
         IntPtr bgVs = IntPtr.Zero, bgPs = IntPtr.Zero, glyphVs = IntPtr.Zero, glyphPs = IntPtr.Zero;
@@ -87,6 +127,7 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
 
             SDL3.SDL.GPUTextureFormat swapFmt =
                 SDL3.SDL.GetGPUSwapchainTextureFormat(device, window);
+            _colorTargetFormat = swapFmt;
 
             bgVs = LoadShaderFromSpirv("TSharpVision.Drivers.SDL.Gpu.Shaders.BgVert.spv",    SDL3.ShaderCross.ShaderStage.Vertex);
             bgPs = LoadShaderFromSpirv("TSharpVision.Drivers.SDL.Gpu.Shaders.BgFrag.spv",    SDL3.ShaderCross.ShaderStage.Fragment);
@@ -119,7 +160,28 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
     }
     // ─── Shader loading ──────────────────────────────────────────────────────
 
+    // Grid shaders: samplers only, no uniform buffers (the call shape the shader-sampler contract
+    // test reads from the constructor's IL).
     private IntPtr LoadShaderFromSpirv(string resourceName, SDL3.ShaderCross.ShaderStage stage, uint numSamplers = 0)
+    {
+        var resourceInfo = new SDL3.ShaderCross.GraphicsShaderResourceInfo { NumSamplers = numSamplers };
+        return CompileEmbeddedShader(resourceName, stage, resourceInfo);
+    }
+
+    // Post-process shaders (GpuPostProcess): samplers plus fragment uniform buffers.
+    private IntPtr LoadPostShaderFromSpirv(
+        string resourceName, SDL3.ShaderCross.ShaderStage stage, uint numSamplers, uint numUniformBuffers)
+    {
+        var resourceInfo = new SDL3.ShaderCross.GraphicsShaderResourceInfo
+        {
+            NumSamplers       = numSamplers,
+            NumUniformBuffers = numUniformBuffers,
+        };
+        return CompileEmbeddedShader(resourceName, stage, resourceInfo);
+    }
+
+    private IntPtr CompileEmbeddedShader(
+        string resourceName, SDL3.ShaderCross.ShaderStage stage, SDL3.ShaderCross.GraphicsShaderResourceInfo resourceInfo)
     {
         var assembly = typeof(TerminalGpuPipeline).Assembly;
         using var stream = assembly.GetManifestResourceStream(resourceName)
@@ -140,7 +202,6 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
                     ManagedEntrypoint = "main",
                     ShaderStage       = stage,
                 };
-                var resourceInfo = new SDL3.ShaderCross.GraphicsShaderResourceInfo { NumSamplers = numSamplers };
                 IntPtr shader = SDL3.ShaderCross.CompileGraphicsShaderFromSPIRV(
                     _device, ref spirvInfo, ref resourceInfo, 0u);
 
@@ -155,7 +216,35 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
 
     // ─── Pipeline state objects ──────────────────────────────────────────────
 
-    private IntPtr CreateBgPipeline(IntPtr vs, IntPtr ps, SDL3.SDL.GPUTextureFormat swapFmt)
+    // Bg pipeline: opaque (no blending), exactly as before effect support.
+    private IntPtr CreateBgPipeline(IntPtr vs, IntPtr ps, SDL3.SDL.GPUTextureFormat swapFmt) =>
+        CreateBgLayoutPipeline(vs, ps, swapFmt, blendState: default, "bg");
+
+    /// <summary>
+    /// The source-over blend state the glyph pass uses (and the Scanlines pass reuses):
+    /// <c>rgb = src * a + dst * (1 - a)</c>, <c>alpha = src + dst * (1 - a)</c>, blending enabled.
+    /// </summary>
+    internal static SDL3.SDL.GPUColorTargetBlendState SourceOverBlendState()
+    {
+        var blendState = new SDL3.SDL.GPUColorTargetBlendState
+        {
+            SrcColorBlendFactor = SDL3.SDL.GPUBlendFactor.SrcAlpha,
+            DstColorBlendFactor = SDL3.SDL.GPUBlendFactor.OneMinusSrcAlpha,
+            ColorBlendOp        = SDL3.SDL.GPUBlendOp.Add,
+            SrcAlphaBlendFactor = SDL3.SDL.GPUBlendFactor.One,
+            DstAlphaBlendFactor = SDL3.SDL.GPUBlendFactor.OneMinusSrcAlpha,
+            AlphaBlendOp        = SDL3.SDL.GPUBlendOp.Add,
+        };
+        // _enableBlend is a private byte at offset 25 in SDL3-CS 3.4.10.2 with no public setter.
+        // Without this, blending is silently disabled and glyphs render as solid fg-color blocks.
+        ((byte*)&blendState)[25] = 1;
+        return blendState;
+    }
+
+    // BgVertex layout (float2 position + ubyte4norm colour) with the given colour-target blend.
+    private IntPtr CreateBgLayoutPipeline(
+        IntPtr vs, IntPtr ps, SDL3.SDL.GPUTextureFormat swapFmt,
+        SDL3.SDL.GPUColorTargetBlendState blendState, string name)
     {
         var bufDesc = new SDL3.SDL.GPUVertexBufferDescription
         {
@@ -172,7 +261,7 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
         var colorTarget = new SDL3.SDL.GPUColorTargetDescription
         {
             Format     = swapFmt,
-            BlendState = default,  // no blending; bg is opaque
+            BlendState = blendState,  // default for bg: no blending, bg is opaque
         };
 
         fixed (SDL3.SDL.GPUVertexAttribute* pAttribs = attribs)
@@ -198,7 +287,7 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
             IntPtr p = SDL3.SDL.CreateGPUGraphicsPipeline(_device, in info);
             if (p == IntPtr.Zero)
                 throw new InvalidOperationException(
-                    $"[SDLGpu] CreateGPUGraphicsPipeline (bg) failed: {SDL3.SDL.GetError()}");
+                    $"[SDLGpu] CreateGPUGraphicsPipeline ({name}) failed: {SDL3.SDL.GetError()}");
             return p;
         }
     }
@@ -218,22 +307,10 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
             new() { Location = 1, BufferSlot = 0, Format = SDL3.SDL.GPUVertexElementFormat.Float2,    Offset = 8  },
             new() { Location = 2, BufferSlot = 0, Format = SDL3.SDL.GPUVertexElementFormat.Ubyte4Norm, Offset = 16 },
         };
-        var blendState = new SDL3.SDL.GPUColorTargetBlendState
-        {
-            SrcColorBlendFactor = SDL3.SDL.GPUBlendFactor.SrcAlpha,
-            DstColorBlendFactor = SDL3.SDL.GPUBlendFactor.OneMinusSrcAlpha,
-            ColorBlendOp        = SDL3.SDL.GPUBlendOp.Add,
-            SrcAlphaBlendFactor = SDL3.SDL.GPUBlendFactor.One,
-            DstAlphaBlendFactor = SDL3.SDL.GPUBlendFactor.OneMinusSrcAlpha,
-            AlphaBlendOp        = SDL3.SDL.GPUBlendOp.Add,
-        };
-        // _enableBlend is a private byte at offset 25 in SDL3-CS 3.4.10.2 with no public setter.
-        // Without this, blending is silently disabled and glyphs render as solid fg-color blocks.
-        ((byte*)&blendState)[25] = 1;
         var colorTarget = new SDL3.SDL.GPUColorTargetDescription
         {
             Format     = swapFmt,
-            BlendState = blendState,
+            BlendState = SourceOverBlendState(),
         };
 
         fixed (SDL3.SDL.GPUVertexAttribute* pAttribs = attribs)
@@ -333,6 +410,200 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
         CreateVertexBuffers();
     }
 
+    // ─── Scanlines effect resources (lazy) ───────────────────────────────────
+
+    /// <summary>
+    /// Set when the Scanlines pipeline or its strip buffer could not be created. Frames then render
+    /// as <see cref="GpuDisplayEffect.Default"/> (still correct, just without the effect); the
+    /// reason was written to stderr once. Null while Scanlines is available or was never requested.
+    /// </summary>
+    internal string? ScanlinesUnavailableReason => _scanlinesUnavailableReason;
+
+    /// <summary>True once the lazily created Scanlines pipeline exists. Diagnostics and tests.</summary>
+    internal bool ScanlinePipelineCreated => _scanlinePipeline != IntPtr.Zero;
+
+    /// <summary>Strip vertices currently uploaded for the Scanlines pass. Diagnostics and tests.</summary>
+    internal int ScanlineVertexCount => _scanlineVertexCount;
+
+    /// <summary>Makes the lazy Scanlines pipeline creation fail, to qualify the no-silent-fallback path.</summary>
+    internal bool SimulateScanlineFailureForTesting { get; set; }
+
+    /// <summary>
+    /// Outside any pass: creates the Scanlines pipeline on first use and rebuilds the strip
+    /// vertices when the viewport height or density changed. Returns false when the effect cannot
+    /// be drawn (unavailable, or no strip fits), in which case nothing extra is recorded.
+    /// </summary>
+    private bool PrepareScanlines(int viewportHeight, float density)
+    {
+        if (_scanlinesUnavailableReason != null) return false;
+        try
+        {
+            if (_scanlinePipeline == IntPtr.Zero)
+            {
+                if (SimulateScanlineFailureForTesting)
+                    throw new InvalidOperationException("Scanlines pipeline disabled for testing");
+                IntPtr vs = IntPtr.Zero, ps = IntPtr.Zero;
+                try
+                {
+                    vs = LoadShaderFromSpirv("TSharpVision.Drivers.SDL.Gpu.Shaders.BgVert.spv", SDL3.ShaderCross.ShaderStage.Vertex);
+                    ps = LoadShaderFromSpirv("TSharpVision.Drivers.SDL.Gpu.Shaders.BgFrag.spv", SDL3.ShaderCross.ShaderStage.Fragment);
+                    _scanlinePipeline = CreateBgLayoutPipeline(vs, ps, _colorTargetFormat, SourceOverBlendState(), "scanlines");
+                }
+                finally
+                {
+                    if (vs != IntPtr.Zero) SDL3.SDL.ReleaseGPUShader(_device, vs);
+                    if (ps != IntPtr.Zero) SDL3.SDL.ReleaseGPUShader(_device, ps);
+                }
+            }
+
+            if (viewportHeight != _scanlineKeyHeight || !density.Equals(_scanlineKeyDensity))
+                RebuildScanlineStrips(viewportHeight, density);
+        }
+        catch (Exception ex)
+        {
+            _scanlinesUnavailableReason = ex.Message;
+            Console.Error.WriteLine(
+                $"[SDLGpu] Scanlines display effect unavailable ({ex.Message}); rendering without it.");
+            ReleaseScanlineResources();
+            return false;
+        }
+        return _scanlineVertexCount > 0;
+    }
+
+    private void RebuildScanlineStrips(int viewportHeight, float density)
+    {
+        int vertices = ScanlineVertexCapacity(viewportHeight, density);
+        int bytes = vertices * sizeof(BgVertex);
+        if (bytes > _scanlineCapacityBytes)
+        {
+            // Released resources stay alive until in-flight command buffers finish (SDL defers).
+            ReleaseScanlineBuffers();
+            int capacity = Math.Max(bytes, 64 * 6 * sizeof(BgVertex));
+            _scanlineVertexBuf = SDL3.SDL.CreateGPUBuffer(_device, new SDL3.SDL.GPUBufferCreateInfo
+            {
+                Usage = SDL3.SDL.GPUBufferUsageFlags.Vertex,
+                Size  = (uint)capacity,
+            });
+            _scanlineTransferBuf = SDL3.SDL.CreateGPUTransferBuffer(_device, new SDL3.SDL.GPUTransferBufferCreateInfo
+            {
+                Usage = SDL3.SDL.GPUTransferBufferUsage.Upload,
+                Size  = (uint)capacity,
+            });
+            if (_scanlineVertexBuf == IntPtr.Zero || _scanlineTransferBuf == IntPtr.Zero)
+                throw new InvalidOperationException($"Scanline strip buffers: {SDL3.SDL.GetError()}");
+            _scanlineCapacityBytes = capacity;
+        }
+
+        int count = 0;
+        if (vertices > 0)
+        {
+            BgVertex* dst = (BgVertex*)SDL3.SDL.MapGPUTransferBuffer(_device, _scanlineTransferBuf, true);
+            if (dst == null)
+                throw new InvalidOperationException($"MapGPUTransferBuffer (scanlines): {SDL3.SDL.GetError()}");
+            count = BuildScanlineVertices(new Span<BgVertex>(dst, vertices), viewportHeight, density);
+            SDL3.SDL.UnmapGPUTransferBuffer(_device, _scanlineTransferBuf);
+        }
+
+        _scanlineVertexCount   = count;
+        _scanlineUploadPending = count > 0;
+        _scanlineKeyHeight     = viewportHeight;
+        _scanlineKeyDensity    = density;
+    }
+
+    private void ReleaseScanlineBuffers()
+    {
+        if (_scanlineTransferBuf != IntPtr.Zero) { SDL3.SDL.ReleaseGPUTransferBuffer(_device, _scanlineTransferBuf); _scanlineTransferBuf = IntPtr.Zero; }
+        if (_scanlineVertexBuf   != IntPtr.Zero) { SDL3.SDL.ReleaseGPUBuffer(_device, _scanlineVertexBuf);           _scanlineVertexBuf   = IntPtr.Zero; }
+        _scanlineCapacityBytes = 0;
+        _scanlineVertexCount   = 0;
+        _scanlineUploadPending = false;
+        _scanlineKeyHeight     = -1;
+        _scanlineKeyDensity    = float.NaN;
+    }
+
+    private void ReleaseScanlineResources()
+    {
+        ReleaseScanlineBuffers();
+        if (_scanlinePipeline != IntPtr.Zero) { SDL3.SDL.ReleaseGPUGraphicsPipeline(_device, _scanlinePipeline); _scanlinePipeline = IntPtr.Zero; }
+    }
+
+    /// <summary>Vertices <see cref="BuildScanlineVertices"/> writes for this viewport height and density.</summary>
+    internal static int ScanlineVertexCapacity(int viewportHeight, float density) =>
+        GpuScanlineGeometry.StripCount(viewportHeight, density) * 6;
+
+    /// <summary>
+    /// Writes one quad (two triangles, same winding as the cell quads) per
+    /// <see cref="GpuScanlineGeometry"/> strip into <paramref name="destination"/>, in the clip space
+    /// of a grid viewport <paramref name="viewportHeight"/> device pixels high: x spans -1..1, a
+    /// strip <c>[Y, Y + H)</c> spans <c>1 - 2Y/height .. 1 - 2(Y + H)/height</c>. Colour is black at
+    /// <see cref="GpuScanlineGeometry.StripAlpha"/>. Returns the vertex count. Allocation-free.
+    /// </summary>
+    internal static int BuildScanlineVertices(Span<BgVertex> destination, int viewportHeight, float density)
+    {
+        int strips = GpuScanlineGeometry.StripCount(viewportHeight, density);
+        if (destination.Length < strips * 6)
+            throw new ArgumentException("Destination is too short for the strip vertices.", nameof(destination));
+        if (strips == 0) return 0;
+
+        int t = GpuScanlineGeometry.Thickness(density);
+        float invH = 2f / viewportHeight;
+        byte a = GpuScanlineGeometry.StripAlpha;
+        int n = 0;
+        for (int i = 0, y = t; i < strips; i++, y += 2 * t)
+        {
+            int h = Math.Min(t, viewportHeight - y);
+            float y0 = 1f - y * invH;
+            float y1 = 1f - (y + h) * invH;
+            destination[n++] = new BgVertex { X = -1f, Y = y0, A = a };
+            destination[n++] = new BgVertex { X =  1f, Y = y0, A = a };
+            destination[n++] = new BgVertex { X = -1f, Y = y1, A = a };
+            destination[n++] = new BgVertex { X =  1f, Y = y0, A = a };
+            destination[n++] = new BgVertex { X =  1f, Y = y1, A = a };
+            destination[n++] = new BgVertex { X = -1f, Y = y1, A = a };
+        }
+        return n;
+    }
+
+    // ─── Post-process effect resources (lazy) ────────────────────────────────
+
+    /// <summary>
+    /// Last post-process creation failure (logged once on stderr); frames then render Default.
+    /// Null while post-processing is available or was never requested.
+    /// </summary>
+    internal string? PostProcessUnavailableReason => _post?.UnavailableReason;
+
+    /// <summary>The post-process resources, once a post effect was first requested. Tests.</summary>
+    internal GpuPostProcess? PostProcessForTesting => _post;
+
+    /// <summary>Makes the lazy post-process preparation fail, to qualify the fallback to Default.</summary>
+    internal bool SimulatePostProcessFailureForTesting { get; set; }
+
+    /// <summary>
+    /// The effect the last <see cref="RenderFrame"/> actually drew: the requested one, or
+    /// <see cref="GpuDisplayEffect.Default"/> when it is unavailable, not implemented yet (no
+    /// <see cref="GpuPostEffectCatalog"/> entry) or the viewport is empty.
+    /// </summary>
+    internal GpuDisplayEffect LastDrawnEffect { get; private set; }
+
+    /// <summary>
+    /// The post-process decision, without a device: true (with the effect's spec) only for an
+    /// implemented post-process effect and a non-empty viewport. Default and Scanlines: false.
+    /// </summary>
+    internal static bool SelectPostEffect(GpuDisplayEffect effect, in GpuGridLayout layout, out GpuPostEffectSpec spec)
+    {
+        spec = null!;
+        return GpuDisplayEffects.IsPostProcess(effect) && layout.IsRenderable
+            && GpuPostEffectCatalog.TryGet(effect, out spec);
+    }
+
+    // Outside any pass: lazy resources for a post effect. Zero means "render Default".
+    private IntPtr PreparePostProcess(GpuDisplayEffect effect, GpuPostEffectSpec spec, int width, int height)
+    {
+        _post ??= new GpuPostProcess(_device, _colorTargetFormat, LoadPostShaderFromSpirv);
+        if (SimulatePostProcessFailureForTesting) _post.SimulateFailureForTesting = true;
+        return _post.Prepare(effect, spec, width, height);
+    }
+
     // ─── Per-frame rendering ─────────────────────────────────────────────────
 
     // Renders one terminal frame into an already-acquired swapchain texture.
@@ -357,7 +628,10 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
         uint         rows,
         int          cursorX,
         int          cursorY,
-        ushort       cursorType)
+        ushort       cursorType,
+        GpuPhysicalPalette? palette = null,
+        GpuDisplayEffect    effect  = GpuDisplayEffect.Default,
+        float               density = 1f)
     {
         long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
 
@@ -365,6 +639,32 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
         // grid-sized viewport so nothing is fractionally scaled.
         GpuGridLayout layout = GpuGridLayout.Compute(
             (int)swapW, (int)swapH, (int)cols, (int)rows, _cellWidth, _cellHeight);
+
+        // Default: one enum compare, nothing else. Scanlines: lazy pipeline creation and strip
+        // rebuild happen here, outside any pass; strips are in viewport device pixels.
+        bool scanlines = effect == GpuDisplayEffect.Scanlines
+            && PrepareScanlines(layout.ViewportHeight, density);
+        GpuDisplayEffect drawn = effect == GpuDisplayEffect.Scanlines && _scanlinesUnavailableReason == null
+            ? GpuDisplayEffect.Scanlines
+            : GpuDisplayEffect.Default;
+
+        // Post effects: lazy offscreen texture / sampler / pipeline, also outside any pass. Default
+        // and Scanlines fail the first test in SelectPostEffect (one enum compare).
+        IntPtr postPipeline = IntPtr.Zero;
+        if (SelectPostEffect(effect, layout, out GpuPostEffectSpec postSpec))
+        {
+            postPipeline = PreparePostProcess(effect, postSpec, layout.ViewportWidth, layout.ViewportHeight);
+            if (postPipeline != IntPtr.Zero) drawn = effect;
+        }
+        bool post = postPipeline != IntPtr.Zero;
+        LastDrawnEffect = drawn;
+
+        // Graphics: no layer (the normal case) is one empty test plus one resident-texture test; otherwise lazy
+        // resources, the instance build and new image uploads are prepared here, outside any pass. The first frame
+        // without graphics after some releases the image textures (records nothing).
+        PixelGraphicsFrame graphics = _graphics;
+        bool drawGraphics = (!graphics.IsEmpty || GraphicsTexturesResident)
+            && PrepareGraphics(graphics, _graphicsScale, layout);
 
         // Map staging buffers
         BgVertex*    bgPtr    = (BgVertex*)   SDL3.SDL.MapGPUTransferBuffer(_device, _bgTransferBuf,    true);
@@ -377,8 +677,8 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
         }
 
         BuildVertices(bgPtr, glyphPtr, buf, cols, rows, _cellWidth, _cellHeight,
-            cursorX, cursorY, cursorType, _glyphSource, _atlas, out int bgCount, out int glyphCount,
-            _underlineHeight);
+            cursorX, cursorY, cursorType, _glyphSource, _getAlpha, _atlas, out int bgCount, out int glyphCount,
+            _underlineHeight, (palette ?? GpuPhysicalPalette.Default).ArgbSpan);
 
         SDL3.SDL.UnmapGPUTransferBuffer(_device, _bgTransferBuf);
         SDL3.SDL.UnmapGPUTransferBuffer(_device, _glyphTransferBuf);
@@ -404,24 +704,39 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
 
         _atlas.UploadIfDirty(copyPass);
 
+        if (scanlines && _scanlineUploadPending)
+        {
+            SDL3.SDL.UploadToGPUBuffer(copyPass,
+                new SDL3.SDL.GPUTransferBufferLocation { TransferBuffer = _scanlineTransferBuf, Offset = 0 },
+                new SDL3.SDL.GPUBufferRegion
+                {
+                    Buffer = _scanlineVertexBuf, Offset = 0,
+                    Size   = (uint)(_scanlineVertexCount * sizeof(BgVertex)),
+                },
+                true);
+            _scanlineUploadPending = false;
+        }
+
+        if (drawGraphics) UploadGraphics(copyPass);
+
         SDL3.SDL.EndGPUCopyPass(copyPass);
 
-        // Render pass: clear → bg pass → glyph pass
-        SDL3.SDL.GPUColorTargetInfo[] colorTargets =
+        // Render pass: clear → bg pass → glyph pass. Target: the swapchain (or capture) texture,
+        // or the offscreen grid texture when a post effect follows. Same commands either way.
+        var colorTarget = new SDL3.SDL.GPUColorTargetInfo
         {
-            new()
-            {
-                Texture           = swapTex,
-                MipLevel          = 0,
-                LayerOrDepthPlane = 0,
-                ClearColor        = new SDL3.SDL.FColor { R = 0f, G = 0f, B = 0f, A = 1f },
-                LoadOp            = SDL3.SDL.GPULoadOp.Clear,
-                StoreOp           = SDL3.SDL.GPUStoreOp.Store,
-                Cycle             = false,
-            },
+            Texture           = post ? _post!.Texture : swapTex,
+            MipLevel          = 0,
+            LayerOrDepthPlane = 0,
+            ClearColor        = new SDL3.SDL.FColor { R = 0f, G = 0f, B = 0f, A = 1f },
+            LoadOp            = SDL3.SDL.GPULoadOp.Clear,
+            StoreOp           = SDL3.SDL.GPUStoreOp.Store,
+            // The offscreen texture is fully rewritten each frame: let SDL cycle it instead of
+            // waiting for a frame still sampling it.
+            Cycle             = post,
         };
 
-        IntPtr renderPass = SDL3.SDL.BeginGPURenderPass(cmdBuf, colorTargets, 1u, IntPtr.Zero);
+        IntPtr renderPass = SDL3.SDL.BeginGPURenderPass(cmdBuf, (IntPtr)(&colorTarget), 1u, IntPtr.Zero);
 
         // The LoadOp.Clear above covers the whole attachment, so the letterbox strip is cleared
         // before anything is drawn. The viewport then confines the terminal to exactly
@@ -434,6 +749,9 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
         //
         // No scissor is needed: the clip volume already confines all geometry to NDC [-1,+1], and
         // the viewport transform maps that entirely inside the viewport rectangle.
+        //
+        // The offscreen texture is exactly ViewportWidth x ViewportHeight and the viewport origin
+        // is always (0,0), so the same viewport fills it 1:1.
         var viewport = new SDL3.SDL.GPUViewport
         {
             X        = layout.ViewportX,
@@ -446,26 +764,64 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
         SDL3.SDL.SetGPUViewport(renderPass, in viewport);
 
         // Background pass
+        var vertexBinding = new SDL3.SDL.GPUBufferBinding { Buffer = _bgVertexBuf, Offset = 0 };
         SDL3.SDL.BindGPUGraphicsPipeline(renderPass, _bgPipeline);
-        SDL3.SDL.BindGPUVertexBuffers(renderPass, 0u,
-            new SDL3.SDL.GPUBufferBinding[] { new() { Buffer = _bgVertexBuf, Offset = 0 } }, 1u);
+        SDL3.SDL.BindGPUVertexBuffers(renderPass, 0u, (IntPtr)(&vertexBinding), 1u);
         SDL3.SDL.DrawGPUPrimitives(renderPass, (uint)bgCount, 1u, 0u, 0u);
 
         // Glyph pass
         if (glyphCount > 0)
         {
+            vertexBinding = new SDL3.SDL.GPUBufferBinding { Buffer = _glyphVertexBuf, Offset = 0 };
+            var atlasBinding = new SDL3.SDL.GPUTextureSamplerBinding { Texture = _atlas.Texture, Sampler = _atlas.Sampler };
             SDL3.SDL.BindGPUGraphicsPipeline(renderPass, _glyphPipeline);
-            SDL3.SDL.BindGPUVertexBuffers(renderPass, 0u,
-                new SDL3.SDL.GPUBufferBinding[] { new() { Buffer = _glyphVertexBuf, Offset = 0 } }, 1u);
-            SDL3.SDL.BindGPUFragmentSamplers(renderPass, 0u,
-                new SDL3.SDL.GPUTextureSamplerBinding[]
-                {
-                    new() { Texture = _atlas.Texture, Sampler = _atlas.Sampler },
-                }, 1u);
+            SDL3.SDL.BindGPUVertexBuffers(renderPass, 0u, (IntPtr)(&vertexBinding), 1u);
+            SDL3.SDL.BindGPUFragmentSamplers(renderPass, 0u, (IntPtr)(&atlasBinding), 1u);
             SDL3.SDL.DrawGPUPrimitives(renderPass, (uint)glyphCount, 1u, 0u, 0u);
         }
 
+        // Graphics pass: instanced primitives over the glyphs, under per-clip scissors (reset afterwards).
+        if (drawGraphics) DrawGraphics(cmdBuf, renderPass, layout);
+
+        // Scanlines pass: translucent black strips over the finished grid, same viewport.
+        if (scanlines)
+        {
+            vertexBinding = new SDL3.SDL.GPUBufferBinding { Buffer = _scanlineVertexBuf, Offset = 0 };
+            SDL3.SDL.BindGPUGraphicsPipeline(renderPass, _scanlinePipeline);
+            SDL3.SDL.BindGPUVertexBuffers(renderPass, 0u, (IntPtr)(&vertexBinding), 1u);
+            SDL3.SDL.DrawGPUPrimitives(renderPass, (uint)_scanlineVertexCount, 1u, 0u, 0u);
+        }
+
         SDL3.SDL.EndGPURenderPass(renderPass);
+
+        // Post pass: clear the real target (black letterbox), same viewport, one full-screen
+        // triangle sampling the offscreen grid texture through the effect's fragment shader.
+        if (post)
+        {
+            var finalTarget = new SDL3.SDL.GPUColorTargetInfo
+            {
+                Texture           = swapTex,
+                MipLevel          = 0,
+                LayerOrDepthPlane = 0,
+                ClearColor        = new SDL3.SDL.FColor { R = 0f, G = 0f, B = 0f, A = 1f },
+                LoadOp            = SDL3.SDL.GPULoadOp.Clear,
+                StoreOp           = SDL3.SDL.GPUStoreOp.Store,
+                Cycle             = false,
+            };
+            IntPtr postPass = SDL3.SDL.BeginGPURenderPass(cmdBuf, (IntPtr)(&finalTarget), 1u, IntPtr.Zero);
+            SDL3.SDL.SetGPUViewport(postPass, in viewport);
+            SDL3.SDL.BindGPUGraphicsPipeline(postPass, postPipeline);
+            if (postSpec.NumSamplers > 0)
+            {
+                var gridBinding = new SDL3.SDL.GPUTextureSamplerBinding { Texture = _post!.Texture, Sampler = _post.Sampler };
+                SDL3.SDL.BindGPUFragmentSamplers(postPass, 0u, (IntPtr)(&gridBinding), 1u);
+            }
+            GpuPostUniforms uniforms = postSpec.BuildUniforms(
+                new GpuPostFrame(layout.ViewportWidth, layout.ViewportHeight, density));
+            SDL3.SDL.PushGPUFragmentUniformData(cmdBuf, 0u, (IntPtr)(&uniforms), (uint)sizeof(GpuPostUniforms));
+            SDL3.SDL.DrawGPUPrimitives(postPass, 3u, 1u, 0u, 0u);
+            SDL3.SDL.EndGPURenderPass(postPass);
+        }
 
         long t2 = System.Diagnostics.Stopwatch.GetTimestamp();  // end of GPU command recording
         return (
@@ -480,6 +836,7 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
     /// background quad per cell (plus a bar for an underline cursor) and one blended glyph quad per
     /// non-space cell. Writes into caller-provided memory, so the translation is the same whether
     /// the destination is a mapped GPU transfer buffer or ordinary memory.
+    /// Colours come from <see cref="GpuPhysicalPalette.Default"/>.
     /// </summary>
     internal static void BuildVertices(
         BgVertex*       bgPtr,
@@ -496,8 +853,61 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
         TerminalAtlas   atlas,
         out int         bgCount,
         out int         glyphCount,
-        int             underlineHeight = 2)
+        int             underlineHeight = 2) =>
+        BuildVertices(bgPtr, glyphPtr, buf, cols, rows, cellWidth, cellHeight, cursorX, cursorY,
+            cursorType, glyphSource, atlas, out bgCount, out glyphCount, underlineHeight, Vga16);
+
+    /// <summary>
+    /// <see cref="BuildVertices(BgVertex*, GlyphVertex*, ScreenBuffer, uint, uint, int, int, int, int, ushort, IGpuGlyphSource, TerminalAtlas, out int, out int, int)"/>
+    /// with an explicit physical palette: <paramref name="palette"/> holds 16 ARGB entries
+    /// (<see cref="GpuPhysicalPalette.ArgbSpan"/>), indexed by the attribute's fg/bg nibble. Only
+    /// the colour lookup changes; geometry, cursor handling and glyph keys are identical.
+    /// </summary>
+    internal static void BuildVertices(
+        BgVertex*       bgPtr,
+        GlyphVertex*    glyphPtr,
+        ScreenBuffer    buf,
+        uint            cols,
+        uint            rows,
+        int             cellWidth,
+        int             cellHeight,
+        int             cursorX,
+        int             cursorY,
+        ushort          cursorType,
+        IGpuGlyphSource glyphSource,
+        TerminalAtlas   atlas,
+        out int         bgCount,
+        out int         glyphCount,
+        int             underlineHeight,
+        ReadOnlySpan<uint> palette) =>
+        BuildVertices(bgPtr, glyphPtr, buf, cols, rows, cellWidth, cellHeight, cursorX, cursorY,
+            cursorType, glyphSource, glyphSource.GetAlpha, atlas, out bgCount, out glyphCount,
+            underlineHeight, palette);
+
+    // The vertex build proper. getAlpha is glyphSource.GetAlpha, passed in so the per-frame caller
+    // reuses one cached delegate instead of allocating one per glyph cell.
+    private static void BuildVertices(
+        BgVertex*       bgPtr,
+        GlyphVertex*    glyphPtr,
+        ScreenBuffer    buf,
+        uint            cols,
+        uint            rows,
+        int             cellWidth,
+        int             cellHeight,
+        int             cursorX,
+        int             cursorY,
+        ushort          cursorType,
+        IGpuGlyphSource glyphSource,
+        Func<GpuGlyphKey, byte[]?> getAlpha,
+        TerminalAtlas   atlas,
+        out int         bgCount,
+        out int         glyphCount,
+        int             underlineHeight,
+        ReadOnlySpan<uint> palette)
     {
+        if (palette.Length < 16)
+            throw new ArgumentException("A physical palette has 16 entries.", nameof(palette));
+
         float invW = 2f / (cols * cellWidth);
         float invH = 2f / (rows * cellHeight);
 
@@ -510,8 +920,8 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
             {
                 TScreenChar cell = buf.GetChar(col, row);
                 byte attr = (byte)(cell.Attr & 0xFF);
-                (byte fgR, byte fgG, byte fgB) = ArgbToRgb(Vga16[attr & 0x0F]);
-                (byte bgR, byte bgG, byte bgB) = ArgbToRgb(Vga16[(attr >> 4) & 0x0F]);
+                (byte fgR, byte fgG, byte fgB) = ArgbToRgb(palette[attr & 0x0F]);
+                (byte bgR, byte bgG, byte bgB) = ArgbToRgb(palette[(attr >> 4) & 0x0F]);
 
                 bool isCursor = cursorType != 0
                     && (int)col == cursorX && (int)row == cursorY;
@@ -564,7 +974,7 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
                         glyphSource.PhaseForCell((int)col, (int)row, cellWidth, cellHeight);
                     GpuGlyphKey glyphKey = glyphSource.CreateKey(ch, phase);
 
-                    var (u0, v0, u1, v1) = atlas.GetOrAllocateSlot(glyphKey, glyphSource.GetAlpha);
+                    var (u0, v0, u1, v1) = atlas.GetOrAllocateSlot(glyphKey, getAlpha);
                     if (u0 != u1)  // valid atlas slot
                         EmitGlyphQuad(glyphPtr, ref glyphCount, cx0, cy0, cx1, cy1,
                             u0, v0, u1, v1, cellFgR, cellFgG, cellFgB);
@@ -606,15 +1016,11 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
         buf[count++] = new GlyphVertex { X = x0, Y = y1, U = u0, V = v1, R = r, G = g, B = b, A = 255 };
     }
 
-    // ─── VGA palette ────────────────────────────────────────────────────────
-
-    private static readonly uint[] Vga16 =
-    {
-        0xFF000000, 0xFF0000AA, 0xFF00AA00, 0xFF00AAAA,
-        0xFFAA0000, 0xFFAA00AA, 0xFFAA5500, 0xFFAAAAAA,
-        0xFF555555, 0xFF5555FF, 0xFF55FF55, 0xFF55FFFF,
-        0xFFFF5555, 0xFFFF55FF, 0xFFFFFF55, 0xFFFFFFFF,
-    };
+    // ─── Palette ────────────────────────────────────────────────────────────
+    // The 16-entry tables live in GpuPhysicalPalette. Vga16 is the Default table, kept under its
+    // historical name: the no-palette BuildVertices overload uses it, and the TV12 guard
+    // SdlMonochromePaletteTests.GpuPathsUseTheRendererVgaTable reads it by reflection.
+    private static readonly uint[] Vga16 = GpuPhysicalPalette.Default.Argb.ToArray();
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static (byte r, byte g, byte b) ArgbToRgb(uint argb) =>
@@ -628,6 +1034,12 @@ internal sealed unsafe class TerminalGpuPipeline : IDisposable
         _disposed = true;
 
         _atlas?.Dispose();
+
+        ReleaseScanlineResources();
+        ReleaseGraphicsResources();
+
+        _post?.Dispose();
+        _post = null;
 
         if (_glyphTransferBuf != IntPtr.Zero) SDL3.SDL.ReleaseGPUTransferBuffer(_device, _glyphTransferBuf);
         if (_bgTransferBuf    != IntPtr.Zero) SDL3.SDL.ReleaseGPUTransferBuffer(_device, _bgTransferBuf);

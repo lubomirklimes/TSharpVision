@@ -37,21 +37,26 @@ public sealed class AsciiTableBody : TView
         eventMask |= Events.evMouseDown;
     }
     public static string GetCellLabel(int code) => AsciiTableModel.GetRow(code).Display.ToString();
+    // 1 = chart surface (static text), 2 = selected cell (list "selected" role). AsciiTableDialog maps them to the
+    // classic 0x70 / 0x07 in Color; BlackWhite and Monochrome resolve them to 0x70 and bright inverse 0x0F.
+    private static readonly TPalette _palette = new TPalette("\x06\x1C", 2);
+    public override TPalette GetPalette() => _palette;
     public override void Draw()
     {
+        char normal = (char)GetColor(1), selected = (char)GetColor(2);
         for (int row = 0; row < size.y; row++)
         {
             var buffer = new TDrawBuffer();
-            buffer.moveChar(0, row == Rows ? '─' : ' ', DemoAppearance.Gray, size.x);
+            buffer.moveChar(0, row == Rows ? '─' : ' ', normal, size.x);
             if (row < Rows)
                 for (int col = 0; col < Cols; col++)
                 {
                     int code = row * Cols + col;
                     buffer.moveChar(col, AsciiTableModel.GetRow(code).Display,
-                        (char)(code == SelectedCode ? 0x07 : DemoAppearance.Gray), 1);
+                        code == SelectedCode ? selected : normal, 1);
                 }
             else if (row == Rows + 2)
-                buffer.moveStr(0, AsciiTableModel.GetRow(SelectedCode).Format(), DemoAppearance.Gray);
+                buffer.moveStr(0, AsciiTableModel.GetRow(SelectedCode).Format(), normal);
             WriteLine(0, row, size.x, 1, buffer);
         }
     }
@@ -94,5 +99,8 @@ public sealed class AsciiTableDialog : TDialog
     {
         Insert(new AsciiTableBody(new TRect(1, 1, DlgW - 1, DlgH - 1)));
     }
-    public override byte MapColor(int index) => DemoAppearance.Gray;
+    // Classic gray chart with a black selected cell in the Color family only; BlackWhite and Monochrome resolve
+    // every role through the standard dialog palette.
+    public override byte MapColor(int index) =>
+        !ShowcasePalette.IsClassic(this) ? base.MapColor(index) : index == 28 ? (byte)0x07 : DemoAppearance.Gray;
 }

@@ -2,7 +2,10 @@ using TSharpVision.Constants;
 
 namespace TSharpVision;
 
-/// <summary>Scrollable topic viewer; Tab cycles links, Enter follows the selected link, and Escape closes modal help.</summary>
+/// <summary>
+/// Scrollable topic viewer; Tab cycles links, Enter follows the selected link, Backspace goes back, Alt+I opens the
+/// index, Alt+S searches the help text, and Escape closes modal help.
+/// </summary>
 public class THelpViewer : TScroller
 {
     /// <summary>Type identifier used to register and restore this object in a stream.</summary>
@@ -21,9 +24,15 @@ public class THelpViewer : TScroller
     /// <summary>One-based selected link number; initialized to one even when the topic has no links.</summary>
     public int selected;
 
-    // Back-navigation stack.
+    // Back-navigation stack: each entry is the file and context that was shown.
     private int _currentRef;
-    private readonly System.Collections.Generic.Stack<int> _backStack = new();
+    private readonly System.Collections.Generic.Stack<(THelpFile File, int Context)> _backStack = new();
+
+    // Set when the viewer shows a help collection: topics may come from any of its files, and files removed from it
+    // are no longer read. Without it the viewer searches hFile alone through a private collection.
+    private readonly THelpCollection? _collection;
+    private THelpCollection? _ownSearchCollection;
+    private string _lastQuery = string.Empty;
 
     /// <summary>Creates a viewer in owner-relative character-cell bounds, references the scrollbars and help store, and loads the initial context.</summary>
     public THelpViewer(TRect bounds, TScrollBar? aHScrollBar,
@@ -35,6 +44,28 @@ public class THelpViewer : TScroller
         hFile = aHelpFile;
         _currentRef = context;
         topic = aHelpFile.GetTopic(context);
+        topic.SetWidth(size.x);
+        SetLimit(78, topic.NumLines());
+        selected = 1;
+    }
+
+    /// <summary>
+    /// Creates a viewer over a help collection and loads the context from the first registered file that defines it
+    /// (the first file when none does). Links in a topic lead to topics of the same file.
+    /// </summary>
+    /// <exception cref="ArgumentException">The collection has no registered files.</exception>
+    public THelpViewer(TRect bounds, TScrollBar? aHScrollBar,
+        TScrollBar? aVScrollBar, THelpCollection help, ushort context)
+        : base(bounds, aHScrollBar, aVScrollBar)
+    {
+        ArgumentNullException.ThrowIfNull(help);
+        options |= Views.ofSelectable;
+        growMode = (byte)(Views.gfGrowHiX | Views.gfGrowHiY);
+        _collection = help;
+        hFile = help.FindContext(context)
+            ?? (help.Files.Count > 0 ? help.Files[0] : throw new ArgumentException("The help collection has no registered files.", nameof(help)));
+        _currentRef = context;
+        topic = hFile.GetTopic(context);
         topic.SetWidth(size.x);
         SetLimit(78, topic.NumLines());
         selected = 1;
@@ -132,22 +163,49 @@ public class THelpViewer : TScroller
         if (d.x != delta.x || d.y != delta.y) ScrollTo(d.x, d.y);
     }
 
-    /// <summary>Loads a context after saving the current context on the back-navigation stack.</summary>
+    /// <summary>Loads a context of the current file after saving the current context on the back-navigation stack.</summary>
     public void NavigateTo(int keyRef)
     {
-        _backStack.Push(_currentRef);
+        _backStack.Push((hFile, _currentRef));
         _currentRef = keyRef;
         SwitchToTopic(keyRef);
     }
 
-    /// <summary>Returns to the most recent saved context; does nothing when navigation history is empty.</summary>
+    /// <summary>
+    /// Shows a context of the given help file, saving the current topic on the back-navigation stack. A viewer over a
+    /// help collection only opens files still registered in it.
+    /// </summary>
+    /// <returns>Whether the topic was opened.</returns>
+    public bool NavigateTo(THelpFile file, int context)
+    {
+        ArgumentNullException.ThrowIfNull(file);
+        if (!CanRead(file)) return false;
+        _backStack.Push((hFile, _currentRef));
+        hFile = file;
+        _currentRef = context;
+        SwitchToTopic(context);
+        return true;
+    }
+
+    /// <summary>
+    /// Returns to the most recent saved topic, skipping topics of files removed from the help collection; does nothing
+    /// when navigation history is empty.
+    /// </summary>
     public void GoBack()
     {
-        if (_backStack.Count == 0) return;
-        int prev = _backStack.Pop();
-        _currentRef = prev;
-        SwitchToTopic(prev);
+        while (_backStack.Count > 0)
+        {
+            var (file, prev) = _backStack.Pop();
+            if (!CanRead(file)) continue;
+            hFile = file;
+            _currentRef = prev;
+            SwitchToTopic(prev);
+            return;
+        }
     }
+
+    private bool CanRead(THelpFile file)
+        => _collection == null || _collection.Contains(file);
 
     /// <summary>Navigates to context 1, preserving the current context for back navigation.</summary>
     public void GoToIndex() => NavigateTo(IndexContext);
@@ -155,7 +213,8 @@ public class THelpViewer : TScroller
     /// <summary>Loads and redraws a topic, resets scrolling and link selection, and leaves navigation history unchanged.</summary>
     public void SwitchToTopic(int keyRef)
     {
-        topic = hFile.GetTopic(keyRef);
+        // A file removed from the collection has had its stream closed; show the "no help" topic instead.
+        topic = _collection == null || _collection.Contains(hFile) ? hFile.GetTopic(keyRef) : hFile.InvalidTopic();
         topic.SetWidth(size.x);
         ScrollTo(0, 0);
         SetLimit(limit.x, topic.NumLines());
@@ -205,6 +264,10 @@ public class THelpViewer : TScroller
                     case Keys.kbAltI:
                         GoToIndex();
                         break;
+                    case Keys.kbAltS:
+                        ClearEvent(ref ev);
+                        Search();
+                        return;
                     case Keys.kbEsc:
                         ev.What = Events.evCommand;
                         ev.message.command = Views.cmClose;
@@ -251,6 +314,10 @@ public class THelpViewer : TScroller
                         DrawView();
                         ClearEvent(ref ev);
                         break;
+                    case Views.cmHelpSearch:
+                        ClearEvent(ref ev);
+                        Search();
+                        break;
                     case Views.cmClose:
                         if (owner != null && (owner.state & Views.sfModal) != 0)
                         {
@@ -261,6 +328,65 @@ public class THelpViewer : TScroller
                 }
                 break;
         }
+    }
+
+    /// <summary>
+    /// Searches the text of the help this viewer shows: every file of its collection, or its own file. Asks for the
+    /// words (offering the previous query), lists the matching topics with the file each comes from, and opens the
+    /// chosen one; Backspace then returns to the topic shown before.
+    /// </summary>
+    /// <remarks>Runs modal dialogs in the group that owns the help window. See <see cref="THelpCollection.Search"/>.</remarks>
+    public void Search()
+    {
+        TGroup? host = SearchHost();
+        if (host == null) return;
+        var (code, value) = MsgBox.InputBox(host,
+            TSharpVisionIntl.Get("Help_Search_Title", "Search Help"),
+            TSharpVisionIntl.Get("Help_Search_Words", "~W~ords"), _lastQuery, 60);
+        if (code == Views.cmCancel || code == 0) return;
+        string query = value.Trim();
+        if (query.Length == 0) return;
+        _lastQuery = query;
+
+        var results = SearchCollection().Search(query);
+        if (results.Count == 0)
+        {
+            MsgBox.MessageBox(host,
+                string.Format(TSharpVisionIntl.Get("Help_Search_NoResults", "No help topics contain '{0}'."), query),
+                MsgBox.mfInformation | MsgBox.mfOKButton);
+            return;
+        }
+
+        var dialog = new THelpSearchResultsDialog(host, results);
+        try
+        {
+            if (host.ExecView(dialog) != Views.cmOK || dialog.Selected is not { } chosen) return;
+            if (!NavigateTo(chosen.File, chosen.Context))
+                MsgBox.MessageBox(host,
+                    TSharpVisionIntl.Get("Help_Search_Unavailable", "That help file is no longer available."),
+                    MsgBox.mfError | MsgBox.mfOKButton);
+            owner?.Select();
+            DrawView();
+        }
+        finally { dialog.ShutDown(); }
+    }
+
+    // The group the help window lives in (normally the desktop), so search dialogs open beside it.
+    private TGroup? SearchHost()
+    {
+        TGroup? window = owner;
+        return window?.owner ?? window;
+    }
+
+    private THelpCollection SearchCollection()
+    {
+        if (_collection != null) return _collection;
+        if (_ownSearchCollection == null || !_ownSearchCollection.Contains(hFile))
+        {
+            _ownSearchCollection = new THelpCollection();
+            _ownSearchCollection.Add(hFile, TSharpVisionIntl.Get("Help_WindowTitle", "Help"));
+        }
+        return _ownSearchCollection;
     }
 
     private static int CharLen(char[] b)

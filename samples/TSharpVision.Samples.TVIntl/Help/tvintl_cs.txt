@@ -30,8 +30,9 @@ Menu Soubor otevírá textové soubory. Tyto příkazy vytvoří nemodální
 editorové okno, takže F1 v tomto okně otevře kontextovou nápovědu pro
 otevřený soubor.
 
-Menu Jazyk přepíná za běhu mezi angličtinou, češtinou a Pseudo/Debug
-providerem.
+Menu Jazyk přepíná za běhu mezi angličtinou, češtinou, dalšími
+vestavěnými jazyky frameworku (němčina, španělština, francouzština,
+italština, polština, slovenština) a Pseudo/Debug providerem.
 
 Menu Ukázky otevírá lokalizované modální dialogy, souborové dialogy a
 diagnostické příklady. Modální ukázkové dialogy mají vlastní UI a v této
@@ -61,12 +62,29 @@ Viz také {Ukázka kódování:Encoding}.
   ----------------
 Menu Jazyk mění TSharpVisionIntl.Current za běhu aplikace.
 
-Angličtina a čeština se načítají z .tvr string resources. Pseudo/Debug
-provider je implementovaný pouze v tomto sample projektu a zvýrazňuje,
-které texty procházejí lokalizační vrstvou.
+Při startu sample použije jazyk ze sekce [localization] v souboru
+TSharpVision.Samples.TVIntl.cfg vedle spustitelného souboru, například:
+
+  [localization]
+  language=cs
+
+Bez tohoto nastavení sample startuje anglicky. Položka "Výchozí
+z konfigurace" vrátí nastavený jazyk.
+
+Texty sample se načítají z app_en.tvr a app_cs.tvr. Texty frameworku
+(tlačítka, message boxy, souborové dialogy) pocházejí z překladů
+vestavěných v TSharpVision.dll; pro přepínání za běhu si je sample
+vyžádá voláním TSharpVisionIntl.CreateBuiltInProvider a předřadí jim
+vlastní texty. Žádné soubory .tvr frameworku se nedodávají. Jazyky bez
+textů sample zobrazí anglické texty sample s přeloženými dialogy
+frameworku. Pseudo/Debug provider je implementovaný pouze v tomto sample
+projektu a zvýrazňuje, které texty procházejí lokalizační vrstvou.
 
 Po přepnutí jazyka sample znovu sestaví menu bar a status line. Otevřená
-okna zůstávají na ploše.
+okna zůstávají na ploše a ponechávají si texty, se kterými vznikla:
+pohledy si popisky kopírují při vytvoření, takže je přepnutí znovu
+nepřeloží. Nový jazyk uvidíte po zavření a novém otevření okna nebo
+dialogu.
 
 Viz také {String resources:Resources}.
 

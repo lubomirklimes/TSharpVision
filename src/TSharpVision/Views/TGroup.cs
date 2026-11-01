@@ -418,8 +418,6 @@ public class TGroup : TView
             if (temp == last || temp is null)
                 return null;
         }
-
-        throw new NotImplementedException("TGroup.FirstMatch not implemented."); 
     }
 
     /// <summary>Returns the child's one-based position from the first child, or zero when absent.</summary>

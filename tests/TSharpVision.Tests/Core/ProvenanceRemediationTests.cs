@@ -122,6 +122,20 @@ public sealed class ProvenanceRemediationTests : IDisposable
             }
         }
     }
+    // Drawing used tabSize as a divisor directly, so a zero tabSize threw DivideByZeroException from Draw.
+    [Theory]
+    [InlineData(0)] [InlineData(1)] [InlineData(3)] [InlineData(8)]
+    public void Editor_DrawPlacesTabStopsLikeColumnMath(uint width)
+    {
+        TEditor.tabSize = width; const string text = "a\tb\t\tc";
+        var host = new TestGroup(new TRect(0, 0, 40, 1)) { buffer = new ScreenBuffer(40) };
+        host.state |= (ushort)(Views.sfVisible | Views.sfExposed);
+        var editor = Editor(text, 0); editor.SetBounds(new TRect(0, 0, 40, 1)); host.Insert(editor);
+        editor.Draw();
+        var row = new string(host.buffer.Data[..40].ToArray().Select(c => c.Character).ToArray());
+        for (int offset = 0; offset < text.Length; offset++)
+            if (text[offset] != '\t') Assert.Equal(text[offset], row[editor.CharPos(0, (uint)offset)]);
+    }
     [Theory]
     [InlineData("")] [InlineData("a\nb\n")] [InlineData("a\rb")]
     [InlineData("a\r\nb")] [InlineData("😀č\tlast")] [InlineData("\t\r\n\t\n\t")]

@@ -56,7 +56,32 @@ public class TProgram : TGroup
     /// <summary>Desktop group that owns application windows.</summary>
     public TDeskTop? DeskTop { get; set; }
     /// <summary>Palette family used to resolve standard application colors.</summary>
+    /// <remarks>Assigning this property does not repaint; use <see cref="SetAppPalette"/> to switch a running program.</remarks>
     public AP AppPalette { get; set; }
+
+    /// <summary>
+    /// Switches the logical application palette family and repaints the whole program, including buffered and
+    /// modal views, in this one call. Selecting the current family does nothing.
+    /// </summary>
+    /// <param name="palette">The palette family to resolve standard application colors with.</param>
+    /// <remarks>
+    /// Call on the UI thread of a constructed, running program. To start in a family, set <see cref="AppPalette"/>
+    /// from an <see cref="InitScreen"/> override instead. Only the logical palette changes: the screen mode, shadow
+    /// size, <see cref="TView.showMarkers"/> and the driver's colors are left as they are, and views that draw fixed
+    /// attributes or their own color schemes keep them. <see cref="SetScreenMode"/> selects a legacy mode and
+    /// re-derives the family from <see cref="TScreen.ScreenMode"/>.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="palette"/> is not a defined family.</exception>
+    /// <exception cref="ObjectDisposedException">The program has been shut down.</exception>
+    public void SetAppPalette(AP palette)
+    {
+        if (!Enum.IsDefined(palette))
+            throw new ArgumentOutOfRangeException(nameof(palette), palette, "Undefined application palette family.");
+        ObjectDisposedException.ThrowIf(_shutDown, this);
+        if (AppPalette == palette) return;
+        AppPalette = palette;
+        Redraw();
+    }
 
     /// <summary>Single pending event returned before normal queued input.</summary>
     protected static TEvent Pending;
@@ -142,6 +167,8 @@ public class TProgram : TGroup
             return;
         }
         long wakeGeneration = TEventQueue.WakeGeneration;
+        // Pixel-graphics layers follow views opened/moved/closed over them before this frame is presented.
+        TSharpVision.Drivers.PixelGraphicsSynchronization.BeforePresent(this);
         TScreen.ActiveDriver.PumpMessages();
 
         // One posted event per pass. Every loop reaches this method through the owner chain,
@@ -321,23 +348,54 @@ public class TProgram : TGroup
                     _helpWindow.Select();
                     ClearEvent(ref @event);
                 }
-                else
+                else if (OpenHelpWindow())
                 {
-                    var hf = GetHelpFile();
-                    if (hf != null)
+                    ClearEvent(ref @event);
+                }
+            }
+
+            // Help search from anywhere (a menu item or status-line key): open help if needed, then search it.
+            if (@event.message.command == Views.cmHelpSearch)
+            {
+                if (_helpWindow != null && !ReferenceEquals(_helpWindow.owner, DeskTop))
+                    _helpWindow = null;
+                if (_helpWindow != null || OpenHelpWindow())
+                {
+                    ClearEvent(ref @event);
+                    if (_helpWindow is { } window)
                     {
-                        var helpCtxNow = GetHelpCtx();
-                        var window = new THelpWindow(hf, helpCtxNow);
-                        if (DeskTop != null && ValidView(window) != null)
-                        {
-                            ExecuteHelp(window);
-                            ClearEvent(ref @event);
-                        }
+                        window.Select();
+                        window.Viewer?.Search();
                     }
                 }
             }
         }
     }
+
+    // Builds a help window for the current context from GetHelpCollection, or from GetHelpFile when the program has
+    // no collection with files, and hands it to ExecuteHelp. Returns false when the program supplies no help.
+    private bool OpenHelpWindow()
+    {
+        var helpCtxNow = GetHelpCtx();
+        THelpWindow window;
+        var collection = GetHelpCollection();
+        if (collection != null && collection.Files.Count > 0)
+            window = new THelpWindow(collection, helpCtxNow);
+        else if (GetHelpFile() is { } hf)
+            window = new THelpWindow(hf, helpCtxNow);
+        else
+            return false;
+        if (DeskTop == null || ValidView(window) == null) return false;
+        ExecuteHelp(window);
+        return true;
+    }
+
+    /// <summary>
+    /// Returns the application's help collection, or null to use <see cref="GetHelpFile"/>. When it has files, F1 help
+    /// opens the topic from the first registered file that defines the context, and help search covers every file.
+    /// </summary>
+    /// <remarks>The program does not dispose the collection; the application owns it.</remarks>
+    public virtual THelpCollection? GetHelpCollection() => null;
 
     // application-supplied help-file factory. Default returns null, which suppresses the
     // cmHelp dispatch above. Subclasses override to bind a THelpFile.
@@ -480,20 +538,40 @@ public class TProgram : TGroup
             Redraw();
     }
 
-    // Real video-mode change is a driver concern; we just refresh the screen geometry from
-    // the active driver and re-expose the desktop.
-    /// <summary>Refreshes root geometry, palette, and drawing from the current screen state; the mode argument does not switch the backend mode.</summary>
+    // Real video-mode change is a driver concern: the mode goes to TScreen.SetVideoMode, which records it as the
+    // logical mode, and the root then refreshes palette, geometry and drawing from it.
+    /// <summary>
+    /// Selects a logical screen mode and repaints the program in it: <see cref="TDisplay.SM.CO80"/> selects
+    /// <see cref="AP.Color"/>, <see cref="TDisplay.SM.BW80"/> <see cref="AP.BlackWhite"/> and
+    /// <see cref="TDisplay.SM.Mono"/> <see cref="AP.Monochrome"/>, through <see cref="InitScreen"/>, which also sets
+    /// shadows and markers. Zero keeps the current <see cref="TScreen.ScreenMode"/> and only re-derives and repaints.
+    /// </summary>
+    /// <param name="mode">
+    /// A legacy mode, normalized by <see cref="TScreen.FixCrtMode"/> (an unknown low byte becomes CO80, and
+    /// <see cref="TDisplay.SM.Font8x8"/> is kept), or zero to refresh from the current mode.
+    /// </param>
+    /// <remarks>
+    /// Shipped drivers keep their physical display, so no resolution, font or row count changes; only the logical
+    /// mode and what <see cref="InitScreen"/> derives from it do. To change the palette family alone, leaving shadows,
+    /// markers and the mode as they are, use <see cref="SetAppPalette"/>.
+    /// </remarks>
     public void SetScreenMode(ushort mode)
     {
         TRect r;
+        // Zero is not a mode Turbo Vision runs in (FixCrtMode would turn it into CO80). Before 1.2 this method
+        // ignored its argument, and callers that set TScreen.ScreenMode themselves pass 0 to apply it.
+        if (mode != 0)
+            TScreen.SetVideoMode(mode);
         InitScreen();
         // syncScreenBuffer() equivalent: re-grab the driver's buffer.
         buffer = TScreen.ScreenBuffer;
         r = new TRect(0, 0, TScreen.ScreenWidth, TScreen.ScreenHeight);
         ChangeBounds(r);
+        // Upstream order: re-expose, then redraw. Redrawing while unexposed paints nothing, which left the previous
+        // palette on screen whenever the size was unchanged and ChangeBounds had not repainted.
         SetState(Views.sfExposed, false);
-        Redraw();
         SetState(Views.sfExposed, true);
+        Redraw();
     }
 
     /// <summary>
@@ -596,6 +674,10 @@ public class TProgram : TGroup
     }
 
     private volatile bool _shutDown;
+
+    // Directory, with a trailing separator, of the file last accepted by an Open file dialog of this program (TV12k).
+    // Lives only as long as this program: nothing is saved and other programs in the process have their own.
+    internal string? FileDialogSessionDirectory { get; set; }
 
     /// <summary>The root view has no owner, so it stays a valid post target until shutdown.</summary>
     internal override bool CanReceivePostedEvents => !_shutDown;

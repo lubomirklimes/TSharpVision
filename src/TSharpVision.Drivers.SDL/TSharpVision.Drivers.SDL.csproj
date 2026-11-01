@@ -54,34 +54,36 @@
        On all platforms the runtime loads these bytes and passes them to
        SDL3_shadercross CompileGraphicsShaderFromSPIRV (no DXC needed at runtime). -->
   <ItemGroup>
-    <EmbeddedResource Include="Gpu\Shaders\BgVert.spv" />
-    <EmbeddedResource Include="Gpu\Shaders\BgFrag.spv" />
-    <EmbeddedResource Include="Gpu\Shaders\GlyphVert.spv" />
-    <EmbeddedResource Include="Gpu\Shaders\GlyphFrag.spv" />
+    <!-- Every committed blob; a shader is named <Name>Vert.spv / <Name>Frag.spv after its HLSL source. -->
+    <EmbeddedResource Include="Gpu\Shaders\*.spv" />
   </ItemGroup>
 
   <!-- ── CompileHlslShaders ──────────────────────────────────────────────────
        Offline HLSL → SPIR-V compilation using DXC.
-       Run manually when shader sources change:
+       Run manually when shader sources change (all Gpu\Shaders\*Vert.hlsl / *Frag.hlsl):
          dotnet msbuild -t:CompileHlslShaders src/TSharpVision.Drivers.SDL/TSharpVision.Drivers.SDL.csproj
        Requires Windows (DXC is a Windows x64 binary from the NuGet package).
        The generated .spv files are committed to the repository so that macOS
        and Linux builds never need DXC at build time or runtime.
        ─────────────────────────────────────────────────────────────────────── -->
+  <ItemGroup>
+    <_VertexHlsl   Include="$(_ShadersDir)*Vert.hlsl" />
+    <_FragmentHlsl Include="$(_ShadersDir)*Frag.hlsl" />
+  </ItemGroup>
+
   <Target Name="CompileHlslShaders"
           Condition="$([MSBuild]::IsOSPlatform('Windows'))"
-          Inputs="$(_ShadersDir)BgVert.hlsl;$(_ShadersDir)BgFrag.hlsl;$(_ShadersDir)GlyphVert.hlsl;$(_ShadersDir)GlyphFrag.hlsl"
-          Outputs="$(_ShadersDir)BgVert.spv;$(_ShadersDir)BgFrag.spv;$(_ShadersDir)GlyphVert.spv;$(_ShadersDir)GlyphFrag.spv">
+          Inputs="@(_VertexHlsl);@(_FragmentHlsl)"
+          Outputs="@(_VertexHlsl->'$(_ShadersDir)%(Filename).spv');@(_FragmentHlsl->'$(_ShadersDir)%(Filename).spv')">
 
     <Error Condition="!Exists('$(_DxcExe)')"
            Text="DXC not found at '$(_DxcExe)'. Run 'dotnet restore' first to download the Microsoft.Direct3D.DXC package." />
 
     <Message Text="Compiling HLSL shaders to SPIR-V..." Importance="high" />
 
-    <Exec Command="&quot;$(_DxcExe)&quot; -spirv -T vs_6_0 -E main &quot;$(_ShadersDir)BgVert.hlsl&quot;    -Fo &quot;$(_ShadersDir)BgVert.spv&quot;" />
-    <Exec Command="&quot;$(_DxcExe)&quot; -spirv -T ps_6_0 -E main &quot;$(_ShadersDir)BgFrag.hlsl&quot;    -Fo &quot;$(_ShadersDir)BgFrag.spv&quot;" />
-    <Exec Command="&quot;$(_DxcExe)&quot; -spirv -T vs_6_0 -E main &quot;$(_ShadersDir)GlyphVert.hlsl&quot; -Fo &quot;$(_ShadersDir)GlyphVert.spv&quot;" />
-    <Exec Command="&quot;$(_DxcExe)&quot; -spirv -T ps_6_0 -E main &quot;$(_ShadersDir)GlyphFrag.hlsl&quot; -Fo &quot;$(_ShadersDir)GlyphFrag.spv&quot;" />
+    <!-- *Vert.hlsl → vs_6_0, *Frag.hlsl → ps_6_0, entry point main, output beside the source. -->
+    <Exec Condition="'%(_VertexHlsl.Identity)' != ''" Command="&quot;$(_DxcExe)&quot; -spirv -T vs_6_0 -E main &quot;%(_VertexHlsl.FullPath)&quot; -Fo &quot;$(_ShadersDir)%(_VertexHlsl.Filename).spv&quot;" />
+    <Exec Condition="'%(_FragmentHlsl.Identity)' != ''" Command="&quot;$(_DxcExe)&quot; -spirv -T ps_6_0 -E main &quot;%(_FragmentHlsl.FullPath)&quot; -Fo &quot;$(_ShadersDir)%(_FragmentHlsl.Filename).spv&quot;" />
 
     <Message Text="SPIR-V output written to Gpu\Shaders\ — commit the .spv files to the repository." Importance="high" />
   </Target>

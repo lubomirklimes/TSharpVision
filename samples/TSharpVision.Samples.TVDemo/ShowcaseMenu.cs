@@ -8,7 +8,10 @@ internal static class ShowcaseCmd
         LoadDesktop = 327, Tetris = 328, Selection = 329, Outline = 330,
         Popup = 331, CodeEditor = 332, HexView = 333, TableView = 334,
         Terminal = 335, ComboBox = 336, Progress = 337, PaletteGallery = 338,
-        GroupBox = 339, CharacterMap = 350;
+        GroupBox = 339, CharacterMap = 350,
+        PaletteColor = 351, PaletteBlackWhite = 352, PaletteMonochrome = 353,
+        GraphicsGallery = 354, LiveChart = 355,
+        Styx = 356; // not 340: ProgressDemo uses 340..344 for its own commands
 
     public const ushort FileOpenDialog = 500, FileSaveDialog = 501, ChangeDirectory = 502,
         MessageBoxes = 503, InputBox = 504, ValidatedInput = 505, Memo = 506;
@@ -16,8 +19,43 @@ internal static class ShowcaseCmd
 
 public partial class TVDemoApp
 {
+    // Options/Framework palette switches TProgram's logical palette family; Window/Save desktop state records it (with
+    // all three family tables) and startup or Window/Load desktop state restores it (Persistence.cs). Views with fixed
+    // or their own colors (accessories, games, palette galleries, code editor syntax, terminal output) keep them.
+    private static readonly (TProgram.AP Palette, string Caption, ushort Command)[] PaletteModes =
+    {
+        (AP.Color, "~C~olor", ShowcaseCmd.PaletteColor),
+        (AP.BlackWhite, "~B~lack and white", ShowcaseCmd.PaletteBlackWhite),
+        (AP.Monochrome, "~M~onochrome", ShowcaseCmd.PaletteMonochrome),
+    };
+
+    // Assigned by InitMenuBar from the base constructor; field initializers run before that, so none can overwrite it.
+    private TMenuItem[] _paletteModeItems = null!;
+
+    private TMenuItem[] CreatePaletteModeItems() =>
+        _paletteModeItems = PaletteModes.Select(m => new TMenuItem(m.Caption, m.Command, Keys.kbNoKey)).ToArray();
+
+    // Marks the active family radio-style, so a palette set by any route is shown the next time the menu opens.
+    private void UpdatePaletteModeIndicators()
+    {
+        if (_paletteModeItems == null) return;
+        for (int i = 0; i < PaletteModes.Length; i++)
+        {
+            char mark = PaletteModes[i].Palette == AppPalette ? TSharpVisionGlyphs.RadioChecked : ' ';
+            _paletteModeItems[i].Name = $"({mark}) {PaletteModes[i].Caption}";
+        }
+    }
+
+    private void SelectPaletteMode(ushort command)
+    {
+        SetAppPalette(PaletteModes.Single(m => m.Command == command).Palette);
+        UpdatePaletteModeIndicators();
+    }
+
     public override TMenuBar InitMenuBar(TRect r)
     {
+        CreatePaletteModeItems();
+        UpdatePaletteModeIndicators();
         r.b.y = r.a.y + 1;
         var menu = new TMenuBar(r,
             new TSubMenu($"~{TSharpVisionGlyphs.SystemMenu}~", Keys.kbAltSpace) +
@@ -28,6 +66,9 @@ public partial class TVDemoApp
                 TMenuItem.NewLine() +
                 new TMenuItem("~P~uzzle", TVDemoCmd.cmPuzzle, Keys.kbNoKey) +
                 new TMenuItem("~T~etris", ShowcaseCmd.Tetris, Keys.kbNoKey) +
+                new TMenuItem("~S~TYX graphics", ShowcaseCmd.Styx, Keys.kbNoKey) +
+                new TMenuItem("~G~raphics gallery", ShowcaseCmd.GraphicsGallery, Keys.kbNoKey) +
+                new TMenuItem("Li~v~e chart", ShowcaseCmd.LiveChart, Keys.kbNoKey) +
             new TSubMenu("~F~ile", Keys.kbAltF) +
                 new TMenuItem("~N~ew demonstration window", ShowcaseCmd.NewWindow, Keys.kbF4, Views.hcNoContext, "F4") +
                 new TMenuItem("Open file ~v~iewer...", TVDemoCmd.cmFileViewer, Keys.kbF3, Views.hcNoContext, "F3") +
@@ -69,6 +110,7 @@ public partial class TVDemoApp
                 new TMenuItem("~H~eap / memory", TVDemoCmd.cmHeap, Keys.kbNoKey) +
             new TSubMenu("~O~ptions", Keys.kbAltO) +
                 new TMenuItem("UI ~c~olors...", ShowcaseCmd.Colors, Keys.kbNoKey) +
+                WithDisplayPresetSubmenus(DemoSubmenu("~F~ramework palette", _paletteModeItems)) +
             new TSubMenu("~W~indow", Keys.kbAltW) +
                 new TMenuItem("~N~ext", Views.cmNext, Keys.kbF6, Views.hcNoContext, "F6") +
                 new TMenuItem("~P~revious", Views.cmPrev, Keys.kbShiftF6, Views.hcNoContext, "Shift+F6") +
@@ -82,6 +124,7 @@ public partial class TVDemoApp
                 new TMenuItem("L~o~ad desktop state", ShowcaseCmd.LoadDesktop, Keys.kbNoKey) +
             new TSubMenu("~H~elp", Keys.kbAltH) +
                 new TMenuItem("~I~ndex", Views.cmHelpIndex, Keys.kbNoKey) +
+                new TMenuItem("~S~earch...", Views.cmHelpSearch, Keys.kbNoKey) +
                 new TMenuItem("~A~bout", TVDemoCmd.cmAbout, Keys.kbNoKey));
         menu.helpCtx = DemoHelpCtx.MainMenu;
         return menu;
@@ -125,9 +168,14 @@ public partial class TVDemoApp
             case ShowcaseCmd.SaveDesktop: SaveDesktopState(); break;
             case ShowcaseCmd.LoadDesktop: LoadDesktopState(); break;
             case ShowcaseCmd.Tetris: OpenTetris(); break;
+            case ShowcaseCmd.Styx: OpenStyx(); break;
+            case ShowcaseCmd.GraphicsGallery: OpenGraphicsGallery(); break;
+            case ShowcaseCmd.LiveChart: OpenLiveChart(); break;
+            case ShowcaseCmd.PaletteColor or ShowcaseCmd.PaletteBlackWhite or ShowcaseCmd.PaletteMonochrome:
+                SelectPaletteMode(command); break;
             case Views.cmTile when DeskTop is TDeskTop tileDesktop: tileDesktop.Tile(tileDesktop.GetExtent()); break;
             case Views.cmCascade when DeskTop is TDeskTop cascadeDesktop: cascadeDesktop.Cascade(cascadeDesktop.GetExtent()); break;
-            default: return false;
+            default: return HandleDisplayPresetCommand(command);
         }
         return true;
     }

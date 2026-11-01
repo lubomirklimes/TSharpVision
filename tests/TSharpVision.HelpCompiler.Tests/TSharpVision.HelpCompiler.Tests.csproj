@@ -23,4 +23,10 @@
     <ProjectReference Include="..\TSharpVision.TestSupport\TSharpVision.TestSupport.csproj" />
   </ItemGroup>
 
+  <!-- RepositoryLayout (TestSupport) finds the repository from redirected output with this relative path. -->
+  <ItemGroup>
+    <AssemblyMetadata Include="TSharpVision.RepositoryRootFromOutput"
+                      Value="$([MSBuild]::MakeRelative($([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(OutDir)')), $([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '..', '..'))))" />
+  </ItemGroup>
+
 </Project>

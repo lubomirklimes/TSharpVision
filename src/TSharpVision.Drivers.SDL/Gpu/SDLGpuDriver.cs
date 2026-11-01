@@ -13,7 +13,8 @@ namespace TSharpVision.Drivers.SDL.Gpu;
 [ScreenDriver(System = Platform.Windows, Driver = nameof(SDLGpuDriver), Priority = 300)]
 [ScreenDriver(System = Platform.Linux,   Driver = nameof(SDLGpuDriver), Priority = 300)]
 [ScreenDriver(System = Platform.MacOS,   Driver = nameof(SDLGpuDriver), Priority = 300)]
-public partial class SDLGpuDriver : IDisposable, IDriver, IIdleWaitDriver, IGridSizeDriver
+public partial class SDLGpuDriver : IDisposable, IDriver, IIdleWaitDriver, IGridSizeDriver,
+    IPhysicalPaletteDriver, IDisplayEffectDriver
 {
     private readonly SdlIdleWait _idleWait = new();
 
@@ -66,6 +67,78 @@ public partial class SDLGpuDriver : IDisposable, IDriver, IIdleWaitDriver, IGrid
 
     /// <summary>The typed font fitting mode resolved during initialization.</summary>
     internal FontFitMode FontFit { get; private set; }
+
+    // Physical palette and display effect. [graphics] palette/effect seed them once, at the first
+    // Initialize, unless the application already selected one; Resume keeps the running choice.
+    private static readonly string[] PaletteIds = GpuPhysicalPalette.All.Select(p => p.Id).ToArray();
+    private GpuPhysicalPalette _physicalPalette = GpuPhysicalPalette.Default;
+    private GpuDisplayEffect   _displayEffect   = GpuDisplayEffect.Default;
+    private bool _paletteSelected;
+    private bool _effectSelected;
+
+    /// <inheritdoc />
+    public IReadOnlyList<string> PhysicalPalettes => PaletteIds;
+    /// <inheritdoc />
+    public string PhysicalPalette => _physicalPalette.Id;
+
+    /// <inheritdoc />
+    public void SetPhysicalPalette(string palette)
+    {
+        ArgumentNullException.ThrowIfNull(palette);
+        if (!GpuPhysicalPalette.TryFind(palette, out GpuPhysicalPalette selected))
+            throw new ArgumentException(
+                $"Unknown physical palette '{palette}'. Supported: {string.Join(", ", PaletteIds)}.", nameof(palette));
+        _paletteSelected = true;
+        if (ReferenceEquals(selected, _physicalPalette)) return;
+        _physicalPalette = selected;
+        if (_gpuRenderer != null) _gpuRenderer.PhysicalPalette = selected;
+        RequestFullRepaint();
+    }
+
+    /// <inheritdoc />
+    public IReadOnlyList<string> DisplayEffects => GpuDisplayEffects.All;
+    /// <inheritdoc />
+    public string DisplayEffect => GpuDisplayEffects.Id(_displayEffect);
+
+    /// <inheritdoc />
+    public void SetDisplayEffect(string effect)
+    {
+        ArgumentNullException.ThrowIfNull(effect);
+        if (!GpuDisplayEffects.TryParse(effect, out GpuDisplayEffect selected))
+            throw new ArgumentException(
+                $"Unknown display effect '{effect}'. Supported: {string.Join(", ", GpuDisplayEffects.All)}.", nameof(effect));
+        _effectSelected = true;
+        if (selected == _displayEffect) return;
+        _displayEffect = selected;
+        if (_gpuRenderer != null) _gpuRenderer.DisplayEffect = selected;
+        RequestFullRepaint();
+    }
+
+    // The cell buffer is unchanged; only its presentation is. One more frame of the same buffer.
+    private void RequestFullRepaint()
+    {
+        _hasDirtyRegion = false;
+        _dirty = true;
+    }
+
+    // [graphics] palette/effect. An unknown id warns and keeps Default: a config written for a newer
+    // driver must not stop an older one from starting.
+    internal void ApplyConfiguredPresentation(GraphicsDriverConfiguration? graphics)
+    {
+        if (!_paletteSelected && graphics?.Palette is { } paletteId)
+        {
+            if (GpuPhysicalPalette.TryFind(paletteId, out GpuPhysicalPalette palette)) _physicalPalette = palette;
+            else Console.Error.WriteLine(
+                $"[SDLGpu] Unknown [graphics] palette '{paletteId}'; using Default. Supported: {string.Join(", ", PaletteIds)}.");
+        }
+        if (!_effectSelected && graphics?.Effect is { } effectId)
+        {
+            if (GpuDisplayEffects.TryParse(effectId, out GpuDisplayEffect effect)) _displayEffect = effect;
+            else Console.Error.WriteLine(
+                $"[SDLGpu] Unknown [graphics] effect '{effectId}'; using Default. Supported: {string.Join(", ", GpuDisplayEffects.All)}.");
+        }
+        _paletteSelected = _effectSelected = true;
+    }
 
     /// <inheritdoc />
     public void Initialize() => Initialize(() =>
@@ -127,6 +200,10 @@ public partial class SDLGpuDriver : IDisposable, IDriver, IIdleWaitDriver, IGrid
             {
                 SimulatePipelineFailureForTesting = SimulateShaderPipelineFailureForTesting,
             };
+            ApplyConfiguredPresentation(graphics);
+            _gpuRenderer.PhysicalPalette = _physicalPalette;
+            _gpuRenderer.DisplayEffect   = _displayEffect;
+            _gpuRenderer.GraphicsFrame   = _graphicsLayers.Frame;
             _gpuRenderer.Initialize();
 
             // Size the window so its drawable holds exactly the default grid of drawable cells.
@@ -381,7 +458,7 @@ public partial class SDLGpuDriver : IDisposable, IDriver, IIdleWaitDriver, IGrid
         if (!_coalescer.TryFlush(
                 out int px, out int py, out byte held, out uint controlKeyState))
             return;
-        var cell = SdlMouseTranslator.PixelToCell(px, py, _metrics.PixelWidth, _metrics.PixelHeight);
+        var cell = DrawablePixelToCell(px, py);
         var mev  = SdlMouseTranslator.MakeEvent(
             SdlMouseEventKind.Move, 0, cell.x, cell.y,
             heldButtons: held, controlKeyState: controlKeyState);
@@ -400,8 +477,31 @@ public partial class SDLGpuDriver : IDisposable, IDriver, IIdleWaitDriver, IGrid
     private TPoint WindowToCell(float x, float y)
     {
         var (px, py) = _scale.WindowToPixel(x, y);
+        return DrawablePixelToCell(px, py);
+    }
+
+    /// <summary>
+    /// Cell under a drawable-pixel position. While Curvature is on screen a pixel shows the grid at
+    /// <see cref="GpuCurvature.MapPixelToSourcePixel"/> (the shader's own destination-to-source formula),
+    /// so hit-testing follows the warp; points in the black border clamp to the nearest edge cell.
+    /// Every other effect, and a frame that fell back to Default, keeps the direct mapping.
+    /// </summary>
+    private TPoint DrawablePixelToCell(int px, int py)
+    {
+        if (PresentedEffect == GpuDisplayEffect.Curvature)
+        {
+            int gridW = _cols * _metrics.PixelWidth, gridH = _rows * _metrics.PixelHeight;
+            GpuCurvature.MapPixelToSourcePixel(px, py, gridW, gridH, out px, out py);
+        }
         return SdlMouseTranslator.PixelToCell(px, py, _metrics.PixelWidth, _metrics.PixelHeight);
     }
+
+    /// <summary>The effect the last presented frame actually drew (Default while detached).</summary>
+    internal GpuDisplayEffect PresentedEffect =>
+        PresentedEffectOverrideForTesting ?? _gpuRenderer?.PresentedEffect ?? GpuDisplayEffect.Default;
+
+    /// <summary>Replaces the renderer's presented effect for pointer-mapping tests without SDL. Null in normal operation.</summary>
+    internal GpuDisplayEffect? PresentedEffectOverrideForTesting { get; set; }
 
     /// <summary>
     /// Re-reads the window's size and pixel density. A density change asks the renderer to
@@ -529,6 +629,7 @@ public partial class SDLGpuDriver : IDisposable, IDriver, IIdleWaitDriver, IGrid
     {
         _idleWait.Stop();
         TEventQueue.Wake();
+        _graphicsLayers.Clear();
         if (!_attached) return;
         // Do not destroy the window or quit SDL if the worker is still accessing them.
         _gpuRenderer?.Dispose();

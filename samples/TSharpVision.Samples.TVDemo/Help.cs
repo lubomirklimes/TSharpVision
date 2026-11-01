@@ -57,6 +57,7 @@ public partial class TVDemoApp
         _helpStream?.Close();
         _helpStream = null;
         _helpFile = null;
+        RestorePaletteTablesAtStart();
         base.ShutDown();
     }
 }

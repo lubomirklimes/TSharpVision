@@ -41,6 +41,7 @@ public partial class TVDemoApp : TApplication
         // Code editor windows use the standard save/discard/cancel prompts.
         TEditorDialogHelper.Install(DeskTop);
         OpenWelcomeWindow();
+        CapturePaletteTablesAtStart();
         LoadPalette();
     }
 
@@ -144,6 +145,8 @@ public partial class TVDemoApp : TApplication
     public override void Idle()
     {
         base.Idle();
+        UpdatePaletteModeIndicators();
+        UpdateDisplayPresetIndicators();
         // Every open instance must keep updating, not just the newest one.
         DeskTop?.ForEachView(view =>
         {

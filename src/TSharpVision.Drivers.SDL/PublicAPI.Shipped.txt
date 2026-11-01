@@ -72,3 +72,17 @@ TSharpVision.Drivers.SDL.SDLDriver.WaitForEvent(int timeoutMilliseconds, System.
 TSharpVision.Drivers.SDL.SDLDriver.WriteBuf(int x, int y, int w, int h, System.Span<TSharpVision.TScreenChar> buf) -> void
 virtual TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.Dispose(bool disposing) -> void
 virtual TSharpVision.Drivers.SDL.SDLDriver.Dispose(bool disposing) -> void
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.DisplayEffect.get -> string!
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.DisplayEffects.get -> System.Collections.Generic.IReadOnlyList<string!>!
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.PhysicalPalette.get -> string!
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.PhysicalPalettes.get -> System.Collections.Generic.IReadOnlyList<string!>!
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.SetDisplayEffect(string! effect) -> void
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.SetPhysicalPalette(string! palette) -> void
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.CellPixelHeight.get -> int
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.CellPixelWidth.get -> int
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.RemoveGraphicsLayer(object! owner) -> void
+TSharpVision.Drivers.SDL.SDLDriver.CellPixelHeight.get -> int
+TSharpVision.Drivers.SDL.SDLDriver.CellPixelWidth.get -> int
+TSharpVision.Drivers.SDL.SDLDriver.RemoveGraphicsLayer(object! owner) -> void
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.SetGraphicsLayer(object! owner, System.ReadOnlySpan<TSharpVision.Drivers.PixelRect> clip, System.ReadOnlySpan<TSharpVision.Drivers.GraphicsPrimitive> primitives, System.ReadOnlySpan<TSharpVision.Drivers.PixelImage!> images = default(System.ReadOnlySpan<TSharpVision.Drivers.PixelImage!>)) -> void
+TSharpVision.Drivers.SDL.SDLDriver.SetGraphicsLayer(object! owner, System.ReadOnlySpan<TSharpVision.Drivers.PixelRect> clip, System.ReadOnlySpan<TSharpVision.Drivers.GraphicsPrimitive> primitives, System.ReadOnlySpan<TSharpVision.Drivers.PixelImage!> images = default(System.ReadOnlySpan<TSharpVision.Drivers.PixelImage!>)) -> void

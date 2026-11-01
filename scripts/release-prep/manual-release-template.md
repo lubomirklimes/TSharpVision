@@ -11,7 +11,7 @@ The remote name, intended branch and exact release commit have NOT been establis
 no-Git preparation. Owner must supply them; never assume `origin` or `main`.
 
 ```powershell
-Set-Location '{{ROOT}}'
+# From the root of the checkout you prepared:
 git remote -v
 git branch --show-current
 git status --short --branch
@@ -26,7 +26,7 @@ git diff --cached
 - [ ] Resolve outstanding platform, fallback, appearance and release-owner gates before publication.
   Check the actual evidence for Windows, Linux and macOS; skipped or unexecuted checks are not passes.
   A successful documentation preview does not establish production test or runtime qualification.
-Review README, CHANGELOG, release-notes draft, runbook and both skill entry points.
+Review README, CHANGELOG, the release-notes draft, this runbook and scripts/release-prep/README.md.
 Use the exact heading `## {{VERSION}}` in CHANGELOG; put a date or pending state in its body.
 
 Supply values only after reviewing the outputs above:
@@ -71,8 +71,7 @@ review locally and deliberately choose whether an artifact belongs in the commit
 ```powershell
 # Repeat with each exact reviewed repository-relative path:
 git add -- 'README.md' 'CHANGELOG.md'
-git add -- '.agents/skills/tsharpvision-release-prep/SKILL.md' '.claude/skills/tsharpvision-release-prep/SKILL.md'
-git add -- 'scripts/release-prep/prepare.py' 'scripts/release-prep/test_prepare.py' 'scripts/release-prep/manual-release-template.md'
+git add -- 'scripts/release-prep/prepare.py' 'scripts/release-prep/test_prepare.py' 'scripts/release-prep/manual-release-template.md' 'scripts/release-prep/README.md'
 # Also stage the approved release source/test/version files after reviewing their actual status.
 git diff --cached --stat
 git diff --cached
@@ -172,8 +171,10 @@ Package inventory to check individually on NuGet.org at {{VERSION}}:
 
 Verify ID/version, dependencies aligned to {{VERSION}}, net10.0 payload, license/readme,
 symbol packages and repository commit metadata. Download/inspect package metadata if necessary.
+Libraries have a symbol package; the .NET tool packages have none (their PDBs are in the tool payload)
+and no package dependencies. Install each tool from NuGet.org into a temporary tool path and run its command.
 - [ ] Reconcile the generated inventory with the current release package manifest and local
-  validation evidence for every nupkg and matching snupkg, including dependencies and symbols.
+  validation evidence for every library nupkg and matching snupkg and every tool nupkg, including dependencies and symbols.
   Release-prep evaluates metadata; it does not pack packages or run production tests.
   Local package validation does not establish NuGet publication.
 - [ ] Verify final package and distribution provenance against the exact reviewed release commit

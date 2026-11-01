@@ -188,7 +188,8 @@ public class TEditorApp : TApplication
         if (ValidView(dlg) == null) return;
 
         ushort result = DeskTop.ExecView(dlg);
-        if (result == Views.cmOK)
+        // The Open button ends the dialog with cmFileOpen and a double-click with cmOK; both mean an accepted name.
+        if (result is Views.cmFileOpen or Views.cmOK)
         {
             dlg.GetData(out string chosen);
             if (!string.IsNullOrEmpty(chosen))

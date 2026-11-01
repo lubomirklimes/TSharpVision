@@ -2884,3 +2884,136 @@ override TSharpVision.TGroupBox.HandleEvent(ref TSharpVision.TEvent event) -> vo
 override TSharpVision.TGroupBox.SetState(ushort aState, bool enable) -> void
 override TSharpVision.TGroupBox.StreamableName() -> string!
 override TSharpVision.TGroupBox.Write(TSharpVision.Opstream! os) -> void
+TSharpVision.TProgram.SetAppPalette(TSharpVision.TProgram.AP palette) -> void
+TSharpVision.TColorDialog.BindLivePalette(TSharpVision.TPalette! livePalette, System.Action! repaint) -> void
+override TSharpVision.TColorDialog.Close() -> void
+override TSharpVision.TColorDialog.Execute() -> ushort
+override TSharpVision.TColorDialog.ShutDown() -> void
+static TSharpVision.TSharpVisionIntl.BuiltInLanguages.get -> System.Collections.Generic.IReadOnlyList<string!>!
+static TSharpVision.TSharpVisionIntl.CreateBuiltInProvider(string? language) -> TSharpVision.ITSharpVisionStringProvider?
+static TSharpVision.TSharpVisionIntl.UseBuiltInLanguage(string? language) -> bool
+TSharpVision.Config.GraphicsDriverConfiguration.Effect.get -> string?
+TSharpVision.Config.GraphicsDriverConfiguration.Effect.init -> void
+TSharpVision.Config.GraphicsDriverConfiguration.Palette.get -> string?
+TSharpVision.Config.GraphicsDriverConfiguration.Palette.init -> void
+TSharpVision.Drivers.DisplayPresetNames
+const TSharpVision.Drivers.DisplayPresetNames.Amber = "Amber" -> string!
+const TSharpVision.Drivers.DisplayPresetNames.Curvature = "Curvature" -> string!
+const TSharpVision.Drivers.DisplayPresetNames.Default = "Default" -> string!
+const TSharpVision.Drivers.DisplayPresetNames.Glow = "Glow" -> string!
+const TSharpVision.Drivers.DisplayPresetNames.Grayscale = "Grayscale" -> string!
+const TSharpVision.Drivers.DisplayPresetNames.Green = "Green" -> string!
+const TSharpVision.Drivers.DisplayPresetNames.Scanlines = "Scanlines" -> string!
+const TSharpVision.Drivers.DisplayPresetNames.ShadowMask = "ShadowMask" -> string!
+TSharpVision.Drivers.IDisplayEffectDriver
+TSharpVision.Drivers.IDisplayEffectDriver.DisplayEffect.get -> string!
+TSharpVision.Drivers.IDisplayEffectDriver.DisplayEffects.get -> System.Collections.Generic.IReadOnlyList<string!>!
+TSharpVision.Drivers.IDisplayEffectDriver.SetDisplayEffect(string! effect) -> void
+TSharpVision.Drivers.IPhysicalPaletteDriver
+TSharpVision.Drivers.IPhysicalPaletteDriver.PhysicalPalette.get -> string!
+TSharpVision.Drivers.IPhysicalPaletteDriver.PhysicalPalettes.get -> System.Collections.Generic.IReadOnlyList<string!>!
+TSharpVision.Drivers.IPhysicalPaletteDriver.SetPhysicalPalette(string! palette) -> void
+override TSharpVision.TFileDialog.Execute() -> ushort
+override TSharpVision.TFileDialog.SetState(ushort aState, bool enable) -> void
+TSharpVision.THelpCollection
+TSharpVision.THelpCollection.Add(TSharpVision.THelpFile! file, string! name) -> void
+TSharpVision.THelpCollection.Clear() -> void
+TSharpVision.THelpCollection.Contains(TSharpVision.THelpFile! file) -> bool
+TSharpVision.THelpCollection.Dispose() -> void
+TSharpVision.THelpCollection.Files.get -> System.Collections.Generic.IReadOnlyList<TSharpVision.THelpFile!>!
+TSharpVision.THelpCollection.FindContext(int context) -> TSharpVision.THelpFile?
+TSharpVision.THelpCollection.GetName(TSharpVision.THelpFile! file) -> string?
+TSharpVision.THelpCollection.GetTopic(int context) -> TSharpVision.THelpTopic!
+TSharpVision.THelpCollection.Open(string! path, string? name = null) -> TSharpVision.THelpFile!
+TSharpVision.THelpCollection.Remove(TSharpVision.THelpFile! file) -> bool
+TSharpVision.THelpCollection.Search(string! query, int maxResults = 200) -> System.Collections.Generic.IReadOnlyList<TSharpVision.THelpSearchResult!>!
+TSharpVision.THelpCollection.THelpCollection() -> void
+TSharpVision.THelpSearchResult
+TSharpVision.THelpSearchResult.Context.get -> int
+TSharpVision.THelpSearchResult.File.get -> TSharpVision.THelpFile!
+TSharpVision.THelpSearchResult.Score.get -> int
+TSharpVision.THelpSearchResult.Source.get -> string!
+TSharpVision.THelpSearchResult.Title.get -> string!
+TSharpVision.THelpViewer.NavigateTo(TSharpVision.THelpFile! file, int context) -> bool
+TSharpVision.THelpViewer.Search() -> void
+TSharpVision.THelpViewer.THelpViewer(TSharpVision.TRect bounds, TSharpVision.TScrollBar? aHScrollBar, TSharpVision.TScrollBar? aVScrollBar, TSharpVision.THelpCollection! help, ushort context) -> void
+TSharpVision.THelpWindow.THelpWindow(TSharpVision.THelpCollection! help, ushort context) -> void
+TSharpVision.THelpWindow.Viewer.get -> TSharpVision.THelpViewer?
+const TSharpVision.Constants.Views.cmHelpSearch = 69 -> ushort
+virtual TSharpVision.TProgram.GetHelpCollection() -> TSharpVision.THelpCollection?
+TSharpVision.Drivers.GraphicsPrimitive
+TSharpVision.Drivers.GraphicsPrimitive.Equals(TSharpVision.Drivers.GraphicsPrimitive other) -> bool
+TSharpVision.Drivers.GraphicsPrimitive.GraphicsPrimitive() -> void
+TSharpVision.Drivers.GraphicsPrimitive.Kind.get -> TSharpVision.Drivers.GraphicsPrimitiveKind
+TSharpVision.Drivers.GraphicsPrimitive.Kind.init -> void
+TSharpVision.Drivers.GraphicsPrimitive.Rgba.get -> uint
+TSharpVision.Drivers.GraphicsPrimitive.Rgba.init -> void
+TSharpVision.Drivers.GraphicsPrimitive.X1.get -> int
+TSharpVision.Drivers.GraphicsPrimitive.X1.init -> void
+TSharpVision.Drivers.GraphicsPrimitive.X2.get -> int
+TSharpVision.Drivers.GraphicsPrimitive.X2.init -> void
+TSharpVision.Drivers.GraphicsPrimitive.Y1.get -> int
+TSharpVision.Drivers.GraphicsPrimitive.Y1.init -> void
+TSharpVision.Drivers.GraphicsPrimitive.Y2.get -> int
+TSharpVision.Drivers.GraphicsPrimitive.Y2.init -> void
+TSharpVision.Drivers.GraphicsPrimitiveKind
+TSharpVision.Drivers.GraphicsPrimitiveKind.FillRect = 1 -> TSharpVision.Drivers.GraphicsPrimitiveKind
+TSharpVision.Drivers.GraphicsPrimitiveKind.Line = 0 -> TSharpVision.Drivers.GraphicsPrimitiveKind
+TSharpVision.Drivers.IPixelGraphicsDriver
+TSharpVision.Drivers.IPixelGraphicsDriver.CellPixelHeight.get -> int
+TSharpVision.Drivers.IPixelGraphicsDriver.CellPixelWidth.get -> int
+TSharpVision.Drivers.IPixelGraphicsDriver.RemoveGraphicsLayer(object! owner) -> void
+TSharpVision.Drivers.PixelRect
+TSharpVision.Drivers.PixelRect.Deconstruct(out int X, out int Y, out int W, out int H) -> void
+TSharpVision.Drivers.PixelRect.Equals(TSharpVision.Drivers.PixelRect other) -> bool
+TSharpVision.Drivers.PixelRect.H.get -> int
+TSharpVision.Drivers.PixelRect.H.init -> void
+TSharpVision.Drivers.PixelRect.IsEmpty.get -> bool
+TSharpVision.Drivers.PixelRect.PixelRect() -> void
+TSharpVision.Drivers.PixelRect.PixelRect(int X, int Y, int W, int H) -> void
+TSharpVision.Drivers.PixelRect.W.get -> int
+TSharpVision.Drivers.PixelRect.W.init -> void
+TSharpVision.Drivers.PixelRect.X.get -> int
+TSharpVision.Drivers.PixelRect.X.init -> void
+TSharpVision.Drivers.PixelRect.Y.get -> int
+TSharpVision.Drivers.PixelRect.Y.init -> void
+override TSharpVision.Drivers.GraphicsPrimitive.GetHashCode() -> int
+override TSharpVision.Drivers.PixelRect.GetHashCode() -> int
+static TSharpVision.Drivers.GraphicsPrimitive.FillRect(int x, int y, int width, int height, uint rgba) -> TSharpVision.Drivers.GraphicsPrimitive
+static TSharpVision.Drivers.GraphicsPrimitive.Line(int x1, int y1, int x2, int y2, uint rgba) -> TSharpVision.Drivers.GraphicsPrimitive
+static TSharpVision.Drivers.GraphicsPrimitive.operator !=(TSharpVision.Drivers.GraphicsPrimitive left, TSharpVision.Drivers.GraphicsPrimitive right) -> bool
+static TSharpVision.Drivers.GraphicsPrimitive.operator ==(TSharpVision.Drivers.GraphicsPrimitive left, TSharpVision.Drivers.GraphicsPrimitive right) -> bool
+static TSharpVision.Drivers.PixelRect.operator !=(TSharpVision.Drivers.PixelRect left, TSharpVision.Drivers.PixelRect right) -> bool
+static TSharpVision.Drivers.PixelRect.operator ==(TSharpVision.Drivers.PixelRect left, TSharpVision.Drivers.PixelRect right) -> bool
+~override TSharpVision.Drivers.GraphicsPrimitive.Equals(object obj) -> bool
+~override TSharpVision.Drivers.GraphicsPrimitive.ToString() -> string
+~override TSharpVision.Drivers.PixelRect.Equals(object obj) -> bool
+~override TSharpVision.Drivers.PixelRect.ToString() -> string
+TSharpVision.Drivers.GraphicsImageFilter
+TSharpVision.Drivers.GraphicsImageFilter.Linear = 1 -> TSharpVision.Drivers.GraphicsImageFilter
+TSharpVision.Drivers.GraphicsImageFilter.Nearest = 0 -> TSharpVision.Drivers.GraphicsImageFilter
+TSharpVision.Drivers.GraphicsPrimitive.Deconstruct(out TSharpVision.Drivers.GraphicsPrimitiveKind Kind, out int X1, out int Y1, out int X2, out int Y2, out uint Rgba, out int ImageIndex, out TSharpVision.Drivers.GraphicsImageFilter Filter) -> void
+TSharpVision.Drivers.GraphicsPrimitive.Filter.get -> TSharpVision.Drivers.GraphicsImageFilter
+TSharpVision.Drivers.GraphicsPrimitive.Filter.init -> void
+TSharpVision.Drivers.GraphicsPrimitive.GraphicsPrimitive(TSharpVision.Drivers.GraphicsPrimitiveKind Kind, int X1, int Y1, int X2, int Y2, uint Rgba, int ImageIndex = 0, TSharpVision.Drivers.GraphicsImageFilter Filter = TSharpVision.Drivers.GraphicsImageFilter.Nearest) -> void
+TSharpVision.Drivers.GraphicsPrimitive.ImageIndex.get -> int
+TSharpVision.Drivers.GraphicsPrimitive.ImageIndex.init -> void
+TSharpVision.Drivers.GraphicsPrimitiveKind.Image = 2 -> TSharpVision.Drivers.GraphicsPrimitiveKind
+TSharpVision.Drivers.IPixelGraphicsDriver.SetGraphicsLayer(object! owner, System.ReadOnlySpan<TSharpVision.Drivers.PixelRect> clip, System.ReadOnlySpan<TSharpVision.Drivers.GraphicsPrimitive> primitives, System.ReadOnlySpan<TSharpVision.Drivers.PixelImage!> images = default(System.ReadOnlySpan<TSharpVision.Drivers.PixelImage!>)) -> void
+TSharpVision.Drivers.PixelGraphicsSynchronization
+TSharpVision.Drivers.PixelImage
+TSharpVision.Drivers.PixelImage.Height.get -> int
+TSharpVision.Drivers.PixelImage.Id.get -> long
+TSharpVision.Drivers.PixelImage.PixelImage(int width, int height, System.ReadOnlySpan<byte> rgba, int stride = 0) -> void
+TSharpVision.Drivers.PixelImage.Pixels.get -> System.ReadOnlySpan<byte>
+TSharpVision.Drivers.PixelImage.Stride.get -> int
+TSharpVision.Drivers.PixelImage.Width.get -> int
+TSharpVision.Drivers.PixelImageFill
+const TSharpVision.Drivers.GraphicsPrimitive.MaxLineExtent = 16384 -> int
+const TSharpVision.Drivers.PixelImage.MaxBytes = 268435456 -> long
+const TSharpVision.Drivers.PixelImage.MaxDimension = 16384 -> int
+static TSharpVision.Drivers.GraphicsPrimitive.Image(int imageIndex, int x, int y, int width, int height, TSharpVision.Drivers.GraphicsImageFilter filter = TSharpVision.Drivers.GraphicsImageFilter.Nearest, byte opacity = 255) -> TSharpVision.Drivers.GraphicsPrimitive
+static TSharpVision.Drivers.PixelImage.Create(int width, int height, TSharpVision.Drivers.PixelImageFill! fill) -> TSharpVision.Drivers.PixelImage!
+virtual TSharpVision.Drivers.PixelImageFill.Invoke(System.Span<byte> rgba) -> void
+static TSharpVision.Drivers.PixelGraphicsSynchronization.Register(System.Action<TSharpVision.TProgram!>! synchronize) -> void
+static TSharpVision.Drivers.PixelGraphicsSynchronization.Unregister(System.Action<TSharpVision.TProgram!>! synchronize) -> void

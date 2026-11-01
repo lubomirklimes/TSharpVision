@@ -1,5 +1,53 @@
 # Changelog
 
+## 1.2.0
+
+Display and graphics release: runtime switching between the Color, BlackWhite and Monochrome palette families, physical palettes and display effects on the SDL GPU driver, and the new optional `TSharpVision.Graphics` package for pixel graphics and images, shown in TVDemo by STYX, a graphics gallery and a live chart. Supporting changes add built-in framework translations with runtime language switching, help search across several help files and a session-only file-dialog directory.
+
+### Added
+
+- `TProgram.SetAppPalette(TProgram.AP)` switches a running program between the Color, BlackWhite and Monochrome logical palette families and repaints the whole program, including buffered and overlapping views and an open modal dialog or dropdown. The family is a logical palette: it changes neither the driver's colours nor the screen mode.
+- `TColorDialog.BindLivePalette(livePalette, repaint)` opts in to live preview: Try applies the edits to the running program and can be repeated, OK keeps them, and Cancel, Escape or the close box restore the exact snapshot. Without the call the dialog behaves as before.
+- Physical palettes and display effects on `SDLGpuDriver`: palettes `Default`, `Green`, `Amber` and `Grayscale`, effects `Default`, `Scanlines`, `Glow`, `Curvature` and `ShadowMask`. Select them with `[graphics] palette=` and `effect=` (typed `GraphicsDriverConfiguration.Palette` and `Effect`), or at run time through the optional `IPhysicalPaletteDriver` and `IDisplayEffectDriver` interfaces on `TDisplay.driver`; `DisplayPresetNames` holds the common ids.
+  - Only the SDL GPU driver implements them. `SDLDriver` always draws `Default`, and the Console, Terminal and Null drivers are unaffected. A driver decorator hides both capabilities unless it forwards them.
+  - A physical palette recolours only the 16 text attribute colours; RGBA pixel graphics are never recoloured. It composes with the logical palette family, so a Monochrome program can be shown in Amber.
+  - One display effect is active at a time; effects cannot be stacked. Glow, Curvature and ShadowMask need the GPU shader path: on the CPU-composite fallback, or when their GPU resources cannot be created, the frame is shown as `Default` with one warning. Under Curvature, mouse positions follow the warp.
+  - An unknown configured id writes a warning naming the supported ids and uses `Default`; `Default` adds no render pass or per-frame allocation.
+- Optional pixel graphics capability in core, `TSharpVision.Drivers`: `IPixelGraphicsDriver` (per-owner graphics layers clipped to pixel rectangles), `PixelRect`, `GraphicsPrimitive` (line, filled rectangle, image), `GraphicsImageFilter` (Nearest, Linear), `PixelImage` (an immutable copy of decoded RGBA8888 pixels with straight alpha) and `PixelGraphicsSynchronization`. `SDLGpuDriver` and `SDLDriver` implement it; the Console, Terminal and Null drivers do not.
+- New optional package `TSharpVision.Graphics`, which depends only on `TSharpVision`:
+  - `GView` keeps a display list of `GObject`s (`GLine`, `GBox`, `GImage`) and `GWindow` hosts one; `GraphicsCanvas` draws lines, rectangles, open or closed polylines, filled and outlined ellipses, filled rectangles and images. `TestPatterns` generates checkerboard, gradient and colour-bar images.
+  - `GImage` shows a `PixelImage` fitted (aspect-preserving) or stretched, with nearest or linear filtering and opacity. There are no image codecs: the application decodes PNG, JPEG or other formats to RGBA8888 itself.
+  - Clipping is recomputed immediately before every present, so a window, dialog or menu opened over a graphics view is never painted over, not even for one frame. A graphics view submits only to the driver of the program that is presenting, and a fully covered animated view pauses until it is uncovered. Animation timers only post to the UI thread.
+  - On a driver without `IPixelGraphicsDriver` the views show fallback text and submit no pixels. The default text ("Pixel graphics need an SDL display driver.") is the framework string `Graphics_Unavailable`, translated in every built-in language and following runtime language switching; a `GView.UnavailableText` set by the application takes precedence.
+  - Pixels appear only when the application also references `TSharpVision.Drivers.SDL`. `SDLGpuDriver` draws the primitives in an instanced GPU pass; both SDL drivers upload each `PixelImage` once and cache its texture. Lines use an exact integer formula, so CPU, GPU and SDL renderer output match for opaque pixels; there is no antialiasing.
+- TVDemo: **≡ > STYX graphics** (a port of the TVGraph STYX demo), **Graphics gallery** (shapes, transparency, clipping, nearest vs linear images) and **Live chart** (animated polylines and translucent bars). On text drivers each shows an information box. **Options > Framework palette** switches the palette family; with `SDLGpuDriver`, **Options > Physical palette** and **Options > Display effect** apply a preset immediately.
+- Built-in framework translations: `TSharpVision` embeds Czech, German, Spanish, French, Italian, Polish and Slovak beside the built-in English. `[localization] language=` selects one when `TSharpVisionRuntime.Run` or `Configure` loads the configuration, before the application is constructed; an optional `tsharpvision_<lang>.tvr` beside the application overrides it, and missing keys fall back to English. `TSharpVisionIntl.UseBuiltInLanguage`, `CreateBuiltInProvider` and `BuiltInLanguages` switch languages at run time. The language is never taken from the operating system.
+- Help v2: `THelpCollection` combines several `.hlp` files (the first registration wins for a context), and `TProgram.GetHelpCollection()` supplies it to F1. `THelpCollection.Search` performs case-insensitive, multi-word full-text search over topic bodies with deterministic ranking and results labelled by source; single-file help is searchable too. In the help window, **Alt+S** (`cmHelpSearch`) prompts for words, lists the matching topics and opens one; Backspace returns. Its prompts are translated in every built-in language, and TVDemo adds **Help > Search...**. The `.hlp` formats and `svhc` are unchanged.
+- The command-line tools are published as .NET tool packages: `TSharpVision.ResourceCompiler` (`svrc`), `TSharpVision.HelpCompiler` (`svhc`) and `TSharpVision.ResourceTools` (`svres`). Install them with `dotnet tool install --global TSharpVision.ResourceCompiler --version 1.2.0` (and likewise for the other two) or into a local tool manifest. Their command-line syntax is unchanged; each prints its usage with `--help` or `-h` and its version with `--version`.
+- File dialogs remember the directory of the last file accepted in an Open dialog for the rest of the session: later file dialogs of the same program start there unless the caller chose a start directory. It is kept in memory only, the working directory is never changed, and Cancel, browsing, rejected names and Save-style dialogs leave it unchanged; a deleted directory falls back to the original start.
+
+### Changed
+
+- `TProgram.SetScreenMode(mode)` applies a nonzero legacy mode: CO80 selects Color, BW80 BlackWhite and Mono Monochrome, together with the matching shadows and markers; `Font8x8` is kept as a logical flag. `SetScreenMode(0)` keeps its 1.1 meaning, refreshing from `TScreen.ScreenMode`. `TDisplay.SetCrtMode` forwards to the driver, and the shipped drivers keep their display mode.
+- The `[localization] language` setting, read but not applied in 1.1, now selects the framework translation. An application's own `TSharpVisionIntl.Current` provider still takes precedence.
+- TVDemo's desktop state records the active palette family and all three family tables; files saved by earlier versions load as Color. Its accessories and games (ASCII table, Calculator, Calendar, Clock, Puzzle, Tetris) follow the BlackWhite and Monochrome families.
+
+### Fixed
+
+- `TScreen.Suspend` and `Resume` no longer throw `NotImplementedException` while a logical Mono or BW mode is active, for example after `TScreen.ScreenMode = SM.Mono` followed by suspend or disposal; `TScreen.FixCrtMode` and `SetVideoMode` follow the Turbo Vision rules.
+- `TProgram.SetScreenMode` repaints the program when the screen size is unchanged.
+- `TEditorApp.FileOpen` opens the file when the Open or OK button accepts it, not only after a double-click; the TVIntl and TVTerm samples are fixed the same way.
+- The color dialogs of TVDemo and TVTerm preview colours with Try; previously Try had no visible effect.
+- `svres` (`validate`, `list`, `show`, `dump`) fails with exit code 1 and a `TRV0001` error for a file that is not a `.tvr`, or whose header, index or a resource entry is truncated or out of range; previously `validate` reported such a file as valid with no resources.
+- `svhc` writes the `.hlp` and symbol files only after a successful compilation; a failed compilation leaves existing output files unchanged instead of a partial `.hlp`.
+
+### Compatibility
+
+- All nine library packages and their internal package dependencies use 1.2.0, as do the three tool packages. The public API changes are additive: 1.0 and 1.1 declarations are retained, and package validation uses 1.1.0 as its baseline.
+- `TSharpVision.Graphics` is a new package ID in its first release, without a validation baseline. Its only package dependency is `TSharpVision`; `TSharpVision.Drivers.SDL` does not depend on it.
+- The three tool packages are new package IDs. Each contains the `TSharpVision` assembly it was built with and declares no package dependencies; they need the .NET 10 runtime.
+- `IDriver`, `TScreenChar`, `TColorAttr` and the Borland palette bytes are unchanged. Drivers and decorators do not need to implement the new optional interfaces.
+
 ## 1.1.0
 
 Feature release with three new dialog controls, optional driver extension points, consistent keyboard window resizing, and focus, mnemonic and dialog fixes.

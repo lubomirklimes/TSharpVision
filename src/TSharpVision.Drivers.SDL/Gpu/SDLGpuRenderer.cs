@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using TSharpVision.Config;
 using System.Runtime.InteropServices;
+using TSharpVision.Drivers.SDL.Graphics;
 using TSharpVision.Drivers.SDL.Rendering.Fonts;
 using TSharpVision.Drivers.SDL.Rendering.GlyphComposition;
 using TSharpVision.Drivers.SDL.Rendering.PixelAnalysis;
@@ -58,6 +59,99 @@ internal sealed partial class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyph
     // its next frame, which re-rasterises the font and rebuilds the atlas at the new size.
     private volatile float _requestedDensity = 1f;
     private float          _activeDensity    = 1f;
+
+    // Physical palette and display effect: written by the driver (any thread), read once per frame
+    // by the render thread. A reference/enum-sized write is atomic; volatile publishes it.
+    private volatile GpuPhysicalPalette _physicalPalette = GpuPhysicalPalette.Default;
+    private volatile GpuDisplayEffect   _displayEffect   = GpuDisplayEffect.Default;
+
+    /// <summary>
+    /// Physical palette (16-entry output colour table) used by the shader vertex build and the CPU
+    /// fallback. Takes effect on the next frame; the render thread reads it once per frame.
+    /// </summary>
+    internal GpuPhysicalPalette PhysicalPalette
+    {
+        get => _physicalPalette;
+        set => _physicalPalette = value ?? throw new ArgumentNullException(nameof(value));
+    }
+
+    /// <summary>
+    /// Display effect applied after the grid is drawn. Scanlines (see <see cref="GpuScanlineGeometry"/>):
+    /// by the shader pipeline as a third, lazily created blended pass, and by the CPU fallback on the
+    /// composited pixels. Post-process effects (<see cref="GpuPostEffectCatalog"/>): by the shader
+    /// pipeline through an offscreen texture; the CPU fallback renders them as Default (see
+    /// <see cref="PresentedEffect"/>). Takes effect on the next frame; the render thread reads it once per frame.
+    /// Changing it rebuilds no font or atlas.
+    /// </summary>
+    internal GpuDisplayEffect DisplayEffect
+    {
+        get => _displayEffect;
+        set => _displayEffect = value;
+    }
+
+    // The effect the render thread read for the frame it is presenting (once per RenderLoop
+    // iteration). The capture served in that iteration rerenders with the same value, so a capture
+    // shows what was presented even if DisplayEffect changes concurrently.
+    private GpuDisplayEffect _frameEffect = GpuDisplayEffect.Default;
+
+    // Pixel graphics layers (IPixelGraphicsDriver). The UI thread publishes an immutable frame; SubmitFrame pins it
+    // with the cell snapshot under _snapLock, so text and graphics of one presented frame always belong together.
+    private PixelGraphicsFrame _graphicsFrame = PixelGraphicsFrame.Empty;
+    private PixelGraphicsFrame _snapGraphics  = PixelGraphicsFrame.Empty;
+    private PixelGraphicsFrame _frameGraphics = PixelGraphicsFrame.Empty;
+    private readonly List<DeviceRect> _graphicsRects = new();
+
+    /// <summary>The layers the next submitted frame shows. Set on the UI thread by the driver.</summary>
+    internal PixelGraphicsFrame GraphicsFrame
+    {
+        get => Volatile.Read(ref _graphicsFrame);
+        set => Volatile.Write(ref _graphicsFrame, value ?? PixelGraphicsFrame.Empty);
+    }
+
+    // Logical layer coordinates to drawable pixels at the density the render thread draws with.
+    private PixelScale GraphicsScale =>
+        new(_metrics.LogicalWidth > 0 ? _metrics.LogicalWidth : _cellWidth,
+            _metrics.LogicalHeight > 0 ? _metrics.LogicalHeight : _cellHeight,
+            _cellWidth, _cellHeight);
+
+    /// <summary>Graphics pass instances (one per drawn primitive) of the last shader frame. Tests.</summary>
+    internal int LastGraphicsInstanceCount => _termPipeline?.LastGraphicsInstanceCount ?? 0;
+
+    /// <summary>Non-null when the shader graphics pass could not be created. Diagnostics and tests.</summary>
+    internal string? GraphicsUnavailableReason => _termPipeline?.GraphicsUnavailableReason;
+
+    /// <summary>
+    /// Non-null when Scanlines was requested but the shader pipeline could not create its pass;
+    /// frames then render without the effect (logged once to stderr). Diagnostics and tests.
+    /// </summary>
+    internal string? ScanlinesUnavailableReason => _termPipeline?.ScanlinesUnavailableReason;
+
+    /// <summary>
+    /// Non-null when a post-process effect (Glow, ...) was requested but its offscreen texture,
+    /// sampler or pipeline could not be created; frames then render Default (logged once to
+    /// stderr). Diagnostics and tests.
+    /// </summary>
+    internal string? PostProcessUnavailableReason => _termPipeline?.PostProcessUnavailableReason;
+
+    // Written by the render thread after each presented frame; read by the driver (any thread).
+    private volatile GpuDisplayEffect _presentedEffect = GpuDisplayEffect.Default;
+
+    /// <summary>
+    /// The display effect the last presented frame actually drew: <see cref="DisplayEffect"/>, or
+    /// <see cref="GpuDisplayEffect.Default"/> when that effect is unavailable, not implemented yet,
+    /// or not supported by the CPU-compositing fallback (post-process effects).
+    /// </summary>
+    internal GpuDisplayEffect PresentedEffect => _presentedEffect;
+
+    // One stderr line the first time the CPU fallback is asked for a post-process effect.
+    private bool _cpuPostFallbackLogged;
+
+    /// <summary>What the CPU-compositing fallback draws for <paramref name="effect"/>: post effects become Default.</summary>
+    internal static GpuDisplayEffect CpuFallbackEffect(GpuDisplayEffect effect) =>
+        GpuDisplayEffects.IsPostProcess(effect) ? GpuDisplayEffect.Default : effect;
+
+    /// <summary>The shader pipeline, when active. Native qualification only.</summary>
+    internal TerminalGpuPipeline? PipelineForTesting => _termPipeline;
 
     /// <summary>Cell width in drawable pixels at the density the renderer was initialised with.</summary>
     public int CellWidth  => _cellWidth;
@@ -500,6 +594,7 @@ internal sealed partial class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyph
             for (uint row = 0; row < rows; row++)
                 for (uint col = 0; col < cols; col++)
                     _snap.SetChar(col, row, screenBuffer.GetChar(col, row));
+            _snapGraphics = GraphicsFrame;
             _snapFrame++;
             PinCaptureFrame(cols, rows);
         }
@@ -540,7 +635,9 @@ internal sealed partial class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyph
                 for (uint row = 0; row < rows; row++)
                     for (uint col = 0; col < cols; col++)
                         _privateBuf.SetChar(col, row, _snap!.GetChar(col, row));
+                _frameGraphics = _snapGraphics;
             }
+            _frameEffect = _displayEffect;
             RenderSync(_privateBuf!, 0, 0, cols, rows);
             ServeCaptureRequest();
         }
@@ -599,10 +696,12 @@ internal sealed partial class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyph
                 _cellWidth, _cellHeight);
             LogGridScalingIfChanged(shaderLayout, regionWidth, regionHeight, "shader");
 
+            _termPipeline.SetGraphics(_frameGraphics, GraphicsScale);
             var (vertexBuild, gpuRecord) = _termPipeline.RenderFrame(
                 cmdBuf, swapTex, swapW, swapH,
                 screenBuffer, regionWidth, regionHeight,
-                _cursorX, _cursorY, _cursorType);
+                _cursorX, _cursorY, _cursorType, _physicalPalette, _frameEffect, _metrics.Density);
+            _presentedEffect = _termPipeline.LastDrawnEffect;
             if (_options.DiagnosticsEnabled)
             {
                 _diag.RecordVertexBuild(vertexBuild);
@@ -630,6 +729,8 @@ internal sealed partial class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyph
         // Step 1: composite full screen into CPU pixel buffer.
         var compositeSw = _options.DiagnosticsEnabled ? Stopwatch.StartNew() : null;
         CompositeScreen(screenBuffer, regionX, regionY, regionWidth, regionHeight, screenW);
+        RasterizeGraphics(_frameGraphics, screenW, screenH);
+        ApplyDisplayEffect(_frameEffect, screenW, screenH);
         compositeSw?.Stop();
         if (compositeSw != null) _diag.RecordComposite(compositeSw.Elapsed);
 
@@ -660,6 +761,7 @@ internal sealed partial class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyph
         // Step 3: upload CPU pixels → screen texture; clear the target; blit 1:1 → swapchain.
         var passSw2 = _options.DiagnosticsEnabled ? Stopwatch.StartNew() : null;
         RecordFallbackFrame(cmdBuf2, swapTex2, swapW2, swapH2, regionWidth, regionHeight, screenW, screenH);
+        _presentedEffect = CpuFallbackEffect(_frameEffect);
         passSw2?.Stop();
         if (passSw2 != null) _diag.RecordRenderPass(passSw2.Elapsed);
 
@@ -751,12 +853,46 @@ internal sealed partial class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyph
     /// Runs the CPU-compositing fallback for a full frame into a fresh pixel buffer and returns it
     /// (RGBA8, <c>cols * CellWidth</c> pixels wide). No GPU upload happens. For driver-output qualification.
     /// </summary>
-    internal byte[] CompositeForTesting(ScreenBuffer buf, uint cols, uint rows)
+    internal byte[] CompositeForTesting(ScreenBuffer buf, uint cols, uint rows) =>
+        CompositeForTesting(buf, cols, rows, PixelGraphicsFrame.Empty);
+
+    /// <summary><see cref="CompositeForTesting(ScreenBuffer, uint, uint)"/> with pixel graphics layers.</summary>
+    internal byte[] CompositeForTesting(ScreenBuffer buf, uint cols, uint rows, PixelGraphicsFrame graphics)
     {
         uint screenW = cols * (uint)_cellWidth;
         _cpuPixels = new byte[screenW * rows * (uint)_cellHeight * 4];
         CompositeScreen(buf, 0, 0, cols, rows, screenW);
+        RasterizeGraphics(graphics, screenW, rows * (uint)_cellHeight);
+        ApplyDisplayEffect(_displayEffect, screenW, rows * (uint)_cellHeight);
         return _cpuPixels;
+    }
+
+    // CPU-composite fallback: graphics go into the composed frame before the display effect, as in the shader path.
+    private void RasterizeGraphics(PixelGraphicsFrame graphics, uint width, uint height)
+    {
+        if (graphics.IsEmpty) return;
+        PixelGraphicsRasterizer.Rasterize(_cpuPixels, (int)width, (int)height, (int)width * 4,
+            graphics, GraphicsScale, _graphicsRects);
+    }
+
+    /// <summary>
+    /// CPU-fallback display effect on the composited <c>_cpuPixels</c> (<paramref name="width"/> x
+    /// <paramref name="height"/>, tightly packed RGBA8). Default does nothing; Scanlines darkens the
+    /// device-pixel rows the shader pass covers (strips start at the grid's top row, and the
+    /// fallback blit is 1:1 and top-left anchored like the shader viewport). Post-process effects
+    /// need the shader pipeline: they render as Default here (controlled fallback, logged once).
+    /// </summary>
+    private void ApplyDisplayEffect(GpuDisplayEffect effect, uint width, uint height)
+    {
+        if (GpuDisplayEffects.IsPostProcess(effect) && !_cpuPostFallbackLogged)
+        {
+            _cpuPostFallbackLogged = true;
+            Console.Error.WriteLine(
+                $"[SDLGpu] {GpuDisplayEffects.Id(effect)} display effect needs the shader pipeline; " +
+                "CPU compositing renders Default.");
+        }
+        if (effect != GpuDisplayEffect.Scanlines) return;
+        GpuScanlineGeometry.Apply(_cpuPixels, (int)width, (int)height, (int)width * 4, _metrics.Density);
     }
 
     private void CompositeScreen(
@@ -771,13 +907,16 @@ internal sealed partial class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyph
         uint regionX, uint regionY, uint regionWidth, uint regionHeight,
         uint screenW, int cursorX, int cursorY, ushort cursorType)
     {
+        // One read per composited frame: a concurrent palette change applies to the next frame
+        // instead of tearing this one.
+        ReadOnlySpan<uint> palette = _physicalPalette.ArgbSpan;
         for (uint row = regionY; row < regionY + regionHeight; row++)
         {
             for (uint col = regionX; col < regionX + regionWidth; col++)
             {
                 TScreenChar cell = buf.GetChar(col, row);
                 byte attr = (byte)(cell.Attr & 0xFF);
-                var (fgArgb, bgArgb) = DecodeAttr(attr);
+                var (fgArgb, bgArgb) = DecodeAttr(palette, attr);
 
                 bool isCursor = cursorType != 0 && (int)col == cursorX && (int)row == cursorY;
                 if (isCursor) (fgArgb, bgArgb) = (bgArgb, fgArgb);
@@ -787,7 +926,7 @@ internal sealed partial class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyph
 
                 if (isCursor && cursorType < 100)
                 {
-                    var (origFg, origBg) = DecodeAttr(attr);
+                    var (origFg, origBg) = DecodeAttr(palette, attr);
                     FillCellRect(col, row, origBg, screenW);
                     FillUnderlineBar(col, row, origFg, screenW);
                     fgArgb = origFg;
@@ -1102,38 +1241,34 @@ internal sealed partial class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyph
     /// </summary>
     private static void ClearSwapchain(IntPtr cmdBuf, IntPtr swapTex)
     {
-        SDL3.SDL.GPUColorTargetInfo[] colorTargets =
+        var colorTarget = new SDL3.SDL.GPUColorTargetInfo
         {
-            new()
-            {
-                Texture           = swapTex,
-                MipLevel          = 0,
-                LayerOrDepthPlane = 0,
-                ClearColor        = new SDL3.SDL.FColor { R = 0f, G = 0f, B = 0f, A = 1f },
-                LoadOp            = SDL3.SDL.GPULoadOp.Clear,
-                StoreOp           = SDL3.SDL.GPUStoreOp.Store,
-                Cycle             = false,
-            },
+            Texture           = swapTex,
+            MipLevel          = 0,
+            LayerOrDepthPlane = 0,
+            ClearColor        = new SDL3.SDL.FColor { R = 0f, G = 0f, B = 0f, A = 1f },
+            LoadOp            = SDL3.SDL.GPULoadOp.Clear,
+            StoreOp           = SDL3.SDL.GPUStoreOp.Store,
+            Cycle             = false,
         };
 
-        IntPtr pass = SDL3.SDL.BeginGPURenderPass(cmdBuf, colorTargets, 1u, IntPtr.Zero);
+        // A span over the stack struct: no per-frame array.
+        IntPtr pass = SDL3.SDL.BeginGPURenderPass(
+            cmdBuf, new ReadOnlySpan<SDL3.SDL.GPUColorTargetInfo>(in colorTarget), 1u, IntPtr.Zero);
         SDL3.SDL.EndGPURenderPass(pass);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // VGA 16-color palette (0xAARRGGBB)
+    // 16-color physical palette (0xAARRGGBB); Default = the former Vga16 table
     // ─────────────────────────────────────────────────────────────────────────
 
-    private static readonly uint[] Vga16 =
-    {
-        0xFF000000, 0xFF0000AA, 0xFF00AA00, 0xFF00AAAA,
-        0xFFAA0000, 0xFFAA00AA, 0xFFAA5500, 0xFFAAAAAA,
-        0xFF555555, 0xFF5555FF, 0xFF55FF55, 0xFF55FFFF,
-        0xFFFF5555, 0xFFFF55FF, 0xFFFFFF55, 0xFFFFFFFF,
-    };
+    // The Default physical palette under its historical name, read by reflection by the TV12
+    // guard SdlMonochromePaletteTests.GpuPathsUseTheRendererVgaTable. Rendering uses
+    // PhysicalPalette (Default unless changed), never this copy.
+    private static readonly uint[] Vga16 = GpuPhysicalPalette.Default.Argb.ToArray();
 
-    private static (uint fg, uint bg) DecodeAttr(byte attr) =>
-        (Vga16[attr & 0x0F], Vga16[(attr >> 4) & 0x0F]);
+    private static (uint fg, uint bg) DecodeAttr(ReadOnlySpan<uint> palette, byte attr) =>
+        (palette[attr & 0x0F], palette[(attr >> 4) & 0x0F]);
 
     // ─────────────────────────────────────────────────────────────────────────
     // Clear-only frame (fallback before AllocateScreenBuffer is called)

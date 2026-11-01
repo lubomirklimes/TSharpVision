@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using TSharpVision;
 using TSharpVision.Drivers;
+using TSharpVision.Drivers.SDL.Graphics;
 using TSharpVision.Drivers.SDL.Renderer;
 using TSharpVision.Drivers.SDL.Rendering.Fonts;
 using TSharpVision.Drivers.SDL.Rendering.GlyphComposition;
@@ -128,6 +129,7 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
     {
         _renderer = renderer;
         _fontFit  = fontFit;
+        _imageTextures = new SdlImageTextureCache(new ImageTextureBackend(renderer), QueryMaxTextureSize(renderer));
 
         if (!SDL3.TTF.Init())
             throw new Exception("SDL_ttf could not initialize! " + SDL3.SDL.GetError());
@@ -638,6 +640,9 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
             }
         }
 
+        // 4. Pixel graphics layers over the finished grid (nothing to do without a layer).
+        DrawGraphics();
+
         // Native-pixel qualification reads the finished frame back here: after SDL_RenderPresent
         // the back buffer contents are undefined.
         BeforePresentForTesting?.Invoke(_renderer);
@@ -677,6 +682,159 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
     /// <summary>The shared glyph rasteriser (fit mode, common text size, baseline) for qualification.</summary>
     internal SdlCellGlyphRasterizer? GlyphsForTesting => _cellGlyphs;
 
+    /// <summary>IPixelGraphicsDriver layers drawn by the next frame. Set on the UI thread by the driver.</summary>
+    internal PixelGraphicsFrame GraphicsFrame { get; set; } = PixelGraphicsFrame.Empty;
+
+    // Pixel graphics: the per-frame call list and one texture per PixelImage.
+    private readonly SdlGraphicsPlan _graphicsPlan = new();
+    private readonly SdlImageTextureCache _imageTextures;
+
+    /// <summary>The image texture cache. Tests and diagnostics.</summary>
+    internal SdlImageTextureCache ImageTexturesForTesting => _imageTextures;
+
+    /// <summary>SDL draw calls (fill batches and textures) of the last frame's graphics pass. Tests.</summary>
+    internal int LastGraphicsDrawCalls { get; private set; }
+
+    // Draws the frame's layers over the finished grid (SdlGraphicsPlan: the PixelGraphicsGeometry rectangles,
+    // clipped on the CPU and batched into one SDL_RenderFillRects call per primitive and clip rectangle; images as
+    // cached textures under SDL_SetRenderClipRect), blended source-over with straight alpha like the CPU reference.
+    // The draw blend mode and clip rectangle are restored for the next frame's cells. Without layers this is one
+    // reference comparison and a property read.
+    private void DrawGraphics()
+    {
+        PixelGraphicsFrame frame = GraphicsFrame;
+        _imageTextures.Retain(frame);
+        LastGraphicsDrawCalls = 0;
+        if (frame.IsEmpty) return;
+        var scale = new PixelScale(
+            _metrics.LogicalWidth > 0 ? _metrics.LogicalWidth : _cellWidth,
+            _metrics.LogicalHeight > 0 ? _metrics.LogicalHeight : _cellHeight,
+            _cellWidth, _cellHeight);
+        if (!SDL3.SDL.GetCurrentRenderOutputSize(_renderer, out int outputWidth, out int outputHeight)) return;
+        _graphicsPlan.Build(frame, scale, outputWidth, outputHeight);
+        if (_graphicsPlan.Commands.Count == 0) return;
+
+        SDL3.SDL.GetRenderDrawBlendMode(_renderer, out SDL3.SDL.BlendMode previousBlend);
+        bool previousClipEnabled = SDL3.SDL.RenderClipEnabled(_renderer);
+        SDL3.SDL.Rect previousClip = default;
+        if (previousClipEnabled) SDL3.SDL.GetRenderClipRect(_renderer, out previousClip);
+        bool clipChanged = false;
+        SDL3.SDL.SetRenderDrawBlendMode(_renderer, SDL3.SDL.BlendMode.Blend);
+
+        foreach (SdlGraphicsCommand command in _graphicsPlan.Commands)
+        {
+            if (command.Kind == SdlGraphicsCommandKind.Fill)
+            {
+                // Fill rectangles are clipped already; an image's clip rectangle must not cut them.
+                if (clipChanged) { RestoreClip(previousClipEnabled, previousClip); clipChanged = false; }
+                DrawFillBatch(command);
+                continue;
+            }
+
+            PixelImage image = command.Image!;
+            DeviceRect v = command.Visible;
+            byte opacity = (byte)command.Rgba;
+            uint traceArgb = ((uint)opacity << 24) | 0x00FFFFFFu;
+            IntPtr texture = _imageTextures.Get(image);
+            if (texture == IntPtr.Zero)
+            {
+                Trace?.Record(new SdlRenderOp(SdlRenderOpKind.GraphicsImageSkipped, v.X0, v.Y0, v.X1 - v.X0, v.Y1 - v.Y0,
+                    traceArgb, ImageId: image.Id, ImageFilter: command.Filter));
+                continue;
+            }
+            Trace?.Record(new SdlRenderOp(SdlRenderOpKind.GraphicsImage, v.X0, v.Y0, v.X1 - v.X0, v.Y1 - v.Y0,
+                traceArgb, ImageId: image.Id, ImageFilter: command.Filter));
+            var clip = new SDL3.SDL.Rect
+            {
+                X = command.Clip.X0, Y = command.Clip.Y0,
+                W = command.Clip.X1 - command.Clip.X0, H = command.Clip.Y1 - command.Clip.Y0,
+            };
+            SDL3.SDL.SetRenderClipRect(_renderer, clip);
+            clipChanged = true;
+            SDL3.SDL.SetTextureScaleMode(texture,
+                command.Filter == GraphicsImageFilter.Linear ? SDL3.SDL.ScaleMode.Linear : SDL3.SDL.ScaleMode.Nearest);
+            SDL3.SDL.SetTextureAlphaMod(texture, opacity);
+            SDL3.SDL.FRect destination = command.Destination;
+            if (command.WholeSource) SDL3.SDL.RenderTexture(_renderer, texture, IntPtr.Zero, in destination);
+            else
+            {
+                SDL3.SDL.FRect source = command.Source;
+                SDL3.SDL.RenderTexture(_renderer, texture, in source, in destination);
+            }
+            LastGraphicsDrawCalls++;
+        }
+
+        if (clipChanged) RestoreClip(previousClipEnabled, previousClip);
+        SDL3.SDL.SetRenderDrawBlendMode(_renderer, previousBlend);
+    }
+
+    private void DrawFillBatch(in SdlGraphicsCommand command)
+    {
+        uint rgba = command.Rgba;
+        ReadOnlySpan<SDL3.SDL.FRect> rects = _graphicsPlan.Rects.Slice(command.FirstRect, command.RectCount);
+        if (Trace != null)
+        {
+            uint argb = (rgba >> 8) | (rgba << 24);
+            foreach (SDL3.SDL.FRect r in rects)
+                Trace.Record(new SdlRenderOp(SdlRenderOpKind.GraphicsFill, (int)r.X, (int)r.Y, (int)r.W, (int)r.H, argb));
+        }
+        SDL3.SDL.SetRenderDrawColor(_renderer, (byte)(rgba >> 24), (byte)(rgba >> 16), (byte)(rgba >> 8), (byte)rgba);
+        SDL3.SDL.RenderFillRects(_renderer, rects, rects.Length);
+        LastGraphicsDrawCalls++;
+    }
+
+    private void RestoreClip(bool enabled, SDL3.SDL.Rect clip)
+    {
+        if (enabled) SDL3.SDL.SetRenderClipRect(_renderer, clip);
+        else SDL3.SDL.SetRenderClipRect(_renderer, IntPtr.Zero);
+    }
+
+    /// <summary>
+    /// The render device was reset or lost (SDL_EVENT_RENDER_DEVICE_RESET / _LOST): texture contents are gone.
+    /// Glyph and image textures are dropped and recreated on their next use; the next frame redraws.
+    /// </summary>
+    internal void HandleDeviceReset()
+    {
+        ClearGlyphCache();
+        _imageTextures.Reset();
+    }
+
+    private static int QueryMaxTextureSize(IntPtr renderer)
+    {
+        if (renderer == IntPtr.Zero) return 0;
+        uint props = SDL3.SDL.GetRendererProperties(renderer);
+        long max = props == 0 ? 0 : SDL3.SDL.GetNumberProperty(props, "SDL.renderer.max_texture_size", 0);
+        return max is > 0 and <= int.MaxValue ? (int)max : 0;
+    }
+
+    // Static textures in the byte order of PixelImage (R, G, B, A in memory), straight alpha, blend mode blend.
+    private sealed class ImageTextureBackend(IntPtr renderer) : ISdlImageTextureBackend
+    {
+        private static readonly SDL3.SDL.PixelFormat Rgba32 =
+            BitConverter.IsLittleEndian ? SDL3.SDL.PixelFormat.ABGR8888 : SDL3.SDL.PixelFormat.RGBA8888;
+
+        public string LastError { get; private set; } = string.Empty;
+
+        public unsafe IntPtr Create(PixelImage image)
+        {
+            IntPtr texture = SDL3.SDL.CreateTexture(renderer, Rgba32, SDL3.SDL.TextureAccess.Static, image.Width, image.Height);
+            if (texture == IntPtr.Zero) { LastError = SDL3.SDL.GetError() ?? string.Empty; return IntPtr.Zero; }
+            bool uploaded;
+            fixed (byte* pixels = image.Pixels)
+                uploaded = SDL3.SDL.UpdateTexture(texture, IntPtr.Zero, (IntPtr)pixels, image.Stride);
+            if (!uploaded)
+            {
+                LastError = SDL3.SDL.GetError() ?? string.Empty;
+                SDL3.SDL.DestroyTexture(texture);
+                return IntPtr.Zero;
+            }
+            SDL3.SDL.SetTextureBlendMode(texture, SDL3.SDL.BlendMode.Blend);
+            return texture;
+        }
+
+        public void Destroy(IntPtr texture) => SDL3.SDL.DestroyTexture(texture);
+    }
+
     private void DrawCellBackground(SDL3.SDL.FRect rect, uint argb)
     {
         Trace?.Record(new SdlRenderOp(SdlRenderOpKind.Fill,
@@ -700,6 +858,7 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
         if (disposing)
         {
             ClearGlyphCache();
+            _imageTextures.Dispose();
             UnloadFont();
 
             SDL3.TTF.Quit();

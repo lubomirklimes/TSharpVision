@@ -307,3 +307,16 @@ static class EditPopup
 ```
 
 The popup sizes itself within the supplied bounds. `Choose(DeskTop)` returns a command, or 0 when dismissed; handle `Views.cmCopy` and `Views.cmPaste` in the caller. Entries follow enabled-command state: enable these commands when the focused editor supports them.
+
+## File dialog start directory
+
+When a `TFileDialog` that has the Open button (`FileDialogOptions.fdOpenButton`) ends with an accepted file name, the
+file's directory is remembered by the program that owns the dialog. Later file dialogs of that program, Open or Save,
+start there for the rest of the run. Nothing is saved to disk, the process working directory is not changed, and each
+program has its own. "Accepted" means the dialog closed with Open, OK or a double-click after its own validation; the
+dialog cannot know whether the caller then reads the file. Cancel, Escape, rejected names, browsing into another
+directory and Save-style dialogs do not change it.
+
+A start location chosen by the caller wins: a wildcard with a directory part in the constructor or in `SetData`, a full
+file name passed to `SetData`, or a `directory` assigned before the dialog is shown. If the remembered directory no
+longer exists, the dialog starts as it always did, in the working directory.

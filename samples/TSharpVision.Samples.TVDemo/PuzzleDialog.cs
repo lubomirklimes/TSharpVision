@@ -122,7 +122,10 @@ internal sealed class PuzzleView : TView
 
     public PuzzleModel Model { get; }
 
-    private static readonly TPalette _palette = new TPalette("\x06\x07", 2);
+    // 1 = board surface and blank (static text), 2 = label, 3 = tiles of the other checkerboard parity (button).
+    // In Color, PuzzleDialog maps these roles to the classic literals (1 -> 0x1E, 3 -> 0x71); in BlackWhite and
+    // Monochrome they resolve through the application palette (surface 0x70, odd tiles 0x07: inverse video).
+    private static readonly TPalette _palette = new TPalette("\x06\x07\x0A", 3);
     public override TPalette GetPalette() => _palette;
 
     public PuzzleView(TRect bounds, PuzzleModel model) : base(bounds)
@@ -135,6 +138,7 @@ internal sealed class PuzzleView : TView
     public override void Draw()
     {
         var color     = (char)GetColor(1);
+        var oddColor  = (char)GetColor(3);
 
         for (int row = 0; row < 4; row++)
         {
@@ -150,7 +154,7 @@ internal sealed class PuzzleView : TView
                     // Tile colors follow the solved checkerboard and travel
                     // with each letter when it slides, as in the original.
                     int home = val - 1;
-                    char tileColor = (char)(((home / 4 + home % 4) & 1) != 0 ? 0x71 : 0x1E);
+                    char tileColor = ((home / 4 + home % 4) & 1) != 0 ? oddColor : color;
                     string cell = $" {(char)('A' + val - 1)} ";
                     b.moveStr(col * 3, cell, tileColor);
                 }
@@ -200,7 +204,11 @@ internal sealed class PuzzleView : TView
 // ---------------------------------------------------------------------------
 public sealed class PuzzleDialog : TDialog
 {
-    public override byte MapColor(int index) => index <= 5 ? (byte)0x17 : (byte)0x1E;
+    // Classic blue look in the Color family only (frame 0x17, surface 0x1E, odd tiles 0x71 via the button role);
+    // BlackWhite and Monochrome resolve every role through the standard dialog palette.
+    public override byte MapColor(int index) =>
+        !ShowcasePalette.IsClassic(this) ? base.MapColor(index)
+        : index <= 5 ? (byte)0x17 : index == 10 ? (byte)0x71 : (byte)0x1E;
     // Padding leaves enough room for the full title.
     public const int DlgW = 22; // Full title plus the close icon's frame allowance.
     public const int DlgH = PuzzleView.ViewH + 2; // Only the board and frame.

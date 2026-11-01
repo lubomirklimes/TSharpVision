@@ -250,10 +250,12 @@ internal sealed class CalculatorDisplay : TView
 // ---------------------------------------------------------------------------
 public sealed class CalculatorDialog : TDialog
 {
-    public override byte MapColor(int index) => index switch
+    // Classic gray/green/blue look in the Color family only; BlackWhite and Monochrome resolve the frame, the
+    // buttons (roles 10..15) and the display (role 19, input line) through the standard dialog palette.
+    public override byte MapColor(int index) => !ShowcasePalette.IsClassic(this) ? base.MapColor(index) : index switch
     {
-        10 or 11 or 12 or 13 or 14 => 0x20, // black keys on green
-        19 => 0x1F,                       // white display on blue
+        10 or 11 or 12 or 13 or 14 => (byte)0x20, // black keys on green
+        19 => (byte)0x1F,                       // white display on blue
         _ => DemoAppearance.Gray
     };
     // Button labels matching the upstream keyChar[20] layout.

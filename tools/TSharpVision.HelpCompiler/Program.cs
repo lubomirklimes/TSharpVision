@@ -25,6 +25,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.Text;
 using TSharpVision;
 using TSharpVision.Text;
@@ -39,6 +40,21 @@ internal static class Program
 
     private static int Main(string[] args)
     {
+        // Root-level --version prints only the tool name and version and does no work.
+        if (args.Length > 0 && args[0] == "--version")
+        {
+            Console.WriteLine("TSharpVision HelpCompiler " + ToolVersion());
+            return 0;
+        }
+
+        // Root-level --help or -h prints the banner and syntax shown without arguments, and exits successfully.
+        if (args.Length == 1 && args[0] is "--help" or "-h")
+        {
+            Console.WriteLine(Banner);
+            PrintSyntax();
+            return 0;
+        }
+
         // Register help-related streamable types in the current Pstream
         // registry.  THelpFile.RegisterStreamableTypes() uses explicit
         // Pstream.RegisterType() calls so it is safe even if called after
@@ -59,19 +75,12 @@ internal static class Program
         args = options.Positional.ToArray();
 
         if (!options.Quiet)
-            Console.WriteLine(
-                "TSharpVision Help Compiler  (port of Borland TVHC, 1991)\n");
+            Console.WriteLine(Banner);
 
         if (args.Length < 1)
         {
             if (!options.Quiet)
-                Console.WriteLine(
-                    "  Syntax  svhc [--format v1|v2] [--encoding name] [--warn-as-error] [--quiet] [--no-color] <input>[.txt] [<output>[.hlp] [<symfile>[.cs]]]\n\n" +
-                    "     input    Help source (.topic / paragraph / {cross-ref} syntax)\n" +
-                    "     output   Compiled help file (.hlp, 'FBHF' v1 or 'FBH2' v2 magic)\n" +
-                    "     symfile  Generated C# class with hcXxx constants\n" +
-                    "     format   v1 = byte/legacy TVHC subset, v2 = UTF-16 plus extensions (default)\n" +
-                    "     encoding v1 source/output encoding: latin1, cp852, kamenicky, ... (default latin1)\n");
+                PrintSyntax();
             return 1;
         }
 
@@ -90,15 +99,22 @@ internal static class Program
         }
 
         var diagnostics = new DiagnosticSink(options);
+        // Both outputs are written to temporary files beside their destinations and moved into place
+        // only after the whole compilation succeeded: a failed run leaves no partial output and keeps
+        // existing output files unchanged.
+        string helpTemp = TemporaryOutputName(helpName);
+        string symbTemp = TemporaryOutputName(symbName);
         try
         {
             string[] lines = ReadSourceLines(textName, options);
 
             var symbolTable = ScanSymbols(lines, textName);
-            CompileTopics(lines, helpName, symbolTable, textName, diagnostics, options);
+            CompileTopics(lines, helpTemp, symbolTable, textName, diagnostics, options);
             if (diagnostics.HasPromotedWarnings)
                 return 1;
-            WriteSymbolFile(symbName, symbolTable);
+            WriteSymbolFile(symbTemp, symbolTable);
+            File.Move(helpTemp, helpName, overwrite: true);
+            File.Move(symbTemp, symbName, overwrite: true);
 
             if (!options.Quiet)
                 Console.WriteLine(
@@ -111,6 +127,42 @@ internal static class Program
             diagnostics.Report(ex.Diagnostic);
             return 1;
         }
+        finally
+        {
+            if (File.Exists(helpTemp)) File.Delete(helpTemp);
+            if (File.Exists(symbTemp)) File.Delete(symbTemp);
+        }
+    }
+
+    // The package version: AssemblyInformationalVersion without the "+<commit>" build metadata SourceLink appends.
+    private static string ToolVersion()
+    {
+        var assembly = typeof(Program).Assembly;
+        string version = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+            ?? assembly.GetName().Version?.ToString(3)
+            ?? "unknown";
+        int metadata = version.IndexOf('+');
+        return metadata < 0 ? version : version[..metadata];
+    }
+
+    private const string Banner = "TSharpVision Help Compiler  (port of Borland TVHC, 1991)\n";
+
+    private static void PrintSyntax() =>
+        Console.WriteLine(
+            "  Syntax  svhc [--format v1|v2] [--encoding name] [--warn-as-error] [--quiet] [--no-color] <input>[.txt] [<output>[.hlp] [<symfile>[.cs]]]\n\n" +
+            "     input    Help source (.topic / paragraph / {cross-ref} syntax)\n" +
+            "     output   Compiled help file (.hlp, 'FBHF' v1 or 'FBH2' v2 magic)\n" +
+            "     symfile  Generated C# class with hcXxx constants\n" +
+            "     format   v1 = byte/legacy TVHC subset, v2 = UTF-16 plus extensions (default)\n" +
+            "     encoding v1 source/output encoding: latin1, cp852, kamenicky, ... (default latin1)\n");
+
+    // A unique name in the destination's directory, so the final move stays on one volume.
+    private static string TemporaryOutputName(string path)
+    {
+        string full = Path.GetFullPath(path);
+        return Path.Combine(
+            Path.GetDirectoryName(full) ?? ".",
+            "." + Path.GetFileName(full) + "." + Guid.NewGuid().ToString("N") + ".tmp");
     }
 
     private sealed class CompilerOptions
@@ -337,9 +389,7 @@ internal static class Program
         string[] lines, string helpName, SymbolTable symbols, string sourceName,
         DiagnosticSink diagnostics, CompilerOptions options)
     {
-        // Truncate (tvhc.cc opens helpStrm with CLY_IOSOut|CLY_IOSBin).
-        if (File.Exists(helpName)) File.Delete(helpName);
-
+        // helpName is a new temporary file (tvhc.cc truncates helpStrm with CLY_IOSOut|CLY_IOSBin).
         var fp = new Fpstream(helpName);
         var helpFile = new THelpFile(
             fp,

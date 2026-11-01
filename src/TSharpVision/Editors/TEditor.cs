@@ -976,6 +976,8 @@ public class TEditor : TView
     {
         ushort normal = (byte)color;
         ushort selected = (byte)(color >> 8);
+        // Tab stops as in ColumnBoundaries: a zero tabSize means one column.
+        long stopWidth = Math.Max(1L, tabSize);
         int x = 0;
         uint p = linePtr;
         while (x < width)
@@ -992,7 +994,7 @@ public class TEditor : TView
             }
             else if (c == '\t')
             {
-                int next = x + (int)tabSize - (x % (int)tabSize);
+                long next = (x / stopWidth + 1) * stopWidth;
                 while (x < next && x < width) { b.moveChar(x, ' ', attr, 1); x++; }
             }
             else

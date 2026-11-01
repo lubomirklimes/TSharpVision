@@ -129,7 +129,10 @@ internal sealed class CalendarView : TView
     private const int PreviousColumn = 17;
     private const int NextColumn = 20;
 
-    public override byte MapColor(int index) => index == 2 ? (byte)0x21 : (byte)0x3E;
+    // 1 = month grid (static text), 2 = today (list "selected" role). CalendarDialog maps them to the classic
+    // 0x3E / 0x21 in Color; BlackWhite and Monochrome resolve them to 0x70 and bright inverse 0x0F.
+    private static readonly TPalette _palette = new TPalette("\x06\x1C", 2);
+    public override TPalette GetPalette() => _palette;
 
     public CalendarView(TRect bounds, CalendarModel model) : base(bounds)
     {
@@ -220,7 +223,11 @@ internal sealed class CalendarView : TView
 // ---------------------------------------------------------------------------
 public sealed class CalendarDialog : TDialog
 {
-    public override byte MapColor(int index) => index is 2 or 3 or 4 ? (byte)0x3F : (byte)0x3E;
+    // Classic cyan look in the Color family only (active frame 0x3F, surface 0x3E, today 0x21 via role 28);
+    // BlackWhite and Monochrome resolve every role through the standard dialog palette.
+    public override byte MapColor(int index) =>
+        !ShowcasePalette.IsClassic(this) ? base.MapColor(index)
+        : index is 2 or 3 or 4 ? (byte)0x3F : index == 28 ? (byte)0x21 : (byte)0x3E;
     // Include room for the complete title and the 21-column calendar.
     public const int DlgW = 26; // Full title plus the frame's 16-column allowance.
     // Dialog inner height = CalendarView.ViewH + 2 (frame) = 10.

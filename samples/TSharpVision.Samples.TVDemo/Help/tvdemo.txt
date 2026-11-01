@@ -29,6 +29,8 @@ Message boxes lets you select information/warning/error/confirmation and OK, OK/
 
 The system-symbol menu (Alt+Space) holds ASCII table, calculator, calendar, clock, Puzzle and Tetris. Diagnostics contains Keyboard, Function keys, Mouse and Heap/memory. Window arranges and restores supported windows.
 
+Options/Framework palette selects the logical Color, Black and white or Monochrome family. When the display driver supports them (the SDL GPU driver), Options also offers Physical palette (Default, Green, Amber, Grayscale) and Display effect (Default, Scanlines, Glow, Curvature, ShadowMask). Default is the classic VGA 16-color mapping. One display effect is active at a time; choosing another replaces it. These are display output settings: they recolor or post-process what the driver shows and combine with any Framework palette. Default returns to the unmodified output. Curvature bends the image, and mouse clicks follow the bent image. They last for the session and are not saved with the desktop state; [graphics] palette= and effect= in the configuration file select the startup values. Other drivers do not show these submenus.
+
 F10 opens the menu; Alt+F/D/I/O/W/H opens the corresponding top menu. Arrow keys, Enter and caption letters navigate submenus; Esc backs out one level. Alt+X exits. See {Controls and dialogs:ControlsShowcase} and {Window management:WindowManagement}.
 
 .topic WelcomeWindow=3
@@ -37,7 +39,7 @@ TSharpVision reimplements and extends Borland Turbo Vision in C#/.NET. TVDemo de
 .topic WindowManagement=5
 F6 selects the next window; Shift+F6 selects the previous one. F5 zooms; Ctrl+F5 moves/resizes (arrows move, Shift+arrows resize); Alt+F3 closes. Window offers Tile and Cascade.
 
-Save desktop state writes plain demonstration windows and the application palette to tvdemo-desktop.tvr next to the executable. Unsupported games, accessories and viewers are reported and excluded. Load validates the snapshot before replacing supported windows; other windows remain open. Saved order is preserved among restored windows, placed above retained windows. Only the palette is restored automatically at startup.
+Save desktop state writes plain demonstration windows and the application palette to tvdemo-desktop.tvr next to the executable. Unsupported games, accessories and viewers are reported and excluded. Load validates the snapshot before replacing supported windows; other windows remain open. Saved order is preserved among restored windows, placed above retained windows. It also records the Framework palette family and each family's palette. Startup restores the palettes and family; Load also restores windows. Older snapshots load as the Color palette.
 
 Code editor close or application exit offers Save/Discard/Cancel for modified text. For an untitled editor, accepting Save opens the real editor Save As chooser; overwrite confirmation applies to existing destinations. This real file-writing workflow is distinct from Demo/Dialogs/Save file dialog (chooser-only).
 

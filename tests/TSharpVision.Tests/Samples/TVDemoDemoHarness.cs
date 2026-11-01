@@ -95,9 +95,11 @@ internal sealed class DemoTestScope : IDisposable
 
     internal ScriptedDemoApp App { get; }
 
-    internal DemoTestScope(int width = 80, int height = 25)
+    // wrapDriver (TV12e) installs a test driver around the NullDriver before the app is built; DriverScope restores.
+    internal DemoTestScope(int width = 80, int height = 25, Func<TSharpVision.Drivers.IDriver, TSharpVision.Drivers.IDriver>? wrapDriver = null)
     {
         _driver = new DriverScope(checked((ushort)width), checked((ushort)height));
+        if (wrapDriver != null) TDisplay.driver = wrapDriver(_driver.Driver);
         TView.GetCommands(_commands);
         ComboInput.ResetQueue();
         App = new ScriptedDemoApp();

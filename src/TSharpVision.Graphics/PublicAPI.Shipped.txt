@@ -1,0 +1,95 @@
+#nullable enable
+abstract TSharpVision.Graphics.GObject.GraphDraw(TSharpVision.Graphics.GraphicsCanvas! canvas, int pixelX, int pixelY, int pixelW, int pixelH) -> void
+const TSharpVision.Graphics.GraphConstants.GraphXMax = 10000 -> int
+const TSharpVision.Graphics.GraphConstants.GraphYMax = 7500 -> int
+const TSharpVision.Graphics.GraphicsCanvas.ShapeLimit = 32768 -> int
+const TSharpVision.Graphics.GView.TickHz = 60 -> int
+override TSharpVision.Graphics.GBox.GraphDraw(TSharpVision.Graphics.GraphicsCanvas! canvas, int pixelX, int pixelY, int pixelW, int pixelH) -> void
+override TSharpVision.Graphics.GImage.GraphDraw(TSharpVision.Graphics.GraphicsCanvas! canvas, int pixelX, int pixelY, int pixelW, int pixelH) -> void
+override TSharpVision.Graphics.GLine.GraphDraw(TSharpVision.Graphics.GraphicsCanvas! canvas, int pixelX, int pixelY, int pixelW, int pixelH) -> void
+override TSharpVision.Graphics.GView.Dispose(bool disposing) -> void
+override TSharpVision.Graphics.GView.Draw() -> void
+override TSharpVision.Graphics.GView.HandleEvent(ref TSharpVision.TEvent event) -> void
+override TSharpVision.Graphics.GView.SetState(ushort aState, bool enable) -> void
+override TSharpVision.Graphics.GView.ShutDown() -> void
+static TSharpVision.Graphics.GImage.Fit(int imageWidth, int imageHeight, TSharpVision.Drivers.PixelRect area) -> TSharpVision.Drivers.PixelRect
+static TSharpVision.Graphics.GraphConstants.CgaPalette.get -> System.ReadOnlySpan<uint>
+static TSharpVision.Graphics.GraphConstants.GlobalToPhysical(int pixelRectX, int pixelRectY, int pixelRectW, int pixelRectH, int gx, int gy, out int px, out int py) -> void
+static TSharpVision.Graphics.GView.RefreshVisibleRegions() -> void
+static TSharpVision.Graphics.TestPatterns.BarColors.get -> System.ReadOnlySpan<uint>
+static TSharpVision.Graphics.TestPatterns.Checkerboard(int width, int height, int cellSize, uint first, uint second) -> TSharpVision.Drivers.PixelImage!
+static TSharpVision.Graphics.TestPatterns.ColorBars(int width, int height) -> TSharpVision.Drivers.PixelImage!
+static TSharpVision.Graphics.TestPatterns.Gradient(int width, int height, uint from, uint to, bool vertical = false) -> TSharpVision.Drivers.PixelImage!
+TSharpVision.Graphics.GBox
+TSharpVision.Graphics.GBox.GBox() -> void
+TSharpVision.Graphics.GBox.GBox(int x1, int y1, int x2, int y2, uint color) -> void
+TSharpVision.Graphics.GImage
+TSharpVision.Graphics.GImage.ChangeArea(int x1, int y1, int x2, int y2) -> void
+TSharpVision.Graphics.GImage.Filter.get -> TSharpVision.Drivers.GraphicsImageFilter
+TSharpVision.Graphics.GImage.Filter.set -> void
+TSharpVision.Graphics.GImage.GImage(TSharpVision.Drivers.PixelImage? image, TSharpVision.Drivers.GraphicsImageFilter filter = TSharpVision.Drivers.GraphicsImageFilter.Nearest) -> void
+TSharpVision.Graphics.GImage.Image.get -> TSharpVision.Drivers.PixelImage?
+TSharpVision.Graphics.GImage.Image.set -> void
+TSharpVision.Graphics.GImage.Opacity.get -> byte
+TSharpVision.Graphics.GImage.Opacity.set -> void
+TSharpVision.Graphics.GImage.Stretch.get -> bool
+TSharpVision.Graphics.GImage.Stretch.set -> void
+TSharpVision.Graphics.GLine
+TSharpVision.Graphics.GLine.ChangeEnds(int x1, int y1, int x2, int y2) -> void
+TSharpVision.Graphics.GLine.ChangeEnds(TSharpVision.Graphics.GLine! other) -> void
+TSharpVision.Graphics.GLine.DeltaEnds(int dXa, int dYa, int dXb, int dYb) -> void
+TSharpVision.Graphics.GLine.GLine() -> void
+TSharpVision.Graphics.GLine.GLine(int x1, int y1, int x2, int y2, uint color) -> void
+TSharpVision.Graphics.GObject
+TSharpVision.Graphics.GObject.ChangeColor(uint color) -> void
+TSharpVision.Graphics.GObject.Color.get -> uint
+TSharpVision.Graphics.GObject.Color.set -> void
+TSharpVision.Graphics.GObject.GObject(uint color) -> void
+TSharpVision.Graphics.GraphConstants
+TSharpVision.Graphics.GraphicsCanvas
+TSharpVision.Graphics.GraphicsCanvas.Count.get -> int
+TSharpVision.Graphics.GraphicsCanvas.DrawEllipse(int x, int y, int width, int height, uint rgba) -> void
+TSharpVision.Graphics.GraphicsCanvas.DrawImage(TSharpVision.Drivers.PixelImage! image, int x, int y, int width, int height, TSharpVision.Drivers.GraphicsImageFilter filter = TSharpVision.Drivers.GraphicsImageFilter.Nearest, byte opacity = 255) -> void
+TSharpVision.Graphics.GraphicsCanvas.DrawLine(int x1, int y1, int x2, int y2, uint rgba) -> void
+TSharpVision.Graphics.GraphicsCanvas.DrawPolyline(System.ReadOnlySpan<TSharpVision.TPoint> points, uint rgba, bool closed = false) -> void
+TSharpVision.Graphics.GraphicsCanvas.DrawRect(int x, int y, int width, int height, uint rgba) -> void
+TSharpVision.Graphics.GraphicsCanvas.FillEllipse(int x, int y, int width, int height, uint rgba) -> void
+TSharpVision.Graphics.GraphicsCanvas.FillRect(int x, int y, int width, int height, uint rgba) -> void
+TSharpVision.Graphics.GraphicsCanvas.GraphicsCanvas() -> void
+TSharpVision.Graphics.GraphicsCanvas.Images.get -> System.ReadOnlySpan<TSharpVision.Drivers.PixelImage!>
+TSharpVision.Graphics.GraphicsCanvas.Primitives.get -> System.ReadOnlySpan<TSharpVision.Drivers.GraphicsPrimitive>
+TSharpVision.Graphics.GView
+TSharpVision.Graphics.GView.BackgroundAttr.get -> TSharpVision.TColorAttr
+TSharpVision.Graphics.GView.BackgroundAttr.set -> void
+TSharpVision.Graphics.GView.Delete(TSharpVision.Graphics.GObject! obj) -> void
+TSharpVision.Graphics.GView.DisplayList.get -> System.Collections.Generic.List<TSharpVision.Graphics.GObject!>!
+TSharpVision.Graphics.GView.GView(TSharpVision.TRect bounds) -> void
+TSharpVision.Graphics.GView.HasGraphicsLayer.get -> bool
+TSharpVision.Graphics.GView.Insert(TSharpVision.Graphics.GObject! obj) -> void
+TSharpVision.Graphics.GView.Refresh() -> void
+TSharpVision.Graphics.GView.Tick() -> void
+TSharpVision.Graphics.GView.UnavailableText.get -> string!
+TSharpVision.Graphics.GView.UnavailableText.set -> void
+TSharpVision.Graphics.GWindow
+TSharpVision.Graphics.GWindow.Delete(TSharpVision.Graphics.GObject! obj) -> void
+TSharpVision.Graphics.GWindow.GWindow(TSharpVision.TRect bounds, string! title, ushort number) -> void
+TSharpVision.Graphics.GWindow.Insert(TSharpVision.Graphics.GObject! obj) -> void
+TSharpVision.Graphics.GWindow.View.get -> TSharpVision.Graphics.GView!
+TSharpVision.Graphics.TestPatterns
+virtual TSharpVision.Graphics.GObject.GraphProd() -> void
+TSharpVision.Graphics.GImage.Xa.get -> int
+TSharpVision.Graphics.GImage.Xa.set -> void
+TSharpVision.Graphics.GImage.Xb.get -> int
+TSharpVision.Graphics.GImage.Xb.set -> void
+TSharpVision.Graphics.GImage.Ya.get -> int
+TSharpVision.Graphics.GImage.Ya.set -> void
+TSharpVision.Graphics.GImage.Yb.get -> int
+TSharpVision.Graphics.GImage.Yb.set -> void
+TSharpVision.Graphics.GLine.Xa.get -> int
+TSharpVision.Graphics.GLine.Xa.set -> void
+TSharpVision.Graphics.GLine.Xb.get -> int
+TSharpVision.Graphics.GLine.Xb.set -> void
+TSharpVision.Graphics.GLine.Ya.get -> int
+TSharpVision.Graphics.GLine.Ya.set -> void
+TSharpVision.Graphics.GLine.Yb.get -> int
+TSharpVision.Graphics.GLine.Yb.set -> void

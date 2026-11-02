@@ -15,6 +15,23 @@ public sealed class TempDirectory : IDisposable
             System.IO.Path.GetTempPath(),
             "sv_test_" + System.Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path);
+        Path = ResolveLinks(Path);
+    }
+
+    private static string ResolveLinks(string path)
+    {
+        string fullPath = System.IO.Path.GetFullPath(path);
+        string current = System.IO.Path.GetPathRoot(fullPath) ?? string.Empty;
+
+        foreach (string part in fullPath[current.Length..].Split(
+                     [System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar],
+                     StringSplitOptions.RemoveEmptyEntries))
+        {
+            var directory = new DirectoryInfo(System.IO.Path.Combine(current, part));
+            current = directory.ResolveLinkTarget(returnFinalTarget: true)?.FullName ?? directory.FullName;
+        }
+
+        return current;
     }
 
     /// <summary>Creates a file inside the temp directory and returns its full path.</summary>

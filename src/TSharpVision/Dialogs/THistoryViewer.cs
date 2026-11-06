@@ -33,7 +33,7 @@ public class THistoryViewer : TListViewer
     public override string GetText(int item, int maxChars)
     {
         string s = THistoryList.Str(HistoryId, item) ?? string.Empty;
-        if (s.Length > maxChars) s = s.Substring(0, maxChars);
+        s = CellText.Truncate(s, maxChars);
         return s;
     }
 
@@ -61,14 +61,14 @@ public class THistoryViewer : TListViewer
         }
     }
 
-    /// <summary>Returns the longest stored history string length in UTF-16 code units.</summary>
+    /// <summary>Returns the width of the longest stored history string in cells (UTF-16 code units under the legacy cell-width profile).</summary>
     public int HistoryWidth()
     {
         int width = 0;
         int count = THistoryList.Count(HistoryId);
         for (int i = 0; i < count; i++)
         {
-            int t = (THistoryList.Str(HistoryId, i) ?? string.Empty).Length;
+            int t = CellText.Measure(THistoryList.Str(HistoryId, i) ?? string.Empty);
             if (t > width) width = t;
         }
         return width;

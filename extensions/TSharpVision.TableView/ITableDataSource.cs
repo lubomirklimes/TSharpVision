@@ -62,6 +62,9 @@ public enum TableAlignment
 
     /// <summary>Text ends at the right edge of the column — the usual choice for numbers.</summary>
     Right = 1,
+
+    /// <summary>Text is centred in the column; an odd spare cell goes to the right.</summary>
+    Center = 2,
 }
 
 /// <summary>One column as the view shows it: a header and layout hints.</summary>

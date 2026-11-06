@@ -58,6 +58,8 @@ public static class Views
     public const ushort cmTile    = 25;
     /// <summary>Arrange eligible desktop windows with staggered origins.</summary>
     public const ushort cmCascade = 26;
+    /// <summary>Redo the editor operation most recently undone.</summary>
+    public const ushort cmRedo    = 27;
 
     // Standard messages
     /// <summary>Broadcast that a view received focus.</summary>
@@ -217,6 +219,8 @@ public static class Views
     public const ushort cmInsertText   = 524;
     /// <summary>Delete the editor selection, or text back to the previous word boundary when there is no selection; supports undo.</summary>
     public const ushort cmDelWordLeft  = 525;
+    /// <summary>Select the whole text of the editor.</summary>
+    public const ushort cmSelectAll    = 527;
 
     // Editor update flags.
     /// <summary>Editor update flag for refreshing caret, scrollbars, and status.</summary>
@@ -280,6 +284,8 @@ public static class Views
     public const int edReplacePrompt = 10;
     /// <summary>Editor dialog callback identifier for text that cannot be saved in the chosen encoding.</summary>
     public const int edEncodingWriteError = 11;
+    /// <summary>Editor dialog callback identifier asking how to save a document whose line endings are mixed.</summary>
+    public const int edMixedLineEndings = 12;
 
     // TFileList broadcast messages.
     /// <summary>Broadcast the focused file entry to related file-dialog controls.</summary>

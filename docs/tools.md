@@ -13,21 +13,21 @@ Three command-line tools ship as .NET tool packages with the same version as the
 Global installation puts the commands on your `PATH`:
 
 ```shell
-dotnet tool install --global TSharpVision.ResourceCompiler --version 1.2.0
-dotnet tool install --global TSharpVision.HelpCompiler --version 1.2.0
-dotnet tool install --global TSharpVision.ResourceTools --version 1.2.0
+dotnet tool install --global TSharpVision.ResourceCompiler --version 1.3.0
+dotnet tool install --global TSharpVision.HelpCompiler --version 1.3.0
+dotnet tool install --global TSharpVision.ResourceTools --version 1.3.0
 ```
 
 To pin the tools to one project, install them into a local tool manifest instead. Run the commands with `dotnet`, for example `dotnet svrc`; after a clone, `dotnet tool restore` installs the versions recorded in `.config/dotnet-tools.json`:
 
 ```shell
 dotnet new tool-manifest
-dotnet tool install TSharpVision.ResourceCompiler --version 1.2.0
-dotnet tool install TSharpVision.HelpCompiler --version 1.2.0
-dotnet tool install TSharpVision.ResourceTools --version 1.2.0
+dotnet tool install TSharpVision.ResourceCompiler --version 1.3.0
+dotnet tool install TSharpVision.HelpCompiler --version 1.3.0
+dotnet tool install TSharpVision.ResourceTools --version 1.3.0
 ```
 
-Each tool prints its usage with `--help` or `-h`, and its name and version with `--version`; for example `svrc --version` prints `TSharpVision ResourceCompiler 1.2.0`.
+Each tool prints its usage with `--help` or `-h`, and its name and version with `--version`; for example `svrc --version` prints `TSharpVision ResourceCompiler 1.3.0`.
 
 ## Compile and inspect resources
 

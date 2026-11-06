@@ -19,6 +19,8 @@ Unless a section says otherwise, a variable is read when the component that uses
 | [`TSHARPVISION_SDLGPU_PRESENT_MODE`](#tsharpvision_sdlgpu_present_mode) | `TSharpVision.Drivers.SDL` | `immediate` \| `vsync` \| `mailbox` | `[sdl] presentMode`, else `immediate` | Swapchain present mode for `SDLGpuDriver` | Advanced diagnostic |
 | [`TSHARPVISION_SDLGPU_ALLOWED_FRAMES`](#tsharpvision_sdlgpu_allowed_frames) | `TSharpVision.Drivers.SDL` | `1` \| `2` \| `3` | `[sdl] allowedFrames`, else SDL's default | Frames in flight for `SDLGpuDriver` | Advanced diagnostic |
 | [`TSHARPVISION_SDLGPU_CONTINUOUS`](#tsharpvision_sdlgpu_continuous) | `TSharpVision.Drivers.SDL` | `1`/`on`/`true` \| `0`/`off`/`false` | on demand | Accepted, currently no effect | Advanced diagnostic |
+| [`TSHARPVISION_WIN32_OUTPUT`](#tsharpvision_win32_output) | `TSharpVision.Drivers.Console` | `vt` \| `cells` | detected per console host | How the console driver writes emoji and other multi-character clusters | Advanced diagnostic |
+| [`TSHARPVISION_SDL_FALLBACK_FONTS`](#tsharpvision_sdl_fallback_fonts) | `TSharpVision.Drivers.SDL` | `role=path;...` \| `none` | the per-OS chain | Fallback fonts for characters the configured font lacks | Advanced diagnostic |
 | [`TSHARPVISION_NO_SDL`](#tsharpvision_no_sdl) | `TSharpVision.Drivers.SDL` | `1` | SDL initializes | Keep SDL drivers from initializing | Internal / test |
 
 System variables that TSharpVision observes but does not define, sample-only variables, and the variables used by the repository's build and release tooling are listed after the runtime variables.
@@ -162,6 +164,25 @@ They are read once, when the driver initializes. A variable that is set wins ove
 - **Platforms:** Windows, Linux, macOS. Adaptive vsync depends on the renderer backend; with `TSHARPVISION_SDL_DIAGNOSTICS` on, standard error shows whether SDL accepted the request.
 - **Scope:** advanced diagnostic.
 - **Notes:** any other value writes a warning to standard error and is ignored. Read when the window is created.
+
+## Unicode text options
+
+### `TSHARPVISION_WIN32_OUTPUT`
+
+- **Used by:** `TSharpVision.Drivers.Console` (`Win32ConsoleDriver`).
+- **Purpose:** chooses how rows holding emoji or other multi-character grapheme clusters are written. `vt` writes them as VT text (what Windows Terminal needs to show emoji); `cells` writes console cells only (leading and trailing cell pairs for East Asian characters, a monochrome emoji or a base character otherwise).
+- **Accepted values:** `vt`, `cells`; any other value means automatic.
+- **Default:** automatic: `vt` only when the console's window is a pseudo-console window owned by Windows Terminal, otherwise `cells`. `WT_SESSION` is not used.
+- **Platforms:** Windows.
+- **Scope:** advanced diagnostic.
+
+### `TSHARPVISION_SDL_FALLBACK_FONTS`
+
+- **Used by:** `TSharpVision.Drivers.SDL`, both drivers.
+- **Purpose:** replaces the chain of fallback fonts used for grapheme clusters the configured font does not cover.
+- **Accepted values:** `;`-separated `role=path` entries in chain order, with roles `emoji`, `cjk` and `symbol` (for example `emoji=C:\Windows\Fonts\seguiemj.ttf;cjk=C:\Windows\Fonts\msyh.ttc`); entries whose file does not exist are skipped. `none` uses the configured font alone.
+- **Default:** on Windows `seguiemj.ttf`, then `YuGothM.ttc` or `msyh.ttc`, then `seguisym.ttf`; macOS and Linux candidates are not verified yet.
+- **Scope:** advanced diagnostic. Read when the driver loads its font.
 
 ## Internal and test switches
 

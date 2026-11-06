@@ -9,6 +9,10 @@ namespace TSharpVision.Drivers.SDL.Gpu;
 //   Pass 1 (background): one opaque quad per cell, vertex color = bg VGA color.
 //   Pass 2 (glyph):      one blended quad per non-space cell, UV into R8 atlas,
 //                         vertex color = fg VGA color; GPU blends via alpha.
+//   Cluster pass (TV13m, when the glyph source is an IGpuClusterSource): one blended quad per lead cell spanning
+//                         its trail cells, UV into the RGBA8 ClusterAtlas; vertex colour = fg for monochrome
+//                         clusters (tint), white for colour clusters (intrinsic RGBA). Drawn after the glyph pass;
+//                         recorded only for a frame with at least one cluster. Lead cells then get no glyph-pass quad.
 //   Optional pass 3 (GpuDisplayEffect.Scanlines only): translucent black strips over the
 //                         grid (Bg shaders, blended pipeline created lazily on first use).
 //                         The Default effect records exactly the two passes above.
@@ -95,6 +99,18 @@ internal sealed unsafe partial class TerminalGpuPipeline : IDisposable
     // Cached so the per-frame vertex build allocates no delegate per glyph.
     private readonly Func<GpuGlyphKey, byte[]?> _getAlpha;
 
+    // ── Cluster pass (TV13m) ───────────────────────────────────────────────
+    // Created with the pipeline when the glyph source can rasterise clusters; when that fails, lead cells keep the
+    // glyph-pass fallback character (reason logged once, ClusterPassUnavailableReason).
+    private readonly IGpuClusterSource? _clusterSource;
+    private ClusterAtlas? _clusterAtlas;
+    private IntPtr _clusterPipeline;
+    private IntPtr _clusterVertexBuf;
+    private IntPtr _clusterTransferBuf;
+    private GlyphVertex[] _clusterScratch = Array.Empty<GlyphVertex>();
+    private string? _clusterUnavailableReason;
+    private bool _clusterDropLogged;
+
     private bool _disposed;
     private bool _shaderCrossInitialized;
 
@@ -144,6 +160,8 @@ internal sealed unsafe partial class TerminalGpuPipeline : IDisposable
             _atlas = new TerminalAtlas(device, cellWidth, cellHeight);
 
             CreateVertexBuffers();
+            _clusterSource = glyphSource as IGpuClusterSource;
+            if (_clusterSource != null) TryCreateClusterPass(glyphVs, swapFmt);
         }
         catch
         {
@@ -158,6 +176,76 @@ internal sealed unsafe partial class TerminalGpuPipeline : IDisposable
             if (glyphPs != IntPtr.Zero) SDL3.SDL.ReleaseGPUShader(device, glyphPs);
         }
     }
+    // ─── Cluster pass resources ──────────────────────────────────────────────
+
+    /// <summary>Non-null when the cluster pass could not be created; lead cells then draw their fallback character.</summary>
+    internal string? ClusterPassUnavailableReason => _clusterUnavailableReason;
+
+    /// <summary>True when lead cells are drawn by the cluster pass (whole clusters across their cells).</summary>
+    internal bool ClusterPassActive => _clusterPipeline != IntPtr.Zero;
+
+    /// <summary>The cluster atlas, while the cluster pass is active. Diagnostics and tests.</summary>
+    internal ClusterAtlas? ClusterAtlasForTesting => _clusterAtlas;
+
+    /// <summary>Cluster quads of the last frame. Diagnostics and tests.</summary>
+    internal int LastClusterQuadCount { get; private set; }
+
+    /// <summary>Makes the cluster pass creation fail, to qualify the fallback.</summary>
+    internal static bool SimulateClusterPassFailureForTesting { get; set; }
+
+    private void TryCreateClusterPass(IntPtr glyphVs, SDL3.SDL.GPUTextureFormat swapFmt)
+    {
+        IntPtr ps = IntPtr.Zero;
+        try
+        {
+            if (SimulateClusterPassFailureForTesting)
+                throw new InvalidOperationException("cluster pass disabled for testing");
+            // One sampler, like the glyph shader (an undeclared sampler is an unbound descriptor on Vulkan).
+            ps = LoadShaderFromSpirv("TSharpVision.Drivers.SDL.Gpu.Shaders.ClusterFrag.spv", SDL3.ShaderCross.ShaderStage.Fragment, numSamplers: 1);
+            _clusterPipeline = CreateGlyphPipeline(glyphVs, ps, swapFmt);
+            _clusterAtlas = new ClusterAtlas(_device, _cellWidth, _cellHeight);
+            CreateClusterBuffers();
+        }
+        catch (Exception ex)
+        {
+            _clusterUnavailableReason = ex.Message;
+            Console.Error.WriteLine(
+                $"[SDLGpu] Cluster pass unavailable ({ex.Message}); wide and combined characters draw their fallback character.");
+            ReleaseClusterResources();
+        }
+        finally
+        {
+            if (ps != IntPtr.Zero) SDL3.SDL.ReleaseGPUShader(_device, ps);
+        }
+    }
+
+    private void CreateClusterBuffers()
+    {
+        uint bytes = (uint)_maxGlyphBytes;
+        _clusterVertexBuf = SDL3.SDL.CreateGPUBuffer(_device,
+            new SDL3.SDL.GPUBufferCreateInfo { Usage = SDL3.SDL.GPUBufferUsageFlags.Vertex, Size = bytes });
+        _clusterTransferBuf = SDL3.SDL.CreateGPUTransferBuffer(_device,
+            new SDL3.SDL.GPUTransferBufferCreateInfo { Usage = SDL3.SDL.GPUTransferBufferUsage.Upload, Size = bytes });
+        if (_clusterVertexBuf == IntPtr.Zero || _clusterTransferBuf == IntPtr.Zero)
+            throw new InvalidOperationException($"cluster vertex buffers: {SDL3.SDL.GetError()}");
+        _clusterScratch = new GlyphVertex[_maxCells * 6];
+    }
+
+    private void ReleaseClusterBuffers()
+    {
+        if (_clusterTransferBuf != IntPtr.Zero) { SDL3.SDL.ReleaseGPUTransferBuffer(_device, _clusterTransferBuf); _clusterTransferBuf = IntPtr.Zero; }
+        if (_clusterVertexBuf   != IntPtr.Zero) { SDL3.SDL.ReleaseGPUBuffer(_device, _clusterVertexBuf);           _clusterVertexBuf   = IntPtr.Zero; }
+    }
+
+    private void ReleaseClusterResources()
+    {
+        ReleaseClusterBuffers();
+        _clusterAtlas?.Dispose();
+        _clusterAtlas = null;
+        if (_clusterPipeline != IntPtr.Zero) { SDL3.SDL.ReleaseGPUGraphicsPipeline(_device, _clusterPipeline); _clusterPipeline = IntPtr.Zero; }
+        _clusterScratch = Array.Empty<GlyphVertex>();
+    }
+
     // ─── Shader loading ──────────────────────────────────────────────────────
 
     // Grid shaders: samplers only, no uniform buffers (the call shape the shader-sampler contract
@@ -408,6 +496,11 @@ internal sealed unsafe partial class TerminalGpuPipeline : IDisposable
         _maxGlyphBytes = _maxCells      * 6 * sizeof(GlyphVertex);
 
         CreateVertexBuffers();
+        if (_clusterPipeline != IntPtr.Zero)
+        {
+            ReleaseClusterBuffers();
+            CreateClusterBuffers();
+        }
     }
 
     // ─── Scanlines effect resources (lazy) ───────────────────────────────────
@@ -676,12 +769,43 @@ internal sealed unsafe partial class TerminalGpuPipeline : IDisposable
             return (TimeSpan.Zero, TimeSpan.Zero);
         }
 
+        ReadOnlySpan<uint> paletteArgb = (palette ?? GpuPhysicalPalette.Default).ArgbSpan;
+        bool clusters = _clusterPipeline != IntPtr.Zero;
         BuildVertices(bgPtr, glyphPtr, buf, cols, rows, _cellWidth, _cellHeight,
             cursorX, cursorY, cursorType, _glyphSource, _getAlpha, _atlas, out int bgCount, out int glyphCount,
-            _underlineHeight, (palette ?? GpuPhysicalPalette.Default).ArgbSpan);
+            _underlineHeight, paletteArgb, skipLeads: clusters);
 
         SDL3.SDL.UnmapGPUTransferBuffer(_device, _bgTransferBuf);
         SDL3.SDL.UnmapGPUTransferBuffer(_device, _glyphTransferBuf);
+
+        // Cluster quads go to a scratch array first: a frame without clusters maps and uploads nothing more.
+        int clusterCount = 0;
+        if (clusters)
+        {
+            int dropped = _clusterAtlas!.DroppedClusters;
+            fixed (GlyphVertex* scratch = _clusterScratch)
+                clusterCount = BuildClusterVertices(scratch, _clusterScratch.Length, buf, cols, rows, _cellWidth, _cellHeight,
+                    cursorX, cursorY, cursorType, _clusterSource!, _clusterAtlas, paletteArgb);
+            if (_clusterAtlas.DroppedClusters != dropped && !_clusterDropLogged)
+            {
+                _clusterDropLogged = true;
+                Console.Error.WriteLine(
+                    $"[SDLGpu] A frame holds more distinct clusters than the cluster atlas ({_clusterAtlas.CapacityUnits} cells); " +
+                    "the excess is not drawn (counted in ClusterAtlas.DroppedClusters).");
+            }
+            if (clusterCount > 0)
+            {
+                GlyphVertex* clusterPtr = (GlyphVertex*)SDL3.SDL.MapGPUTransferBuffer(_device, _clusterTransferBuf, true);
+                if (clusterPtr == null) clusterCount = 0;
+                else
+                {
+                    new ReadOnlySpan<GlyphVertex>(_clusterScratch, 0, clusterCount)
+                        .CopyTo(new Span<GlyphVertex>(clusterPtr, clusterCount));
+                    SDL3.SDL.UnmapGPUTransferBuffer(_device, _clusterTransferBuf);
+                }
+            }
+        }
+        LastClusterQuadCount = clusterCount / 6;
 
         long t1 = System.Diagnostics.Stopwatch.GetTimestamp();  // end of vertex build
 
@@ -703,6 +827,16 @@ internal sealed unsafe partial class TerminalGpuPipeline : IDisposable
                 false);
 
         _atlas.UploadIfDirty(copyPass);
+
+        if (clusterCount > 0)
+            SDL3.SDL.UploadToGPUBuffer(copyPass,
+                new SDL3.SDL.GPUTransferBufferLocation { TransferBuffer = _clusterTransferBuf, Offset = 0 },
+                new SDL3.SDL.GPUBufferRegion
+                {
+                    Buffer = _clusterVertexBuf, Offset = 0, Size = (uint)(clusterCount * sizeof(GlyphVertex)),
+                },
+                false);
+        if (clusters) _clusterAtlas!.UploadIfDirty(copyPass);
 
         if (scanlines && _scanlineUploadPending)
         {
@@ -778,6 +912,17 @@ internal sealed unsafe partial class TerminalGpuPipeline : IDisposable
             SDL3.SDL.BindGPUVertexBuffers(renderPass, 0u, (IntPtr)(&vertexBinding), 1u);
             SDL3.SDL.BindGPUFragmentSamplers(renderPass, 0u, (IntPtr)(&atlasBinding), 1u);
             SDL3.SDL.DrawGPUPrimitives(renderPass, (uint)glyphCount, 1u, 0u, 0u);
+        }
+
+        // Cluster pass: whole grapheme clusters over their lead and trail cells.
+        if (clusterCount > 0)
+        {
+            vertexBinding = new SDL3.SDL.GPUBufferBinding { Buffer = _clusterVertexBuf, Offset = 0 };
+            var clusterBinding = new SDL3.SDL.GPUTextureSamplerBinding { Texture = _clusterAtlas!.Texture, Sampler = _clusterAtlas.Sampler };
+            SDL3.SDL.BindGPUGraphicsPipeline(renderPass, _clusterPipeline);
+            SDL3.SDL.BindGPUVertexBuffers(renderPass, 0u, (IntPtr)(&vertexBinding), 1u);
+            SDL3.SDL.BindGPUFragmentSamplers(renderPass, 0u, (IntPtr)(&clusterBinding), 1u);
+            SDL3.SDL.DrawGPUPrimitives(renderPass, (uint)clusterCount, 1u, 0u, 0u);
         }
 
         // Graphics pass: instanced primitives over the glyphs, under per-clip scissors (reset afterwards).
@@ -882,10 +1027,39 @@ internal sealed unsafe partial class TerminalGpuPipeline : IDisposable
         ReadOnlySpan<uint> palette) =>
         BuildVertices(bgPtr, glyphPtr, buf, cols, rows, cellWidth, cellHeight, cursorX, cursorY,
             cursorType, glyphSource, glyphSource.GetAlpha, atlas, out bgCount, out glyphCount,
-            underlineHeight, palette);
+            underlineHeight, palette, skipLeads: false);
+
+    /// <summary>
+    /// The vertex build of a frame drawn with the cluster pass: as the overload above, but with
+    /// <paramref name="skipLeads"/> lead cells get no glyph quad (<see cref="BuildClusterVertices"/> draws them across
+    /// their cells). TV13m.
+    /// </summary>
+    internal static void BuildVertices(
+        BgVertex*       bgPtr,
+        GlyphVertex*    glyphPtr,
+        ScreenBuffer    buf,
+        uint            cols,
+        uint            rows,
+        int             cellWidth,
+        int             cellHeight,
+        int             cursorX,
+        int             cursorY,
+        ushort          cursorType,
+        IGpuGlyphSource glyphSource,
+        TerminalAtlas   atlas,
+        out int         bgCount,
+        out int         glyphCount,
+        int             underlineHeight,
+        ReadOnlySpan<uint> palette,
+        bool            skipLeads) =>
+        BuildVertices(bgPtr, glyphPtr, buf, cols, rows, cellWidth, cellHeight, cursorX, cursorY,
+            cursorType, glyphSource, glyphSource.GetAlpha, atlas, out bgCount, out glyphCount,
+            underlineHeight, palette, skipLeads);
 
     // The vertex build proper. getAlpha is glyphSource.GetAlpha, passed in so the per-frame caller
-    // reuses one cached delegate instead of allocating one per glyph cell.
+    // reuses one cached delegate instead of allocating one per glyph cell. A frame that finds the atlas
+    // full evicts every slot (TerminalAtlas.Reset) and is built once more; glyphs that still get no slot
+    // (more distinct glyphs in one frame than the atlas holds) are counted in TerminalAtlas.DroppedGlyphs.
     private static void BuildVertices(
         BgVertex*       bgPtr,
         GlyphVertex*    glyphPtr,
@@ -903,7 +1077,52 @@ internal sealed unsafe partial class TerminalGpuPipeline : IDisposable
         out int         bgCount,
         out int         glyphCount,
         int             underlineHeight,
-        ReadOnlySpan<uint> palette)
+        ReadOnlySpan<uint> palette,
+        bool            skipLeads)
+    {
+        int misses = atlas.FullMisses;
+        BuildVerticesOnce(bgPtr, glyphPtr, buf, cols, rows, cellWidth, cellHeight, cursorX, cursorY, cursorType,
+            glyphSource, getAlpha, atlas, out bgCount, out glyphCount, underlineHeight, palette, skipLeads);
+        if (atlas.FullMisses == misses) return;
+
+        atlas.Reset();
+        misses = atlas.FullMisses;
+        BuildVerticesOnce(bgPtr, glyphPtr, buf, cols, rows, cellWidth, cellHeight, cursorX, cursorY, cursorType,
+            glyphSource, getAlpha, atlas, out bgCount, out glyphCount, underlineHeight, palette, skipLeads);
+        if (atlas.FullMisses != misses)
+        {
+            atlas.DroppedGlyphs += atlas.FullMisses - misses;
+            if (!s_glyphDropLogged)
+            {
+                s_glyphDropLogged = true;
+                Console.Error.WriteLine(
+                    $"[SDLGpu] A frame holds more distinct glyphs than the glyph atlas ({atlas.Capacity} slots); " +
+                    "the excess is not drawn (counted in TerminalAtlas.DroppedGlyphs).");
+            }
+        }
+    }
+
+    private static bool s_glyphDropLogged;
+
+    private static void BuildVerticesOnce(
+        BgVertex*       bgPtr,
+        GlyphVertex*    glyphPtr,
+        ScreenBuffer    buf,
+        uint            cols,
+        uint            rows,
+        int             cellWidth,
+        int             cellHeight,
+        int             cursorX,
+        int             cursorY,
+        ushort          cursorType,
+        IGpuGlyphSource glyphSource,
+        Func<GpuGlyphKey, byte[]?> getAlpha,
+        TerminalAtlas   atlas,
+        out int         bgCount,
+        out int         glyphCount,
+        int             underlineHeight,
+        ReadOnlySpan<uint> palette,
+        bool            skipLeads)
     {
         if (palette.Length < 16)
             throw new ArgumentException("A physical palette has 16 entries.", nameof(palette));
@@ -965,7 +1184,7 @@ internal sealed unsafe partial class TerminalGpuPipeline : IDisposable
                 }
 
                 char ch = cell.Character;
-                if (ch is not (' ' or '\0'))
+                if (ch is not (' ' or '\0') && !(skipLeads && cell.Kind == TScreenCellKind.Lead))
                 {
                     // PhasedDither needs the cell's grid position. The shared helper is the
                     // single phase formula in the codebase; CreateKey then normalises it away for
@@ -981,6 +1200,87 @@ internal sealed unsafe partial class TerminalGpuPipeline : IDisposable
                 }
             }
         }
+    }
+
+    // ─── Cluster vertex build (TV13m) ────────────────────────────────────────
+
+    /// <summary>
+    /// One quad per lead cell, spanning the lead and the trail cells that really follow it (at most its
+    /// <see cref="TScreenChar.CellWidth"/>, never past the last column); UVs cover the same fraction of the cluster's
+    /// atlas slot, so a cluster cut by the right edge or an overwritten trail is clipped, never squeezed. Vertex colour:
+    /// the lead's foreground (block cursor on the lead: its background) for monochrome clusters, white for colour
+    /// clusters. A frame that finds the atlas full evicts it (<see cref="ClusterAtlas.Reset"/>) and is built once
+    /// more; what still does not fit is counted in <see cref="ClusterAtlas.DroppedClusters"/>. Returns the vertex
+    /// count (at most <paramref name="capacity"/>). Allocation-free once every cluster of the frame is resident.
+    /// </summary>
+    internal static int BuildClusterVertices(
+        GlyphVertex*       dst,
+        int                capacity,
+        ScreenBuffer       buf,
+        uint               cols,
+        uint               rows,
+        int                cellWidth,
+        int                cellHeight,
+        int                cursorX,
+        int                cursorY,
+        ushort             cursorType,
+        IGpuClusterSource  source,
+        ClusterAtlas       atlas,
+        ReadOnlySpan<uint> palette)
+    {
+        if (palette.Length < 16)
+            throw new ArgumentException("A physical palette has 16 entries.", nameof(palette));
+        int count = BuildClusterVerticesOnce(dst, capacity, buf, cols, rows, cellWidth, cellHeight,
+            cursorX, cursorY, cursorType, source, atlas, palette, out int misses);
+        if (misses == 0) return count;
+        atlas.Reset();
+        count = BuildClusterVerticesOnce(dst, capacity, buf, cols, rows, cellWidth, cellHeight,
+            cursorX, cursorY, cursorType, source, atlas, palette, out misses);
+        atlas.DroppedClusters += misses;
+        return count;
+    }
+
+    private static int BuildClusterVerticesOnce(
+        GlyphVertex* dst, int capacity, ScreenBuffer buf, uint cols, uint rows, int cellWidth, int cellHeight,
+        int cursorX, int cursorY, ushort cursorType, IGpuClusterSource source, ClusterAtlas atlas,
+        ReadOnlySpan<uint> palette, out int misses)
+    {
+        float invW = 2f / (cols * cellWidth);
+        float invH = 2f / (rows * cellHeight);
+        Span<char> scratch = stackalloc char[2];
+        int count = 0;
+        misses = 0;
+        for (uint row = 0; row < rows; row++)
+        {
+            for (uint col = 0; col < cols; col++)
+            {
+                TScreenChar cell = buf.GetChar(col, row);
+                if (cell.Kind != TScreenCellKind.Lead) continue;
+                int width = cell.CellWidth;
+                int span = 1;
+                while (span < width && col + span < cols && buf.GetChar(col + (uint)span, row).Kind == TScreenCellKind.Trail)
+                    span++;
+
+                ReadOnlySpan<char> text = cell.GetText(scratch);
+                if (!atlas.TryGet(text, width, source, out ClusterSlot slot)) { misses++; continue; }
+                if (slot.Empty) continue;
+                if (count + 6 > capacity) return count;
+
+                byte attr = (byte)(cell.Attr & 0xFF);
+                bool block = cursorType >= 100 && (int)col == cursorX && (int)row == cursorY;
+                (byte r, byte g, byte b) = slot.IsColor
+                    ? ((byte)255, (byte)255, (byte)255)
+                    : ArgbToRgb(palette[block ? (attr >> 4) & 0x0F : attr & 0x0F]);
+
+                float x0 = col * cellWidth * invW - 1f;
+                float y0 = 1f - row * cellHeight * invH;
+                float x1 = x0 + span * cellWidth * invW;
+                float y1 = y0 - cellHeight * invH;
+                float u1 = slot.U0 + (slot.U1 - slot.U0) * span / slot.Cells;
+                EmitGlyphQuad(dst, ref count, x0, y0, x1, y1, slot.U0, slot.V0, u1, slot.V1, r, g, b);
+            }
+        }
+        return count;
     }
 
     // ─── Vertex emit helpers ─────────────────────────────────────────────────
@@ -1034,6 +1334,7 @@ internal sealed unsafe partial class TerminalGpuPipeline : IDisposable
         _disposed = true;
 
         _atlas?.Dispose();
+        ReleaseClusterResources();
 
         ReleaseScanlineResources();
         ReleaseGraphicsResources();

@@ -94,6 +94,15 @@ public partial class SDLDriver : IDisposable, IDriver, IIdleWaitDriver, IGridSiz
         KeyboardCapabilities.KeyReleaseEvents | KeyboardCapabilities.StandaloneModifierTransitions
         | KeyboardCapabilities.DistinctNumericKeypad | KeyboardCapabilities.StandaloneMetaTransitions;
 
+    /// <summary>
+    /// Lead cells are drawn as whole grapheme clusters across their cells (TV13m), so <see cref="TextCapabilities.WideCells"/>
+    /// and <see cref="TextCapabilities.ClusterText"/> always; <see cref="TextCapabilities.ColorGlyphs"/> once the renderer
+    /// has loaded a colour emoji font that rasterises in colour on this machine.
+    /// </summary>
+    public TextCapabilities TextCapabilities =>
+        TextCapabilities.WideCells | TextCapabilities.ClusterText
+        | (sdlRenderer?.ColorGlyphsAvailable == true ? TextCapabilities.ColorGlyphs : TextCapabilities.None);
+
     /// <summary>Optional rendering callback invoked while pumping messages; initialization installs a callback that renders the screen buffer.</summary>
     public Action<IRenderer>? MessageLoop { get; set; }
 
@@ -111,6 +120,15 @@ public partial class SDLDriver : IDisposable, IDriver, IIdleWaitDriver, IGridSiz
         if (!SDL3.SDL.Init(SDL3.SDL.InitFlags.Video))
             throw new InvalidOperationException($"SDL_Init failed: {SDL3.SDL.GetError()}");
     });
+
+    /// <summary>
+    /// Test seam (TV13s): makes startup fail right after <c>SDL_Init</c>. Process-wide, read when an instance is
+    /// constructed; false in normal use.
+    /// </summary>
+    internal static bool FailStartupForAllInstancesForTesting { get; set; }
+
+    /// <summary>Test seam (TV13s): makes this instance's startup fail right after <c>SDL_Init</c>.</summary>
+    internal bool FailStartupForTesting { get; set; } = FailStartupForAllInstancesForTesting;
 
     // Injectable first native operation for headless failure regression tests.
     internal void Initialize(Action initializeVideo)
@@ -132,6 +150,9 @@ public partial class SDLDriver : IDisposable, IDriver, IIdleWaitDriver, IGridSiz
 
             initializeVideo();
             sdlInitialized = true;
+
+            if (FailStartupForTesting)
+                throw new InvalidOperationException("SDL renderer startup failed (simulated for testing).");
 
             int w = _metrics.LogicalWidth  * GetCols();
             int h = _metrics.LogicalHeight * GetRows();

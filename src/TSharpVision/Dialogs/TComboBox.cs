@@ -394,6 +394,10 @@ public class TComboBox : TGroup
         return text.Substring(0, units);
     }
 
+    // Truncates to a number of cells at a cluster boundary (Clip by UTF-16 units under the legacy profile).
+    internal static string ClipCells(string text, int cells) =>
+        CellText.Legacy ? Clip(text, cells) : CellText.Truncate(text, cells);
+
     /// <summary>
     /// Places a dropdown of <paramref name="itemCount"/> rows (at most <paramref name="maxRows"/>) for a control,
     /// both rectangles in the host's coordinates: below the control when it fits, else above, else on the larger side
@@ -567,7 +571,7 @@ public class TComboBox : TGroup
         TRect control = new TRect(x, y, x + size.x, y + Math.Max(1, size.y));
 
         int longest = 0;
-        foreach (string item in _items) longest = Math.Max(longest, item.Length);
+        foreach (string item in _items) longest = Math.Max(longest, CellText.Measure(item));
         return PlaceDropDown(control, WorkingArea(host), _items.Length, longest, _maxDropDownRows);
     }
 

@@ -332,9 +332,24 @@ public ref struct TVWrite
                 dst[idx + i] = cell;
             }
         }
+        // Wide clusters (invariants I1-I3): a clipped source slice must not start with an orphan trail or end
+        // with a lead whose trails were cut off, and the cells around the slice must not keep half of a
+        // cluster that the write overwrote. Repairs outside [X, X + len) widen the range sent to the driver.
+        int first = X, end = X + len;
+        CellText.TrimClippedEdges(dst.Slice(idx, len));
+        int stride = owner.size.x;
+        if (stride > 0 && (Y + 1) * stride <= dst.Length)
+        {
+            Span<TScreenChar> row = dst.Slice(Y * stride, stride);
+            var (l1, l2) = CellText.RepairBoundary(row, X);
+            var (r1, r2) = CellText.RepairBoundary(row, X + len);
+            if (l2 > l1) { first = Math.Min(first, l1); end = Math.Max(end, l2); }
+            if (r2 > r1) { first = Math.Min(first, r1); end = Math.Max(end, r2); }
+        }
+
         // Push to hardware display when writing into the root screen buffer.
         if (ReferenceEquals(owner.buffer, TScreen.ScreenBuffer))
-            TScreen.ScreenWrite(X, Y, dst.Slice(idx, len), len);
+            TScreen.ScreenWrite(first, Y, dst.Slice(Y * owner.size.x + first, end - first), end - first);
     }
 
     // Direct cell-to-cell copy without any attribute transform.

@@ -48,6 +48,9 @@ public readonly struct TerminalCell : IEquatable<TerminalCell>
     /// <summary>The cell's text: its grapheme, or an empty string for an empty or continuation cell.</summary>
     public string Text => _cluster ?? (_char == '\0' ? string.Empty : _char.ToString());
 
+    /// <summary>The grapheme when it is more than one UTF-16 unit, otherwise null (then <see cref="DisplayChar"/> is it).</summary>
+    internal string? Cluster => _cluster;
+
     /// <summary>Whether the cell holds no content (empty, erased or a continuation cell).</summary>
     public bool IsEmpty => _cluster is null && _char == '\0';
 

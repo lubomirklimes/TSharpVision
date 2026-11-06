@@ -99,14 +99,15 @@ public class TFrame : TView
             string? title = win?.GetTitle((short)l);
             if (!string.IsNullOrEmpty(title))
             {
-                int ls = title.Length;
+                // Cells of the title (UTF-16 units under the legacy profile).
+                int ls = CellText.Measure(title);
                 if (ls > l)
                 {
-                    // " .." followed by the last l - 2 UTF-16 units; a budget under two cannot hold the marker.
+                    // " .." followed by the longest tail of the title that fits l - 2 cells, cut at a cluster
+                    // boundary; a budget under two cannot hold the marker.
                     if (l >= 2)
                     {
-                        int start = ls - l + 2;
-                        if (start < ls && char.IsLowSurrogate(title[start])) start++;
+                        int start = CellText.TailStart(title, l - 2);
                         i = (width - l) >> 1;
                         b.moveBuf(i - 1, " ..", cTitle, 3);
                         b.moveChar(i + 2, ' ', cTitle, l - 2);

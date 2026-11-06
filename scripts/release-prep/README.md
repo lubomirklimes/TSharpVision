@@ -21,7 +21,7 @@ package checks below. It never runs Git, packs, publishes, tags or changes versi
 
 ## Metadata
 
-A JSON object; `scripts/release-prep/release-1.2.0.json` is the 1.2.0 example.
+A JSON object; `scripts/release-prep/release-1.3.0.json` describes the current release. `release-1.2.0.json` remains a historical example.
 
 | Field | Required | Meaning |
 |---|---|---|
@@ -30,7 +30,7 @@ A JSON object; `scripts/release-prep/release-1.2.0.json` is the 1.2.0 example.
 | `summary`, `compatibility`, `readme_summary` | yes | non-empty text |
 | `changes`, `limitations`, `scope` | yes | non-empty lists of text |
 | `excluded_claims` | no | phrases that must not appear in the release text |
-| `date` | no | ISO `YYYY-MM-DD`; otherwise the generated changelog body says "Pending release." |
+| `date` | no | ISO `YYYY-MM-DD`; otherwise omit the release date |
 | `changelog` | no | `generate` (default): build the `## <version>` section from `changes`, or require that exact text. `existing`: keep a maintained `## <version>` section, which must exist. |
 
 Anything else (for example an action field) is rejected.
@@ -45,9 +45,9 @@ Windows PowerShell, from the repository root:
 # 2. Unit tests (offline, fixtures only):
 python scripts/release-prep/test_prepare.py
 # 3. Preview (writes nothing; lists the files apply would change):
-python scripts/release-prep/prepare.py --metadata scripts/release-prep/release-1.2.0.json --output Temp/release-1.2.0 --mode preview
-# 4. Apply (writes README.md, CHANGELOG.md when generated, and Temp/release-1.2.0/*.md):
-python scripts/release-prep/prepare.py --metadata scripts/release-prep/release-1.2.0.json --output Temp/release-1.2.0 --mode apply
+python scripts/release-prep/prepare.py --metadata scripts/release-prep/release-1.3.0.json --output Temp/release-1.3.0 --mode preview
+# 4. Apply (writes README.md, CHANGELOG.md when generated, and Temp/release-1.3.0/*.md):
+python scripts/release-prep/prepare.py --metadata scripts/release-prep/release-1.3.0.json --output Temp/release-1.3.0 --mode apply
 # 5. Packages, without publishing (temporary folder; never the global NuGet cache):
 $feed = Join-Path ([IO.Path]::GetTempPath()) 'tsv-release-feed'
 dotnet restore TSharpVision.slnx

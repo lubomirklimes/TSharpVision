@@ -68,8 +68,11 @@ internal sealed class ComboApp : TProgram
         var sb = new StringBuilder(count);
         for (int i = 0; i < count; i++)
         {
-            char c = Cell(x + i, y).Character;
-            sb.Append(c == '\0' ? ' ' : c);
+            // A wide cluster is its lead's text; its trail cells add nothing.
+            TScreenChar cell = Cell(x + i, y);
+            if (cell.Kind == TScreenCellKind.Trail) continue;
+            string text = cell.GetText();
+            sb.Append(text == "\0" ? " " : text);
         }
         return sb.ToString();
     }

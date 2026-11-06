@@ -22,7 +22,7 @@ namespace TSharpVision.Drivers.SDL.Gpu;
 ///      (format-converting blit; no custom shaders required).
 ///   5. Submit the command buffer.
 /// </summary>
-internal sealed partial class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource
+internal sealed partial class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyphSource, IGpuClusterSource
 {
     private const int DefaultFontPtSize   = 20;
     private const int MaxGlyphCacheSize   = 4096;
@@ -43,6 +43,19 @@ internal sealed partial class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyph
 
     // Font glyph → cell mask, shared placement with SDLRenderer.
     private SdlCellGlyphRasterizer? _cellGlyphs;
+
+    // Grapheme clusters (lead cells): one primary font per cluster, shared with SDLRenderer (TV13m).
+    private SdlClusterRasterizer? _clusters;
+    private volatile bool _colorGlyphs;
+
+    /// <summary>The cluster rasteriser (font chain, fitted sizes, counters) for qualification.</summary>
+    internal SdlClusterRasterizer? ClustersForTesting => _clusters;
+
+    /// <summary>
+    /// True when the last font load found a colour emoji font whose reference glyph rasterised in colour. Written when
+    /// the font loads (initialisation or a density change), readable from any thread.
+    /// </summary>
+    internal bool ColorGlyphsAvailable => _colorGlyphs;
     private string _fontPath = string.Empty;
     private int    _cellWidth  = 8;
     private int    _cellHeight = 16;
@@ -277,10 +290,11 @@ internal sealed partial class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyph
             null         => null,
         };
 
+        if (StartupFaultForTesting == SdlGpuStartupFault.Device)
+            throw GpuUnavailable(backendName, "[SDLGpu] SDL_CreateGPUDevice failed: simulated for testing");
         _device = SDL3.SDL.CreateGPUDevice(AllShaderFormats, debugMode: false, backendName);
         if (_device == IntPtr.Zero)
-            throw new InvalidOperationException(
-                $"[SDLGpu] SDL_CreateGPUDevice failed: {SDL3.SDL.GetError()}");
+            throw GpuUnavailable(backendName, $"[SDLGpu] SDL_CreateGPUDevice failed: {SDL3.SDL.GetError()}");
 
         _backend = SDL3.SDL.GetGPUDeviceDriver(_device) ?? "(unknown)";
 
@@ -291,9 +305,10 @@ internal sealed partial class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyph
                     $"[SDLGpu] SetGPUAllowedFramesInFlight({frames}) failed: {SDL3.SDL.GetError()}");
         }
 
+        if (StartupFaultForTesting == SdlGpuStartupFault.ClaimWindow)
+            throw GpuUnavailable(backendName, "[SDLGpu] SDL_ClaimWindowForGPUDevice failed: simulated for testing");
         if (!SDL3.SDL.ClaimWindowForGPUDevice(_device, _window))
-            throw new InvalidOperationException(
-                $"[SDLGpu] SDL_ClaimWindowForGPUDevice failed: {SDL3.SDL.GetError()}");
+            throw GpuUnavailable(backendName, $"[SDLGpu] SDL_ClaimWindowForGPUDevice failed: {SDL3.SDL.GetError()}");
         _windowClaimed = true;
 
         if (_options.PresentMode is SDL3.SDL.GPUPresentMode presentMode)
@@ -308,6 +323,13 @@ internal sealed partial class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyph
         // GPU shader pipeline (optional; falls back to CPU compositing on failure)
         TryCreateGpuPipeline();
     }
+
+    /// <summary>Test seam (TV13s): fail startup at this stage; None in normal use.</summary>
+    internal SdlGpuStartupFault StartupFaultForTesting { get; init; }
+
+    // No device or swapchain: a reason to fall back to the SDL renderer, unless the user forced a GPU backend.
+    private static InvalidOperationException GpuUnavailable(string? forcedBackend, string message) =>
+        forcedBackend is null ? new SdlGpuUnavailableException(message) : new InvalidOperationException(message);
 
     private void TryCreateGpuPipeline()
     {
@@ -346,6 +368,8 @@ internal sealed partial class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyph
                     throw new InvalidOperationException($"SDL_ttf init failed: {SDL3.SDL.GetError()}");
                 _ttfInitialized = true;
             }
+            if (StartupFaultForTesting == SdlGpuStartupFault.Font)
+                throw new InvalidOperationException("No suitable monospace font found (simulated for testing).");
 
             int ptSize = _fontSize ?? DefaultFontPtSize;
             if (_logicalCellWidth == 0)
@@ -408,6 +432,15 @@ internal sealed partial class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyph
             _generatedGlyphs = new CellGlyphBitmapCache(
                 new Cp437GlyphGenerator(_cellWidth, _cellHeight,
                     Cp437GlyphGeneratorOptions.Default with { ShadingDotSize = _metrics.ShadingDotSize }));
+
+            _clusters = new SdlClusterRasterizer(
+                _fontPath, _cellGlyphs.UniformPointSize, _cellWidth, _cellHeight, _cellGlyphs.TextBaseline,
+                SdlFallbackFontChain.Resolve());
+            _colorGlyphs = _clusters.ColorGlyphsAvailable;
+            if (_options.DiagnosticsEnabled)
+                Console.Error.WriteLine(
+                    $"[SDLGpu] clusterFonts={string.Join(" > ", _clusters.Fonts.Select(f => $"{f.Role}:{Path.GetFileName(f.Path)}"))} " +
+                    $"colorGlyphs={_clusters.ColorGlyphsAvailable}");
         }
         catch (Exception ex)
         {
@@ -418,6 +451,8 @@ internal sealed partial class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyph
     /// <summary>Closes the fonts and rasteriser opened by <see cref="LoadFont"/>; SDL_ttf stays initialised.</summary>
     private void UnloadFont()
     {
+        _clusters?.Dispose();
+        _clusters = null;
         _cellGlyphs?.Dispose();
         _cellGlyphs = null;
 
@@ -934,6 +969,7 @@ internal sealed partial class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyph
 
                 char ch = cell.Character;
                 if (ch is ' ' or '\0') continue;
+                if (cell.Kind == TScreenCellKind.Lead && _clusters != null) continue;
 
                 // Same shared phase helper, same key construction and same cache as the shader
                 // path — there is one generated-glyph implementation, not one per path.
@@ -943,8 +979,63 @@ internal sealed partial class SDLGpuRenderer : IRenderer, IDisposable, IGpuGlyph
                 if (alphaGlyph != null)
                     BlendGlyph(col, row, alphaGlyph, fgArgb, screenW);
             }
+
+            // Clusters after the row's backgrounds, so a trail cell's background never covers its lead's glyph.
+            if (_clusters != null)
+                CompositeClusters(buf, row, regionX, regionX + regionWidth, screenW, palette, cursorX, cursorY, cursorType);
         }
     }
+
+    // CPU fallback of the cluster pass: same span, clip and colour rules as TerminalGpuPipeline.BuildClusterVertices.
+    private void CompositeClusters(
+        ScreenBuffer buf, uint row, uint firstCol, uint endCol, uint screenW, ReadOnlySpan<uint> palette,
+        int cursorX, int cursorY, ushort cursorType)
+    {
+        Span<char> scratch = stackalloc char[2];
+        for (uint col = firstCol; col < endCol; col++)
+        {
+            TScreenChar cell = buf.GetChar(col, row);
+            if (cell.Kind != TScreenCellKind.Lead) continue;
+            int width = cell.CellWidth;
+            int span = 1;
+            while (span < width && col + span < endCol && buf.GetChar(col + (uint)span, row).Kind == TScreenCellKind.Trail)
+                span++;
+            SdlClusterGlyph? glyph = GetCluster(cell.GetText(scratch), width);
+            if (glyph == null) continue;
+            byte attr = (byte)(cell.Attr & 0xFF);
+            bool block = cursorType >= 100 && (int)col == cursorX && (int)row == cursorY;
+            var (fg, bg) = DecodeAttr(palette, attr);
+            BlendCluster(col, row, span, glyph, block ? bg : fg, screenW);
+        }
+    }
+
+    private void BlendCluster(uint col, uint row, int span, SdlClusterGlyph glyph, uint fgArgb, uint screenW)
+    {
+        byte fgR = (byte)((fgArgb >> 16) & 0xFF), fgG = (byte)((fgArgb >> 8) & 0xFF), fgB = (byte)(fgArgb & 0xFF);
+        int x0 = (int)(col * (uint)_cellWidth), y0 = (int)(row * (uint)_cellHeight);
+        int w = Math.Min(span * _cellWidth, glyph.Width);
+        for (int dy = 0; dy < _cellHeight && dy < glyph.Height; dy++)
+        {
+            int dstBase = ((y0 + dy) * (int)screenW + x0) * 4;
+            for (int dx = 0; dx < w; dx++)
+            {
+                int si = (dy * glyph.Width + dx) * 4;
+                byte a = glyph.Rgba[si + 3];
+                if (a == 0) continue;
+                int d = dstBase + dx * 4;
+                byte r = glyph.IsColor ? glyph.Rgba[si] : fgR;
+                byte g = glyph.IsColor ? glyph.Rgba[si + 1] : fgG;
+                byte b = glyph.IsColor ? glyph.Rgba[si + 2] : fgB;
+                _cpuPixels[d]     = GpuAlphaBlend.Blend(r, _cpuPixels[d], a);
+                _cpuPixels[d + 1] = GpuAlphaBlend.Blend(g, _cpuPixels[d + 1], a);
+                _cpuPixels[d + 2] = GpuAlphaBlend.Blend(b, _cpuPixels[d + 2], a);
+                _cpuPixels[d + 3] = 255;
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public SdlClusterGlyph? GetCluster(ReadOnlySpan<char> cluster, int cells) => _clusters?.Get(cluster, cells);
 
     private void FillCellRect(uint col, uint row, uint argb, uint screenW)
     {

@@ -52,14 +52,6 @@ public class TCluster : TView
     /// <inheritdoc />
     public override ushort DataSize() => sizeof(ushort);
 
-    private static int CStrLen(string s)
-    {
-        if (string.IsNullOrEmpty(s)) return 0;
-        int n = 0;
-        for (int i = 0; i < s.Length; i++) if (s[i] != '~') n++;
-        return n;
-    }
-
     /// <summary>Draws option labels and icons, applying the marker to options selected by Mark.</summary>
     public void DrawBox(string icon, char marker) => DrawMultiBox(icon, string.Concat(' ', marker));
 
@@ -81,7 +73,7 @@ public class TCluster : TView
                 int cur = j * size.y + i;
                 int col = Column(cur);
                 if (cur < Strings.Count
-                    && col + CStrLen(GetItemText(cur)) + 5 < TDrawBuffer.MaxViewWidth
+                    && col + CellText.HotkeyWidth(GetItemText(cur)) + 5 < TDrawBuffer.MaxViewWidth
                     && col < size.x)
                 {
                     ushort color = (state & Views.sfDisabled) != 0 || !ButtonState(cur)
@@ -116,14 +108,6 @@ public class TCluster : TView
         "\x10\x11\x12\x12\x1F", 5);
     /// <inheritdoc />
     public override TPalette GetPalette() => _palette;
-
-    private static char ExtractHotKey(string s)
-    {
-        if (string.IsNullOrEmpty(s)) return '\0';
-        for (int i = 0; i < s.Length - 1; i++)
-            if (s[i] == '~') return char.ToUpperInvariant(s[i + 1]);
-        return '\0';
-    }
 
     private static ushort GetAltCode(char c)
     {
@@ -196,8 +180,10 @@ public class TCluster : TView
                 {
                     for (int i = 0; i < Strings.Count; i++)
                     {
-                        char c = ExtractHotKey(GetItemText(i));
-                        bool altMatch = GetAltCode(c) == @event.keyDown.keyCode;
+                        char c = CellText.Hotkey(GetItemText(i));
+                        // No hotkey (or a non-Latin one) has no Alt code; such keys must not match kbNoKey input.
+                        ushort altCode = GetAltCode(c);
+                        bool altMatch = altCode != Keys.kbNoKey && altCode == @event.keyDown.keyCode;
                         bool asciiMatch = c != '\0'
                             && (owner != null && owner.phase == TView.phaseType.phPostProcess
                                 || (state & Views.sfFocused) != 0)
@@ -341,7 +327,7 @@ public class TCluster : TView
                 col += width + 6;
                 width = 0;
             }
-            if (i < Strings.Count) l = CStrLen(GetItemText(i));
+            if (i < Strings.Count) l = CellText.HotkeyWidth(GetItemText(i));
             if (l > width) width = l;
         }
         return col;

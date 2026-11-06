@@ -12,6 +12,8 @@ T# Vision is a text-mode UI framework for C# and .NET 10, with Turbo Vision-styl
 
 *TVDemo: syntax-highlighted code editor, hex viewer, paged table, embedded terminal and a classic dialog in one character-cell desktop.*
 
+TSharpVision's own code is [MIT licensed](LICENSE). Historical Borland C++ provenance is documented in the [Borland notice](resources/licences/BORLAND-TURBO-VISION-NOTICE.md); [Unicode/CLDR notices](resources/licences/THIRD-PARTY-NOTICES.md) cover the embedded data.
+
 ## Why T# Vision?
 
 - **Keyboard-first, classic UI.** Overlapping windows, menus, a status line, dialogs, hotkeys and mnemonics, with mouse support where the host provides it. Familiar concepts such as owner/group routing, commands and palettes are kept; see [Turbo Vision compatibility](docs/compatibility/turbo-vision-compatibility.md) for what is and is not promised.
@@ -20,6 +22,7 @@ T# Vision is a text-mode UI framework for C# and .NET 10, with Turbo Vision-styl
 - **Composable controls.** Input lines, list boxes, checkboxes and radio buttons, history lists, file and directory dialogs, message and input boxes, and editors. Version 1.1 adds [`TComboBox`](docs/views/combo-box.md), [`TProgressBar`](docs/views/progress-bar.md) and [`TGroupBox`](docs/views/group-box.md).
 - **Customizable look.** Palette-based colors with Color, black-and-white and monochrome families that a running program can switch, a color dialog for live palette edits, and font and font-fitting settings for the SDL drivers. Version 1.2 adds [physical palettes and display effects](docs/views/display-presets.md) such as amber phosphor or scanlines on `SDLGpuDriver`.
 - **Optional extensions.** A TextMate-based code editor, paged hex and table views, a terminal widget with ConPTY, POSIX PTY and pipe sessions, and, new in 1.2, [pixel graphics and image views](docs/graphics/image-preview.md) drawn by the SDL drivers.
+- **Unicode text (1.3).** Text is laid out by user-perceived character with Unicode 16.0 widths: CJK and emoji take two cells, combining marks and ZWJ sequences stay one character, and the editor gains multi-level Undo/Redo. How faithfully emoji and sequences are drawn depends on the driver and terminal; see [Unicode text](docs/architecture/unicode-text.md).
 - **Headless-friendly.** `NullDriver` lets core run without an interactive host, which is useful for automated tests and tooling.
 
 ## One framework, multiple drivers
@@ -31,7 +34,7 @@ T# Vision is a text-mode UI framework for C# and .NET 10, with Turbo Vision-styl
 | `SDLDriver` / `SDLGpuDriver` | `TSharpVision.Drivers.SDL` | A desktop window on Windows, Linux or macOS, using SDL3's renderer or GPU path |
 | `NullDriver` | `TSharpVision` | Headless, with no interactive input |
 
-Behavior is not identical everywhere: available keys, modifiers and mouse reports depend on the host and terminal emulator, and SDL needs a display, native runtime assets and a usable monospace font. `SDLGpuDriver` is the preferred SDL driver, but a failed GPU initialization does not guarantee fallback. [Drivers](docs/drivers.md) explains selection and limits, and [Platform Support](docs/platform-support.md) separates available packages from tested runtime behavior.
+Behavior is not identical everywhere: available keys, modifiers and mouse reports depend on the host and terminal emulator, and SDL needs a display, native runtime assets and a usable monospace font. `SDLGpuDriver` is the preferred SDL driver; when it is chosen automatically (or through the `sdl` alias) and no GPU device or swapchain can be created, the application starts with `SDLDriver` instead. Naming `SDLGpuDriver` exactly keeps it strict. [Drivers](docs/drivers.md) explains selection and limits, and [Platform Support](docs/platform-support.md) separates available packages from tested runtime behavior.
 
 On macOS, the SDL drivers render at the display's native Retina resolution and report Command as the Meta modifier (`kbMetaShift`). In a terminal, which modifier and function-key combinations arrive depends on the emulator: terminals that support the Kitty keyboard protocol, such as iTerm2, can report more than Apple Terminal, which cannot send every combination distinctly.
 
@@ -104,11 +107,11 @@ Use the **.NET 10 SDK** to build (`net10.0`) and a matching .NET 10 runtime to r
 | `TSharpVision.Terminal` | Terminal widget, emulator and byte-stream sessions, including ConPTY and POSIX PTY |
 | `TSharpVision.Graphics` | Optional pixel graphics views, shapes and decoded RGBA images; pixels need the SDL drivers (new in 1.2.0) |
 
-The command-line tools are .NET tool packages (new in 1.2.0): `TSharpVision.ResourceCompiler` (`svrc`, `.trc` to `.tvr`), `TSharpVision.HelpCompiler` (`svhc`, help text to `.hlp`) and `TSharpVision.ResourceTools` (`svres`, `.tvr` inspection). Install one with `dotnet tool install --global TSharpVision.ResourceCompiler --version 1.2.0`, or into a local tool manifest; see [Command-line tools](docs/tools.md).
+The command-line tools are .NET tool packages (new in 1.2.0): `TSharpVision.ResourceCompiler` (`svrc`, `.trc` to `.tvr`), `TSharpVision.HelpCompiler` (`svhc`, help text to `.hlp`) and `TSharpVision.ResourceTools` (`svres`, `.tvr` inspection). Install one with `dotnet tool install --global TSharpVision.ResourceCompiler --version 1.3.0`, or into a local tool manifest; see [Command-line tools](docs/tools.md).
 
 Install one driver package; it brings in `TSharpVision` transitively, including the public core APIs used in the Quick Start. A separate core reference is only needed for a core-only/headless application or when intentionally managing its version directly.
 
-The latest stable version published on NuGet.org is `1.1.0`, with eight packages. Package metadata currently defaults to `1.2.0`. Version 1.2.0 is prepared in this repository but not yet published; it adds `TSharpVision.Graphics` and the three command-line tool packages, so all twelve packages (nine libraries and three .NET tools) share that one version; package validation compares the eight existing library packages with 1.1.0. See the [changelog](CHANGELOG.md) for what is new, and [Getting Started](docs/getting-started.md) for using a local package feed instead.
+Current version: **1.3.0**. All twelve packages (nine libraries and three .NET tools) share this version. Package metadata currently defaults to `1.3.0`. Package validation compares all nine library packages with the 1.2.0 compatibility baseline. See the [changelog](CHANGELOG.md) for changes in 1.3.0 and [Getting Started](docs/getting-started.md) for installation and local feeds.
 
 ## Documentation
 

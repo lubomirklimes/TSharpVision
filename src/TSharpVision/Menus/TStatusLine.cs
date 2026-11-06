@@ -78,7 +78,9 @@ public class TStatusLine : TView
                 {
                     for (TStatusItem? t = Items; t != null; t = t.Next)
                     {
-                        if (@event.keyDown.keyCode == t.KeyCode &&
+                        // An item without a key never matches: characters outside Latin-1 arrive with kbNoKey.
+                        if (t.KeyCode != Keys.kbNoKey &&
+                            @event.keyDown.keyCode == t.KeyCode &&
                             CommandEnabled(t.Command))
                         {
                             @event.What = Events.evCommand;
@@ -116,16 +118,6 @@ public class TStatusLine : TView
         }
     }
 
-    // Count visible chars, excluding the ~ delimiters used by moveCStr for hotkey markup.
-    private static int CStrLen(string? s)
-    {
-        if (s == null) return 0;
-        int n = 0;
-        for (int k = 0; k < s.Length; k++)
-            if (s[k] != '~') n++;
-        return n;
-    }
-
     private void DrawSelect(TStatusItem? selected)
     {
         Span<TScreenChar> row = stackalloc TScreenChar[size.x > 0 ? size.x : 1];
@@ -144,9 +136,8 @@ public class TStatusLine : TView
         {
             if (T.Text != null)
             {
-                // Use display length (tildes stripped) to match upstream
-                // cstrlen behaviour and keep draw/hit-test consistent.
-                var l = CStrLen(T.Text);
+                // Cells of the text without its '~' markers (upstream cstrlen); ItemMouseIsIn uses the same widths.
+                var l = CellText.HotkeyWidth(T.Text);
                 if (i + l + 2 <= size.x)
                 {
                     if (CommandEnabled(T.Command))
@@ -204,8 +195,9 @@ public class TStatusLine : TView
         int i = 0;
         for (TStatusItem? t = Items; t != null; t = t.Next)
         {
-            if (string.IsNullOrEmpty(t.Text)) continue;
-            int len = CStrLen(t.Text);
+            // The same items and widths as DrawSelect: an empty text still takes its two padding cells.
+            if (t.Text == null) continue;
+            int len = CellText.HotkeyWidth(t.Text);
             if (p.x >= i && p.x < i + len + 2) return t;
             i += len + 2;
         }

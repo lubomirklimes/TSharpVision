@@ -26,15 +26,6 @@ public class TMenuBar : TMenuView
     {
     }
 
-    // Count visible chars in a '~'-hotkey string (same as TMenuBox.CStrLen).
-    private static int CStrLen(string s)
-    {
-        if (s == null) return 0;
-        int n = 0;
-        foreach (char c in s) if (c != '~') n++;
-        return n;
-    }
-
     /// <inheritdoc />
     public override void Draw()
     {
@@ -58,7 +49,7 @@ public class TMenuBar : TMenuView
             {
                 if (!string.IsNullOrEmpty(p.Name))
                 {
-                    int l = CStrLen(p.Name);
+                    int l = CellText.HotkeyWidth(p.Name);
                     if (x + l < size.x)
                     {
                         if (p.Disabled)
@@ -99,7 +90,7 @@ public class TMenuBar : TMenuView
                 if (p == item) return new TRect(x, 0, x, 1);
                 continue;
             }
-            int len = CStrLen(p.Name);
+            int len = CellText.HotkeyWidth(p.Name);
             if (p == item) return new TRect(x, 0, x + len + 2, 1);
             x += len + 2;
         }

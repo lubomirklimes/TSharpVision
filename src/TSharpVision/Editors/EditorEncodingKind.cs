@@ -11,4 +11,8 @@ public enum EditorEncodingKind
     Latin1,
     /// <summary>A configured legacy single-byte encoding.</summary>
     Legacy,
+    /// <summary>UTF-16 little-endian with a byte-order mark (FF FE).</summary>
+    Utf16LeBom,
+    /// <summary>UTF-16 big-endian with a byte-order mark (FE FF).</summary>
+    Utf16BeBom,
 }

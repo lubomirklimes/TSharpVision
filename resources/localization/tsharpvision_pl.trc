@@ -44,6 +44,13 @@ resource strings "sharpvision.intl" {
   Encoding_Windows1250 = "Windows-1250";
   Encoding_ISO8859_2 = "ISO-8859-2";
   Encoding_Kamenicky = "Kamenicky / KEYBCS2";
+  Encoding_KeepCurrent = "Zachowaj bieżące";
+  File_Err_EncodingSaveAsHint = "Nic nie zostało zapisane. Użyj polecenia Zapisz jako, aby wybrać inne kodowanie, np. UTF-8.";
+  Edit_MixedLineEndings_Title = "Znaki końca wiersza";
+  Edit_MixedLineEndings = "Plik '{0}' zawiera mieszane znaki końca wiersza ({1}). Zapisz wszystkie końce wiersza jako:";
+  LineEnding_Lf = "LF (Unix)";
+  LineEnding_CrLf = "CRLF (Windows)";
+  LineEnding_Cr = "CR (klasyczny Mac)";
 
   ChDir_Title = "Zmień katalog";
   ChDir_Label_DirectoryName = "~N~azwa katalogu";
@@ -80,10 +87,12 @@ resource strings "sharpvision.intl" {
   Menu_Exit = "~K~oniec";
   Menu_Edit = "~E~dycja";
   Menu_Undo = "~C~ofnij";
+  Menu_Redo = "~P~onów";
   Menu_Cut = "Wy~t~nij";
   Menu_Copy = "~K~opiuj";
   Menu_Paste = "~W~klej";
   Menu_Clear = "Wy~c~zyść";
+  Menu_SelectAll = "~Z~aznacz wszystko";
   Menu_Search = "~S~zukaj";
   Menu_Find = "~Z~najdź...";
   Menu_Replace = "~Z~astąp...";

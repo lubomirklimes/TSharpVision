@@ -2,7 +2,7 @@
 TV-1.1-FIX-3 helper: prints the visible text of another process's console, one line per row.
 Run it as its own process (its console is detached and replaced by the target's): its stdout must be a pipe.
 
-Usage: pwsh -NoProfile -File scripts/read-console-text.ps1 -ProcessId <pid>
+Usage: pwsh -NoProfile -File diagnostics/legacy/read-console-text.ps1 -ProcessId <pid>
 #>
 param([Parameter(Mandatory)] [int] $ProcessId)
 $ErrorActionPreference = 'Stop'

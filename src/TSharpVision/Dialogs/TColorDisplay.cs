@@ -27,7 +27,7 @@ public class TColorDisplay : TView
     {
         byte c = (_data != null) ? _data[_offset] : (byte)0;
         if (c == 0) c = errorAttr;
-        int len = _text.Length;
+        int len = CellText.Measure(_text);
         Span<TScreenChar> row = stackalloc TScreenChar[size.x > 0 ? size.x : 1];
         var b = new TDrawBuffer(row);
         if (len > 0)

@@ -75,4 +75,8 @@ public interface IDriver
     /// <summary>Gets the optional keyboard information this backend reports reliably.</summary>
     /// <remarks>Defaults to <see cref="TSharpVision.Drivers.KeyboardCapabilities.None"/> so existing third-party drivers remain compatible.</remarks>
     KeyboardCapabilities KeyboardCapabilities => KeyboardCapabilities.None;
+
+    /// <summary>Gets how faithfully the backend draws grapheme clusters held by <see cref="TScreenChar"/> leads.</summary>
+    /// <remarks>Defaults to <see cref="TSharpVision.Drivers.TextCapabilities.None"/> so existing third-party drivers remain compatible.</remarks>
+    TextCapabilities TextCapabilities => TextCapabilities.None;
 }

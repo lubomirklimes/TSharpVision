@@ -17,15 +17,7 @@
     <Description>Optional pixel graphics views for TSharpVision: GView/GWindow display lists, shapes and decoded RGBA images (GImage), drawn by drivers that implement IPixelGraphicsDriver (TSharpVision.Drivers.SDL); text drivers show a fallback. No image codecs.</Description>
     <PackageTags>tsharpvision;tui;graphics;pixel;image;sdl3</PackageTags>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <!-- First release of this package (1.2.0): there is no earlier published version to validate against, so
-         the family-wide PackageValidationBaselineVersion from Directory.Build.props is cleared here. Package
-         validation (EnablePackageValidation) still runs, only without a baseline.
-         After TSharpVision.Graphics 1.2.0 is published on nuget.org, the next release (when Directory.Build.props
-         moves the family baseline to 1.2.0) deletes this override so Graphics validates against 1.2.0 like the
-         other packages. Until the family baseline reaches 1.2.0, set it here explicitly instead:
-             <PackageValidationBaselineVersion>1.2.0</PackageValidationBaselineVersion>
-         Never set a baseline before that version exists on the feed: validation would fail to restore it. -->
-    <PackageValidationBaselineVersion></PackageValidationBaselineVersion>
+    <!-- Validated against the family baseline (Directory.Build.props), like the other packages; TSharpVision.Graphics 1.2.0 is its first published version. -->
   </PropertyGroup>
 
   <ItemGroup>

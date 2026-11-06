@@ -1,5 +1,7 @@
+using System.Globalization;
 using System.Text;
 using TSharpVision.Constants;
+using TSharpVision.Text;
 
 namespace TSharpVision.Terminal;
 
@@ -379,8 +381,9 @@ public class TTerminal : TView
     public void InputBackspace()
     {
         if (_inputCursor == 0) return;
-        _inputBuffer = _inputBuffer.Remove(_inputCursor - 1, 1);
-        _inputCursor--;
+        int start = PreviousInputBoundary(_inputCursor);
+        _inputBuffer = _inputBuffer.Remove(start, _inputCursor - start);
+        _inputCursor = start;
         DrawView();
     }
 
@@ -388,8 +391,31 @@ public class TTerminal : TView
     public void InputDelete()
     {
         if (_inputCursor >= _inputBuffer.Length) return;
-        _inputBuffer = _inputBuffer.Remove(_inputCursor, 1);
+        _inputBuffer = _inputBuffer.Remove(_inputCursor, NextInputBoundary(_inputCursor) - _inputCursor);
         DrawView();
+    }
+
+    // Command-line caret stops are grapheme-cluster boundaries, so editing never splits a surrogate pair, a combining
+    // sequence or an emoji sequence.
+    private int PreviousInputBoundary(int position)
+    {
+        int at = 0;
+        while (at < position)
+        {
+            int next = at + Math.Max(1, StringInfo.GetNextTextElementLength(_inputBuffer.AsSpan(at)));
+            if (next >= position) return at;
+            at = next;
+        }
+
+        return 0;
+    }
+
+    private int NextInputBoundary(int position)
+    {
+        if (position >= _inputBuffer.Length) return _inputBuffer.Length;
+        int at = PreviousInputBoundary(position + 1);   // the cluster holding the unit at position
+        int end = at + Math.Max(1, StringInfo.GetNextTextElementLength(_inputBuffer.AsSpan(at)));
+        return Math.Min(_inputBuffer.Length, end);
     }
 
     /// <summary>
@@ -863,6 +889,7 @@ public class TTerminal : TView
             bool showCursor = offset == 0 && _emulator.CursorVisible && _inputMode != TerminalInputMode.Command;
             List<TerminalLine>? lines = _hasSelection ? TerminalText.Lines(_emulator) : null;
             byte blank = _colors.ToAttribute(TerminalStyle.Default, reverse);
+            bool legacy = TextLayout.DefaultProfile == TextWidthProfile.Legacy;
 
             for (int y = 0; y < outputRows; y++)
             {
@@ -872,13 +899,8 @@ public class TTerminal : TView
                 if (row >= 0 && row < bufferRows)
                 {
                     ReadOnlySpan<TerminalCell> cells = _emulator.GetBufferRow(row, out _);
-                    int count = Math.Min(width, cells.Length);
-                    for (int x = 0; x < count; x++)
-                    {
-                        TerminalCell cell = cells[x];
-                        b.putChar(x, cell.IsContinuation ? ' ' : cell.DisplayChar);
-                        b.putAttribute(x, _colors.ToAttribute(cell.Style, reverse));
-                    }
+                    if (legacy) DrawCellsLegacy(ref b, cells, width, reverse);
+                    else DrawCells(rowBuffer, cells, width, reverse);
 
                     if (lines is not null) DrawSelection(ref b, lines, row, width);
                 }
@@ -896,6 +918,55 @@ public class TTerminal : TView
         }
     }
 
+    // Callers hold _sync. Projects the emulator's cells into core cells: a cell's whole grapheme (supplementary
+    // characters, combining marks, ZWJ joiners) becomes one core cluster as wide as the emulator made it, its
+    // continuation a trail. The emulator's width is authoritative (it is what the child program positioned the cursor
+    // by), so the cluster is created with that width, never re-measured. A wide cell cut by the view's edge, or a lone
+    // half, draws as a blank in its style.
+    private void DrawCells(Span<TScreenChar> target, ReadOnlySpan<TerminalCell> cells, int width, bool reverse)
+    {
+        int count = Math.Min(width, cells.Length);
+        for (int x = 0; x < count; x++)
+        {
+            TerminalCell cell = cells[x];
+            var attr = (TColorAttr)_colors.ToAttribute(cell.Style, reverse);
+            if (cell.Width == 2)
+            {
+                if (x + 1 < count && cells[x + 1].IsContinuation && !cell.IsEmpty)
+                {
+                    char single = cell.DisplayChar;
+                    target[x] = cell.Cluster is { } wide
+                        ? TScreenChar.CreateCluster(wide, 2, attr)
+                        : TScreenChar.CreateCluster(new ReadOnlySpan<char>(in single), 2, attr);
+                    target[x + 1] = TScreenChar.CreateTrail((TColorAttr)_colors.ToAttribute(cells[x + 1].Style, reverse));
+                    x++;
+                    continue;
+                }
+
+                target[x] = new TScreenChar(' ', attr);
+                continue;
+            }
+
+            // One column: a plain character stays an ordinary cell; a supplementary character or a combining
+            // sequence becomes a one-cell lead.
+            target[x] = cell.Cluster is { } cluster
+                ? TScreenChar.CreateCluster(cluster, 1, attr)
+                : new TScreenChar(cell.IsContinuation ? ' ' : cell.DisplayChar, attr);
+        }
+    }
+
+    // The 1.2 projection, kept for the Legacy width profile: one UTF-16 unit per cell, a blank continuation.
+    private void DrawCellsLegacy(ref TDrawBuffer b, ReadOnlySpan<TerminalCell> cells, int width, bool reverse)
+    {
+        int count = Math.Min(width, cells.Length);
+        for (int x = 0; x < count; x++)
+        {
+            TerminalCell cell = cells[x];
+            b.putChar(x, cell.IsContinuation ? ' ' : cell.DisplayChar);
+            b.putAttribute(x, _colors.ToAttribute(cell.Style, reverse));
+        }
+    }
+
     // Callers hold _sync.
     private void DrawSelection(ref TDrawBuffer b, List<TerminalLine> lines, int row, int width)
     {
@@ -908,6 +979,9 @@ public class TTerminal : TView
         }
     }
 
+    // How the core's string writers lay text out (moveStr), so the caret lands on the cells they wrote.
+    private static readonly TextLayoutOptions DrawLayout = TextLayoutOptions.Default with { ZeroWidthAsOne = true };
+
     private void DrawPromptRow(int y)
     {
         int width = size.x;
@@ -915,9 +989,21 @@ public class TTerminal : TView
         var b = new TDrawBuffer(rowBuffer);
         b.moveChar(0, ' ', PromptAttribute, width);
         b.moveStr(0, _prompt + _inputBuffer, PromptAttribute);
-        int caret = _prompt.Length + _inputCursor;
-        if (caret < width)
-            b.moveChar(caret, _inputCursor < _inputBuffer.Length ? _inputBuffer[_inputCursor] : ' ', PromptCursorAttribute, 1);
+        if (TextLayout.DefaultProfile == TextWidthProfile.Legacy)
+        {
+            int caret = _prompt.Length + _inputCursor;
+            if (caret < width)
+                b.moveChar(caret, _inputCursor < _inputBuffer.Length ? _inputBuffer[_inputCursor] : ' ', PromptCursorAttribute, 1);
+        }
+        else
+        {
+            // The caret marks the cells of the cluster after it (or one blank cell at the end), in cells, not UTF-16 units.
+            int caret = TextLayout.Measure(string.Concat(_prompt, _inputBuffer.AsSpan(0, _inputCursor)), DrawLayout);
+            int cells = _inputCursor < _inputBuffer.Length
+                ? Math.Max(1, TextLayout.Measure(_inputBuffer.AsSpan(_inputCursor, NextInputBoundary(_inputCursor) - _inputCursor), DrawLayout, caret))
+                : 1;
+            for (int i = 0; i < cells && caret + i < width; i++) b.putAttribute(caret + i, PromptCursorAttribute);
+        }
         WriteLine(0, y, width, 1, b);
     }
 
@@ -1100,10 +1186,10 @@ public class TTerminal : TView
             case Keys.kbBack: InputBackspace(); break;
             case Keys.kbDel: InputDelete(); break;
             case Keys.kbLeft:
-                if (_inputCursor > 0) { _inputCursor--; DrawView(); }
+                if (_inputCursor > 0) { _inputCursor = PreviousInputBoundary(_inputCursor); DrawView(); }
                 break;
             case Keys.kbRight:
-                if (_inputCursor < _inputBuffer.Length) { _inputCursor++; DrawView(); }
+                if (_inputCursor < _inputBuffer.Length) { _inputCursor = NextInputBoundary(_inputCursor); DrawView(); }
                 break;
             case Keys.kbHome:
             case Keys.kbCtrlA:

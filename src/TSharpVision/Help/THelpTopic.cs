@@ -238,10 +238,13 @@ public class THelpTopic : TStreamable
 
         int i = ScanForNewline(text, offset);
         if (i + offset > size) i = size - offset;
-        if ((i >= _width) && wrap && _width > 0)
+        // Widths are cells (one per UTF-16 unit under the legacy profile): reach is the units of the cells that fit
+        // the width, and a line never breaks inside a cluster.
+        if (wrap && _width > 0 && LineCells(text, offset, i) >= _width)
         {
-            i = offset + _width;
-            if (i > size)
+            int reach = WrapReach(text, offset, size, out bool all);
+            i = offset + reach;
+            if (all)
             {
                 i = size;
             }
@@ -254,7 +257,7 @@ public class THelpTopic : TStreamable
                 while (i > offset && !IsBlank(text[i])) i--;
                 if (i == offset)
                 {
-                    i = offset + _width;
+                    i = offset + reach;
                     while (i < size && !IsBlank(text[i])) i++;
                     if (i < size) i++;
                 }
@@ -263,7 +266,7 @@ public class THelpTopic : TStreamable
                     i++;
                 }
             }
-            if (i == offset) i = offset + _width;
+            if (i == offset) i = offset + Math.Max(reach, CellText.ClusterLength(text.AsSpan(0, size), offset));
             i -= offset;
         }
         TextToLine(text, offset, Math.Min(i, lineBuf.Length - 1), lineBuf);
@@ -274,6 +277,28 @@ public class THelpTopic : TStreamable
             lineBuf[len - 1] = '\0';
         offset += Math.Min(i, lineBuf.Length - 1);
         return i;
+    }
+
+    // Cells of the units [offset, offset + count), a final line feed counting as one cell as it did in 1.2.
+    private static int LineCells(char[] text, int offset, int count)
+    {
+        if (CellText.Legacy || count <= 0) return count;
+        bool lf = text[offset + count - 1] == '\n';
+        return CellText.Measure(text.AsSpan(offset, lf ? count - 1 : count)) + (lf ? 1 : 0);
+    }
+
+    // Units from offset that fit the width; all is set when the rest of the paragraph fits with room to spare
+    // (the 1.2 case offset + width > size).
+    private int WrapReach(char[] text, int offset, int size, out bool all)
+    {
+        if (CellText.Legacy)
+        {
+            all = offset + _width > size;
+            return _width;
+        }
+        int reach = CellText.Fit(text.AsSpan(offset, size - offset), _width, out int used);
+        all = reach == size - offset && used < _width;
+        return reach;
     }
 
     private static int ScanForNewline(char[] p, int offset)

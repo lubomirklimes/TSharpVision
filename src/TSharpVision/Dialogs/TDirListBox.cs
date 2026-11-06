@@ -57,7 +57,7 @@ public class TDirListBox : TListBox
     {
         if (_dirs == null || item < 0 || item >= _dirs.Count) return string.Empty;
         string s = _dirs.At(item).Text() ?? string.Empty;
-        if (s.Length > maxChars) s = s.Substring(0, maxChars);
+        s = CellText.Truncate(s, maxChars);
         return s;
     }
 
@@ -133,7 +133,7 @@ public class TDirListBox : TListBox
         _dirs = aList;
         _longestRow = 0;
         if (aList != null)
-            for (int i = 0; i < aList.Count; i++) _longestRow = Math.Max(_longestRow, aList.At(i).Text().Length);
+            for (int i = 0; i < aList.Count; i++) _longestRow = Math.Max(_longestRow, CellText.Measure(aList.At(i).Text()));
         SetRange(aList?.Count ?? 0);
         if (range > 0) FocusItem(0);
         UpdateHorizontalScrollBar(reset: true);

@@ -1,10 +1,12 @@
 using System.Text;
 using TSharpVision;
+using TSharpVision.Constants;
 using TSharpVision.Tests.Infrastructure;
 using Xunit;
 
 namespace TSharpVision.Tests.Editors;
 
+[Collection("NonParallel")]
 public sealed class EditorLineEndingTests
 {
     private static string ReadAll(TEditor ed)
@@ -128,14 +130,29 @@ public sealed class EditorLineEndingTests
     }
 
     [Fact]
-    public void SaveFile_Mixed_WritesDominantStyle()
+    public void SaveFile_Mixed_AcceptingSuggestionWritesDominantStyle()
     {
         using var temp = new TempDirectory();
         string path = CreateBinaryFile(temp, "mixed.txt", "a\r\nb\nc\r\nd");
         var ed = new TFileEditor(new TRect(0, 0, 40, 10), null, null, null, path);
+        var saved = TEditor.editorDialog;
+        int prompts = 0;
+        try
+        {
+            // TV13e: a mixed file is no longer normalised silently; the prompt suggests the dominant style.
+            TEditor.editorDialog = (d, _) =>
+            {
+                if (d == Views.edMixedLineEndings) prompts++;
+                return Views.cmOK;
+            };
+            Assert.True(ed.SaveFile());
+        }
+        finally
+        {
+            TEditor.editorDialog = saved;
+        }
 
-        Assert.True(ed.SaveFile());
-
+        Assert.Equal(1, prompts);
         Assert.Equal("a\r\nb\r\nc\r\nd", Encoding.ASCII.GetString(File.ReadAllBytes(path)));
     }
 

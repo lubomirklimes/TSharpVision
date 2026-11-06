@@ -154,13 +154,13 @@ public static class MsgBox
         {
             // Wide enough for the longest line up to the comfortable width, and for the longest
             // unbreakable token (a path, a URL) so it is not cut in the middle.
-            int longestLine = 0, longestToken = 0, line = 0, token = 0;
-            foreach (char c in msg)
+            // Measured in cells, as TStaticText lays the rows out.
+            int longestLine = 0, longestToken = 0;
+            foreach (string line in msg.Split('\n'))
             {
-                line = c == '\n' ? 0 : line + 1;
-                token = c == '\n' || c == ' ' ? 0 : token + 1;
-                longestLine = Math.Max(longestLine, line);
-                longestToken = Math.Max(longestToken, token);
+                longestLine = Math.Max(longestLine, CellText.Measure(line));
+                foreach (string token in line.Split(' '))
+                    longestToken = Math.Max(longestToken, CellText.Measure(token));
             }
             int textW = Math.Max(longestToken, Math.Min(longestLine, ComfortableWidth - TextMargin));
             w = Math.Clamp(textW + TextMargin, minW, maxW);
@@ -184,13 +184,15 @@ public static class MsgBox
                                         string aLabel, string s, int limit)
     {
         var dialog = new TDialog(bounds, title);
-        int x = 4 + aLabel.Length;
+        // The label's cells, counting its '~' markers as 1.2 did, so ASCII layouts are unchanged.
+        int labelWidth = CellText.Measure(aLabel);
+        int x = 4 + labelWidth;
         var r = new TRect(x, 2,
             Math.Min(x + limit + 2, dialog.size.x - 3), 3);
         var control = new TInputLine(r, limit);
         dialog.Insert(control);
 
-        r = new TRect(2, 2, 3 + aLabel.Length, 3);
+        r = new TRect(2, 2, 3 + labelWidth, 3);
         dialog.Insert(new TLabel(r, aLabel, control));
 
         r = new TRect(dialog.size.x / 2 - 11, dialog.size.y - 3,
@@ -223,7 +225,7 @@ public static class MsgBox
     public static (ushort code, string value) InputBox(TGroup? host,
         string title, string aLabel, string s, int limit)
     {
-        int len = Math.Max(aLabel.Length + 8 + limit, title.Length + 11);
+        int len = Math.Max(CellText.Measure(aLabel) + 8 + limit, CellText.Measure(title) + 11);
         len = Math.Min(len, 60);
         len = Math.Max(len, 24);
         var r = new TRect(0, 0, len, 7);

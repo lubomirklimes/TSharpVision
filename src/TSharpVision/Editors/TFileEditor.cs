@@ -17,16 +17,57 @@ public class TFileEditor : TEditor
     /// <summary>Line-ending convention detected when content was loaded.</summary>
     public LineEndingKind OriginalLineEnding { get; private set; } = LineEndingKind.Unknown;
     /// <summary>Line-ending convention requested when serializing the editor's LF-normalized text.</summary>
-    public LineEndingKind SaveLineEnding { get; set; } = DefaultLineEndingForPlatform();
+    /// <remarks>
+    /// Loading sets the dominant style without counting as a choice. Assigning this property is an explicit choice: a
+    /// document loaded with mixed line endings is then saved with the assigned style without the
+    /// <see cref="Views.edMixedLineEndings"/> prompt.
+    /// </remarks>
+    public LineEndingKind SaveLineEnding
+    {
+        get => saveLineEnding;
+        set
+        {
+            saveLineEnding = value;
+            mixedLineEndingChoicePending = false;
+        }
+    }
     /// <summary>Whether the loaded file contained multiple line-ending conventions.</summary>
     public bool HadMixedLineEndings { get; private set; }
+    /// <summary>
+    /// Whether the next save asks, through <see cref="TEditor.editorDialog"/> with <see cref="Views.edMixedLineEndings"/>,
+    /// which line endings to write. True after loading a file with mixed line endings until a style is chosen by that
+    /// prompt or by assigning <see cref="SaveLineEnding"/>; reloading the file starts over.
+    /// </summary>
+    public bool IsMixedLineEndingChoicePending => mixedLineEndingChoicePending;
+
+    /// <summary>Forgets the remembered line-ending choice so that the next save of a document loaded with mixed line endings asks again; no effect otherwise.</summary>
+    public void ResetMixedLineEndingChoice() => mixedLineEndingChoicePending = HadMixedLineEndings;
     /// <summary>Encoding recognized or selected when the document was loaded.</summary>
     public EditorEncodingKind OriginalEncoding { get; private set; } = EditorEncodingKind.Utf8;
     /// <summary>Legacy codec associated with the loaded file, or null for UTF-8.</summary>
     public ILegacyTextEncoding? OriginalLegacyEncoding { get; private set; }
     /// <summary>Whether the loaded file began with a UTF-8 byte-order mark.</summary>
     public bool HadUtf8Bom { get; private set; }
+    /// <summary>
+    /// Encoding used by the next save, including its byte-order mark. Loading sets it to the loaded encoding; a new or
+    /// unnamed document uses UTF-8 without a byte-order mark. Change it with <c>SetSaveEncoding</c>.
+    /// </summary>
+    public EditorEncodingKind SaveEncoding => saveEncoding;
+    /// <summary>Single-byte codec used by the next save when <see cref="SaveEncoding"/> is Latin1 or Legacy; otherwise null.</summary>
+    public ILegacyTextEncoding? SaveLegacyEncoding => saveLegacyEncoding;
     private TFileEditorOpenOptions openOptions;
+    private LineEndingKind saveLineEnding = DefaultLineEndingForPlatform();
+    private bool mixedLineEndingChoicePending;
+    private int loadedCrLfCount, loadedLfCount, loadedCrCount;
+    private EditorEncodingKind saveEncoding = EditorEncodingKind.Utf8;
+    private ILegacyTextEncoding? saveLegacyEncoding;
+
+    private static readonly UTF8Encoding StrictUtf8 =
+        new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+    private static readonly UnicodeEncoding StrictUtf16Le =
+        new UnicodeEncoding(bigEndian: false, byteOrderMark: false, throwOnInvalidBytes: true);
+    private static readonly UnicodeEncoding StrictUtf16Be =
+        new UnicodeEncoding(bigEndian: true, byteOrderMark: false, throwOnInvalidBytes: true);
 
     /// <summary>Creates a file editor at owner-relative cell bounds and loads the path using automatic encoding detection; empty path creates an unnamed document.</summary>
     public TFileEditor(TRect bounds, TScrollBar? aHScrollBar,
@@ -80,11 +121,15 @@ public class TFileEditor : TEditor
             // Upstream returns True on missing file (creates a new file
             // editor with an empty buffer).
             OriginalLineEnding = LineEndingKind.Unknown;
-            SaveLineEnding = DefaultLineEndingForPlatform();
+            saveLineEnding = DefaultLineEndingForPlatform();
             HadMixedLineEndings = false;
+            mixedLineEndingChoicePending = false;
+            loadedCrLfCount = loadedLfCount = loadedCrCount = 0;
             OriginalEncoding = EditorEncodingKind.Utf8;
             OriginalLegacyEncoding = null;
             HadUtf8Bom = false;
+            saveEncoding = EditorEncodingKind.Utf8;
+            saveLegacyEncoding = null;
             SetBufLen(0);
             return true;
         }
@@ -106,13 +151,23 @@ public class TFileEditor : TEditor
             out var encoding,
             out bool bom,
             out var legacyEncoding);
-        char[] normalized = NormalizeLineEndings(text, out var detected, out var saveAs, out bool mixed);
+        char[] normalized = NormalizeLineEndings(
+            text, out var detected, out var saveAs, out bool mixed,
+            out loadedCrLfCount, out loadedLfCount, out loadedCrCount);
         OriginalLineEnding = detected;
-        SaveLineEnding = saveAs;
+        saveLineEnding = saveAs;
         HadMixedLineEndings = mixed;
+        mixedLineEndingChoicePending = mixed;
         OriginalEncoding = encoding;
         OriginalLegacyEncoding = legacyEncoding;
         HadUtf8Bom = bom;
+        saveEncoding = encoding;
+        saveLegacyEncoding = encoding switch
+        {
+            EditorEncodingKind.Latin1 => legacyEncoding ?? LegacyTextEncodings.Latin1,
+            EditorEncodingKind.Legacy => legacyEncoding,
+            _ => null,
+        };
 
         if (!SetBufSize((uint)normalized.Length))
         {
@@ -173,43 +228,122 @@ public class TFileEditor : TEditor
         return res;
     }
 
-    /// <summary>Writes content using the selected line endings and retained encoding, optionally backing up the old file; clears modified state on success.</summary>
-    public bool SaveFile() => SaveFile(EditorTextEncoding.Auto);
+    /// <summary>Selects the encoding for the next save; Legacy needs a codec and is rejected here, Latin1 uses <see cref="LegacyTextEncodings.Latin1"/>.</summary>
+    /// <exception cref="ArgumentException"><paramref name="kind"/> is Legacy or not a defined value.</exception>
+    public void SetSaveEncoding(EditorEncodingKind kind)
+    {
+        switch (kind)
+        {
+            case EditorEncodingKind.Utf8:
+            case EditorEncodingKind.Utf8Bom:
+            case EditorEncodingKind.Utf16LeBom:
+            case EditorEncodingKind.Utf16BeBom:
+                saveEncoding = kind;
+                saveLegacyEncoding = null;
+                break;
+            case EditorEncodingKind.Latin1:
+                saveEncoding = kind;
+                saveLegacyEncoding = LegacyTextEncodings.Latin1;
+                break;
+            default:
+                throw new ArgumentException(
+                    "Use SetSaveEncoding(ILegacyTextEncoding) to select a legacy single-byte encoding.", nameof(kind));
+        }
+    }
+
+    /// <summary>Selects a single-byte codec for the next save; <see cref="LegacyTextEncodings.Latin1"/> selects Latin1, any other codec Legacy.</summary>
+    /// <exception cref="ArgumentNullException"><paramref name="encoding"/> is null.</exception>
+    public void SetSaveEncoding(ILegacyTextEncoding encoding)
+    {
+        if (encoding == null) throw new ArgumentNullException(nameof(encoding));
+        saveEncoding = ReferenceEquals(encoding, LegacyTextEncodings.Latin1)
+            ? EditorEncodingKind.Latin1
+            : EditorEncodingKind.Legacy;
+        saveLegacyEncoding = encoding;
+    }
+
+    /// <summary>
+    /// Applies a file-dialog encoding choice to the next save: Auto keeps the current save encoding, UTF-8 selects UTF-8
+    /// (keeping a UTF-8 byte-order mark the document already uses), and Legacy selects that codec.
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="choice"/> is null.</exception>
+    public void SetSaveEncoding(EditorTextEncoding choice)
+    {
+        if (choice == null) throw new ArgumentNullException(nameof(choice));
+        switch (choice.Mode)
+        {
+            case EditorTextEncodingMode.Utf8:
+                SetSaveEncoding(saveEncoding == EditorEncodingKind.Utf8Bom
+                    ? EditorEncodingKind.Utf8Bom
+                    : EditorEncodingKind.Utf8);
+                break;
+            case EditorTextEncodingMode.Legacy when choice.LegacyEncoding != null:
+                SetSaveEncoding(choice.LegacyEncoding);
+                break;
+        }
+    }
 
     /// <summary>Writes content in the given encoding and, on success, makes it the document's encoding for later saves.</summary>
     /// <remarks>
-    /// <see cref="EditorTextEncoding.Auto"/> keeps the current encoding and byte-order mark. UTF-8 keeps a byte-order
-    /// mark only when the document already has one; a legacy encoding never writes one. All text is encoded strictly
-    /// before any file is created: a character the encoding cannot represent shows the encoding error and returns
-    /// false with the destination, buffer, modified state and encoding unchanged. The bytes are written to a
-    /// temporary sibling file that then replaces the destination.
+    /// Applies <paramref name="encoding"/> as <see cref="SetSaveEncoding(EditorTextEncoding)"/> does and then saves with
+    /// <see cref="SaveFile()"/>, with the same strict encoding and mixed line-ending rules. <see cref="EditorTextEncoding.Auto"/>
+    /// keeps the current save encoding. A failed or cancelled save restores the previous save encoding; a successful
+    /// explicit choice also updates <see cref="OriginalEncoding"/>, <see cref="OriginalLegacyEncoding"/> and
+    /// <see cref="HadUtf8Bom"/>.
     /// </remarks>
     public bool SaveFile(EditorTextEncoding encoding)
     {
-        ResolveSaveEncoding(encoding ?? EditorTextEncoding.Auto,
-            out var kind, out var legacy, out bool bom);
-        byte[] content;
-        try
+        var previousKind = saveEncoding;
+        var previousLegacy = saveLegacyEncoding;
+        var requested = encoding ?? EditorTextEncoding.Auto;
+        SetSaveEncoding(requested);
+        if (!SaveFile())
         {
-            content = EncodeTextForSave(TextWithLineEndings(), kind, legacy);
-        }
-        catch (EncoderFallbackException)
-        {
-            editorDialog(Views.edEncodingWriteError, fileName);
+            saveEncoding = previousKind;
+            saveLegacyEncoding = previousLegacy;
             return false;
+        }
+        if (requested.Mode != EditorTextEncodingMode.Auto)
+        {
+            OriginalEncoding = saveEncoding;
+            OriginalLegacyEncoding = saveLegacyEncoding;
+            HadUtf8Bom = saveEncoding == EditorEncodingKind.Utf8Bom;
+        }
+        return true;
+    }
+
+    /// <summary>Writes content using the selected line endings and save encoding, optionally backing up the old file; clears modified state on success.</summary>
+    /// <remarks>
+    /// Saving is strict: when the text contains characters that <see cref="SaveEncoding"/> cannot represent (including
+    /// unpaired surrogates in UTF-8 and UTF-16), <see cref="Views.edEncodingWriteError"/> is reported and false is
+    /// returned without touching the destination or its backup. For a document loaded with mixed line endings, the first
+    /// save asks for the line endings to write (<see cref="IsMixedLineEndingChoicePending"/>); a cancelled prompt
+    /// returns false and writes nothing.
+    /// </remarks>
+    public bool SaveFile()
+    {
+        if (mixedLineEndingChoicePending)
+        {
+            var prompt = new EditorLineEndingPromptInfo(
+                fileName, loadedCrLfCount, loadedLfCount, loadedCrCount, NormalizeChoice(saveLineEnding));
+            ushort answer = editorDialog(Views.edMixedLineEndings, prompt);
+            if (answer != Views.cmOK && answer != Views.cmYes)
+                return false;
+            saveLineEnding = prompt.Choice;
+            mixedLineEndingChoicePending = false;
         }
 
         string? temporary = null;
         int error = Views.edCreateError;
         try
         {
+            // Encoding runs first: an unrepresentable character fails before any file is created.
+            byte[] content = EncodeContent();
             string destination = Path.GetFullPath(fileName);
             temporary = Path.Combine(Path.GetDirectoryName(destination)!, ".tsharpvision-" + Guid.NewGuid().ToString("N") + ".tmp");
             using (var f = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
             {
                 error = Views.edWriteError;
-                if (bom)
-                    f.Write(new byte[] { 0xEF, 0xBB, 0xBF });
                 f.Write(content, 0, content.Length);
                 f.Flush(flushToDisk: true);
             }
@@ -240,42 +374,15 @@ public class TFileEditor : TEditor
             }
         }
 
-        OriginalEncoding = kind;
-        OriginalLegacyEncoding = legacy;
-        HadUtf8Bom = bom;
-        modified = false;
+        MarkUnmodified();
         Update(Views.ufUpdate);
         return true;
     }
 
-    // Maps a requested encoding to what is written. Auto keeps the document's encoding; an auto-detected Latin-1
-    // document keeps a null legacy codec, as loading recorded it.
-    private void ResolveSaveEncoding(EditorTextEncoding requested,
-        out EditorEncodingKind kind, out ILegacyTextEncoding? legacy, out bool bom)
-    {
-        switch (requested.Mode)
-        {
-            case EditorTextEncodingMode.Utf8:
-                bom = IsUtf8 && (HadUtf8Bom || OriginalEncoding == EditorEncodingKind.Utf8Bom);
-                kind = bom ? EditorEncodingKind.Utf8Bom : EditorEncodingKind.Utf8;
-                legacy = null;
-                break;
-            case EditorTextEncodingMode.Legacy:
-                legacy = requested.LegacyEncoding
-                    ?? throw new InvalidOperationException("Legacy mode requires a legacy text encoding.");
-                kind = legacy == LegacyTextEncodings.Latin1 ? EditorEncodingKind.Latin1 : EditorEncodingKind.Legacy;
-                bom = false;
-                break;
-            default:
-                kind = OriginalEncoding;
-                legacy = OriginalLegacyEncoding;
-                bom = IsUtf8 && (HadUtf8Bom || OriginalEncoding == EditorEncodingKind.Utf8Bom);
-                break;
-        }
-    }
-
-    private bool IsUtf8 => OriginalLegacyEncoding == null
-        && OriginalEncoding is EditorEncodingKind.Utf8 or EditorEncodingKind.Utf8Bom;
+    private static LineEndingKind NormalizeChoice(LineEndingKind kind)
+        => kind is LineEndingKind.Lf or LineEndingKind.CrLf or LineEndingKind.Cr
+            ? kind
+            : DefaultLineEndingForPlatform();
 
     private static LineEndingKind DefaultLineEndingForPlatform()
         => OperatingSystem.IsWindows() ? LineEndingKind.CrLf : LineEndingKind.Lf;
@@ -312,6 +419,25 @@ public class TFileEditor : TEditor
             return selectedLegacyEncoding.Decode(source);
         }
 
+        // Auto: a UTF-16 byte-order mark selects strict UTF-16; undecodable content falls back to Latin-1 below.
+        if (source.Length >= 2 && ((source[0] == 0xFF && source[1] == 0xFE) || (source[0] == 0xFE && source[1] == 0xFF)))
+        {
+            bool bigEndian = source[0] == 0xFE;
+            try
+            {
+                string utf16 = (bigEndian ? StrictUtf16Be : StrictUtf16Le).GetString(source, 2, source.Length - 2);
+                encoding = bigEndian ? EditorEncodingKind.Utf16BeBom : EditorEncodingKind.Utf16LeBom;
+                hadBom = false;
+                return utf16;
+            }
+            catch (DecoderFallbackException)
+            {
+                encoding = EditorEncodingKind.Latin1;
+                hadBom = false;
+                return Encoding.Latin1.GetString(source);
+            }
+        }
+
         try
         {
             string text = strictUtf8.GetString(source, offset, source.Length - offset);
@@ -331,9 +457,12 @@ public class TFileEditor : TEditor
         string source,
         out LineEndingKind detected,
         out LineEndingKind saveAs,
-        out bool mixed)
+        out bool mixed,
+        out int crlf,
+        out int lf,
+        out int cr)
     {
-        int crlf = 0, lf = 0, cr = 0;
+        crlf = 0; lf = 0; cr = 0;
         var normalized = new char[source.Length];
         int n = 0;
 
@@ -407,9 +536,26 @@ public class TFileEditor : TEditor
         };
     }
 
+    private byte[] EncodeContent()
+    {
+        byte[] preamble = saveEncoding switch
+        {
+            EditorEncodingKind.Utf8Bom => new byte[] { 0xEF, 0xBB, 0xBF },
+            EditorEncodingKind.Utf16LeBom => new byte[] { 0xFF, 0xFE },
+            EditorEncodingKind.Utf16BeBom => new byte[] { 0xFE, 0xFF },
+            _ => Array.Empty<byte>(),
+        };
+        byte[] body = EncodeTextForSave(TextWithLineEndings());
+        if (preamble.Length == 0) return body;
+        var result = new byte[preamble.Length + body.Length];
+        Buffer.BlockCopy(preamble, 0, result, 0, preamble.Length);
+        Buffer.BlockCopy(body, 0, result, preamble.Length, body.Length);
+        return result;
+    }
+
     private string TextWithLineEndings()
     {
-        string lineEnding = SaveLineEnding switch
+        string lineEnding = saveLineEnding switch
         {
             LineEndingKind.CrLf => "\r\n",
             LineEndingKind.Cr => "\r",
@@ -427,17 +573,15 @@ public class TFileEditor : TEditor
         return sb.ToString();
     }
 
-    // Strict: a character the encoding cannot represent throws EncoderFallbackException instead of becoming '?' or
-    // U+FFFD.
-    private static byte[] EncodeTextForSave(string text, EditorEncodingKind kind, ILegacyTextEncoding? legacy)
+    // Every codec rejects what it cannot represent (EncoderFallbackException); nothing is replaced or best-fitted.
+    private byte[] EncodeTextForSave(string text) => saveEncoding switch
     {
-        if (legacy != null)
-            return legacy.Encode(text);
-
-        return kind == EditorEncodingKind.Latin1
-            ? LegacyTextEncodings.Latin1.Encode(text)
-            : new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true).GetBytes(text);
-    }
+        EditorEncodingKind.Utf16LeBom => StrictUtf16Le.GetBytes(text),
+        EditorEncodingKind.Utf16BeBom => StrictUtf16Be.GetBytes(text),
+        EditorEncodingKind.Latin1 or EditorEncodingKind.Legacy =>
+            (saveLegacyEncoding ?? LegacyTextEncodings.Latin1).Encode(text),
+        _ => StrictUtf8.GetBytes(text),
+    };
 
     private static string MakeBackupName(string path)
     {
@@ -459,10 +603,12 @@ public class TFileEditor : TEditor
             try { fresh = new char[newSize]; }
             catch (OutOfMemoryException) { return false; }
 
-            // Upstream copies up to min(newSize, bufSize) bytes from
-            // the front, then memmoves the right-side tail (post-gap)
-            // to its new position at `newSize - n`.
-            uint n = bufLen - curPtr + delCount;
+            // Copies up to min(newSize, bufSize) characters from the
+            // front, then moves the right-side tail (the text after
+            // curPtr, which sits after the gap) to `newSize - n`. Undo
+            // text lives in the editor's history, not in the gap, so
+            // delCount is not part of the tail.
+            uint n = bufLen - curPtr;
             if (temp != null)
             {
                 uint copyLen = Math.Min(newSize, bufSize);

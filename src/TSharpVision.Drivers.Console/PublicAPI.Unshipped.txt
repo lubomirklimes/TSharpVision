@@ -1,1 +1,2 @@
 #nullable enable
+TSharpVision.Drivers.Console.Win32ConsoleDriver.TextCapabilities.get -> TSharpVision.Drivers.TextCapabilities

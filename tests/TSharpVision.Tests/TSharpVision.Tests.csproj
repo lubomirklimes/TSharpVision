@@ -32,6 +32,9 @@
     <Compile Include="..\..\samples\TSharpVision.Samples.TVDemo\*.cs"
              Exclude="..\..\samples\TSharpVision.Samples.TVDemo\Program.cs"
              Link="Samples\TVDemo\%(Filename)%(Extension)" />
+    <!-- TVDemo's sources are compiled in here, so its embedded character-name database must be too (same name). -->
+    <EmbeddedResource Include="..\..\samples\TSharpVision.Samples.TVDemo\Unicode\CharacterNames.txt.gz"
+                      LogicalName="TSharpVision.Samples.TVDemo.CharacterNames.txt.gz" />
     <None Include="..\..\samples\TSharpVision.Samples.TVDemo\Help\tvdemo.hlp"
           Link="Help\tvdemo.hlp" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

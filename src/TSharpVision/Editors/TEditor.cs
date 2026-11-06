@@ -1,5 +1,9 @@
 using System;
+using System.Buffers;
+using System.Globalization;
+using System.Text;
 using TSharpVision.Constants;
+using TSharpVision.Text;
 
 namespace TSharpVision;
 
@@ -57,15 +61,29 @@ public class TEditor : TView
     public int drawLine;
     /// <summary>Logical UTF-16 offset cached for line drawing.</summary>
     public uint drawPtr;
-    /// <summary>Number of deleted UTF-16 code units retained for undo.</summary>
+    /// <summary>
+    /// UTF-16 code units removed by the undo group that typing or deleting can still extend; zero once a caret move,
+    /// Undo or Redo closes that group. Informational: undo text is kept in the editor's history, not in the buffer gap.
+    /// </summary>
     public uint delCount;
-    /// <summary>Number of inserted UTF-16 code units tracked by the undo record.</summary>
+    /// <summary>
+    /// UTF-16 code units inserted by the undo group that typing or deleting can still extend; zero once a caret move,
+    /// Undo or Redo closes that group. Informational, like <see cref="delCount"/>.
+    /// </summary>
     public uint insCount;
     /// <summary>Whether editor initialization and buffer setup succeeded.</summary>
     public bool isValid;
-    /// <summary>Whether edits should retain undo information.</summary>
+    /// <summary>
+    /// Whether edits are recorded for Undo. An edit made while this is false cannot be undone and clears the history,
+    /// because the recorded offsets no longer describe the text.
+    /// </summary>
     public bool canUndo = true;
-    /// <summary>Whether document edits have occurred since loading or a successful save.</summary>
+    /// <summary>
+    /// Whether the text differs from the loaded or last saved text. Edits set it; <see cref="MarkUnmodified"/>,
+    /// loading and saving clear it; Undo and Redo set it from the history's saved position. Writing it directly is
+    /// honoured until the next Undo or Redo, except that a document marked modified while at the saved position stays
+    /// modified until it is marked unmodified again.
+    /// </summary>
     public bool modified;
     /// <summary>Whether caret movement extends the current selection.</summary>
     public bool selecting;
@@ -81,6 +99,16 @@ public class TEditor : TView
     public int keyState;
     /// <summary>Additional text describing the most recent editor or file error.</summary>
     public string errorInfo = string.Empty;
+
+    /// <summary>Default maximum number of undo groups kept by an editor.</summary>
+    public const int DefaultUndoGroupLimit = 1000;
+    /// <summary>Default maximum number of UTF-16 code units of removed and inserted text kept by an editor's undo history.</summary>
+    public const int DefaultUndoTextLimit = 4 * 1024 * 1024;
+
+    private EditorUndoHistory? undoHistory;
+    private int longestLine;
+    private bool explicitlyModified;
+    private bool replayingUndo;
 
     private const string CpEditor = "\x06\x07";
     private static readonly TPalette Palette = new TPalette(CpEditor, CpEditor.Length);
@@ -142,40 +170,53 @@ public class TEditor : TView
     /// <summary>Converts a logical document offset to a physical buffer index across the gap.</summary>
     public uint BufPtr(uint p) => p < curPtr ? p : p + gapLen;
 
-    /// <summary>Computes the tab-expanded column from a logical starting offset to a target offset.</summary>
+    /// <summary>
+    /// Computes the visual column of <paramref name="target"/> counted from the logical origin <paramref name="p"/>
+    /// (normally a line start). Grapheme clusters are laid out by <see cref="TSharpVision.Text.TextLayout"/> with the
+    /// default width profile: a CJK character or an emoji takes two columns, a cluster of only combining or format
+    /// characters one, and tabs expand to <see cref="tabSize"/> stops counted from <paramref name="p"/>. A target
+    /// inside a cluster gives the cluster's column. Under the <see cref="TSharpVision.Text.TextLayout.LegacyCellWidthSwitch"/>
+    /// switch every UTF-16 code unit is one column, as in TSharpVision 1.2.
+    /// </summary>
     public int CharPos(uint p, uint target)
     {
-        int column = 0;
-        foreach (var boundary in ColumnBoundaries(p, Math.Min(target, bufLen)))
-            column = boundary.Column;
+        p = Math.Min(p, bufLen);
+        target = Math.Min(target, bufLen);
+        if (target <= p) return 0;
+        GraphemeLine line = LineForOrigin(p);
+        uint end = LineEndBefore(line, target);
+        int column = ColumnAt(line, end);
+        // Past the line end (an unusual call): every code unit, the LF included, is one column, tabs expand.
+        if (end < target) column = CountColumns(column, end, target);
         return column;
     }
 
-    /// <summary>Maps a visual column from a logical line origin to the last code-unit boundary not exceeding that column.</summary>
+    /// <summary>
+    /// Maps a visual column on the line starting at the logical origin <paramref name="p"/> to the start of the
+    /// grapheme cluster that covers it (a column on the second cell of a wide character or inside a tab gives the
+    /// character's start), or to the line end for a column past it. Under the
+    /// <see cref="TSharpVision.Text.TextLayout.LegacyCellWidthSwitch"/> switch columns are UTF-16 code units and the
+    /// result is the last code-unit boundary not exceeding the column, as in TSharpVision 1.2.
+    /// </summary>
     public uint CharPtr(uint p, int target)
     {
-        uint result = Math.Min(p, bufLen);
-        foreach (var boundary in ColumnBoundaries(result, LineEnd(result)))
-        {
-            if (boundary.Column > Math.Max(0, target)) break;
-            result = boundary.Offset;
-        }
-        return result;
+        p = Math.Min(p, bufLen);
+        if (target <= 0) return p;
+        GraphemeLine line = LineForOrigin(p);
+        LayoutCluster cluster = ClusterAtColumn(line, target);
+        if (cluster.AtLineEnd || cluster.Column >= target) return cluster.Start;
+        // Legacy: a text cluster is one column per code unit, so the column falls on one of its units.
+        return LegacyLayout && cluster.Kind == TextClusterKind.Text ? cluster.Start + (uint)(target - cluster.Column) : cluster.Start;
     }
 
-    private IEnumerable<(uint Offset, int Column)> ColumnBoundaries(uint origin, uint end)
+    // Columns from `column` at `from` up to `to`, one per code unit with tab stops: the pre-Unicode rule, used only
+    // for targets beyond the end of a line.
+    private int CountColumns(int column, uint from, uint to)
     {
-        long column = 0;
-        long stopWidth = Math.Max(1L, tabSize);
-        for (uint offset = Math.Min(origin, bufLen); offset < end; ++offset)
-        {
-            column = BufChar(offset) switch
-            {
-                '\t' => (column / stopWidth + 1) * stopWidth,
-                _ => column + 1
-            };
-            yield return (offset + 1, (int)Math.Min(column, int.MaxValue));
-        }
+        long stop = LayoutTabSize, x = column;
+        for (uint q = from; q < to; q++)
+            x = BufChar(q) == '\t' ? (x / stop + 1) * stop : x + 1;
+        return (int)Math.Min(x, int.MaxValue);
     }
 
     /// <summary>Returns the next LF offset at or after the supplied position, or the document length. The buffer is LF-only: a CR is an ordinary character.</summary>
@@ -221,45 +262,770 @@ public class TEditor : TView
     }
 
     /// <summary>Returns the position immediately after the next LF, bounded by the document end.</summary>
-    public uint NextLine(uint p) => NextChar(LineEnd(p));
+    public uint NextLine(uint p)
+    {
+        p = Math.Min(p, bufLen);
+        GraphemeLine? line = FindCachedLine(p);
+        return NextChar(line != null ? EnsureLineEnd(line, p) : LineEnd(p));
+    }
 
     /// <summary>Returns the start of the line containing the code unit before the supplied offset.</summary>
-    public uint PrevLine(uint p) => LineStart(PrevChar(p));
+    public uint PrevLine(uint p)
+    {
+        uint q = PrevChar(p);
+        return FindCachedLine(q)?.Start ?? LineStart(q);
+    }
 
-    private static bool IsWordChar(char ch)
-        => char.IsLetterOrDigit(ch)
-        || ch == '_';
+    // ── user-perceived characters and visual columns ─────────────────────────
+    //
+    // Caret moves, deletions, overwrite and hit-testing step over extended grapheme clusters (UAX #29, through .NET's
+    // StringInfo), so a surrogate pair, a base with its combining marks, an emoji with modifiers or ZWJ joins, or a
+    // regional-indicator flag is one step. An LF is always a cluster of its own; a CR before it is a separate one-column
+    // character. Positions stay UTF-16 offsets, and NextChar/PrevChar stay single code-unit steps.
+    //
+    // Boundaries are exact: they are those of forward segmentation from the start of the line. Segmentation may restart
+    // at any boundary it produced, so a query segments forward from the nearest known boundary (a checkpoint) before
+    // the offset, never from an arbitrary code unit. Checkpoints are recorded about GraphemeCheckpointSpacing units
+    // apart while segmenting, for the lines used most recently (at least the visible ones); each line also remembers
+    // how far it is known to contain no LF, and its end once seen. The text is read in chunks copied from the buffer
+    // (the gap is skipped, never moved), and a chunk grows only while a single cluster fills it.
+    //
+    // Visual columns (TV13o): every checkpoint also holds the column at which it lies and the number of tabs before
+    // it, so offset -> column, column -> offset, caret columns and the visible window of a line are found by walking
+    // from the nearest checkpoint, never from the line start. Widths come from TextLayout with LayoutOptions (default
+    // profile, tabSize stops, zero-width clusters one column so the caret can stop on them); under the legacy switch
+    // every code unit is one column. A change of tabSize or of the profile drops the cache.
+    //
+    // Edits: checkpoints before an edit stay (a boundary depends only on the text before it and the scalar at it);
+    // those in the unchanged text after it are shifted and become candidates. A walk from the last kept checkpoint
+    // re-verifies them: once it produces a boundary exactly at a candidate, segmentation after it is the old one
+    // (restart property), so every later candidate is a boundary whose column moved by the same amount - except across
+    // a tab when that amount is not a multiple of the tab size, where one checkpoint interval is measured again. An
+    // edit that adds or removes an LF keeps only the checkpoints before it. Load, clear and stream reads drop all.
+    //
+    // Cost: the first query in a line segments from the line start (or the last checkpoint) to the offset; later
+    // queries in the same part of the line read at most about one checkpoint interval plus the cluster itself. A
+    // cluster longer than the interval holds no checkpoints, so a query inside it reads it whole. An edit re-reads
+    // about one interval on each side of it, unless it really changes boundaries far away (a regional-indicator run
+    // whose pairing flips), which is then re-read up to where the text was known.
 
-    /// <summary>Finds the next word start from a valid character offset; letters, digits, and underscores form words.</summary>
+    private const int GraphemeMinCachedLines = 4;
+    private const int GraphemeMaxCachedLines = 128;
+    private const uint GraphemeCheckpointSpacing = 64;
+    private const int GraphemeChunk = 256;
+    private const uint GraphemeEditMargin = 4;
+    private const int MaxLayoutTabSize = 1 << 20;
+
+    private sealed class GraphemeLine
+    {
+        public uint Start;                                       // offset 0 or just after an LF
+        public uint Clear;                                       // [Start, Clear) contains no LF
+        public uint End = uint.MaxValue;                         // offset of the line's LF or the document end, once known
+        public int EndColumn = -1;                               // column at End, once known
+        public int EndTabs;
+        public long LastUse;
+        // Ascending verified boundaries (the first is Start), with their columns and the tabs before them.
+        public uint[] Offsets = new uint[8];
+        public int[] Columns = new int[8];
+        public int[] Tabs = new int[8];
+        public int Count = 1;
+
+        public GraphemeLine(uint start)
+        {
+            Start = start;
+            Clear = start;
+            Offsets[0] = start;
+        }
+
+        public uint LastOffset => Offsets[Count - 1];
+
+        public void Add(uint offset, int column, int tabs)
+        {
+            if (Count == Offsets.Length)
+            {
+                int size = Count * 2;
+                Array.Resize(ref Offsets, size);
+                Array.Resize(ref Columns, size);
+                Array.Resize(ref Tabs, size);
+            }
+            Offsets[Count] = offset;
+            Columns[Count] = column;
+            Tabs[Count] = tabs;
+            Count++;
+        }
+
+        // The last checkpoint at or before offset p (p >= Start).
+        public int CheckpointAtOffset(uint p)
+        {
+            int lo = 0, hi = Count - 1;
+            while (lo < hi)
+            {
+                int mid = (lo + hi + 1) >> 1;
+                if (Offsets[mid] <= p) lo = mid; else hi = mid - 1;
+            }
+            return lo;
+        }
+
+        // The last checkpoint at or before visual column c.
+        public int CheckpointAtColumn(int c)
+        {
+            int lo = 0, hi = Count - 1;
+            while (lo < hi)
+            {
+                int mid = (lo + hi + 1) >> 1;
+                if (Columns[mid] <= c) lo = mid; else hi = mid - 1;
+            }
+            return lo;
+        }
+
+        public void Shift(long delta)
+        {
+            Start = (uint)(Start + delta);
+            Clear = (uint)(Clear + delta);
+            if (End != uint.MaxValue) End = (uint)(End + delta);
+            for (int i = 0; i < Count; i++) Offsets[i] = (uint)(Offsets[i] + delta);
+        }
+    }
+
+    // A cluster found by column, or the line end (AtLineEnd, Start = end offset, Column = end column).
+    private readonly record struct LayoutCluster(uint Start, uint End, int Column, int Width, TextClusterKind Kind, bool AtLineEnd);
+
+    private GraphemeLine?[]? graphemeLines;
+    private long graphemeClock;
+    private uint graphemeTextLength;
+    private uint graphemeTabSize;
+    private TextWidthProfile graphemeProfile;
+    // Candidate checkpoints during an edit (reused).
+    private uint[] pendingOffsets = new uint[16];
+    private int[] pendingColumns = new int[16];
+    private int[] pendingTabs = new int[16];
+
+    // Code units read by boundary searches, column walks, line scans and line measurement; test instrumentation only.
+    internal long GraphemeUnitsRead;
+
+    private static int LayoutTabSize => (int)Math.Clamp(tabSize, 1u, (uint)MaxLayoutTabSize);
+
+    // Layout of editor text: the default profile, tabSize stops, zero-width clusters one column (a caret stop).
+    private static TextLayoutOptions LayoutOptions => new() { TabSize = LayoutTabSize, ZeroWidthAsOne = true };
+
+    private static bool LegacyLayout => TextLayout.DefaultProfile == TextWidthProfile.Legacy;
+
+    // Drops every checkpoint: called when the whole text is replaced, and when the layout changes.
+    private void InvalidateGraphemeCache()
+    {
+        if (graphemeLines != null) Array.Clear(graphemeLines);
+        graphemeTextLength = bufLen;
+        graphemeTabSize = tabSize;
+        graphemeProfile = TextLayout.DefaultProfile;
+    }
+
+    private void ValidateGraphemeCache()
+    {
+        // Every edit goes through InsertBuffer or SetBufLen; a length change seen here is a text change made otherwise.
+        if (graphemeTextLength != bufLen || graphemeTabSize != tabSize || graphemeProfile != TextLayout.DefaultProfile)
+            InvalidateGraphemeCache();
+        int capacity = Math.Clamp(size.y + 4, GraphemeMinCachedLines, GraphemeMaxCachedLines);
+        if (graphemeLines == null)
+            graphemeLines = new GraphemeLine?[capacity];
+        else if (graphemeLines.Length != capacity)
+        {
+            var lines = new GraphemeLine?[capacity];
+            int n = 0;
+            foreach (GraphemeLine? line in graphemeLines)
+                if (line != null && n < capacity) lines[n++] = line;
+            graphemeLines = lines;
+        }
+    }
+
+    private GraphemeLine Touch(GraphemeLine line)
+    {
+        line.LastUse = ++graphemeClock;
+        return line;
+    }
+
+    // Caches a new line in a free slot or in place of the least recently used one.
+    private GraphemeLine AddLine(GraphemeLine line)
+    {
+        GraphemeLine?[] lines = graphemeLines!;
+        int slot = 0;
+        for (int i = 0; i < lines.Length; i++)
+        {
+            if (lines[i] == null) { slot = i; break; }
+            if (lines[i]!.LastUse < lines[slot]!.LastUse) slot = i;
+        }
+        lines[slot] = line;
+        return Touch(line);
+    }
+
+    // The cached line known to contain p (p may be its end), or null; never scans the text.
+    private GraphemeLine? FindCachedLine(uint p)
+    {
+        ValidateGraphemeCache();
+        GraphemeLine? line = null;
+        foreach (GraphemeLine? candidate in graphemeLines!)
+            if (candidate != null && candidate.Start <= p && (line == null || candidate.Start > line.Start))
+                line = candidate;
+        if (line == null) return null;
+        bool contains = line.End != uint.MaxValue ? p <= line.End : p <= line.Clear;
+        return contains ? Touch(line) : null;
+    }
+
+    // The line containing p (p <= bufLen; p may be the line's LF), cached.
+    private GraphemeLine GraphemeLineOf(uint p)
+    {
+        if (FindCachedLine(p) is { } known) return known;
+        GraphemeLine? line = null;
+        foreach (GraphemeLine? candidate in graphemeLines!)
+            if (candidate != null && candidate.Start <= p && (line == null || candidate.Start > line.Start))
+                line = candidate;
+        if (line != null && line.End == uint.MaxValue)
+        {
+            GraphemeUnitsRead += p - line.Clear;
+            uint? lf = FindLineBreak(line.Clear, p, false);
+            if (lf == null)
+            {
+                line.Clear = p;
+                return Touch(line);
+            }
+            line.End = lf.Value;
+            line.Clear = lf.Value;
+        }
+        uint start = LineStart(p);
+        GraphemeUnitsRead += p - start;
+        return AddLine(new GraphemeLine(start) { Clear = p });
+    }
+
+    // The cached line that starts at `start`, which must be a line start.
+    private GraphemeLine LineFromStart(uint start)
+    {
+        ValidateGraphemeCache();
+        foreach (GraphemeLine? candidate in graphemeLines!)
+            if (candidate != null && candidate.Start == start) return Touch(candidate);
+        return AddLine(new GraphemeLine(start));
+    }
+
+    private bool IsLineStart(uint p) => p == 0 || (p <= bufLen && BufChar(p - 1) == '\n');
+
+    // The layout origin for CharPos/CharPtr: the cached line at a line start, otherwise an uncached line that starts
+    // at p (columns and tab stops count from p, as they always have).
+    private GraphemeLine LineForOrigin(uint p)
+    {
+        if (IsLineStart(p)) return LineFromStart(p);
+        ValidateGraphemeCache();
+        return new GraphemeLine(p);
+    }
+
+    private uint CachedLineStart(uint p) => GraphemeLineOf(Math.Min(p, bufLen)).Start;
+
+    private uint CachedLineEnd(uint p)
+    {
+        p = Math.Min(p, bufLen);
+        return EnsureLineEnd(GraphemeLineOf(p), p);
+    }
+
+    // The end of a line that contains p, scanning for it once.
+    private uint EnsureLineEnd(GraphemeLine line, uint p)
+    {
+        if (line.End != uint.MaxValue) return line.End;
+        uint from = Math.Max(line.Clear, p);
+        uint end = FindLineBreak(from, bufLen, false) ?? bufLen;
+        GraphemeUnitsRead += end - from;
+        line.End = end;
+        line.Clear = end;
+        return end;
+    }
+
+    // `target` if the line has no LF before it, otherwise the line's LF.
+    private uint LineEndBefore(GraphemeLine line, uint target)
+    {
+        if (line.End != uint.MaxValue) return Math.Min(line.End, target);
+        if (target <= line.Clear) return target;
+        GraphemeUnitsRead += target - line.Clear;
+        uint? lf = FindLineBreak(line.Clear, target, false);
+        if (lf == null)
+        {
+            line.Clear = target;
+            return target;
+        }
+        line.End = lf.Value;
+        line.Clear = lf.Value;
+        return lf.Value;
+    }
+
+    // Column of offset p of the line (Start <= p <= its end). An offset inside a cluster gives the cluster's column;
+    // under the legacy profile it counts the code units before it, as before.
+    private int ColumnAt(GraphemeLine line, uint p)
+    {
+        if (line.EndColumn >= 0 && p >= line.End) return line.EndColumn;
+        int index = line.CheckpointAtOffset(p);
+        if (line.Offsets[index] == p) return line.Columns[index];
+        Span<char> scratch = stackalloc char[GraphemeChunk];
+        var walker = new ClusterWalker(this, line, index, scratch);
+        try
+        {
+            while (walker.MoveNext())
+                if (p < walker.End)
+                    return p == walker.Start || !LegacyLayout
+                        ? walker.ClusterColumn
+                        : walker.ClusterColumn + (int)(p - walker.Start);
+            return walker.Column;
+        }
+        finally { walker.Dispose(); }
+    }
+
+    // The cluster of the line that covers visual column c, or the line end.
+    private LayoutCluster ClusterAtColumn(GraphemeLine line, int c)
+    {
+        if (line.EndColumn >= 0 && c >= line.EndColumn) return new LayoutCluster(line.End, line.End, line.EndColumn, 0, TextClusterKind.LineBreak, true);
+        Span<char> scratch = stackalloc char[GraphemeChunk];
+        var walker = new ClusterWalker(this, line, line.CheckpointAtColumn(c), scratch);
+        try
+        {
+            while (walker.MoveNext())
+                if (c < walker.ClusterColumn + walker.Width)
+                    return new LayoutCluster(walker.Start, walker.End, walker.ClusterColumn, walker.Width, walker.Kind, false);
+            return new LayoutCluster(walker.Position, walker.Position, walker.Column, 0, TextClusterKind.LineBreak, true);
+        }
+        finally { walker.Dispose(); }
+    }
+
+    // Columns of the whole line.
+    private int LineWidth(GraphemeLine line) =>
+        line.EndColumn >= 0 ? line.EndColumn : ClusterAtColumn(line, int.MaxValue).Column;
+
+    // Start and end of the cluster containing code unit p (p < bufLen).
+    private (uint Start, uint End) GraphemeAt(uint p)
+    {
+        if (BufChar(p) == '\n') return (p, p + 1);
+        GraphemeLine line = GraphemeLineOf(p);
+        Span<char> scratch = stackalloc char[GraphemeChunk];
+        var walker = new ClusterWalker(this, line, line.CheckpointAtOffset(p), scratch);
+        try
+        {
+            while (walker.MoveNext())
+                if (p < walker.End) return (walker.Start, walker.End);
+        }
+        finally { walker.Dispose(); }
+        return (p, p + 1);                                       // not reached: p lies before the line end
+    }
+
+    // Updates the cache after the text [edit, edit + removed) was replaced by `inserted` units; `structural` when an
+    // LF was removed or inserted. Called by InsertBuffer once the new length is committed.
+    private void AdjustGraphemeCache(uint edit, uint removed, uint inserted, bool structural)
+    {
+        if (graphemeLines == null || graphemeTabSize != tabSize || graphemeProfile != TextLayout.DefaultProfile
+            || (long)graphemeTextLength + inserted - removed != bufLen)
+        {
+            InvalidateGraphemeCache();
+            return;
+        }
+        graphemeTextLength = bufLen;
+        long delta = (long)inserted - removed;
+        uint oldEnd = edit + removed;
+        GraphemeLine?[] lines = graphemeLines;
+        for (int i = 0; i < lines.Length; i++)
+        {
+            GraphemeLine? line = lines[i];
+            if (line == null) continue;
+            if (line.Start > oldEnd) line.Shift(delta);                        // after the edit: unchanged text
+            else if (line.Start > edit) lines[i] = null;                       // its LF was removed
+            else if (line.End == uint.MaxValue || line.End >= edit)            // ends before the edit: unchanged
+                ReviseLine(line, edit, oldEnd, delta, structural);
+        }
+    }
+
+    private void ReviseLine(GraphemeLine line, uint edit, uint oldEnd, long delta, bool structural)
+    {
+        // Checkpoints before the edit stay; the first one, the line start, always does.
+        int keep = 1;
+        {
+            int lo = 1, hi = line.Count;                                       // first index too close to the edit
+            while (lo < hi)
+            {
+                int mid = (lo + hi) >> 1;
+                if ((long)line.Offsets[mid] + GraphemeEditMargin <= edit) lo = mid + 1; else hi = mid;
+            }
+            keep = lo;
+        }
+
+        // Checkpoints in the unchanged text after the edit, and the line end, become candidates.
+        int pending = 0;
+        bool pendingEnd = false;
+        if (!structural)
+        {
+            int from = keep;
+            while (from < line.Count && line.Offsets[from] < oldEnd) from++;
+            for (int k = from; k < line.Count; k++)
+                AddPending(ref pending, (uint)(line.Offsets[k] + delta), line.Columns[k], line.Tabs[k]);
+            if (line.EndColumn >= 0)
+            {
+                AddPending(ref pending, (uint)(line.End + delta), line.EndColumn, line.EndTabs);
+                pendingEnd = true;
+            }
+        }
+
+        line.Count = keep;
+        line.EndColumn = -1;
+        if (structural || line.End == uint.MaxValue) line.End = uint.MaxValue;
+        else line.End = (uint)(line.End + delta);                               // the LF moved with the text after it
+        line.Clear = !structural && line.Clear >= oldEnd ? (uint)(line.Clear + delta) : Math.Min(line.Clear, edit);
+
+        if (pending == 0) return;
+        Resynchronize(line, pending, pendingEnd);
+    }
+
+    private void AddPending(ref int count, uint offset, int column, int tabs)
+    {
+        if (count == pendingOffsets.Length)
+        {
+            Array.Resize(ref pendingOffsets, count * 2);
+            Array.Resize(ref pendingColumns, count * 2);
+            Array.Resize(ref pendingTabs, count * 2);
+        }
+        pendingOffsets[count] = offset;
+        pendingColumns[count] = column;
+        pendingTabs[count] = tabs;
+        count++;
+    }
+
+    // Walks from the last kept checkpoint until a produced boundary equals a candidate, then restores the candidates
+    // from there on with their columns corrected.
+    private void Resynchronize(GraphemeLine line, int pending, bool pendingEnd)
+    {
+        Span<char> scratch = stackalloc char[GraphemeChunk];
+        int j = 0;
+        int column = 0, tabs = 0;
+        bool found = false;
+        var walker = new ClusterWalker(this, line, line.Count - 1, scratch);
+        try
+        {
+            while (walker.MoveNext())
+            {
+                while (j < pending && pendingOffsets[j] < walker.End) j++;
+                if (j == pending) break;
+                if (pendingOffsets[j] == walker.End)
+                {
+                    column = walker.Column;
+                    tabs = walker.Tabs;
+                    found = true;
+                    break;
+                }
+            }
+        }
+        finally { walker.Dispose(); }
+        if (!found) return;
+
+        int stop = LayoutTabSize;
+        int dColumn = column - pendingColumns[j];
+        int dTabs = tabs - pendingTabs[j];
+        int tabsAtShift = pendingTabs[j];
+        for (int k = j; k < pending; k++)
+        {
+            bool isEnd = pendingEnd && k == pending - 1;
+            if (dColumn % stop != 0 && pendingTabs[k] != tabsAtShift)
+            {
+                // A tab lies between the previous candidate (now the last checkpoint) and this one: the shift after it
+                // is a multiple of the tab size; measure it on this interval.
+                var again = new ClusterWalker(this, line, line.Count - 1, scratch);
+                bool exact;
+                int measured;
+                try
+                {
+                    while (again.MoveNext() && again.End < pendingOffsets[k]) { }
+                    exact = again.Position == pendingOffsets[k];
+                    measured = again.Column;
+                }
+                finally { again.Dispose(); }
+                if (!exact) return;                                             // not expected; keep what is verified
+                dColumn = measured - pendingColumns[k];
+                tabsAtShift = pendingTabs[k];
+            }
+            int newColumn = pendingColumns[k] + dColumn, newTabs = pendingTabs[k] + dTabs;
+            if (isEnd)
+            {
+                line.End = pendingOffsets[k];
+                line.EndColumn = newColumn;
+                line.EndTabs = newTabs;
+                line.Clear = Math.Max(line.Clear, line.End);
+            }
+            else if (pendingOffsets[k] > line.LastOffset)
+                line.Add(pendingOffsets[k], newColumn, newTabs);
+        }
+    }
+
+    // Forward walk over the clusters of a line from one of its checkpoints, with their columns. Reads the text in
+    // chunks copied from the buffer, never past the line's LF; records checkpoints and the line end as it goes.
+    private ref struct ClusterWalker
+    {
+        private readonly TEditor _editor;
+        private readonly GraphemeLine _line;
+        private readonly TextLayoutOptions _options;
+        private readonly TextWidthProfile _profile;
+        private Span<char> _chunk;
+        private char[]? _rented;
+        private uint _at;                                        // offset of _chunk[0], a verified boundary
+        private int _length;                                     // units of the chunk in use
+        private int _next;                                       // start of the next cluster in the chunk
+        private bool _lineEnds;                                  // the chunk reaches the line end
+        private bool _loaded;
+        private int _textStart, _textLength;
+
+        public int Column;                                       // column after the current cluster
+        public int Tabs;                                         // tabs up to the current cluster's end
+        public uint Start, End;                                  // the current cluster
+        public int ClusterColumn, Width;
+        public TextClusterKind Kind;
+
+        public ClusterWalker(TEditor editor, GraphemeLine line, int checkpoint, Span<char> scratch)
+        {
+            _editor = editor;
+            _line = line;
+            _options = LayoutOptions;
+            _profile = _options.EffectiveProfile;
+            _chunk = scratch;
+            _rented = null;
+            _at = line.Offsets[checkpoint];
+            _length = _next = 0;
+            _lineEnds = _loaded = false;
+            _textStart = _textLength = 0;
+            Column = line.Columns[checkpoint];
+            Tabs = line.Tabs[checkpoint];
+            Start = End = _at;
+            ClusterColumn = Column;
+            Width = 0;
+            Kind = TextClusterKind.Text;
+        }
+
+        // Offset just past the current cluster (the walk position).
+        public readonly uint Position => _at + (uint)_next;
+
+        // The current cluster's code units.
+        public readonly ReadOnlySpan<char> Text => _chunk.Slice(_textStart, _textLength);
+
+        public bool MoveNext()
+        {
+            while (true)
+            {
+                if (_loaded && _next < _length)
+                {
+                    ReadOnlySpan<char> chunk = _chunk.Slice(0, _length);
+                    int step = TextLayout.NextClusterLength(chunk, _next);
+                    // A boundary depends on the code point after it: a cluster reaching the chunk end may continue.
+                    if (_next + step < _length || _lineEnds)
+                    {
+                        TextClusterKind kind = TextClusterKind.Text;
+                        if (step != 1 || !TextLayout.TrySimple(chunk, _next, _options, _profile, out int width))
+                            width = TextLayout.ClusterWidth(chunk.Slice(_next, step), Column, _options, _profile, out kind);
+                        Start = _at + (uint)_next;
+                        End = Start + (uint)step;
+                        ClusterColumn = Column;
+                        Width = width;
+                        Kind = kind;
+                        _textStart = _next;
+                        _textLength = step;
+                        Column += width;
+                        if (kind == TextClusterKind.Tab) Tabs++;
+                        _next += step;
+                        if (End >= _line.LastOffset + GraphemeCheckpointSpacing) _line.Add(End, Column, Tabs);
+                        return true;
+                    }
+                }
+                else if (_loaded && _lineEnds)
+                {
+                    // At the line end.
+                    Start = End = _at + (uint)_length;
+                    ClusterColumn = Column;
+                    Width = 0;
+                    _textLength = 0;
+                    _line.End = Start;
+                    _line.EndColumn = Column;
+                    _line.EndTabs = Tabs;
+                    return false;
+                }
+                Refill();
+            }
+        }
+
+        private void Refill()
+        {
+            if (_loaded)
+            {
+                if (_next == 0)
+                {
+                    // One cluster fills the chunk: read it again with twice the room.
+                    int size = _chunk.Length * 2;
+                    char[] bigger = ArrayPool<char>.Shared.Rent(size);
+                    if (_rented != null) ArrayPool<char>.Shared.Return(_rented);
+                    _rented = bigger;
+                    _chunk = bigger.AsSpan(0, size);
+                }
+                else
+                {
+                    _at += (uint)_next;
+                }
+            }
+
+            // Copy [_at, _at + chunk) across the gap, then stop before an LF or the document end.
+            TEditor editor = _editor;
+            char[] buffer = editor.Buf;
+            uint limit = (uint)Math.Min((long)_at + _chunk.Length, editor.bufLen);
+            int count = (int)(limit - _at);
+            uint gapStart = editor.curPtr;
+            if (limit <= gapStart)
+                buffer.AsSpan((int)_at, count).CopyTo(_chunk);
+            else if (_at >= gapStart)
+                buffer.AsSpan((int)(_at + editor.gapLen), count).CopyTo(_chunk);
+            else
+            {
+                int head = (int)(gapStart - _at);
+                buffer.AsSpan((int)_at, head).CopyTo(_chunk);
+                buffer.AsSpan((int)(gapStart + editor.gapLen), count - head).CopyTo(_chunk.Slice(head));
+            }
+            int lf = _chunk.Slice(0, count).IndexOf('\n');
+            int length = lf >= 0 ? lf : count;
+            bool lineEnds = lf >= 0 || limit == editor.bufLen;
+            editor.GraphemeUnitsRead += length;
+            _line.Clear = Math.Max(_line.Clear, _at + (uint)length);
+            if (lineEnds && _line.End == uint.MaxValue) _line.End = _at + (uint)length;
+            // A chunk never ends inside a surrogate pair: every cluster in it is then exact except possibly the last.
+            if (!lineEnds && length > 0 && char.IsHighSurrogate(_chunk[length - 1])) length--;
+            _length = length;
+            _lineEnds = lineEnds;
+            _next = 0;
+            _loaded = true;
+        }
+
+        public void Dispose()
+        {
+            if (_rented != null) ArrayPool<char>.Shared.Return(_rented);
+            _rented = null;
+        }
+    }
+
+    /// <summary>
+    /// Returns the offset after the user-perceived character (extended grapheme cluster) at or containing
+    /// <paramref name="p"/>, or the document length. An LF is a character of its own. Unlike <see cref="NextChar"/>
+    /// this never stops inside a surrogate pair or a combining sequence.
+    /// </summary>
+    public uint NextGraphemeBoundary(uint p) => p >= bufLen ? bufLen : GraphemeAt(p).End;
+
+    /// <summary>
+    /// Returns the start of the user-perceived character (extended grapheme cluster) before <paramref name="p"/>, or
+    /// zero. Unlike <see cref="PrevChar"/> this never stops inside a surrogate pair or a combining sequence.
+    /// </summary>
+    public uint PrevGraphemeBoundary(uint p)
+    {
+        p = Math.Min(p, bufLen);
+        return p == 0 ? 0 : GraphemeAt(p - 1).Start;
+    }
+
+    // Moves an offset that falls inside a cluster to the cluster's start, or its end when forward is set.
+    private uint SnapToGrapheme(uint p, bool forward)
+    {
+        if (p == 0 || p >= bufLen) return Math.Min(p, bufLen);
+        (uint start, uint end) = GraphemeAt(p);
+        return start == p ? p : forward ? end : start;
+    }
+
+    // The Unicode scalar at code unit p (either half of a pair names the pair), or null for an unpaired surrogate.
+    private Rune? RuneAt(uint p)
+    {
+        char c = BufChar(p);
+        if (char.IsHighSurrogate(c))
+            return p + 1 < bufLen && char.IsLowSurrogate(BufChar(p + 1)) ? new Rune(c, BufChar(p + 1)) : null;
+        if (char.IsLowSurrogate(c))
+            return p > 0 && char.IsHighSurrogate(BufChar(p - 1)) ? new Rune(BufChar(p - 1), c) : null;
+        return new Rune(c);
+    }
+
+    // Word characters: letters, digits and underscore, of any plane, and the combining marks that attach to them.
+    private bool IsWordAt(uint p)
+    {
+        if (RuneAt(p) is not Rune rune) return false;
+        return Rune.IsLetterOrDigit(rune) || rune.Value == '_'
+            || Rune.GetUnicodeCategory(rune) is UnicodeCategory.NonSpacingMark
+                or UnicodeCategory.SpacingCombiningMark or UnicodeCategory.EnclosingMark;
+    }
+
+    /// <summary>
+    /// Finds the next word start from a valid character offset; letters, digits and underscores of any plane, with
+    /// their combining marks, form words. The result is never inside a user-perceived character.
+    /// </summary>
     public uint NextWord(uint p)
     {
         // At the end of the document there is no character to classify: BufChar(bufLen) is the gap, or past the buffer.
         if (p >= bufLen) return bufLen;
-        if (IsWordChar(BufChar(p)))
-            while (p < bufLen && IsWordChar(BufChar(p)))
+        if (IsWordAt(p))
+            while (p < bufLen && IsWordAt(p))
                 p = NextChar(p);
         else if (p < bufLen)
             p = NextChar(p);
-        while (p < bufLen && !IsWordChar(BufChar(p)))
+        while (p < bufLen && !IsWordAt(p))
             p = NextChar(p);
-        return p;
+        return SnapToGrapheme(p, forward: true);
     }
 
-    /// <summary>Finds the preceding word start, treating letters, digits, and underscores as word characters.</summary>
+    /// <summary>
+    /// Finds the preceding word start, treating letters, digits and underscores of any plane, with their combining
+    /// marks, as word characters. The result is never inside a user-perceived character.
+    /// </summary>
     public uint PrevWord(uint p)
     {
-        while (p > 0 && !IsWordChar(BufChar(PrevChar(p))))
+        p = Math.Min(p, bufLen);
+        while (p > 0 && !IsWordAt(PrevChar(p)))
             p = PrevChar(p);
-        while (p > 0 && IsWordChar(BufChar(PrevChar(p))))
+        while (p > 0 && IsWordAt(PrevChar(p)))
             p = PrevChar(p);
-        return p;
+        return SnapToGrapheme(p, forward: false);
+    }
+
+    // The word under a mouse offset: the run of word characters containing p, or ending at p when p is a line or
+    // document end; otherwise the one user-perceived character at p, or an empty range at a line or document end.
+    private (uint Start, uint End) WordAt(uint p)
+    {
+        p = SnapToGrapheme(Math.Min(p, bufLen), forward: false);
+        uint start = p, end = p;
+        bool atLineEnd = p >= bufLen || BufChar(p) == '\n';
+        if (!atLineEnd && IsWordAt(p) || atLineEnd && p > 0 && IsWordAt(p - 1))
+        {
+            while (start > 0 && IsWordAt(start - 1)) start--;
+            while (end < bufLen && IsWordAt(end)) end++;
+            start = SnapToGrapheme(start, forward: false);
+            end = SnapToGrapheme(end, forward: true);
+        }
+        else if (!atLineEnd)
+            end = NextGraphemeBoundary(p);
+        return (start, end);
+    }
+
+    // Typed and pasted text must be well-formed UTF-16: an unpaired surrogate becomes U+FFFD, so no keystroke or paste
+    // can leave half a character in the document. Returns the input itself when it is already well formed.
+    private static char[] ReplaceUnpairedSurrogates(char[] text, int length)
+    {
+        char[]? fixedText = null;
+        for (int i = 0; i < length; i++)
+        {
+            char c = text[i];
+            if (!char.IsSurrogate(c)) continue;
+            if (char.IsHighSurrogate(c) && i + 1 < length && char.IsLowSurrogate(text[i + 1])) { i++; continue; }
+            fixedText ??= (char[])text.Clone();
+            fixedText[i] = '�';
+        }
+        return fixedText ?? text;
+    }
+
+    /// <summary>Selects the whole text and places the caret at its end.</summary>
+    public void SelectAll()
+    {
+        selecting = false;
+        SetSelect(0, bufLen, false);
     }
 
     /// <summary>Moves a signed number of lines while retaining the visual column where the destination line permits.</summary>
     public uint LineMove(uint p, int count)
     {
         uint i = p;
-        p = LineStart(p);
+        p = CachedLineStart(p);
         int pos = CharPos(p, i);
         while (count != 0)
         {
@@ -320,10 +1086,12 @@ public class TEditor : TView
                 Array.Copy(Buf, curPtr, Buf, curPtr + gapLen, l);
             }
             drawLine = curPos.y;
-            drawPtr  = LineStart(p);
+            drawPtr  = CachedLineStart(p);
             curPos.x = CharPos(drawPtr, p);
+            // A caret move ends the undo group that typing could extend; the history itself stays.
             delCount = 0;
             insCount = 0;
+            undoHistory?.Close();
             SetBufSize(bufLen);
         }
         selStart = newStart;
@@ -428,17 +1196,22 @@ public class TEditor : TView
         uint selLen = selEnd - selStart;
         if (selLen == 0 && length == 0) return true;
 
-        uint delLen = 0;
-        if (allowUndo)
-        {
-            if (curPtr == selStart) delLen = selLen;
-            else if (selLen > insCount) delLen = selLen - insCount;
-        }
-
-        uint newSize = bufLen + delCount - selLen + delLen + length;
-        if (newSize > bufLen + delCount)
+        // Undo text lives in the history, so the counters reserve no buffer capacity; they are restated below.
+        uint savedDelCount = delCount, savedInsCount = insCount;
+        delCount = 0;
+        insCount = 0;
+        uint newSize = bufLen - selLen + length;
+        if (newSize > bufLen)
             if (!SetBufSize(newSize))
+            {
+                delCount = savedDelCount;
+                insCount = savedInsCount;
                 return false;
+            }
+
+        bool record = allowUndo && canUndo && !IsClipboard();
+        uint editOffset = selStart;
+        string removed = record ? GetText(selStart, selLen) : string.Empty;
 
         // Snapshot the input so that, if `p` aliases our own buffer
         // (insertFrom uses the source editor's buffer directly), the
@@ -453,14 +1226,6 @@ public class TEditor : TView
         int selLines = CountLines(Buf, BufPtr(selStart), selLen);
         if (curPtr == selEnd)
         {
-            if (allowUndo)
-            {
-                if (delLen > 0)
-                    Array.Copy(Buf, selStart,
-                               Buf, curPtr + gapLen - delCount - delLen,
-                               delLen);
-                insCount -= selLen - delLen;
-            }
             curPtr = selStart;
             curPos.y -= selLines;
         }
@@ -481,23 +1246,99 @@ public class TEditor : TView
         // pre-insertion length they would stop short of an insertion that ends past the old end of the document.
         bufLen += length - selLen;
         gapLen -= length - selLen;
+        bool structural = selLines != 0 || lines != 0;
+        AdjustGraphemeCache(editOffset, selLen, length, structural);
 
         drawLine = curPos.y;
-        drawPtr  = LineStart(curPtr);
+        drawPtr  = CachedLineStart(curPtr);
         curPos.x = CharPos(drawPtr, curPtr);
         if (!selectText) selStart = curPtr;
         selEnd = curPtr;
-        if (allowUndo)
-        {
-            delCount += delLen;
-            insCount += length;
-        }
         limit.y += lines - selLines;
         delta.y = Math.Max(0, Math.Min(delta.y, limit.y - size.y));
+        // The extent only grows while editing: a shortened line leaves it as it was until the text is reloaded.
+        longestLine = Math.Max(longestLine, structural
+            ? LongestLine(CachedLineStart(editOffset), CachedLineEnd(curPtr))
+            : LineWidth(LineFromStart(drawPtr)));
+        limit.x = HorizontalLimit();
+        // A document already marked modified while at its saved position was marked so explicitly.
+        if (record && modified && UndoHistory.IsAtSavedPosition) explicitlyModified = true;
         if (!IsClipboard()) modified = true;
-        SetBufSize(bufLen + delCount);
+        SetBufSize(bufLen);
+        if (record)
+        {
+            UndoHistory.Record(editOffset, removed, length > 0 ? new string(src!) : string.Empty);
+            RestateUndoCounters();
+        }
+        else if (!replayingUndo)
+        {
+            // An unrecorded edit invalidates every recorded offset.
+            undoHistory?.Clear(saved: false);
+        }
         Update(selLines == 0 && lines == 0 ? Views.ufLine : Views.ufView);
         return true;
+    }
+
+    private EditorUndoHistory UndoHistory =>
+        undoHistory ??= new EditorUndoHistory(DefaultUndoGroupLimit, DefaultUndoTextLimit);
+
+    // delCount/insCount describe the group typing can still extend.
+    private void RestateUndoCounters()
+    {
+        delCount = 0;
+        insCount = 0;
+        if (undoHistory?.OpenGroup is not { } group) return;
+        foreach (var operation in group.Operations)
+        {
+            delCount += (uint)operation.Removed.Length;
+            insCount += (uint)operation.Inserted.Length;
+        }
+    }
+
+    // Columns of the widest line in [start, end); start must be a line start. Measures every line whole, as the
+    // editor lays it out, without caching anything.
+    private int LongestLine(uint start, uint end)
+    {
+        TextLayoutOptions options = LayoutOptions;
+        long widest = 0;
+        uint p = start;
+        while (true)
+        {
+            uint lineEnd = FindLineBreak(p, end, false) ?? end;
+            widest = Math.Max(widest, MeasureRange(p, lineEnd, options));
+            if (lineEnd >= end) break;
+            p = lineEnd + 1;
+        }
+        return (int)Math.Min(widest, int.MaxValue - 1);
+    }
+
+    // Columns of the logical text [start, end), which holds no LF, laid out from column 0.
+    private int MeasureRange(uint start, uint end, in TextLayoutOptions options)
+    {
+        if (end <= start) return 0;
+        GraphemeUnitsRead += end - start;
+        char[] buf = Buf;
+        int length = (int)(end - start);
+        if (end <= curPtr) return TextLayout.Measure(buf.AsSpan((int)start, length), options);
+        if (start >= curPtr) return TextLayout.Measure(buf.AsSpan((int)(start + gapLen), length), options);
+        ReadOnlySpan<char> first = buf.AsSpan((int)start, (int)(curPtr - start));
+        ReadOnlySpan<char> second = buf.AsSpan((int)(curPtr + gapLen), (int)(end - curPtr));
+        int column = 0;
+        foreach (TextCluster cluster in TextLayout.EnumerateClusters(first, second, options, 0))
+            column = cluster.EndColumn;
+        return column;
+    }
+
+    // Horizontal scroll extent: at least the historic maxLineLength, and room for the caret after the widest line.
+    private int HorizontalLimit() => Math.Max(Views.maxLineLength, longestLine + 1);
+
+    // Logical text [start, start + length) across the gap.
+    private string GetText(uint start, uint length)
+    {
+        if (length == 0) return string.Empty;
+        var chars = new char[length];
+        for (uint i = 0; i < length; i++) chars[i] = BufChar(start + i);
+        return new string(chars);
     }
 
     /// <summary>
@@ -542,15 +1383,20 @@ public class TEditor : TView
     /// <summary>Deletes the logical range around the caret, or the current selection when delSelect is true and a selection exists.</summary>
     public void DeleteRange(uint startPtr, uint endPtr, bool delSelect)
     {
-        if (HasSelection() && delSelect)
-            DeleteSelect();
-        else
+        BeginUndoGroup(EditorUndoKind.Other);
+        try
         {
-            SetSelect(curPtr, endPtr, true);
-            DeleteSelect();
-            SetSelect(startPtr, curPtr, false);
-            DeleteSelect();
+            if (HasSelection() && delSelect)
+                DeleteSelect();
+            else
+            {
+                SetSelect(curPtr, endPtr, true);
+                DeleteSelect();
+                SetSelect(startPtr, curPtr, false);
+                DeleteSelect();
+            }
         }
+        finally { EndUndoGroup(); }
     }
 
     /// <summary>Removes the selected text using the editor's undo policy.</summary>
@@ -559,19 +1405,33 @@ public class TEditor : TView
     /// <summary>Inserts LF at the selection and optionally copies leading spaces and tabs from the current line.</summary>
     public void NewLine()
     {
-        uint p = LineStart(curPtr);
-        uint i = p;
-        while (i < curPtr && (Buf[BufPtr(i)] == ' ' || Buf[BufPtr(i)] == '\t'))
-            i++;
-        InsertText(new char[] { '\n' }, 1, false);
-        if (autoIndent)
+        BeginUndoGroup(EditorUndoKind.Other);
+        try
         {
-            uint indentLen = i - p;
-            var indent = new char[indentLen];
-            for (uint k = 0; k < indentLen; k++)
-                indent[k] = Buf[BufPtr(p + k)];
-            InsertText(indent, indentLen, false);
+            uint p = CachedLineStart(curPtr);
+            uint i = p;
+            while (i < curPtr && (Buf[BufPtr(i)] == ' ' || Buf[BufPtr(i)] == '\t'))
+                i++;
+            InsertText(new char[] { '\n' }, 1, false);
+            if (autoIndent)
+            {
+                uint indentLen = i - p;
+                var indent = new char[indentLen];
+                for (uint k = 0; k < indentLen; k++)
+                    indent[k] = Buf[BufPtr(p + k)];
+                InsertText(indent, indentLen, false);
+            }
         }
+        finally { EndUndoGroup(); }
+    }
+
+    // Undo grouping: every edit between Begin and End is one undo group; calls nest.
+    private void BeginUndoGroup(EditorUndoKind kind) => UndoHistory.Begin(kind);
+
+    private void EndUndoGroup()
+    {
+        UndoHistory.End();
+        RestateUndoCounters();
     }
 
     /// <summary>Copies selection to the in-process clipboard and attempts to mirror it to the host clipboard; host failure does not invalidate the internal copy.</summary>
@@ -608,7 +1468,8 @@ public class TEditor : TView
         var svc = ClipboardService.Current;
         if (svc != null && svc.IsAvailable && svc.TryGetText(out string text))
         {
-            char[] chars = ClipboardEncoding.ClipboardStringToChars(text);
+            char[] converted = ClipboardEncoding.ClipboardStringToChars(text);
+            char[] chars = ReplaceUnpairedSurrogates(converted, converted.Length);
             if (chars.Length > 0)
             {
                 InsertText(chars, (uint)chars.Length, false);
@@ -640,18 +1501,95 @@ public class TEditor : TView
         return sb.ToString();
     }
 
-    /// <summary>Reverses the insertion and deletion stored in the current undo record.</summary>
+    /// <summary>
+    /// Reverses the most recent undo group and selects the text it restores. Undo is multi-level; <see cref="Redo"/>
+    /// reapplies what was undone until the next edit.
+    /// </summary>
     public void Undo()
     {
-        if (delCount != 0 || insCount != 0)
+        if (undoHistory is not { CanUndo: true } history) return;
+        bool wasExplicit = modified && history.IsAtSavedPosition;
+        EditorUndoGroup group = history.TakeUndo();
+        ReplayUndo(() =>
         {
-            selStart = curPtr - insCount;
-            selEnd = curPtr;
-            uint length = delCount;
-            delCount = 0;
-            insCount = 0;
-            InsertBuffer(Buf, curPtr + gapLen - length, length, false, true);
-        }
+            for (int i = group.Operations.Count - 1; i >= 0; i--)
+            {
+                EditorUndoOperation operation = group.Operations[i];
+                SetSelect(operation.Offset, operation.Offset + (uint)operation.Inserted.Length, false);
+                char[] text = operation.Removed.ToString().ToCharArray();
+                InsertBuffer(text, 0, (uint)text.Length, false, true);
+            }
+        }, wasExplicit);
+    }
+
+    /// <summary>Reapplies the undo group most recently undone, leaving the caret after the text it inserts.</summary>
+    public void Redo()
+    {
+        if (undoHistory is not { CanRedo: true } history) return;
+        bool wasExplicit = modified && history.IsAtSavedPosition;
+        EditorUndoGroup group = history.TakeRedo();
+        ReplayUndo(() =>
+        {
+            foreach (EditorUndoOperation operation in group.Operations)
+            {
+                SetSelect(operation.Offset, operation.Offset + (uint)operation.Removed.Length, false);
+                char[] text = operation.Inserted.ToString().ToCharArray();
+                InsertBuffer(text, 0, (uint)text.Length, false, false);
+            }
+        }, wasExplicit);
+    }
+
+    /// <summary>Whether <see cref="Undo"/> has a group to reverse.</summary>
+    public bool HasUndo => undoHistory is { CanUndo: true };
+
+    /// <summary>Whether <see cref="Redo"/> has a group to reapply.</summary>
+    public bool HasRedo => undoHistory is { CanRedo: true };
+
+    /// <summary>
+    /// Maximum number of undo groups kept; the oldest are dropped first. Zero or less disables the history and clears it.
+    /// Defaults to <see cref="DefaultUndoGroupLimit"/>.
+    /// </summary>
+    public int UndoGroupLimit
+    {
+        get => UndoHistory.GroupLimit;
+        set { UndoHistory.GroupLimit = value; UpdateUndoState(); }
+    }
+
+    /// <summary>
+    /// Maximum number of UTF-16 code units of removed plus inserted text kept by the undo history; the oldest groups
+    /// are dropped first, and a single group larger than the limit is not kept. Zero or less disables the history and
+    /// clears it. Defaults to <see cref="DefaultUndoTextLimit"/>.
+    /// </summary>
+    public int UndoTextLimit
+    {
+        get => UndoHistory.TextLimit;
+        set { UndoHistory.TextLimit = value; UpdateUndoState(); }
+    }
+
+    /// <summary>Forgets every undo and redo group; <see cref="modified"/> is unchanged.</summary>
+    public void ClearUndoHistory()
+    {
+        UndoHistory.Clear(saved: !modified);
+        UpdateUndoState();
+    }
+
+    // Replays history without recording it, then derives the modified state from the saved position.
+    private void ReplayUndo(Action replay, bool wasExplicit)
+    {
+        explicitlyModified |= wasExplicit;
+        Lock();
+        replayingUndo = true;
+        try { replay(); }
+        finally { replayingUndo = false; }
+        modified = explicitlyModified || !undoHistory!.IsAtSavedPosition;
+        UpdateUndoState();
+        Unlock();
+    }
+
+    private void UpdateUndoState()
+    {
+        RestateUndoCounters();
+        Update(Views.ufUpdate);
     }
 
     // Length of a null-terminated upstream `findStr` / `replaceStr` char
@@ -718,8 +1656,8 @@ public class TEditor : TView
                 i += pos;
                 bool wholeWordsOnly = (opts & Views.efWholeWordsOnly) != 0;
                 bool boundaryViolated = wholeWordsOnly && (
-                       (i != 0 && IsWordChar(BufChar(i - 1)))
-                    || (i + nlen != bufLen && IsWordChar(BufChar(i + nlen)))
+                       (i != 0 && IsWordAt(i - 1))
+                    || (i + nlen != bufLen && IsWordAt(i + nlen))
                 );
                 if (!boundaryViolated)
                 {
@@ -746,6 +1684,14 @@ public class TEditor : TView
 
     /// <summary>Runs search or replacement using shared patterns and flags, invoking configured prompts as needed.</summary>
     public void DoSearchReplace()
+    {
+        // All replacements of one search-and-replace run undo together.
+        BeginUndoGroup(EditorUndoKind.Other);
+        try { SearchReplaceLoop(); }
+        finally { EndUndoGroup(); }
+    }
+
+    private void SearchReplaceLoop()
     {
         ushort i;
         do
@@ -807,6 +1753,8 @@ public class TEditor : TView
         Array.Clear(dst, 0, dst.Length);
         if (src == null) return;
         int n = Math.Min(src.Length, dst.Length - 1);
+        // A pattern cut at the buffer size keeps whole surrogate pairs.
+        if (n > 0 && n < src.Length && char.IsHighSurrogate(src[n - 1]) && char.IsLowSurrogate(src[n])) n--;
         Array.Copy(src, 0, dst, 0, n);
     }
 
@@ -819,12 +1767,14 @@ public class TEditor : TView
     {
         bufLen   = length;
         gapLen   = bufSize - length;
+        InvalidateGraphemeCache();
         selStart = 0;
         selEnd   = 0;
         curPtr   = 0;
         delta    = default;
         curPos   = delta;
-        limit.x  = Views.maxLineLength;
+        longestLine = buffer != null ? LongestLine(0, bufLen) : 0;
+        limit.x  = HorizontalLimit();
         limit.y  = (buffer != null && bufLen > 0
                        ? CountLines(Buf, gapLen, bufLen)
                        : 0) + 1;
@@ -833,7 +1783,18 @@ public class TEditor : TView
         delCount = 0;
         insCount = 0;
         modified = false;
+        explicitlyModified = false;
+        UndoHistory.Clear(saved: true);
         Update(Views.ufView);
+    }
+
+    /// <summary>Clears <see cref="modified"/> and records the current undo position as the unmodified state, as a successful save does.</summary>
+    public void MarkUnmodified()
+    {
+        modified = false;
+        explicitlyModified = false;
+        UndoHistory.SavedPosition = UndoHistory.Position;
+        Update(Views.ufUpdate);
     }
 
     /// <inheritdoc />
@@ -868,7 +1829,7 @@ public class TEditor : TView
             if ((updateFlags & Views.ufView) != 0)
                 DrawView();
             else if ((updateFlags & Views.ufLine) != 0)
-                DrawLines(curPos.y - delta.y, 1, LineStart(curPtr));
+                DrawLines(curPos.y - delta.y, 1, CachedLineStart(curPtr));
             hScrollBar?.SetParams(delta.x, 0,
                 limit.x - size.x, size.x / 2, 1);
             vScrollBar?.SetParams(delta.y, 0,
@@ -900,7 +1861,8 @@ public class TEditor : TView
     /// <summary>Updates enabled editor commands from active, selection, clipboard, and undo state.</summary>
     public virtual void UpdateCommands()
     {
-        SetCmdState(Views.cmUndo, delCount != 0 || insCount != 0);
+        SetCmdState(Views.cmUndo, HasUndo);
+        SetCmdState(Views.cmRedo, HasRedo);
         if (!IsClipboard())
         {
             SetCmdState(Views.cmCut,  HasSelection());
@@ -909,6 +1871,7 @@ public class TEditor : TView
                 clipboard != null && clipboard.HasSelection());
         }
         SetCmdState(Views.cmClear,        HasSelection());
+        SetCmdState(Views.cmSelectAll,    true);
         SetCmdState(Views.cmFind,         true);
         SetCmdState(Views.cmReplace,      true);
         SetCmdState(Views.cmSearchAgain,  true);
@@ -937,83 +1900,147 @@ public class TEditor : TView
         DrawLines(0, size.y, drawPtr);
     }
 
+    private const int MaxStackRowCells = 512;
+
     /// <summary>Draws count lines beginning at a logical text offset into local viewport row y, applying horizontal scrolling.</summary>
     public void DrawLines(int y, int count, uint linePtr)
     {
         ushort color = GetColor(0x0201);
-        int lineWidth = Math.Max(delta.x + size.x, 1);
-        Span<TScreenChar> rowBuf = stackalloc TScreenChar[lineWidth];
+        // Only the visible window is formatted: the row holds size.x cells however far the view is scrolled.
+        int width = Math.Max(size.x, 1);
+        Span<TScreenChar> row = width <= MaxStackRowCells ? stackalloc TScreenChar[width] : new TScreenChar[width];
         while (count-- > 0)
         {
-            var b = new TDrawBuffer(rowBuf);
-            FormatLine(b, linePtr, delta.x + size.x, color);
-            // Match upstream `&b[delta.x]`: write the slice of the formatted
-            // buffer starting at delta.x, preserving per-cell attributes.
-            WriteLine(0, y, size.x, 1, ExtractRange(b, delta.x, size.x));
+            FormatLine(row, linePtr, delta.x, (byte)color, (byte)(color >> 8), default);
+            WriteLine(0, y, size.x, 1, row);
             linePtr = NextLine(linePtr);
             y++;
         }
     }
 
-    // Helper for DrawLines: pull `count` chars from `b.Data` starting at
-    // `start`. Prevents allocating outside the printable window.
-    private static TScreenChar[] ExtractRange(TDrawBuffer b, int start, int count)
+    /// <summary>
+    /// Formats the visual columns [<paramref name="firstColumn"/>, firstColumn + cells.Length) of the line that starts
+    /// at <paramref name="linePtr"/> into <paramref name="cells"/>, as <see cref="DrawLines"/> draws them.
+    /// </summary>
+    /// <remarks>
+    /// <para>A grapheme cluster becomes a lead cell and, when it is wide, trail cells (see
+    /// <see cref="TScreenChar.CreateCluster(System.ReadOnlySpan{char}, int, TColorAttr)"/>); a wide cluster cut by either edge of the window is drawn as blanks, never
+    /// as half a glyph. Tabs expand to blanks up to the next <see cref="tabSize"/> stop and a CR is a blank column.
+    /// Under the <see cref="TSharpVision.Text.TextLayout.LegacyCellWidthSwitch"/> switch every UTF-16 code unit is one
+    /// cell, as in TSharpVision 1.2.</para>
+    /// <para>Selected text uses <paramref name="selected"/>; other text uses the attribute of the run that contains the
+    /// first code unit of its cluster, or <paramref name="normal"/>. Runs are offsets from <paramref name="linePtr"/>,
+    /// sorted and not overlapping. Only the window is formatted: the line is entered at the nearest column
+    /// checkpoint, not walked from its start, and nothing is allocated once the line is known.</para>
+    /// </remarks>
+    /// <param name="cells">Destination cells; their count is the window width.</param>
+    /// <param name="linePtr">Logical offset of the line start.</param>
+    /// <param name="firstColumn">Visual column shown in the first cell.</param>
+    /// <param name="normal">Attribute of unselected text without a run.</param>
+    /// <param name="selected">Attribute of selected text.</param>
+    /// <param name="runs">Attributes for ranges of the line, for example syntax colours.</param>
+    public void FormatLine(Span<TScreenChar> cells, uint linePtr, int firstColumn, ushort normal, ushort selected,
+                           ReadOnlySpan<EditorTextRun> runs)
     {
-        var dst = new TScreenChar[count];
-        for (int i = 0; i < count; i++)
+        int first = Math.Max(0, firstColumn);
+        long end = (long)first + cells.Length;
+        int x = first;                                           // the next column to fill
+        if (linePtr < bufLen && cells.Length > 0)
         {
-            int idx = start + i;
-            dst[i] = idx < b.Data.Length ? b.Data[idx] : default;
+            bool legacy = LegacyLayout;
+            int run = 0;
+            GraphemeLine line = LineForOrigin(linePtr);
+            Span<char> scratch = stackalloc char[GraphemeChunk];
+            var walker = new ClusterWalker(this, line, line.CheckpointAtColumn(first), scratch);
+            try
+            {
+                while (x < end && walker.MoveNext())
+                {
+                    int column = walker.ClusterColumn;
+                    long next = (long)column + walker.Width;
+                    if (next <= first) continue;
+                    int from = Math.Max(column, first), to = (int)Math.Min(next, end);
+                    ReadOnlySpan<char> text = walker.Text;
+                    if (legacy && walker.Kind != TextClusterKind.Tab)
+                    {
+                        // One cell per code unit, each with its own attribute, as before.
+                        for (int k = from - column; k < text.Length && column + k < to; k++)
+                        {
+                            uint unit = walker.Start + (uint)k;
+                            char c = text[k];
+                            cells[column + k - first] = new TScreenChar(c == '\r' ? ' ' : c,
+                                UnitAttribute(unit, unit + 1, linePtr, normal, selected, runs, ref run));
+                        }
+                    }
+                    else
+                    {
+                        TColorAttr attr = UnitAttribute(walker.Start, walker.End, linePtr, normal, selected, runs, ref run);
+                        switch (walker.Kind)
+                        {
+                            case TextClusterKind.Tab:
+                                Blank(cells, from - first, to - from, attr);
+                                break;
+                            case TextClusterKind.Control:
+                                // A CR is an ordinary one-column character of the line (the buffer is LF-only), drawn
+                                // blank; other control characters are drawn as they are, as before.
+                                cells[from - first] = new TScreenChar(text[0] == '\r' ? ' ' : text[0], attr);
+                                break;
+                            case TextClusterKind.Malformed:
+                                cells[from - first] = new TScreenChar('\uFFFD', attr);
+                                break;
+                            default:
+                                if (column < first || next > end)
+                                {
+                                    Blank(cells, from - first, to - from, attr);   // cut by the window edge
+                                    break;
+                                }
+                                int width = walker.Width;
+                                int lead = Math.Min(width, TScreenChar.MaxCellWidth);
+                                int at = column - first;
+                                cells[at] = text.Length == 1 && lead == 1
+                                    ? new TScreenChar(text[0], attr)
+                                    : TScreenChar.CreateCluster(text, lead, attr);
+                                for (int k = 1; k < lead; k++) cells[at + k] = TScreenChar.CreateTrail(attr);
+                                Blank(cells, at + lead, width - lead, attr);
+                                break;
+                        }
+                    }
+                    x = to;
+                }
+            }
+            finally { walker.Dispose(); }
         }
-        return dst;
+        if (x < end) Blank(cells, x - first, (int)(end - x), normal);
     }
 
-    // FormatLine helper inlined here (originally in tvedit3.cc; this is
-    // the colour-flat editor variant).
-    // Walks the line at `linePtr` expanding tabs and applying the selection
-    // highlight (selStart..selEnd) from the high byte of `color`.
-    private void FormatLine(TDrawBuffer b, uint linePtr, int width, ushort color)
+    private static void Blank(Span<TScreenChar> cells, int from, int count, TColorAttr attr)
     {
-        ushort normal = (byte)color;
-        ushort selected = (byte)(color >> 8);
-        // Tab stops as in ColumnBoundaries: a zero tabSize means one column.
-        long stopWidth = Math.Max(1L, tabSize);
-        int x = 0;
-        uint p = linePtr;
-        while (x < width)
-        {
-            if (p >= bufLen) { b.moveChar(x, ' ', normal, 1); x++; continue; }
-            char c = BufChar(p);
-            if (c == '\n') { b.moveChar(x, ' ', normal, 1); x++; continue; }
-            ushort attr = (p >= selStart && p < selEnd) ? selected : normal;
-            if (c == '\r')
-            {
-                // An ordinary one-column character of the line (the buffer is LF-only), drawn blank.
-                b.moveChar(x, ' ', attr, 1);
-                x++;
-            }
-            else if (c == '\t')
-            {
-                long next = (x / stopWidth + 1) * stopWidth;
-                while (x < next && x < width) { b.moveChar(x, ' ', attr, 1); x++; }
-            }
-            else
-            {
-                b.moveChar(x, c, attr, 1);
-                x++;
-            }
-            p++;
-        }
+        for (int k = 0; k < count; k++) cells[from + k] = new TScreenChar(' ', attr);
     }
 
-    /// <summary>Maps a screen-cell mouse position, clamped to the viewport, to a logical UTF-16 document offset.</summary>
+    // Attribute of the code units [start, end) of a line: selected when any of them is selected, otherwise the run
+    // containing the first one (runs is scanned forward with `run`, as clusters come in order).
+    private TColorAttr UnitAttribute(uint start, uint end, uint linePtr, ushort normal, ushort selected,
+                                     ReadOnlySpan<EditorTextRun> runs, ref int run)
+    {
+        if (selStart < end && selEnd > start && selStart < selEnd) return selected;
+        if (runs.IsEmpty) return normal;
+        long index = (long)start - linePtr;
+        while (run < runs.Length && runs[run].End <= index) run++;
+        return run < runs.Length && runs[run].Start <= index ? runs[run].Attribute : normal;
+    }
+
+    /// <summary>
+    /// Maps a screen-cell mouse position, clamped to the viewport, to a logical UTF-16 document offset; a cell inside a
+    /// user-perceived character maps to that character's start.
+    /// </summary>
     public uint GetMousePtr(TPoint m)
     {
         TPoint mouse = MakeLocal(m);
         mouse.x = Math.Max(0, Math.Min(mouse.x, size.x - 1));
         mouse.y = Math.Max(0, Math.Min(mouse.y, size.y - 1));
-        return CharPtr(LineMove(drawPtr, mouse.y + delta.y - drawLine),
-            mouse.x + delta.x);
+        return SnapToGrapheme(CharPtr(LineMove(drawPtr, mouse.y + delta.y - drawLine),
+            mouse.x + delta.x), forward: false);
     }
 
     /// <summary>Copies a matching scrollbar notification's value into a viewport offset and schedules redraw when it changes.</summary>
@@ -1125,6 +2152,15 @@ public class TEditor : TView
                 ev.What = Events.evCommand; ev.message.command = Views.cmPaste; break;
             case Keys.kbCtrlX:
                 ev.What = Events.evCommand; ev.message.command = Views.cmCut; break;
+            // Ctrl+Z undoes; Ctrl+Y and Ctrl+Shift+Z redo.
+            case Keys.kbCtrlZ:
+                ev.What = Events.evCommand;
+                ev.message.command = (ev.keyDown.controlKeyState & Keys.kbShift) != 0 ? Views.cmRedo : Views.cmUndo;
+                break;
+            case Keys.kbCtrlY:
+                ev.What = Events.evCommand; ev.message.command = Views.cmRedo; break;
+            case Keys.kbCtrlA:
+                ev.What = Events.evCommand; ev.message.command = Views.cmSelectAll; break;
             // The CUA clipboard keys of the original firstKeys table.
             case Keys.kbCtrlIns:
                 ev.What = Events.evCommand; ev.message.command = Views.cmCopy; break;
@@ -1199,7 +2235,11 @@ public class TEditor : TView
         switch (ev.What)
         {
             case Events.evMouseDown:
-                if (ev.mouse.doubleClick) selectMode |= Views.smDouble;
+            {
+                // A double click selects the word under the mouse; dragging on extends the selection by whole words.
+                bool byWord = ev.mouse.doubleClick;
+                bool first = true;
+                uint wordStart = 0, wordEnd = 0;
                 do
                 {
                     Lock();
@@ -1213,22 +2253,42 @@ public class TEditor : TView
                         if (mouse.y >= size.y) d.y++;
                         ScrollTo(d.x, d.y);
                     }
-                    SetCurPtr(GetMousePtr(ev.mouse.where), selectMode);
-                    selectMode |= Views.smExtend;
+                    uint p = GetMousePtr(ev.mouse.where);
+                    if (byWord)
+                    {
+                        (uint start, uint end) = WordAt(p);
+                        if (first) { wordStart = start; wordEnd = end; SetSelect(start, end, false); }
+                        else if (start < wordStart) SetSelect(start, wordEnd, true);
+                        else SetSelect(wordStart, Math.Max(wordEnd, end), false);
+                    }
+                    else
+                    {
+                        SetCurPtr(p, selectMode);
+                        selectMode |= Views.smExtend;
+                    }
+                    first = false;
                     Unlock();
                 } while (MouseEvent(ref ev,
                     (ushort)(Events.evMouseMove | Events.evMouseAuto)));
                 break;
+            }
 
             case Events.evKeyDown:
                 string text = KeyText.PrintableText(ev.keyDown, includeTab: true);
                 if (text.Length > 0)
                 {
                     Lock();
-                    if (overwrite && !HasSelection())
-                        if (curPtr != LineEnd(curPtr))
-                            selEnd = NextChar(curPtr);
-                    InsertText(text);
+                    BeginUndoGroup(EditorUndoKind.Typing);
+                    try
+                    {
+                        if (overwrite && !HasSelection())
+                            if (curPtr < bufLen && BufChar(curPtr) != '\n')
+                                selEnd = NextGraphemeBoundary(curPtr);
+                        char[] typed = text.ToCharArray();
+                        typed = ReplaceUnpairedSurrogates(typed, typed.Length);
+                        InsertText(typed, (uint)typed.Length, false);
+                    }
+                    finally { EndUndoGroup(); }
                     TrackCursor(centerCursor);
                     Unlock();
                 }
@@ -1240,74 +2300,87 @@ public class TEditor : TView
                 {
                     case Views.cmInsertText:
                         if (ev.message.infoPtr is TextInfo ti)
-                            InsertText(ti.Text, (uint)ti.Text.Length, false);
+                            InsertText(ReplaceUnpairedSurrogates(ti.Text, ti.Text.Length), (uint)ti.Text.Length, false);
                         break;
                     default:
                         Lock();
-                        switch (ev.message.command)
+                        // One command is one undo group; Backspace and Delete without a selection extend a run.
+                        BeginUndoGroup(ev.message.command switch
                         {
-                            case Views.cmCut:        ClipCut(); break;
-                            case Views.cmCopy:       ClipCopy(); break;
-                            case Views.cmPaste:      ClipPaste(); break;
-                            case Views.cmUndo:       Undo(); break;
-                            case Views.cmClear:      DeleteSelect(); break;
-                            case Views.cmCharLeft:
-                                SetCurPtr(PrevChar(curPtr), selectMode); break;
-                            case Views.cmCharRight:
-                                SetCurPtr(NextChar(curPtr), selectMode); break;
-                            case Views.cmWordLeft:
-                                SetCurPtr(PrevWord(curPtr), selectMode); break;
-                            case Views.cmWordRight:
-                                SetCurPtr(NextWord(curPtr), selectMode); break;
-                            case Views.cmLineStart:
-                                SetCurPtr(LineStart(curPtr), selectMode); break;
-                            case Views.cmLineEnd:
-                                SetCurPtr(LineEnd(curPtr), selectMode); break;
-                            case Views.cmLineUp:
-                                SetCurPtr(LineMove(curPtr, -1), selectMode); break;
-                            case Views.cmLineDown:
-                                SetCurPtr(LineMove(curPtr, 1), selectMode); break;
-                            case Views.cmPageUp:
-                                SetCurPtr(LineMove(curPtr, -(size.y - 1)), selectMode); break;
-                            case Views.cmPageDown:
-                                SetCurPtr(LineMove(curPtr, size.y - 1), selectMode); break;
-                            case Views.cmTextStart:
-                                SetCurPtr(0, selectMode); break;
-                            case Views.cmTextEnd:
-                                SetCurPtr(bufLen, selectMode); break;
-                            case Views.cmNewLine:
-                                NewLine(); break;
-                            case Views.cmBackSpace:
-                                DeleteRange(PrevChar(curPtr), curPtr, true); break;
-                            case Views.cmDelChar:
-                                DeleteRange(curPtr, NextChar(curPtr), true); break;
-                            case Views.cmDelWord:
-                                DeleteRange(curPtr, NextWord(curPtr), true); break;
-                            case Views.cmDelWordLeft:
-                                DeleteRange(PrevWord(curPtr), curPtr, true); break;
-                            case Views.cmDelStart:
-                                DeleteRange(LineStart(curPtr), curPtr, false); break;
-                            case Views.cmDelEnd:
-                                DeleteRange(curPtr, LineEnd(curPtr), false); break;
-                            case Views.cmDelLine:
-                                DeleteRange(LineStart(curPtr), NextLine(curPtr), false); break;
-                            case Views.cmInsMode:
-                                ToggleInsMode(); break;
-                            case Views.cmStartSelect:
-                                StartSelect(); break;
-                            case Views.cmHideSelect:
-                                HideSelect(); break;
-                            case Views.cmIndentMode:
-                                autoIndent = !autoIndent; break;
-                            case Views.cmFind:
-                                Find(); break;
-                            case Views.cmReplace:
-                                Replace(); break;
-                            case Views.cmSearchAgain:
-                                DoSearchReplace(); break;
-                            default:
-                                Unlock(); return;
+                            Views.cmBackSpace when !HasSelection() => EditorUndoKind.DeleteBackward,
+                            Views.cmDelChar when !HasSelection() => EditorUndoKind.DeleteForward,
+                            _ => EditorUndoKind.Other,
+                        });
+                        try
+                        {
+                            switch (ev.message.command)
+                            {
+                                case Views.cmCut:        ClipCut(); break;
+                                case Views.cmCopy:       ClipCopy(); break;
+                                case Views.cmPaste:      ClipPaste(); break;
+                                case Views.cmUndo:       Undo(); break;
+                                case Views.cmRedo:       Redo(); break;
+                                case Views.cmSelectAll:  SelectAll(); break;
+                                case Views.cmClear:      DeleteSelect(); break;
+                                case Views.cmCharLeft:
+                                    SetCurPtr(PrevGraphemeBoundary(curPtr), selectMode); break;
+                                case Views.cmCharRight:
+                                    SetCurPtr(NextGraphemeBoundary(curPtr), selectMode); break;
+                                case Views.cmWordLeft:
+                                    SetCurPtr(PrevWord(curPtr), selectMode); break;
+                                case Views.cmWordRight:
+                                    SetCurPtr(NextWord(curPtr), selectMode); break;
+                                case Views.cmLineStart:
+                                    SetCurPtr(CachedLineStart(curPtr), selectMode); break;
+                                case Views.cmLineEnd:
+                                    SetCurPtr(CachedLineEnd(curPtr), selectMode); break;
+                                case Views.cmLineUp:
+                                    SetCurPtr(SnapToGrapheme(LineMove(curPtr, -1), false), selectMode); break;
+                                case Views.cmLineDown:
+                                    SetCurPtr(SnapToGrapheme(LineMove(curPtr, 1), false), selectMode); break;
+                                case Views.cmPageUp:
+                                    SetCurPtr(SnapToGrapheme(LineMove(curPtr, -(size.y - 1)), false), selectMode); break;
+                                case Views.cmPageDown:
+                                    SetCurPtr(SnapToGrapheme(LineMove(curPtr, size.y - 1), false), selectMode); break;
+                                case Views.cmTextStart:
+                                    SetCurPtr(0, selectMode); break;
+                                case Views.cmTextEnd:
+                                    SetCurPtr(bufLen, selectMode); break;
+                                case Views.cmNewLine:
+                                    NewLine(); break;
+                                case Views.cmBackSpace:
+                                    DeleteRange(PrevGraphemeBoundary(curPtr), curPtr, true); break;
+                                case Views.cmDelChar:
+                                    DeleteRange(curPtr, NextGraphemeBoundary(curPtr), true); break;
+                                case Views.cmDelWord:
+                                    DeleteRange(curPtr, NextWord(curPtr), true); break;
+                                case Views.cmDelWordLeft:
+                                    DeleteRange(PrevWord(curPtr), curPtr, true); break;
+                                case Views.cmDelStart:
+                                    DeleteRange(CachedLineStart(curPtr), curPtr, false); break;
+                                case Views.cmDelEnd:
+                                    DeleteRange(curPtr, CachedLineEnd(curPtr), false); break;
+                                case Views.cmDelLine:
+                                    DeleteRange(CachedLineStart(curPtr), NextLine(curPtr), false); break;
+                                case Views.cmInsMode:
+                                    ToggleInsMode(); break;
+                                case Views.cmStartSelect:
+                                    StartSelect(); break;
+                                case Views.cmHideSelect:
+                                    HideSelect(); break;
+                                case Views.cmIndentMode:
+                                    autoIndent = !autoIndent; break;
+                                case Views.cmFind:
+                                    Find(); break;
+                                case Views.cmReplace:
+                                    Replace(); break;
+                                case Views.cmSearchAgain:
+                                    DoSearchReplace(); break;
+                                default:
+                                    Unlock(); return;
+                            }
                         }
+                        finally { EndUndoGroup(); }
                         TrackCursor(centerCursor);
                         Unlock();
                         break;

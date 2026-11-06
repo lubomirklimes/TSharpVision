@@ -49,8 +49,7 @@ public sealed class EditorInsertionAnchorTests : IDisposable
         editor.SetCurPtr(0, 0);
         editor.SetCurPtr((uint)(caret ?? text.Length), 0);
         editor.TrackCursor(false);
-        editor.delCount = 0;                                         // loading is not an edit to undo
-        editor.insCount = 0;
+        editor.ClearUndoHistory();                                   // loading is not an edit to undo
         AssertConsistent(editor, text, caret ?? text.Length, "baseline");
         return editor;
     }
@@ -220,7 +219,8 @@ public sealed class EditorInsertionAnchorTests : IDisposable
         editor.Undo();
         AssertConsistent(editor, "hello world", 11, "undo", selected: true);
         Assert.Equal((6u, 11u), (editor.selStart, editor.selEnd));  // the restored text, selected
-        Assert.Equal((0u, 0u), (editor.delCount, editor.insCount));   // single-level: nothing left to undo
+        Assert.Equal((0u, 0u), (editor.delCount, editor.insCount));   // Undo closes the group typing could extend
+        Assert.False(editor.HasUndo);                                  // the replacement was the only edit
     }
 
     [Fact]
@@ -241,7 +241,7 @@ public sealed class EditorInsertionAnchorTests : IDisposable
         editor.InsertText("XYZ");
         editor.Undo();
         AssertConsistent(editor, "abc", 3, "undo");
-        editor.Undo();                                                 // single level: a second undo changes nothing
+        editor.Undo();                                                 // nothing older to undo: loading is not an edit
         AssertConsistent(editor, "abc", 3, "second undo");
     }
 

@@ -8,6 +8,7 @@ internal sealed class Win32InputTranslator
 {
     private readonly ModifierStateTracker _modifiers = new();
     private readonly Dictionary<(ushort VirtualKey, ushort ScanCode, bool Enhanced), KeyDownEvent> _heldKeys = new();
+    private char _pendingHighSurrogate;
 
     public bool TryTranslate(
         bool keyDown, ushort virtualKey, ushort scanCode, char character,
@@ -26,9 +27,22 @@ internal sealed class Win32InputTranslator
             (virtualKey, scanCode, (controlKeyState & Win32KeyTranslator.ENHANCED_KEY) != 0);
         if (keyDown)
         {
+            // The console delivers a character outside the BMP as two key records, one surrogate each. Hold the high
+            // surrogate and publish the pair as the text of the low surrogate's event. A high surrogate that is not
+            // followed by its low surrogate is no character and is dropped.
+            char high = _pendingHighSurrogate;
+            _pendingHighSurrogate = '\0';
+            if (char.IsHighSurrogate(character))
+            {
+                _pendingHighSurrogate = character;
+                ev = default;
+                return false;
+            }
             if (!Win32KeyTranslator.TryTranslate(
                     true, virtualKey, character, controlKeyState, out ev, scanCode))
                 return false;
+            if (high != '\0' && char.IsLowSurrogate(character))
+                ev.keyDown.text = new string(new[] { high, character });
             _heldKeys.TryAdd(identity, ev.keyDown);
             return true;
         }

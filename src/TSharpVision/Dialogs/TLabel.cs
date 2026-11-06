@@ -42,14 +42,6 @@ public class TLabel : TStaticText
     /// <inheritdoc />
     public override TPalette GetPalette() => _palette;
 
-    private static char ExtractHotKey(string s)
-    {
-        if (string.IsNullOrEmpty(s)) return '\0';
-        for (int i = 0; i < s.Length - 1; i++)
-            if (s[i] == '~') return char.ToUpperInvariant(s[i + 1]);
-        return '\0';
-    }
-
     private static ushort GetAltCode(char c)
     {
         return KeyboardCompatibility.AltCode(c);
@@ -71,8 +63,10 @@ public class TLabel : TStaticText
         }
         else if (@event.What == Events.evKeyDown)
         {
-            char c = ExtractHotKey(Text ?? string.Empty);
-            bool altMatch = GetAltCode(c) == @event.keyDown.keyCode;
+            char c = CellText.Hotkey(Text);
+            // No hotkey (or a non-Latin one) has no Alt code; such keys must not match kbNoKey input.
+            ushort altCode = GetAltCode(c);
+            bool altMatch = altCode != Keys.kbNoKey && altCode == @event.keyDown.keyCode;
             bool asciiMatch = c != '\0'
                 && owner != null && owner.phase == TView.phaseType.phPostProcess
                 && char.ToUpperInvariant((char)@event.keyDown.charScan.charCode) == c;

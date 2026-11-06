@@ -62,6 +62,15 @@ public partial class SDLGpuDriver : IDisposable, IDriver, IIdleWaitDriver, IGrid
         KeyboardCapabilities.KeyReleaseEvents | KeyboardCapabilities.StandaloneModifierTransitions
         | KeyboardCapabilities.DistinctNumericKeypad | KeyboardCapabilities.StandaloneMetaTransitions;
 
+    /// <summary>
+    /// Lead cells are drawn as whole grapheme clusters across their cells (TV13m), so <see cref="TextCapabilities.WideCells"/>
+    /// and <see cref="TextCapabilities.ClusterText"/> always; <see cref="TextCapabilities.ColorGlyphs"/> once the renderer
+    /// has loaded a colour emoji font that rasterises in colour on this machine.
+    /// </summary>
+    public TextCapabilities TextCapabilities =>
+        TextCapabilities.WideCells | TextCapabilities.ClusterText
+        | (_gpuRenderer?.ColorGlyphsAvailable == true ? TextCapabilities.ColorGlyphs : TextCapabilities.None);
+
     /// <summary>Optional rendering callback invoked while pumping messages; initialization installs a callback that renders the screen buffer.</summary>
     public Action<IRenderer>? MessageLoop { get; set; }
 
@@ -183,7 +192,7 @@ public partial class SDLGpuDriver : IDisposable, IDriver, IIdleWaitDriver, IGrid
                 _rows * _metrics.LogicalHeight,
                 windowFlags);
 
-            if (_window == IntPtr.Zero)
+            if (_window == IntPtr.Zero || StartupFaultForTesting == SdlGpuStartupFault.Window)
             {
                 throw new InvalidOperationException($"SDL window creation failed: {SDL3.SDL.GetError()}");
             }
@@ -199,6 +208,7 @@ public partial class SDLGpuDriver : IDisposable, IDriver, IIdleWaitDriver, IGrid
                 FontFit)
             {
                 SimulatePipelineFailureForTesting = SimulateShaderPipelineFailureForTesting,
+                StartupFaultForTesting = StartupFaultForTesting,
             };
             ApplyConfiguredPresentation(graphics);
             _gpuRenderer.PhysicalPalette = _physicalPalette;
@@ -234,9 +244,23 @@ public partial class SDLGpuDriver : IDisposable, IDriver, IIdleWaitDriver, IGrid
             if (_window != IntPtr.Zero) { try { SDL3.SDL.DestroyWindow(_window); } catch { } _window = IntPtr.Zero; }
             if (sdlInitialized) { try { SDL3.SDL.Quit(); } catch { } }
             _attached = false;
-            throw new InvalidOperationException($"{GetType().Name} initialization failed: {ex.Message}", ex);
+            string message = $"{GetType().Name} initialization failed: {ex.Message}";
+            // Everything this attempt started is released above, so a missing GPU device or swapchain lets automatic
+            // selection start the SDL renderer driver instead (TV13s). Any other failure is reported as before.
+            if (ex is SdlGpuUnavailableException)
+                throw new DriverStartupFallbackException(message, nameof(SDLDriver), ex);
+            throw new InvalidOperationException(message, ex);
         }
     }
+
+    /// <summary>
+    /// Test seam (TV13s): makes startup fail at a stage. Process-wide, read when an instance is constructed;
+    /// None in normal use.
+    /// </summary>
+    internal static SdlGpuStartupFault StartupFaultForAllInstancesForTesting { get; set; }
+
+    /// <summary>Test seam (TV13s): makes this instance's startup fail at a stage; None in normal use.</summary>
+    internal SdlGpuStartupFault StartupFaultForTesting { get; set; } = StartupFaultForAllInstancesForTesting;
 
     /// <inheritdoc />
     public ScreenBuffer AllocateScreenBuffer()

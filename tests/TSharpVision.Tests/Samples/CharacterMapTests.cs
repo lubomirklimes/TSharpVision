@@ -56,15 +56,15 @@ public sealed class CharacterMapTests
         Assert.False(model.Copy(0, new NullClipboardService(), out string error));
         Assert.Contains("unavailable", error);
     }
+    // Nothing visible or measurable to draw: a placeholder, while copying still gives the exact scalar.
     [Theory]
-    [InlineData(0)] [InlineData(0x7F)] [InlineData(0x85)] [InlineData(0x301)]
-    [InlineData(0xFE0F)] [InlineData(0x200B)] [InlineData(0x4E00)] [InlineData(0x1F600)]
-    [InlineData(0xD800)] [InlineData(0xDFFF)] [InlineData(0x231A)]
-    [InlineData(0x26BD)] [InlineData(0x2E80)] [InlineData(0x3164)] [InlineData(0xFFA0)]
-    public void UnsafeCellsUsePlaceholderWithoutCopyingIt(int code)
+    [InlineData(0)] [InlineData(0x7F)] [InlineData(0x85)] [InlineData(0xFE0F)] [InlineData(0xFE0E)] [InlineData(0x200B)]
+    [InlineData(0x200D)] [InlineData(0xD800)] [InlineData(0xDFFF)] [InlineData(0x3164)] [InlineData(0xFFA0)]
+    [InlineData(0x0378)] [InlineData(0x20)] [InlineData(0xE0100)]
+    public void InvisibleCodePointsUsePlaceholderWithoutCopyingIt(int code)
     {
         var model = new CharacterMapModel(); model.Select(code);
-        Assert.Equal('.', CharacterMapModel.Glyph(code));
+        Assert.Equal(".", CharacterMapModel.Preview(code));
         var clipboard = new InMemoryClipboardService(); clipboard.SetText("preserve");
         if (Rune.IsValid(code))
         {
@@ -80,7 +80,58 @@ public sealed class CharacterMapTests
     }
     [Theory]
     [InlineData(0x251C)] [InlineData(0x2801)] [InlineData(0xA641)] [InlineData(0x1F00)]
-    public void SafeBmpCharactersUseActualGlyph(int code) => Assert.Equal((char)code, CharacterMapModel.Glyph(code));
+    public void SafeBmpCharactersUseActualGlyph(int code) => Assert.Equal(((char)code).ToString(), CharacterMapModel.Preview(code));
+
+    // Since TV13k-q the grid draws every visible scalar through the framework's cluster cells, at the width
+    // TextLayout gives it: wide and supplementary characters are no longer placeholders.
+    [Theory]
+    [InlineData(0x4E00, 2)] [InlineData(0x1F600, 2)] [InlineData(0x231A, 2)] [InlineData(0x26BD, 2)]
+    [InlineData(0x2E80, 2)] [InlineData(0x1D11E, 1)] [InlineData(0x1F1E8, 2)] [InlineData(0x2764, 1)]
+    [InlineData(0xAC00, 2)] [InlineData(0x0158, 1)] [InlineData(0xE000, 1)]
+    public void VisibleScalarsPreviewThemselvesAtTheirLayoutWidth(int code, int columns)
+    {
+        Assert.Equal(new Rune(code).ToString(), CharacterMapModel.Preview(code));
+        Assert.Equal(columns, CharacterMapModel.Columns(code));
+        Assert.Equal(columns, CharacterMapModel.PreviewColumns(code));
+    }
+
+    [Theory]
+    [InlineData(0x0301)] [InlineData(0x0308)] [InlineData(0x093F)] [InlineData(0x20DD)]
+    public void CombiningMarksAreShownOnADottedCircle(int code)
+    {
+        Assert.Equal("\u25CC" + new Rune(code), CharacterMapModel.Preview(code));
+        Assert.Equal(1, CharacterMapModel.PreviewColumns(code));
+        Assert.Contains("dotted circle", CharacterMapModel.Policy(code));
+    }
+
+    [Fact]
+    public void LegacyCellWidthKeepsTheConservativePlaceholders()
+    {
+        try
+        {
+            TSharpVision.Text.TextLayout.ProfileOverride = TSharpVision.Text.TextWidthProfile.Legacy;
+            Assert.Equal(".", CharacterMapModel.Preview(0x4E00));
+            Assert.Equal(".", CharacterMapModel.Preview(0x1F600));
+            Assert.Equal(".", CharacterMapModel.Preview(0x0301));
+            Assert.Equal("\u251C", CharacterMapModel.Preview(0x251C));
+        }
+        finally
+        {
+            TSharpVision.Text.TextLayout.ProfileOverride = TSharpVision.Text.TextWidthProfile.Default;
+        }
+    }
+
+    [Fact]
+    public void NotationUsesScalarsNotSurrogateHalves()
+    {
+        var model = new CharacterMapModel(); model.Select(0x1D11E);
+        Assert.Equal("U+1D11E", model.Notation);
+        Assert.Equal("D834 DD1E", model.Utf16);
+        Assert.Equal("U+0065 U+0301", CharacterMapModel.Scalars("e\u0301"));
+        Assert.Equal("U+1F468 U+200D U+1F469 U+200D U+1F467", CharacterMapModel.Scalars("\U0001F468\u200D\U0001F469\u200D\U0001F467"));
+        model.Select(0x10FFFF); Assert.Equal("U+10FFFF", model.Notation);
+        model.Select(0x41); Assert.Equal("U+0041", model.Notation);
+    }
 
     [Fact]
     public void VirtualGridNavigationVisibilityAndBoundaries()

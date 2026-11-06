@@ -120,16 +120,12 @@ public class TListViewer : TView
                 if (item < range)
                 {
                     string text = GetText(item, width + indent);
-                    string buf;
-                    if (text.Length <= indent)
-                        buf = string.Empty;
-                    else
-                    {
-                        int avail = Math.Min(width, text.Length - indent);
-                        buf = text.Substring(indent, avail);
-                    }
-                    if (buf.Length > 0)
-                        b.moveStr(curCol + 1, buf, color);
+                    // indent scrolls by cells; the shown text never starts or ends inside a cluster, and a wide
+                    // cluster cut by the left edge leaves its visible cell blank.
+                    int start = CellText.SkipColumns(text, indent, out int pad);
+                    int avail = CellText.Fit(text.AsSpan(start), width - pad);
+                    if (avail > 0)
+                        b.moveStr(curCol + 1 + pad, text.Substring(start, avail), color);
                     // showMarkers / specialChars deferred.
                 }
                 else if (i == 0 && j == 0)

@@ -58,6 +58,8 @@ public sealed class EditorSyntaxHighlighter
     private SyntaxClassificationWorker? _worker;
     private SyntaxColorScheme _colorScheme = SyntaxColorScheme.Default;
     private int _maxLinesPerRequest = SyntaxClassificationWorker.DefaultMaxLinesPerRequest;
+    private TScreenChar[] _row = Array.Empty<TScreenChar>();
+    private EditorTextRun[] _runs = Array.Empty<EditorTextRun>();
     private bool _shutDown;
 
     /// <summary>Creates a highlighter for <paramref name="editor"/>, initially drawing plain text.</summary>
@@ -189,8 +191,12 @@ public sealed class EditorSyntaxHighlighter
         ushort color = editor.GetColor(0x0201);
         ushort normal = (byte)color;
         ushort selected = (byte)(color >> 8);
-        int width = Math.Max(editor.delta.x + editor.size.x, 1);
-        var cells = new TScreenChar[width];
+
+        // Only the visible window is formatted: one reused row of size.x cells, whatever delta.x is.
+        int left = Math.Max(0, editor.delta.x);
+        int visible = Math.Max(0, editor.size.x);
+        if (_row.Length < visible) _row = new TScreenChar[visible];
+        Span<TScreenChar> cells = _row.AsSpan(0, visible);
         int lastMissing = -1;
 
         while (count-- > 0)
@@ -199,9 +205,8 @@ public sealed class EditorSyntaxHighlighter
             if (highlight && _cache is not null && lineIndex < lineCount && !_cache.TryGetValidSpans(lineIndex, out spans))
                 lastMissing = lineIndex;
 
-            FormatLine(cells, linePtr, width, normal, selected, spans);
-            int visible = Math.Max(0, Math.Min(editor.size.x, width - editor.delta.x));
-            editor.WriteLine(0, y, editor.size.x, 1, cells.AsSpan(Math.Min(editor.delta.x, width), visible));
+            FormatLine(cells, linePtr, left, normal, selected, spans);
+            editor.WriteLine(0, y, editor.size.x, 1, cells);
 
             linePtr = editor.NextLine(linePtr);
             lineIndex++;
@@ -291,60 +296,28 @@ public sealed class EditorSyntaxHighlighter
         return true;
     }
 
-    private void FormatLine(TScreenChar[] cells, uint linePtr, int width, ushort normal, ushort selected, IReadOnlyList<SyntaxSpan> spans)
+    /// <summary>
+    /// Formats the columns [<paramref name="left"/>, left + cells.Length) of the line at
+    /// <paramref name="linePtr"/> into <paramref name="cells"/>.
+    /// </summary>
+    /// <remarks>
+    /// The spans become attribute runs for <see cref="TEditor.FormatLine(Span{TScreenChar}, uint, int, ushort, ushort, ReadOnlySpan{EditorTextRun})"/>,
+    /// so the cells are exactly those <c>TEditor</c> draws for the same columns (grapheme clusters, wide
+    /// characters, tabs, the window edges, selection), plus span colours. A cluster takes the colour of the span
+    /// holding its first code unit; spans stay in UTF-16 offsets of the line. The editor enters the line at its
+    /// nearest column checkpoint, so only the visible window is formatted, and the run buffer is reused.
+    /// </remarks>
+    private void FormatLine(Span<TScreenChar> cells, uint linePtr, int left, ushort normal, ushort selected, IReadOnlyList<SyntaxSpan> spans)
     {
-        TEditor editor = _editor;
-        var buffer = new TDrawBuffer(cells);
-        // Tab stops as in TEditor.FormatLine: a zero tabSize means one column.
-        long tab = Math.Max(1L, TEditor.tabSize);
-        int x = 0;
-        uint p = linePtr;
-        int index = 0;
-        int span = 0;
-        bool atEnd = false;
-
-        while (x < width)
+        int count = spans.Count;
+        if (_runs.Length < count) _runs = new EditorTextRun[Math.Max(count, _runs.Length * 2)];
+        for (int i = 0; i < count; i++)
         {
-            if (atEnd || p >= editor.bufLen)
-            {
-                buffer.moveChar(x++, ' ', normal, 1);
-                continue;
-            }
-
-            char c = editor.BufChar(p);
-            if (c == '\n')
-            {
-                atEnd = true;
-                continue;
-            }
-
-            ushort attr;
-            if (p >= editor.selStart && p < editor.selEnd)
-            {
-                attr = selected;
-            }
-            else
-            {
-                while (span < spans.Count && spans[span].End <= index) span++;
-                attr = span < spans.Count && spans[span].Start <= index
-                    ? _colorScheme.Apply(spans[span].Class, normal)
-                    : normal;
-            }
-
-            if (c == '\t')
-            {
-                long next = (x / tab + 1) * tab;
-                while (x < next && x < width) buffer.moveChar(x++, ' ', attr, 1);
-            }
-            else
-            {
-                // A CR is an ordinary one-column character of the line (the buffer is LF-only), drawn blank, as in TEditor.
-                buffer.moveChar(x++, c == '\r' ? ' ' : c, attr, 1);
-            }
-
-            p++;
-            index++;
+            SyntaxSpan span = spans[i];
+            _runs[i] = new EditorTextRun(span.Start, span.Length, _colorScheme.Apply(span.Class, normal));
         }
+
+        _editor.FormatLine(cells, linePtr, left, normal, selected, _runs.AsSpan(0, count));
     }
 
     private sealed class ResultInfo : IInfo

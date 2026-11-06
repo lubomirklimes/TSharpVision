@@ -76,6 +76,20 @@ class ReleasePrepTests(unittest.TestCase):
         self.assertIn('## 1.0.0\n\n- Preserved historical text.', changelog)
         self.assertEqual(1, changelog.count('## ' + self.data['version']))
 
+    def test_final_documentation_does_not_claim_publication_or_invent_a_date(self):
+        self.twelve_packages_1_2_0()
+        planned = prep.plan(self.root, self.data, Path('Temp/release'), [])
+        readme = planned[self.root / 'README.md']
+        self.assertIn('**TSharpVision 1.2.0** (stable):', readme)
+        self.assertNotIn('Upcoming', readme)
+        self.assertNotIn('not yet published', readme)
+        self.data['changelog'] = 'generate'
+        (self.root / 'CHANGELOG.md').write_text('# Changelog\n\n## 1.0.0\n\n- Preserved historical text.\n', encoding='utf-8')
+        generated = prep.plan(self.root, self.data, Path('Temp/release'), [])
+        changelog = generated[self.root / 'CHANGELOG.md']
+        self.assertNotIn('Pending release', changelog)
+        self.assertNotIn('Release date:', changelog)
+
     def test_invalid_semver(self):
         for version in ('1.0', '01.0.0', '1.0.0-01', 'v1.0.0', '1.0.0-rc..1'):
             data = dict(self.data, version=version)
@@ -320,14 +334,14 @@ class ReleasePrepTests(unittest.TestCase):
         tracked = {name: (ROOT / name).read_bytes() for name in ('README.md', 'CHANGELOG.md', 'Directory.Build.props')}
         index_before = hashlib.sha256(git('diff', '--cached', '--binary')).hexdigest()
         status_before = git('status', '--short')
-        result = subprocess.run([sys.executable, str(HERE / 'prepare.py'), '--metadata', str(HERE / 'release-1.2.0.json'),
-                                 '--output', 'Temp/release-1.2.0', '--mode', 'preview'], capture_output=True, text=True, cwd=ROOT)
+        result = subprocess.run([sys.executable, str(HERE / 'prepare.py'), '--metadata', str(HERE / 'release-1.3.0.json'),
+                                 '--output', 'Temp/release-1.3.0', '--mode', 'preview'], capture_output=True, text=True, cwd=ROOT)
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertIn('PASS: preview', result.stdout)
         self.assertEqual(tracked, {name: (ROOT / name).read_bytes() for name in tracked})
         self.assertEqual(index_before, hashlib.sha256(git('diff', '--cached', '--binary')).hexdigest())
         self.assertEqual(status_before, git('status', '--short'))
-        self.assertFalse((ROOT / 'Temp/release-1.2.0').exists())
+        self.assertFalse((ROOT / 'Temp/release-1.3.0').exists())
         self.evaluation.start()
 
 

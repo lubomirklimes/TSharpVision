@@ -39,9 +39,9 @@ public class TMenuBox : TMenuView
             {
                 if (!string.IsNullOrEmpty(p.Name))
                 {
-                    int l = CStrLen(p.Name) + 6;
+                    int l = CellText.HotkeyWidth(p.Name) + 6;
                     if (p.Command == 0) l += 3;
-                    else if (!string.IsNullOrEmpty(p.Param)) l += p.Param.Length + 2;
+                    else if (!string.IsNullOrEmpty(p.Param)) l += CellText.Measure(p.Param) + 2;
                     if (l > w) w = l;
                 }
                 h++;
@@ -53,15 +53,6 @@ public class TMenuBox : TMenuView
         if (r.a.y + h < r.b.y) r.b.y = r.a.y + h;
         else r.a.y = r.b.y - h;
         return r;
-    }
-
-    // Count visible chars, skipping '~' hotkey markers (cstrlen equivalent).
-    private static int CStrLen(string s)
-    {
-        if (s == null) return 0;
-        int n = 0;
-        foreach (char c in s) if (c != '~') n++;
-        return n;
     }
 
     /// <summary>Creates a shadowed popup sized for the referenced menu within the supplied owner-relative cell bounds.</summary>
@@ -132,7 +123,7 @@ public class TMenuBox : TMenuView
                     if (p.Command == 0)
                         b.putChar(size.x - 4, rightArrow);
                     else if (!string.IsNullOrEmpty(p.Param))
-                        b.moveStr(size.x - 3 - p.Param.Length, p.Param, _lineColor);
+                        b.moveStr(size.x - 3 - CellText.Measure(p.Param), p.Param, _lineColor);
                 }
                 WriteBuf(0, y++, size.x, 1, b);
             }

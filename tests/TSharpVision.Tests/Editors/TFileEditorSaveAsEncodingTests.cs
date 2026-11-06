@@ -227,4 +227,110 @@ public sealed class TFileEditorSaveAsEncodingTests : IDisposable
         Assert.Equal(LegacyTextEncodings.Iso8859_2.Encode(Czech + "\n"), File.ReadAllBytes(PathOf("d.txt")));
         Assert.Empty(_prompts);
     }
+
+    // The 1.2 overload sits on the 1.3 save-encoding model: an explicit choice becomes SaveEncoding, Auto keeps it.
+    [Fact]
+    public void SaveFileOverloadDrivesTheSaveEncoding()
+    {
+        File.WriteAllBytes(PathOf("d.txt"), Encoding.UTF8.GetBytes(Czech + "\n"));
+        var editor = NewEditor(PathOf("d.txt"));
+        AnswerSaveAs(null, null);
+
+        Assert.True(editor.SaveFile(Choice("CP852")));
+        Assert.Equal(EditorEncodingKind.Legacy, editor.SaveEncoding);
+        Assert.Same(LegacyTextEncodings.Cp852, editor.SaveLegacyEncoding);
+        Assert.Same(LegacyTextEncodings.Cp852, editor.OriginalLegacyEncoding);
+
+        editor.SetSaveEncoding(LegacyTextEncodings.Windows1250);
+        Assert.True(editor.SaveFile(EditorTextEncoding.Auto));
+        Assert.Equal(LegacyTextEncodings.Windows1250.Encode(Czech + "\n"), File.ReadAllBytes(PathOf("d.txt")));
+        Assert.Same(LegacyTextEncodings.Windows1250, editor.SaveLegacyEncoding);
+        Assert.Empty(_prompts);
+    }
+
+    private static void Type(TEditor editor, string text)
+    {
+        var ev = new TEvent { What = Events.evKeyDown };
+        ev.keyDown.text = text;
+        editor.HandleEvent(ref ev);
+    }
+
+    // Editor v2 history × 1.2 Save As: the saved position follows the save, and the bytes are exactly the redone text.
+    [Fact]
+    public void UndoRedoThenSaveAsWritesExactBytesAndMovesTheSavedPosition()
+    {
+        File.WriteAllBytes(PathOf("doc.txt"), LegacyTextEncodings.Cp852.Encode("Příliš\r\n"));
+        var editor = NewEditor(PathOf("doc.txt"), EditorTextEncoding.Legacy(LegacyTextEncodings.Cp852));
+        editor.SetCurPtr(editor.bufLen, 0);
+        foreach (string s in new[] { "ž", "l", "u", "ť" }) Type(editor, s);
+        while (editor.HasUndo) editor.Undo();
+        Assert.Equal("Příliš\n", Text(editor));
+        Assert.False(editor.modified);
+        while (editor.HasRedo) editor.Redo();
+        Assert.True(editor.modified);
+
+        AnswerSaveAs(PathOf("out.txt"), Choice("Windows-1250"));
+        Assert.True(editor.SaveAs());
+        Assert.Equal(LegacyTextEncodings.Windows1250.Encode("Příliš\r\nžluť"), File.ReadAllBytes(PathOf("out.txt")));
+        Assert.False(editor.modified);
+        editor.Undo();
+        Assert.True(editor.modified);
+        editor.Redo();
+        Assert.False(editor.modified); // back at the position Save As wrote
+
+        Type(editor, "!");
+        Assert.True(editor.Save());
+        Assert.Equal(LegacyTextEncodings.Windows1250.Encode("Příliš\r\nžluť!"), File.ReadAllBytes(PathOf("out.txt")));
+    }
+
+    [Fact]
+    public void UndoRedoOfGraphemeClustersThenStrictSaveAs()
+    {
+        const string clusters = "é \U0001F469‍\U0001F4BB 日";
+        File.WriteAllBytes(PathOf("u.txt"), Encoding.UTF8.GetBytes("a\r\n"));
+        var editor = NewEditor(PathOf("u.txt"));
+        editor.SetCurPtr(editor.bufLen, 0);
+        Type(editor, clusters);
+        while (editor.HasUndo) editor.Undo();
+        Assert.Equal("a\n", Text(editor));
+        while (editor.HasRedo) editor.Redo();
+        Assert.Equal("a\n" + clusters, Text(editor));
+
+        AnswerSaveAs(PathOf("cp852.txt"), Choice("CP852")); // no emoji, combining acute or CJK in CP852
+        Assert.False(editor.SaveAs());
+        Assert.False(File.Exists(PathOf("cp852.txt")));
+        Assert.True(editor.modified);
+        Assert.Equal(PathOf("u.txt"), editor.fileName);
+
+        _prompts.Clear();
+        AnswerSaveAs(PathOf("utf8.txt"), EditorTextEncoding.Utf8);
+        Assert.True(editor.SaveAs());
+        Assert.Equal(Encoding.UTF8.GetBytes("a\r\n" + clusters), File.ReadAllBytes(PathOf("utf8.txt")));
+        Assert.False(editor.modified);
+    }
+
+    [Fact]
+    public void FailedSaveAsAfterSetSaveEncodingKeepsThatEncoding()
+    {
+        File.WriteAllBytes(PathOf("doc.txt"), LegacyTextEncodings.Windows1250.Encode(Czech + "\r\n"));
+        var editor = NewEditor(PathOf("doc.txt"), EditorTextEncoding.Legacy(LegacyTextEncodings.Windows1250));
+        editor.SetSaveEncoding(LegacyTextEncodings.Iso8859_2);
+        editor.InsertText("!");
+        AnswerSaveAs(PathOf("t.txt"), Choice("CP437")); // CP437 has no 'ř'
+
+        Assert.False(editor.SaveAs());
+
+        Assert.Equal(new[] { Views.edSaveAs, Views.edEncodingWriteError }, _prompts);
+        Assert.Equal(PathOf("doc.txt"), editor.fileName);
+        Assert.True(editor.modified);
+        Assert.Equal(EditorEncodingKind.Legacy, editor.SaveEncoding);
+        Assert.Same(LegacyTextEncodings.Iso8859_2, editor.SaveLegacyEncoding);
+        Assert.Same(LegacyTextEncodings.Windows1250, editor.OriginalLegacyEncoding);
+        Assert.False(File.Exists(PathOf("t.txt")));
+
+        _prompts.Clear();
+        Assert.True(editor.Save());
+        Assert.Equal(LegacyTextEncodings.Iso8859_2.Encode(Text(editor).Replace("\n", "\r\n")),
+            File.ReadAllBytes(PathOf("doc.txt")));
+    }
 }

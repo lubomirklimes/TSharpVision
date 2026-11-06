@@ -1,4 +1,5 @@
 using TSharpVision.Constants;
+using TSharpVision.Text;
 namespace TSharpVision;
 
 /// <summary>
@@ -17,7 +18,10 @@ public class TInputLine : TView
     public int MaxLen;
     /// <summary>Zero-based insertion position within Data, measured in UTF-16 code units.</summary>
     public int CurPos;
-    /// <summary>Zero-based text offset displayed at the left edge of the input area.</summary>
+    /// <summary>
+    /// Zero-based UTF-16 offset of the text displayed at the left edge of the input area; the line keeps it at the start
+    /// of a user-perceived character.
+    /// </summary>
     public int FirstPos;
     /// <summary>Inclusive UTF-16 offset of the selected range.</summary>
     public int SelStart;
@@ -30,19 +34,20 @@ public class TInputLine : TView
     private char? _passwordChar;
 
     /// <summary>
-    /// When set, the line draws this character in place of every character of
-    /// <see cref="Data"/>, so that a password or other secret is not shown on screen.
-    /// <see langword="null"/>, the default, draws the text itself and is the behaviour every
-    /// existing input line has always had.
+    /// When set, the line draws this character in place of every user-perceived character (grapheme
+    /// cluster) of <see cref="Data"/>, so that a password or other secret is not shown on screen: an emoji,
+    /// an accented letter written with a combining mark or a CJK character each shows as one mask character,
+    /// so the mask reveals neither how the text is encoded nor how wide it is. Under the
+    /// <see cref="TextLayout.LegacyCellWidthSwitch"/> switch it is one mask character per UTF-16 code unit,
+    /// as in TSharpVision 1.2. <see langword="null"/>, the default, draws the text itself and is the
+    /// behaviour every existing input line has always had.
     ///
     /// <para>
     /// <b>This affects drawing and nothing else.</b> <see cref="Data"/> still holds, and still
     /// returns, exactly what was typed; <see cref="GetData"/>, <see cref="SetData"/>,
-    /// <see cref="Valid"/> and any <see cref="Validator"/> all see the real value. Editing,
-    /// selection, the cursor, the scroll position and the overflow arrows are unchanged too,
-    /// because every one of them is computed from the text's <em>length</em> rather than its
-    /// content — which is what makes masking by substitution correct rather than a second
-    /// drawing path that could drift out of step with the first.
+    /// <see cref="Valid"/> and any <see cref="Validator"/> all see the real value. Editing and
+    /// selection are unchanged too; the cursor, the scroll position, the overflow arrows and mouse
+    /// positions are measured in mask characters, from the same cluster boundaries the editing keys use.
     /// </para>
     ///
     /// <para>
@@ -83,10 +88,14 @@ public class TInputLine : TView
     }
 
     /// <summary>Tests whether text can scroll left for a negative delta or right for a positive delta; zero returns false.</summary>
+    /// <remarks>The text right of <see cref="FirstPos"/> is measured in visual columns (a wide character takes two).</remarks>
     public virtual bool CanScroll(int delta)
     {
         if (delta < 0) return FirstPos > 0;
-        if (delta > 0) return Data.Length - FirstPos + 2 > size.x;
+        if (delta > 0)
+            return LegacyLayout
+                ? Data.Length - FirstPos + 2 > size.x
+                : Columns(FirstPos, Data.Length) + 2 > size.x;
         return false;
     }
 
@@ -108,27 +117,132 @@ public class TInputLine : TView
         var b = new TDrawBuffer(row);
         ushort color = (state & Views.sfFocused) != 0 ? GetColor(2) : GetColor(1);
         b.moveChar(0, ' ', color, size.x);
-        int avail = Math.Min(size.x - 2, Math.Max(0, Data.Length - FirstPos));
-        if (avail > 0)
-        //b.moveStr(1, Data, color, avail, FirstPos);
+        if (LegacyLayout)
         {
-            // Same run, same length, same position — only the glyphs differ. Everything below
-            // this point, and every measurement above it, is untouched by masking.
-            if (_passwordChar is char mask) b.moveChar(1, mask, color, avail);
-            else b.moveStr(1, Data, color, avail, FirstPos);
+            // TSharpVision 1.2: one cell per UTF-16 code unit, masked or not.
+            int avail = Math.Min(size.x - 2, Math.Max(0, Data.Length - FirstPos));
+            if (avail > 0)
+            {
+                if (_passwordChar is char mask) b.moveChar(1, mask, color, avail);
+                else b.moveStr(1, Data, color, avail, FirstPos);
+            }
+        }
+        else if (size.x > 2 && (uint)FirstPos < (uint)Data.Length)
+        {
+            // Clusters from FirstPos, a wide one that does not fit drawn as blanks; masked, one mask per cluster.
+            if (_passwordChar is char mask)
+                CellText.Fill(b.Data, 1, mask, color,
+                    (int)Math.Min(size.x - 2, (long)ClusterCount(Data.AsSpan(FirstPos)) * MaskWidth(mask)));
+            else b.moveStr(1, Data, color, size.x - 2, FirstPos);
         }
         if (CanScroll(1)) b.moveChar((ushort)(size.x - 1), '>', GetColor(4), 1);
         if (CanScroll(-1)) b.moveChar(0, '<', GetColor(4), 1);
         if ((state & Views.sfSelected) != 0)
         {
-            int l = SelStart - FirstPos;
-            int r = SelEnd - FirstPos;
+            int l, r;
+            if (LegacyLayout)
+            {
+                l = SelStart - FirstPos;
+                r = SelEnd - FirstPos;
+            }
+            else
+            {
+                int selStart = Math.Clamp(SelStart, 0, Data.Length), selEnd = Math.Clamp(SelEnd, 0, Data.Length);
+                l = selStart <= FirstPos ? 0 : Columns(FirstPos, selStart);
+                r = selEnd <= FirstPos ? 0 : Columns(FirstPos, selEnd);
+            }
             l = Math.Max(0, l);
             r = Math.Min(size.x - 2, r);
             if (l < r) b.moveChar((ushort)(l + 1), '\0', GetColor(3), r - l);
         }
         WriteLine(0, 0, size.x, size.y, b);
-        SetCursor(CurPos - FirstPos + 1, 0);
+        SetCursor(CursorColumn() + 1, 0);
+    }
+
+    // ── user-perceived characters and visual columns (TV13o) ────────────────
+    //
+    // Editing keys step over extended grapheme clusters (TextLayout's segmentation, as TEditor), so arrows, Backspace,
+    // Delete and overwrite never split a surrogate pair, a combining sequence, an emoji sequence or a flag. Positions
+    // (CurPos, FirstPos, SelStart, SelEnd, MaxLen) stay UTF-16 offsets and counts. The caret, the scroll position,
+    // the overflow arrows, the selection and the mouse use visual columns: the text is drawn from FirstPos by the
+    // cluster-aware moveStr, so a CJK character or an emoji takes two columns. Under the legacy cell-width switch
+    // every code unit is one column, exactly as in TSharpVision 1.2; cluster stepping applies in both.
+
+    private static bool LegacyLayout => CellText.Legacy;
+
+    // Start of the cluster that ends at or contains pos - 1 (0 at the start).
+    private int PrevBoundary(int pos)
+    {
+        pos = Math.Clamp(pos, 0, Data.Length);
+        int last = 0;
+        for (int i = 0; i < pos; i += TextLayout.NextClusterLength(Data, i)) last = i;
+        return last;
+    }
+
+    // The first cluster boundary after pos (the text length at its end).
+    private int NextBoundary(int pos)
+    {
+        int i = 0;
+        while (i < Data.Length && i <= pos) i += TextLayout.NextClusterLength(Data, i);
+        return Math.Min(i, Data.Length);
+    }
+
+    // The last cluster boundary at or before pos.
+    private int FloorBoundary(int pos)
+    {
+        pos = Math.Clamp(pos, 0, Data.Length);
+        int i = 0;
+        while (i < pos)
+        {
+            int next = i + TextLayout.NextClusterLength(Data, i);
+            if (next > pos) break;
+            i = next;
+        }
+        return i;
+    }
+
+    private static int ClusterCount(ReadOnlySpan<char> text)
+    {
+        int count = 0;
+        for (int i = 0; i < text.Length; i += TextLayout.NextClusterLength(text, i)) count++;
+        return count;
+    }
+
+    private static int MaskWidth(char mask) => LegacyLayout ? 1 : Math.Max(1, CellText.Measure([mask]));
+
+    // Columns of Data[from, to) as drawn from `from` (tabs count from there, as moveStr lays them out).
+    private int Columns(int from, int to)
+    {
+        from = Math.Clamp(from, 0, Data.Length);
+        to = Math.Clamp(to, from, Data.Length);
+        ReadOnlySpan<char> text = Data.AsSpan(from, to - from);
+        if (LegacyLayout) return text.Length;
+        if (_passwordChar is char mask) return ClusterCount(text) * MaskWidth(mask);
+        return CellText.Measure(text);
+    }
+
+    private int CursorColumn() =>
+        LegacyLayout ? CurPos - FirstPos : CurPos < FirstPos ? CurPos - FirstPos : Columns(FirstPos, CurPos);
+
+    // Moves FirstPos right, cluster by cluster, until the caret fits into the size.x - 2 text columns.
+    private void ScrollToCursor()
+    {
+        if (FirstPos > CurPos) FirstPos = CurPos;
+        if (LegacyLayout)
+        {
+            int i = CurPos - size.x + 2;
+            if (FirstPos < i) FirstPos = i;
+            return;
+        }
+        int avail = Math.Max(0, size.x - 2);
+        bool additive = _passwordChar != null || Data.IndexOf('\t') < 0;
+        int width = Columns(FirstPos, CurPos);
+        while (width > avail && FirstPos < CurPos)
+        {
+            int next = NextBoundary(FirstPos);
+            width = additive ? width - Columns(FirstPos, next) : Columns(next, CurPos);
+            FirstPos = next;
+        }
     }
 
     /// <inheritdoc />
@@ -150,15 +264,31 @@ public class TInputLine : TView
         return 0;
     }
 
-    /// <summary>Maps a screen mouse position to a clamped UTF-16 insertion offset in the input text.</summary>
+    /// <summary>
+    /// Maps a screen mouse position to a clamped UTF-16 insertion offset in the input text: the start of the
+    /// user-perceived character under the mouse (the second cell of a wide character gives its start).
+    /// </summary>
     protected int MousePos(TEvent ev)
     {
         TPoint mouse = MakeLocal(ev.mouse.where);
         int mx = Math.Max(mouse.x, 1);
-        int pos = mx + FirstPos - 1;
-        pos = Math.Max(pos, 0);
-        pos = Math.Min(pos, Data.Length);
-        return pos;
+        if (LegacyLayout)
+        {
+            int pos = mx + FirstPos - 1;
+            pos = Math.Max(pos, 0);
+            pos = Math.Min(pos, Data.Length);
+            return FloorBoundary(pos);
+        }
+        int first = Math.Clamp(FirstPos, 0, Data.Length);
+        int column = mx - 1;
+        if (_passwordChar is char mask)
+        {
+            int clusters = column / MaskWidth(mask);
+            int at = first;
+            while (clusters-- > 0 && at < Data.Length) at += TextLayout.NextClusterLength(Data, at);
+            return at;
+        }
+        return first + TextLayout.OffsetAtColumn(Data.AsSpan(first), column, CellText.Options, ColumnBias.Floor, out _);
     }
 
     /// <summary>Deletes the half-open selected range and moves the insertion position to its start.</summary>
@@ -171,7 +301,10 @@ public class TInputLine : TView
         }
     }
 
-    /// <summary>Inserts or overwrites one UTF-16 code unit according to cursor mode; returns false when capacity prevents insertion.</summary>
+    /// <summary>
+    /// Inserts or overwrites one UTF-16 code unit according to cursor mode; overwriting replaces the whole
+    /// user-perceived character at the cursor. Returns false when capacity prevents insertion.
+    /// </summary>
     public virtual bool InsertChar(char value)
     {
         if ((state & Views.sfCursorIns) == 0)
@@ -191,7 +324,7 @@ public class TInputLine : TView
             if (CurPos < MaxLen)
             {
                 if (CurPos < Data.Length)
-                    Data = string.Concat(Data.AsSpan(0, CurPos), stackalloc char[1] { value }, Data.AsSpan(CurPos + 1));
+                    Data = string.Concat(Data.AsSpan(0, CurPos), stackalloc char[1] { value }, Data.AsSpan(NextBoundary(CurPos)));
                 else
                     Data = string.Concat(Data.AsSpan(), stackalloc char[1] { value });
                 if (FirstPos > CurPos) FirstPos = CurPos;
@@ -204,10 +337,45 @@ public class TInputLine : TView
     /// <summary>Scrolls the text to expose the insertion position and redraws the control.</summary>
     protected void MakeVisible()
     {
-        if (FirstPos > CurPos) FirstPos = CurPos;
-        int i = CurPos - size.x + 2;
-        if (FirstPos < i) FirstPos = i;
+        ScrollToCursor();
         DrawView();
+    }
+
+    // Typed text, one user-perceived character at a time: its first unit goes through InsertChar (which replaces
+    // the selection, or overwrites the character at the cursor), the rest are inserted after it, so overwriting never
+    // splits a character and typing a surrogate pair overwrites one character, not two. A character that does not fit
+    // whole is not inserted, nor is anything after it.
+    private bool InsertTypedText(string text)
+    {
+        bool inserted = false;
+        for (int i = 0; i < text.Length;)
+        {
+            int length = TextLayout.NextClusterLength(text, i);
+            if (length > 1)
+            {
+                bool overwriting = (state & Views.sfCursorIns) != 0;
+                int replaced = overwriting
+                    ? (CurPos < Data.Length ? NextBoundary(CurPos) - CurPos : 0)
+                    : (NormalizeSelection() ? SelEnd - SelStart : 0);
+                if (Data.Length - replaced + length > MaxLen || (overwriting && CurPos >= MaxLen)) break;
+            }
+            inserted |= InsertChar(text[i]);
+            // The first unit replaced the selection. Left set, the range would be deleted again for every further
+            // unit of the same text (a surrogate pair is two).
+            SelStart = 0; SelEnd = 0;
+            if (length > 1)
+            {
+                ushort overwrite = (ushort)(state & Views.sfCursorIns);
+                state = (ushort)(state & ~Views.sfCursorIns);
+                try
+                {
+                    for (int k = 1; k < length; k++) inserted |= InsertChar(text[i + k]);
+                }
+                finally { state |= overwrite; }
+            }
+            i += length;
+        }
+        return inserted;
     }
 
     private void AdjustSelectBlock(int anchor)
@@ -276,15 +444,7 @@ public class TInputLine : TView
                 string text = KeyText.PrintableText(@event.keyDown);
                 if (text.Length > 0)
                 {
-                    bool inserted = false;
-                    foreach (char ch in text)
-                    {
-                        inserted |= InsertChar(ch);
-                        // The first unit replaced the selection. Left set, the range would be deleted again for
-                        // every further unit of the same text (a surrogate pair is two).
-                        SelStart = 0; SelEnd = 0;
-                    }
-                    if (inserted) MakeVisible();
+                    if (InsertTypedText(text)) MakeVisible();
                     ClearEvent(ref @event);
                     break;
                 }
@@ -309,10 +469,10 @@ public class TInputLine : TView
                 switch (key)
                 {
                     case Keys.kbLeft:
-                        if (CurPos > 0) CurPos--;
+                        if (CurPos > 0) CurPos = PrevBoundary(CurPos);
                         break;
                     case Keys.kbRight:
-                        if (CurPos < Data.Length) CurPos++;
+                        if (CurPos < Data.Length) CurPos = NextBoundary(CurPos);
                         break;
                     case Keys.kbHome:
                         CurPos = 0;
@@ -323,9 +483,12 @@ public class TInputLine : TView
                     case Keys.kbBack:
                         if (CurPos > 0)
                         {
-                            Data = string.Concat(Data.AsSpan(0, CurPos - 1), Data.AsSpan(CurPos));
-                            CurPos--;
-                            if (FirstPos > 0) FirstPos--;
+                            // One user-perceived character; the view shows one more at the left, as before.
+                            int end = Math.Min(CurPos, Data.Length);
+                            int start = PrevBoundary(end);
+                            Data = string.Concat(Data.AsSpan(0, start), Data.AsSpan(end));
+                            if (FirstPos > 0) FirstPos = FirstPos >= end ? start : PrevBoundary(FirstPos);
+                            CurPos = start;
                         }
                         break;
                     case Keys.kbDel:
@@ -334,7 +497,7 @@ public class TInputLine : TView
                             if (CurPos < Data.Length)
                             {
                                 SelStart = CurPos;
-                                SelEnd = CurPos + 1;
+                                SelEnd = NextBoundary(CurPos);
                             }
                         }
                         DeleteSelect();
@@ -433,8 +596,15 @@ public class TInputLine : TView
         int room = Math.Max(0, MaxLen - (Data.Length - (selected ? SelEnd - SelStart : 0)));
         if (text.Length > room)
         {
-            if (room > 0 && char.IsHighSurrogate(text[room - 1])) room--;
-            text = text.Substring(0, room);
+            // Cut at the last whole user-perceived character that fits.
+            int fit = 0;
+            for (int i = 0; i < text.Length;)
+            {
+                int next = i + TextLayout.NextClusterLength(text, i);
+                if (next > room) break;
+                fit = i = next;
+            }
+            text = text.Substring(0, fit);
         }
         if (text.Length == 0) return false;
 
@@ -498,8 +668,10 @@ public class TInputLine : TView
             CurPos = 0;
             SelEnd = 0;
         }
-        FirstPos = Math.Max(0, CurPos - size.x + 2);
+        FirstPos = LegacyLayout ? Math.Max(0, CurPos - size.x + 2) : 0;
+        ScrollToCursor();
         DrawView();
+
     }
 
     /// <inheritdoc />

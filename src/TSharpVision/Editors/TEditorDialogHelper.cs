@@ -79,10 +79,7 @@ public static class TEditorDialogHelper
                 {
                     var fe = info as TFileEditor;
                     string initial = fe?.fileName ?? string.Empty;
-                    var dlg = new TFileDialog("*.*",
-                        TSharpVisionIntl.Get("File_Title_SaveAs", "Save File As"),
-                        TSharpVisionIntl.Get("File_Label_Name", "~N~ame"), saveAsOptions, 101)
-                        { helpCtx = saveAsHelpContext };
+                    var dlg = CreateSaveAsDialog(fe, saveAsOptions, saveAsHelpContext);
                     dlg.SetData(initial);
                     if (fe != null)
                         dlg.encodingSelector?.SetData((ushort)EncodingChoiceIndex(fe));
@@ -108,6 +105,8 @@ public static class TEditorDialogHelper
                                     return Views.cmCancel;
                                 }
                             }
+                            // The chosen encoding (SaveAsEncoding) is applied by SaveAs through
+                            // SaveFile(EditorTextEncoding), which rolls it back if the save fails.
                         }
                         return r;
                     }
@@ -163,9 +162,26 @@ public static class TEditorDialogHelper
                     MsgBox.MessageBox(deskTop,
                         TSharpVisionIntl.Get(
                             "File_Err_EncodingEncode",
-                            "The file contains characters that cannot be saved using the selected encoding."),
+                            "The file contains characters that cannot be saved using the selected encoding.")
+                        + "\n"
+                        + TSharpVisionIntl.Get(
+                            "File_Err_EncodingSaveAsHint",
+                            "Nothing was written. Use Save As to choose another encoding, such as UTF-8."),
                         MsgBox.mfError | MsgBox.mfOKButton);
                     return Views.cmOK;
+
+                case Views.edMixedLineEndings:
+                {
+                    if (info is not EditorLineEndingPromptInfo prompt) return Views.cmCancel;
+                    if (deskTop == null) return Views.cmCancel;
+                    var dlg = CreateMixedLineEndingsDialog(prompt, out var choices);
+                    ushort r = deskTop.ExecView(dlg);
+                    if (r != Views.cmOK) return Views.cmCancel;
+                    int index = (int)choices.value;
+                    if (index < 0 || index >= prompt.Choices.Count) return Views.cmCancel;
+                    prompt.Choice = prompt.Choices[index];
+                    return Views.cmOK;
+                }
 
                 case Views.edOutOfMemory:
                     if (deskTop == null) return Views.cmOK;
@@ -216,4 +232,67 @@ public static class TEditorDialogHelper
             }
         };
     }
+
+    // Save As for a file editor offers the built-in encodings; the first choice ("Auto" for
+    // Open) is shown as "Keep current" because detection has no meaning when writing.
+    internal static TFileDialog CreateSaveAsDialog(TFileEditor? editor)
+        => CreateSaveAsDialog(editor, FileDialogOptions.fdOKButton, Views.hcNoContext);
+
+    // Uses the options and help context given to Install (for example Help + Encoding); a file
+    // editor always gets the encoding selector.
+    internal static TFileDialog CreateSaveAsDialog(TFileEditor? editor, ushort options, ushort helpContext)
+    {
+        if ((options & (FileDialogOptions.fdOKButton | FileDialogOptions.fdOpenButton)) == 0)
+            options |= FileDialogOptions.fdOKButton;
+        if (editor != null)
+            options |= FileDialogOptions.fdEncodingSelector;
+        var dlg = new TFileDialog("*.*",
+            TSharpVisionIntl.Get("File_Title_SaveAs", "Save File As"),
+            TSharpVisionIntl.Get("File_Label_Name", "~N~ame"), options, 101)
+            { helpCtx = helpContext };
+        if (dlg.encodingSelector != null && dlg.encodingSelector.Strings.Count > 0)
+            dlg.encodingSelector.Strings[0] = TSharpVisionIntl.Get("Encoding_KeepCurrent", "Keep current");
+        return dlg;
+    }
+
+    internal static TDialog CreateMixedLineEndingsDialog(EditorLineEndingPromptInfo prompt, out TRadioButtons choices)
+    {
+        var dlg = new TDialog(new TRect(0, 0, 56, 14),
+            TSharpVisionIntl.Get("Edit_MixedLineEndings_Title", "Line Endings"));
+        dlg.options |= Views.ofCentered;
+
+        string name = string.IsNullOrEmpty(prompt.FileName) ? string.Empty : Path.GetFileName(prompt.FileName);
+        dlg.Insert(new TStaticText(new TRect(3, 2, 53, 6),
+            string.Format(
+                TSharpVisionIntl.Get("Edit_MixedLineEndings",
+                    "'{0}' uses mixed line endings ({1}). Save every line ending as:"),
+                name,
+                string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                    "CRLF: {0}, LF: {1}, CR: {2}", prompt.CrLfCount, prompt.LfCount, prompt.CrCount))));
+
+        var items = new TSItem(LineEndingLabel(prompt.Choices[prompt.Choices.Count - 1]), null);
+        for (int i = prompt.Choices.Count - 2; i >= 0; i--)
+            items = new TSItem(LineEndingLabel(prompt.Choices[i]), items);
+        choices = new TRadioButtons(new TRect(3, 7, 33, 7 + prompt.Choices.Count), items);
+        int selected = 0;
+        for (int i = 0; i < prompt.Choices.Count; i++)
+            if (prompt.Choices[i] == prompt.Choice) selected = i;
+        choices.SetData((ushort)selected);
+        dlg.Insert(choices);
+
+        dlg.Insert(new TButton(new TRect(15, 11, 27, 13), TSharpVisionIntl.Get("Btn_OK", "~O~K"),
+            Views.cmOK, ButtonConstants.bfDefault));
+        dlg.Insert(new TButton(new TRect(29, 11, 41, 13), TSharpVisionIntl.Get("Btn_Cancel", "~C~ancel"),
+            Views.cmCancel, ButtonConstants.bfNormal));
+        dlg.SelectNext(false);
+        return dlg;
+    }
+
+    private static string LineEndingLabel(LineEndingKind kind) => kind switch
+    {
+        LineEndingKind.Lf => TSharpVisionIntl.Get("LineEnding_Lf", "LF (Unix)"),
+        LineEndingKind.CrLf => TSharpVisionIntl.Get("LineEnding_CrLf", "CRLF (Windows)"),
+        LineEndingKind.Cr => TSharpVisionIntl.Get("LineEnding_Cr", "CR (classic Mac)"),
+        _ => kind.ToString(),
+    };
 }

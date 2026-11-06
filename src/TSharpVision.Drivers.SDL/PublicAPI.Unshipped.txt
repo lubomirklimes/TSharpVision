@@ -1,1 +1,3 @@
 #nullable enable
+TSharpVision.Drivers.SDL.Gpu.SDLGpuDriver.TextCapabilities.get -> TSharpVision.Drivers.TextCapabilities
+TSharpVision.Drivers.SDL.SDLDriver.TextCapabilities.get -> TSharpVision.Drivers.TextCapabilities

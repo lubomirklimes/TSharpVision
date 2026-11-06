@@ -135,29 +135,70 @@ public class TFileEditor : TEditor
         return SaveFile();
     }
 
+    /// <summary>
+    /// Encoding chosen in the Save As dialog for the Save As in progress; null or <see cref="EditorTextEncoding.Auto"/>
+    /// keeps the document's encoding. An <see cref="TEditor.editorDialog"/> handler sets it while answering
+    /// <see cref="Views.edSaveAs"/>; <see cref="SaveAs"/> clears it before the dialog and after the save.
+    /// </summary>
+    public EditorTextEncoding? SaveAsEncoding { get; set; }
+
     /// <summary>Prompts for a destination, expands the accepted filename, and saves; returns false on cancellation or failure.</summary>
+    /// <remarks>The save uses <see cref="SaveAsEncoding"/> when the dialog set it. A failed save keeps the previous
+    /// filename and encoding, and leaves the destination untouched.</remarks>
     public bool SaveAs()
     {
         bool res = false;
-        if (editorDialog(Views.edSaveAs, this) != Views.cmCancel)
+        string previousName = fileName;
+        SaveAsEncoding = null;
+        try
         {
-            // CLY_fexpand mapped to Path.GetFullPath; matches the upstream
-            // contract that fileName is canonicalised after a successful
-            // edSaveAs dialog.
-            try { fileName = Path.GetFullPath(fileName); } catch { }
-            // Upstream: message(owner, evBroadcast, cmUpdateTitle, 0).
-            if (owner != null)
-                Message(owner, Events.evBroadcast, Views.cmUpdateTitle, null);
-            res = SaveFile();
-            if (IsClipboard())
-                fileName = string.Empty;
+            if (editorDialog(Views.edSaveAs, this) != Views.cmCancel)
+            {
+                EditorTextEncoding requested = SaveAsEncoding ?? EditorTextEncoding.Auto;
+                // CLY_fexpand mapped to Path.GetFullPath; matches the upstream
+                // contract that fileName is canonicalised after a successful
+                // edSaveAs dialog.
+                try { fileName = Path.GetFullPath(fileName); } catch { }
+                res = SaveFile(requested);
+                if (!res)
+                    fileName = previousName;
+                // Upstream: message(owner, evBroadcast, cmUpdateTitle, 0).
+                if (owner != null)
+                    Message(owner, Events.evBroadcast, Views.cmUpdateTitle, null);
+                if (IsClipboard())
+                    fileName = string.Empty;
+            }
         }
+        finally { SaveAsEncoding = null; }
         return res;
     }
 
     /// <summary>Writes content using the selected line endings and retained encoding, optionally backing up the old file; clears modified state on success.</summary>
-    public bool SaveFile()
+    public bool SaveFile() => SaveFile(EditorTextEncoding.Auto);
+
+    /// <summary>Writes content in the given encoding and, on success, makes it the document's encoding for later saves.</summary>
+    /// <remarks>
+    /// <see cref="EditorTextEncoding.Auto"/> keeps the current encoding and byte-order mark. UTF-8 keeps a byte-order
+    /// mark only when the document already has one; a legacy encoding never writes one. All text is encoded strictly
+    /// before any file is created: a character the encoding cannot represent shows the encoding error and returns
+    /// false with the destination, buffer, modified state and encoding unchanged. The bytes are written to a
+    /// temporary sibling file that then replaces the destination.
+    /// </remarks>
+    public bool SaveFile(EditorTextEncoding encoding)
     {
+        ResolveSaveEncoding(encoding ?? EditorTextEncoding.Auto,
+            out var kind, out var legacy, out bool bom);
+        byte[] content;
+        try
+        {
+            content = EncodeTextForSave(TextWithLineEndings(), kind, legacy);
+        }
+        catch (EncoderFallbackException)
+        {
+            editorDialog(Views.edEncodingWriteError, fileName);
+            return false;
+        }
+
         string? temporary = null;
         int error = Views.edCreateError;
         try
@@ -167,9 +208,9 @@ public class TFileEditor : TEditor
             using (var f = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
             {
                 error = Views.edWriteError;
-                if (HadUtf8Bom || OriginalEncoding == EditorEncodingKind.Utf8Bom)
+                if (bom)
                     f.Write(new byte[] { 0xEF, 0xBB, 0xBF });
-                WriteContentWithLineEndings(f);
+                f.Write(content, 0, content.Length);
                 f.Flush(flushToDisk: true);
             }
 
@@ -199,10 +240,42 @@ public class TFileEditor : TEditor
             }
         }
 
+        OriginalEncoding = kind;
+        OriginalLegacyEncoding = legacy;
+        HadUtf8Bom = bom;
         modified = false;
         Update(Views.ufUpdate);
         return true;
     }
+
+    // Maps a requested encoding to what is written. Auto keeps the document's encoding; an auto-detected Latin-1
+    // document keeps a null legacy codec, as loading recorded it.
+    private void ResolveSaveEncoding(EditorTextEncoding requested,
+        out EditorEncodingKind kind, out ILegacyTextEncoding? legacy, out bool bom)
+    {
+        switch (requested.Mode)
+        {
+            case EditorTextEncodingMode.Utf8:
+                bom = IsUtf8 && (HadUtf8Bom || OriginalEncoding == EditorEncodingKind.Utf8Bom);
+                kind = bom ? EditorEncodingKind.Utf8Bom : EditorEncodingKind.Utf8;
+                legacy = null;
+                break;
+            case EditorTextEncodingMode.Legacy:
+                legacy = requested.LegacyEncoding
+                    ?? throw new InvalidOperationException("Legacy mode requires a legacy text encoding.");
+                kind = legacy == LegacyTextEncodings.Latin1 ? EditorEncodingKind.Latin1 : EditorEncodingKind.Legacy;
+                bom = false;
+                break;
+            default:
+                kind = OriginalEncoding;
+                legacy = OriginalLegacyEncoding;
+                bom = IsUtf8 && (HadUtf8Bom || OriginalEncoding == EditorEncodingKind.Utf8Bom);
+                break;
+        }
+    }
+
+    private bool IsUtf8 => OriginalLegacyEncoding == null
+        && OriginalEncoding is EditorEncodingKind.Utf8 or EditorEncodingKind.Utf8Bom;
 
     private static LineEndingKind DefaultLineEndingForPlatform()
         => OperatingSystem.IsWindows() ? LineEndingKind.CrLf : LineEndingKind.Lf;
@@ -334,7 +407,7 @@ public class TFileEditor : TEditor
         };
     }
 
-    private void WriteContentWithLineEndings(Stream stream)
+    private string TextWithLineEndings()
     {
         string lineEnding = SaveLineEnding switch
         {
@@ -351,18 +424,19 @@ public class TFileEditor : TEditor
             else
                 sb.Append(BufChar(i));
         }
-        byte[] bytes = EncodeTextForSave(sb.ToString());
-        stream.Write(bytes, 0, bytes.Length);
+        return sb.ToString();
     }
 
-    private byte[] EncodeTextForSave(string text)
+    // Strict: a character the encoding cannot represent throws EncoderFallbackException instead of becoming '?' or
+    // U+FFFD.
+    private static byte[] EncodeTextForSave(string text, EditorEncodingKind kind, ILegacyTextEncoding? legacy)
     {
-        if (OriginalLegacyEncoding != null)
-            return OriginalLegacyEncoding.Encode(text);
+        if (legacy != null)
+            return legacy.Encode(text);
 
-        return OriginalEncoding == EditorEncodingKind.Latin1
-            ? Encoding.Latin1.GetBytes(text)
-            : Encoding.UTF8.GetBytes(text);
+        return kind == EditorEncodingKind.Latin1
+            ? LegacyTextEncodings.Latin1.Encode(text)
+            : new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true).GetBytes(text);
     }
 
     private static string MakeBackupName(string path)

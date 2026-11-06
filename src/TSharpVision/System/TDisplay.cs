@@ -54,10 +54,20 @@ public class TDisplay : IDisposable
         return ActiveDriver.GetCols();
     }
 
-    /// <summary>Unsupported legacy mode-setting entry point; always throws NotImplementedException.</summary>
+    /// <summary>
+    /// Passes a screen-mode request to the initialized driver. Whether the backend changes anything is the driver's
+    /// decision: every shipped driver keeps its display as it is and goes on reporting <see cref="TDisplay.SM.CO80"/> from
+    /// <see cref="GetCrtMode"/>, because terminals, consoles and SDL windows have no BIOS video modes to switch.
+    /// </summary>
+    /// <remarks>
+    /// This is the physical layer only. The logical Color / BlackWhite / Monochrome choice an application sees is
+    /// <see cref="TScreen.ScreenMode"/>, set by <see cref="TScreen.SetVideoMode"/> and applied by
+    /// <c>TProgram.SetScreenMode</c>.
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">The display driver is not initialized.</exception>
     public static void SetCrtMode(SM mode)
     {
-        throw new NotImplementedException("TDisplay.SetCrtMode(ushort) není implementováno.");
+        ActiveDriver.SetScreenMode(mode);
     }
 
     /// <summary>Returns the initialized driver's current screen-mode identifier.</summary>
@@ -97,11 +107,6 @@ public class TDisplay : IDisposable
     protected TDisplay(TDisplay other)
     {
         //UpdateIntlChars(); Not needed
-    }
-
-    private static void VideoInt()
-    {
-        throw new NotImplementedException("TDisplay.VideoInt() není implementováno.");
     }
 
     //private static void UpdateIntlChars()

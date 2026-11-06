@@ -60,6 +60,35 @@ public class THelpWindow : TWindow
             hFile, context));
     }
 
+    /// <summary>
+    /// Creates a centered 50-by-18-cell help window over a help collection, showing the context from the first
+    /// registered file that defines it; the collection keeps ownership of its files.
+    /// </summary>
+    /// <exception cref="ArgumentException">The collection has no registered files.</exception>
+    public THelpWindow(THelpCollection help, ushort context)
+        : base(new TRect(0, 0, 50, 18), helpWinTitle, Views.wnNoNumber)
+    {
+        state &= unchecked((ushort)~Views.sfShadow);
+        options |= Views.ofCentered;
+        var r = new TRect(0, 0, 50, 18);
+        r.Grow(-2, -1);
+        Insert(new THelpViewer(r,
+            StandardScrollBar((ushort)(Views.sbHorizontal | Views.sbHandleKeyboard)),
+            StandardScrollBar((ushort)(Views.sbVertical | Views.sbHandleKeyboard)),
+            help, context));
+    }
+
+    /// <summary>The topic viewer inside this window.</summary>
+    public THelpViewer? Viewer
+    {
+        get
+        {
+            THelpViewer? viewer = null;
+            ForEachView(v => { if (v is THelpViewer hv) viewer ??= hv; });
+            return viewer;
+        }
+    }
+
     /// <inheritdoc />
     public override TPalette GetPalette() => _palette;
 }

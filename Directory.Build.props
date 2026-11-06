@@ -12,42 +12,55 @@
                            '$(MSBuildProjectName)' == 'TSharpVision.Drivers.Console' Or
                            '$(MSBuildProjectName)' == 'TSharpVision.Drivers.Terminal' Or
                            '$(MSBuildProjectName)' == 'TSharpVision.Drivers.SDL' Or
+                           '$(MSBuildProjectName)' == 'TSharpVision.Graphics' Or
                            '$(MSBuildProjectName)' == 'TSharpVision.CodeEditor' Or
                            '$(MSBuildProjectName)' == 'TSharpVision.HexView' Or
                            '$(MSBuildProjectName)' == 'TSharpVision.TableView' Or
                            '$(MSBuildProjectName)' == 'TSharpVision.Terminal'">true</IsPackable>
+    <!-- Command-line tools are packed as .NET tool packages (PackAsTool in each project), not libraries. -->
+    <IsTSharpVisionTool Condition="'$(MSBuildProjectName)' == 'TSharpVision.ResourceCompiler' Or
+                                   '$(MSBuildProjectName)' == 'TSharpVision.HelpCompiler' Or
+                                   '$(MSBuildProjectName)' == 'TSharpVision.ResourceTools'">true</IsTSharpVisionTool>
+    <IsPackable Condition="'$(IsTSharpVisionTool)' == 'true'">true</IsPackable>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(IsPackable)' == 'true'">
-    <Version Condition="'$(Version)' == ''">1.1.0</Version>
+    <Version Condition="'$(Version)' == ''">1.2.0</Version>
     <Authors>Lubomir Klimes</Authors>
     <RepositoryUrl>https://github.com/lubomirklimes/TSharpVision</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageProjectUrl>https://github.com/lubomirklimes/TSharpVision</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <DebugType>portable</DebugType>
-    <IncludeSymbols>true</IncludeSymbols>
-    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true' Or '$(GITHUB_ACTIONS)' == 'true' Or '$(TF_BUILD)' == 'true'">true</ContinuousIntegrationBuild>
-    <EnablePackageValidation>true</EnablePackageValidation>
-    <PackageValidationBaselineVersion>1.0.0</PackageValidationBaselineVersion>
-    <!-- API baseline drift must fail the ordinary build, while unrelated warning policy stays unchanged. -->
-    <WarningsAsErrors>$(WarningsAsErrors);RS0016;RS0017;RS0022;RS0024</WarningsAsErrors>
     <!-- The SDK defaults Company to Authors; do not emit an inferred company. -->
     <GenerateAssemblyCompanyAttribute>false</GenerateAssemblyCompanyAttribute>
   </PropertyGroup>
 
-  <ItemGroup Condition="'$(IsPackable)' == 'true'">
+  <!-- Libraries only: public API, symbol package and 1.1.0 package validation. Tools have no public API surface. -->
+  <PropertyGroup Condition="'$(IsPackable)' == 'true' And '$(IsTSharpVisionTool)' != 'true'">
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <EnablePackageValidation>true</EnablePackageValidation>
+    <PackageValidationBaselineVersion>1.1.0</PackageValidationBaselineVersion>
+    <!-- API baseline drift must fail the ordinary build, while unrelated warning policy stays unchanged. -->
+    <WarningsAsErrors>$(WarningsAsErrors);RS0016;RS0017;RS0022;RS0024</WarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(IsPackable)' == 'true' And '$(IsTSharpVisionTool)' != 'true'">
     <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers"
                       PrivateAssets="all"
                       IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
     <AdditionalFiles Include="PublicAPI.Shipped.txt" />
     <AdditionalFiles Include="PublicAPI.Unshipped.txt" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(IsPackable)' == 'true'">
     <None Include="$(MSBuildThisFileDirectory)README.NuGet.md" Pack="true" PackagePath="README.md" />
     <None Include="$(MSBuildThisFileDirectory)LICENSE" Pack="true" PackagePath="/" />
   </ItemGroup>

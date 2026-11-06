@@ -15,4 +15,5 @@ public static class HelpCtx
     public const ushort hcResourceDialog = 8;
     public const ushort hcGames = 9;
     public const ushort hcOtherSamples = 10;
+    public const ushort hcEditorFiles = 11;
 }

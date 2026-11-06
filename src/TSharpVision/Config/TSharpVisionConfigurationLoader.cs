@@ -103,6 +103,8 @@ public static class TSharpVisionConfigurationLoader
                 FontName = graphicsRaw?.GetValueOrDefault("fontName"),
                 FontSize = ParseNullablePositiveInt(graphicsRaw?.GetValueOrDefault("fontSize")),
                 ExplicitFontFit = ParseFontFit(graphicsRaw?.GetValueOrDefault("fontFit"), path),
+                Palette  = NullIfBlank(graphicsRaw?.GetValueOrDefault("palette")),
+                Effect   = NullIfBlank(graphicsRaw?.GetValueOrDefault("effect")),
             },
             Localization = new LocalizationConfiguration
             {
@@ -131,6 +133,8 @@ public static class TSharpVisionConfigurationLoader
                 FontName = @override.Graphics.FontName ?? @base.Graphics.FontName,
                 FontSize = @override.Graphics.FontSize ?? @base.Graphics.FontSize,
                 ExplicitFontFit = @override.Graphics.ExplicitFontFit ?? @base.Graphics.ExplicitFontFit,
+                Palette  = @override.Graphics.Palette ?? @base.Graphics.Palette,
+                Effect   = @override.Graphics.Effect ?? @base.Graphics.Effect,
             },
             Localization = new LocalizationConfiguration
             {
@@ -167,6 +171,11 @@ public static class TSharpVisionConfigurationLoader
 
         return result;
     }
+
+    /// <summary>Trims a free-form id value (<c>palette</c>, <c>effect</c>); missing or blank means "not set".
+    /// The id set is driver-defined, so it is not validated here.</summary>
+    private static string? NullIfBlank(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static int? ParseNullablePositiveInt(string? value)
     {

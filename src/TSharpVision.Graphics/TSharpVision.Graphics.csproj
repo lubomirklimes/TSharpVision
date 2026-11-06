@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- TVGraph-style pixel graphics views (GView/GWindow/GObject, GImage), ported from the STYX experiment.
+       An optional package of the TSharpVision family.
+
+       WHAT IT REFERENCES, AND WHAT IT MUST NEVER REFERENCE.
+
+           TSharpVision.Graphics  ->  TSharpVision
+
+       Nothing else. Views draw through the optional TSharpVision.Drivers.IPixelGraphicsDriver capability,
+       which the SDL drivers implement; no driver project is referenced, so neither this package nor the
+       driver packages depend on each other. Pixels appear only when the application also references
+       TSharpVision.Drivers.SDL; on text drivers the views draw a text fallback. No image codecs: the
+       application decodes files and passes RGBA8888 PixelImage instances. -->
+  <PropertyGroup>
+    <PackageId>TSharpVision.Graphics</PackageId>
+    <Description>Optional pixel graphics views for TSharpVision: GView/GWindow display lists, shapes and decoded RGBA images (GImage), drawn by drivers that implement IPixelGraphicsDriver (TSharpVision.Drivers.SDL); text drivers show a fallback. No image codecs.</Description>
+    <PackageTags>tsharpvision;tui;graphics;pixel;image;sdl3</PackageTags>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- First release of this package (1.2.0): there is no earlier published version to validate against, so
+         the family-wide PackageValidationBaselineVersion from Directory.Build.props is cleared here. Package
+         validation (EnablePackageValidation) still runs, only without a baseline.
+         After TSharpVision.Graphics 1.2.0 is published on nuget.org, the next release (when Directory.Build.props
+         moves the family baseline to 1.2.0) deletes this override so Graphics validates against 1.2.0 like the
+         other packages. Until the family baseline reaches 1.2.0, set it here explicitly instead:
+             <PackageValidationBaselineVersion>1.2.0</PackageValidationBaselineVersion>
+         Never set a baseline before that version exists on the feed: validation would fail to restore it. -->
+    <PackageValidationBaselineVersion></PackageValidationBaselineVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="TSharpVision.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TSharpVision\TSharpVision.csproj" />
+  </ItemGroup>
+
+</Project>

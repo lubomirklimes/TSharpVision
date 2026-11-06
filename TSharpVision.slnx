@@ -39,6 +39,7 @@
     <Project Path="tools/TSharpVision.ResourceTools/TSharpVision.ResourceTools.csproj" />
   </Folder>
   <Project Path="src/TSharpVision/TSharpVision.csproj" />
+  <Project Path="src/TSharpVision.Graphics/TSharpVision.Graphics.csproj" />
   <Project Path="tests/TSharpVision.Tests/TSharpVision.Tests.csproj" />
   <Project Path="tests/TSharpVision.TestSupport/TSharpVision.TestSupport.csproj" />
 </Solution>

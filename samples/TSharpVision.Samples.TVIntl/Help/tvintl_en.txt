@@ -29,8 +29,9 @@ The top menu demonstrates localized strings resolved through Loc(...).
 The File menu opens text files. These commands create a modeless editor
 window, so F1 in that window opens context help for the opened file.
 
-The Language menu switches between English, Czech, and Pseudo/Debug
-providers at runtime.
+The Language menu switches at runtime between English, Czech, the other
+built-in framework languages (German, Spanish, French, Italian, Polish,
+Slovak) and the Pseudo/Debug provider.
 
 The Demos menu opens localized modal dialogs, file dialogs, and diagnostic
 examples. Modal demo dialogs use their own UI and do not have separate
@@ -60,12 +61,29 @@ See also {Encoding Sample:Encoding}.
   ------------------
 The Language menu changes TSharpVisionIntl.Current at runtime.
 
-English and Czech are loaded from .tvr string resources. The Pseudo/Debug
+At startup the sample uses the language from the [localization] section
+of TSharpVision.Samples.TVIntl.cfg next to the executable, for example:
+
+  [localization]
+  language=cs
+
+Without that setting the sample starts in English. "Reset to configured"
+returns to the configured language.
+
+Sample strings are loaded from app_en.tvr and app_cs.tvr. Framework strings
+(buttons, message boxes, file dialogs) come from the translations built
+into TSharpVision.dll; for the runtime switch the sample asks for them with
+TSharpVisionIntl.CreateBuiltInProvider and puts its own strings in front.
+No framework .tvr files are shipped. Languages without sample strings show
+English sample text with translated framework dialogs. The Pseudo/Debug
 provider is implemented only inside this sample project and makes missing
 or untranslated UI obvious.
 
 After switching language, the sample rebuilds the menu bar and status line.
-Open windows remain on the desktop.
+Open windows remain on the desktop and keep the text they were created
+with: views copy their captions when they are built, so a switch does not
+re-translate them. Close and reopen a window or dialog to see the new
+language.
 
 See also {String Resources:Resources}.
 

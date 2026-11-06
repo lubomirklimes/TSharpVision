@@ -4,8 +4,10 @@
 // that is cleaned up on disposal.
 using System;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Xml.Linq;
 using TSharpVision;
 using TSharpVision.Constants;
 using TSharpVision.Text;
@@ -834,6 +836,135 @@ public sealed class HelpCompilerTests : IDisposable
         Assert.Equal(5, crossRef.length);
         Assert.Equal(3, crossRef.@ref);
     }
+
+    // ── --version ─────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Version_PrintsToolNameAndRepositoryVersionOnly()
+    {
+        var (rc, stdout, stderr) = RunCaptured("--version");
+
+        Assert.Equal(0, rc);
+        Assert.Equal("TSharpVision HelpCompiler " + RepositoryVersion() + Environment.NewLine, stdout);
+        Assert.Equal("", stderr);
+        Assert.Empty(Directory.EnumerateFileSystemEntries(_tmp.Path));
+    }
+
+    // ── --help / -h ───────────────────────────────────────────────────────────
+
+    [Theory]
+    [InlineData("--help")]
+    [InlineData("-h")]
+    public void Help_PrintsTheBannerAndSyntaxShownWithoutArguments_AndSucceeds(string option)
+    {
+        var help = RunCaptured(option);
+        var noArguments = RunCaptured();
+
+        Assert.Equal(0, help.ExitCode);
+        Assert.Equal("", help.Err);
+        Assert.StartsWith("TSharpVision Help Compiler  (port of Borland TVHC, 1991)", help.Out);
+        Assert.Contains("  Syntax  svhc [--format v1|v2]", help.Out);
+        Assert.Equal(noArguments.Out, help.Out);
+        Assert.Equal(1, noArguments.ExitCode);
+        Assert.Empty(Directory.EnumerateFileSystemEntries(_tmp.Path));
+    }
+
+    // Only the single root argument is help; otherwise it stays a positional input name.
+    [Theory]
+    [InlineData("--quiet", "--help")]
+    [InlineData("--help", "out.hlp")]
+    public void Help_IsNotRecognisedOutsideTheRoot(string first, string second)
+    {
+        var (rc, _, stderr) = RunCaptured(first, second);
+
+        Assert.Equal(1, rc);
+        Assert.Contains("Error: file --help.txt not found.", stderr);
+    }
+
+    // ── failed compilations leave no partial output ───────────────────────────
+
+    // A cross-reference that is unresolved is a warning; --warn-as-error makes it fail after the topics were written.
+    private const string UnresolvedReference = ".topic Main=2\nSee {Missing:NoSuchTopic}.\n";
+    // SVHC0003 is raised while the second topic is compiled, after the first one was written.
+    private const string LateSyntaxError = ".topic Main=2\nGood text.\n\n.topic Other=3\nBroken {ref\n";
+
+    [Theory]
+    [InlineData(UnresolvedReference, "--warn-as-error", "SVHC0004")]
+    [InlineData(LateSyntaxError, "--quiet", "SVHC0003")]
+    public void FailedCompile_LeavesNoNewOutputAndNoTemporaryFiles(string source, string option, string code)
+    {
+        string src = WriteSource("broken.txt", source);
+        string hlp = Path.Combine(_tmp.Path, "broken.hlp");
+        string sym = Path.Combine(_tmp.Path, "broken.cs");
+
+        var (rc, _, stderr) = RunCaptured(option, src, hlp, sym);
+
+        Assert.Equal(1, rc);
+        Assert.Contains(code, stderr);
+        Assert.False(File.Exists(hlp), "a failed compile must not leave a .hlp");
+        Assert.False(File.Exists(sym), "a failed compile must not leave a symbol file");
+        Assert.Equal(new[] { "broken.txt" }, Directory.EnumerateFileSystemEntries(_tmp.Path).Select(p => Path.GetFileName(p)));
+    }
+
+    [Theory]
+    [InlineData(UnresolvedReference, "--warn-as-error")]
+    [InlineData(LateSyntaxError, "--quiet")]
+    public void FailedCompile_KeepsExistingOutputsUnchanged(string source, string option)
+    {
+        string good = WriteSource("good.txt", ".topic Main=2\nPrevious help.\n");
+        string hlp = Path.Combine(_tmp.Path, "help.hlp");
+        string sym = Path.Combine(_tmp.Path, "help.cs");
+        Assert.Equal(0, RunCaptured("--quiet", good, hlp, sym).ExitCode);
+        byte[] hlpBefore = File.ReadAllBytes(hlp);
+        byte[] symBefore = File.ReadAllBytes(sym);
+
+        string broken = WriteSource("broken.txt", source);
+        Assert.Equal(1, RunCaptured(option, broken, hlp, sym).ExitCode);
+
+        Assert.Equal(hlpBefore, File.ReadAllBytes(hlp));
+        Assert.Equal(symBefore, File.ReadAllBytes(sym));
+        Assert.Equal(new[] { "broken.txt", "good.txt", "help.cs", "help.hlp" },
+            Directory.EnumerateFileSystemEntries(_tmp.Path).Select(p => Path.GetFileName(p)).Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public void SuccessfulCompile_ReplacesExistingOutputsAndLeavesNoTemporaryFiles()
+    {
+        string hlp = Path.Combine(_tmp.Path, "help.hlp");
+        string sym = Path.Combine(_tmp.Path, "help.cs");
+        File.WriteAllText(hlp, "stale");
+        File.WriteAllText(sym, "stale");
+        string src = WriteSource("help.txt", ".topic Main=2\nNew help.\n");
+
+        Assert.Equal(0, RunCaptured("--quiet", src, hlp, sym).ExitCode);
+
+        Assert.Equal(THelpFile.magicHeaderV2, ReadMagic(hlp));
+        Assert.Contains("public const ushort hcMain = 2;", File.ReadAllText(sym));
+        Assert.Equal(new[] { "help.cs", "help.hlp", "help.txt" },
+            Directory.EnumerateFileSystemEntries(_tmp.Path).Select(p => Path.GetFileName(p)).Order(StringComparer.Ordinal));
+    }
+
+    // The TVDemo help sources and compiled outputs are committed; staged output must not change the bytes.
+    [Fact]
+    public void CompiledTvDemoHelp_MatchesCommittedHlpAndSymbolFile()
+    {
+        string help = Path.Combine(RepositoryLayout.Root(typeof(HelpCompilerTests).Assembly),
+            "samples", "TSharpVision.Samples.TVDemo", "Help");
+        string src = Path.Combine(_tmp.Path, "tvdemo.txt");
+        File.Copy(Path.Combine(help, "tvdemo.txt"), src);
+        string hlp = Path.Combine(_tmp.Path, "tvdemo.hlp");
+        string sym = Path.Combine(_tmp.Path, "tvdemo.cs");
+
+        Assert.Equal(0, RunCaptured("--quiet", src, hlp, sym).ExitCode);
+
+        Assert.Equal(File.ReadAllBytes(Path.Combine(help, "tvdemo.hlp")), File.ReadAllBytes(hlp));
+        Assert.Equal(File.ReadAllBytes(Path.Combine(help, "tvdemo.cs")), File.ReadAllBytes(sym));
+    }
+
+    // The central package version in Directory.Build.props.
+    private static string RepositoryVersion() =>
+        XDocument.Load(Path.Combine(RepositoryLayout.Root(typeof(HelpCompilerTests).Assembly), "Directory.Build.props"))
+            .Descendants("Version").Single().Value;
 
     private static string TopicText(THelpTopic topic)
     {

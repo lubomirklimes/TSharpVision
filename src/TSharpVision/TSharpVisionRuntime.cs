@@ -11,11 +11,20 @@ public static class TSharpVisionRuntime
 {
     /// <summary>
     /// Loads configuration from .cfg files, applies it to
-    /// <see cref="ScreenDriverFactory.Configuration"/>, and sets the application
+    /// <see cref="ScreenDriverFactory.Configuration"/>, applies the
+    /// <c>[localization] language</c> setting, and sets the application
     /// window / console title.
     /// Call once at startup, before the first
     /// <see cref="ScreenDriverFactory.CreateScreenDriver"/> call.
     /// </summary>
+    /// <remarks>
+    /// The configured language installs the matching built-in framework translation
+    /// (with English as the fallback for missing keys) only while
+    /// <see cref="TSharpVisionIntl.Current"/> still holds the built-in English provider.
+    /// A provider the application assigned before or after this call is never replaced.
+    /// A missing, empty, <c>en</c> or unknown language keeps English. The operating-system
+    /// UI culture is not consulted.
+    /// </remarks>
     /// <param name="title">
     /// Window / console title passed to the screen driver.
     /// When <see langword="null"/> the entry assembly name is used as the title.
@@ -24,11 +33,18 @@ public static class TSharpVisionRuntime
     public static TSharpVisionConfiguration Configure(string? title = null)
     {
         var config = TSharpVisionConfigurationLoader.Load();
+        Apply(config, title);
+        return config;
+    }
+
+    // Shared by Configure and tests: everything Configure does after the files are read.
+    internal static void Apply(TSharpVisionConfiguration config, string? title)
+    {
         ScreenDriverFactory.Configuration = config;
         ScreenDriverFactory.WindowTitle   = title
             ?? Assembly.GetEntryAssembly()?.GetName().Name
             ?? "TSharpVision";
-        return config;
+        TSharpVisionLocalization.ApplyConfiguredLanguage(config.Localization.Language);
     }
 
     /// <summary>

@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\TSharpVision.Graphics\TSharpVision.Graphics.csproj" />
     <ProjectReference Include="..\..\src\TSharpVision.Drivers.SDL\TSharpVision.Drivers.SDL.csproj" />
     <ProjectReference Include="..\..\src\TSharpVision.Drivers.Console\TSharpVision.Drivers.Console.csproj" />
     <ProjectReference Include="..\..\src\TSharpVision.Drivers.Terminal\TSharpVision.Drivers.Terminal.csproj" />

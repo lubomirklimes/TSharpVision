@@ -314,6 +314,47 @@ public sealed class EditorHighlightingTests
         }
     }
 
+    // The formatter stopped a line at an embedded CR, hiding the rest of it, while TEditor draws CR as a blank cell.
+    [Theory]
+    [InlineData("ab\rcd if 7\nnext")] [InlineData("if\r\n\tif\r")] [InlineData("\r\t7\rx\tif")]
+    public void AnEmbeddedCrIsDrawnBlankLikeTheEditorAndKeepsSpansAligned(string text)
+    {
+        (EditorScreen screen, _) = Build(text);
+        using (screen)
+        {
+            var plainHost = new TestGroup(new TRect(0, 0, 40, 8)) { buffer = new ScreenBuffer(320) };
+            plainHost.state |= (ushort)(Views.sfVisible | Views.sfExposed);
+            var plain = new TFileEditor(new TRect(0, 0, 40, 8), null!, null!, null!, null!);
+            plainHost.Insert(plain);
+            plain.InsertText(text, false);
+            plain.SetCurPtr(0, 0);
+            plain.Draw();
+            screen.Draw();
+
+            string[] lines = text.Split('\n');
+            uint start = 0;
+            for (int y = 0; y < lines.Length; y++)
+            {
+                string plainRow = new string(plainHost.buffer.Data.Slice(y * 40, 40).ToArray()
+                    .Select(cell => cell.Character == '\0' ? ' ' : cell.Character).ToArray()).TrimEnd();
+                Assert.Equal(plainRow, screen.Row(y));
+
+                // Spans stay on their characters after a CR: digits and the keyword "if" are coloured, nothing else is.
+                string line = lines[y];
+                for (int i = 0; i < line.Length; i++)
+                {
+                    if (line[i] == '\t') continue;
+                    int keyword = line.IndexOf("if", Math.Max(0, i - 1), StringComparison.Ordinal);
+                    bool coloured = char.IsDigit(line[i]) || (keyword >= 0 && keyword <= i && i < keyword + 2);
+                    int x = screen.Editor.CharPos(start, start + (uint)i);
+                    Assert.Equal(coloured, Normal(screen) != screen.AttributeAt(x, y));
+                }
+
+                start += (uint)line.Length + 1;
+            }
+        }
+    }
+
     [Fact]
     public void HorizontalScrollingKeepsSpansAlignedWithTheirCharacters()
     {

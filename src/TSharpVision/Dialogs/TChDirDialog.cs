@@ -2,8 +2,6 @@
 // a TDirListBox, and OK/Chdir/Revert buttons.
 //
 // Deferred:
-//   * The optional Help button (cdHelpButton) is wired as a plain
-//     command-emitting TButton; the help system itself is deferred.
 //   * The upstream `valid()` calls messageBox on failure; here we surface
 //     the error via the optional `LastError` property when no host is
 //     available to display it.
@@ -110,9 +108,12 @@ public class TChDirDialog : TDialog
     public override void SetData(object _) { }
 
     /// <inheritdoc />
+    /// <remarks>While the dialog is modal, its Help button and F1 open the program's help for the dialog's help context
+    /// as a modal window above it; closing help returns to the dialog unchanged.</remarks>
     public override void HandleEvent(ref TEvent @event)
     {
         base.HandleEvent(ref @event);
+        ModalDialogHelp.Handle(this, ref @event);
         if (@event.What != Events.evCommand) return;
 
         string curDir = string.Empty;

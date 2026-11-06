@@ -5,6 +5,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
@@ -12,8 +13,17 @@ import xml.etree.ElementTree as ET
 NUMBER = r'(?:0|[1-9][0-9]*)'
 IDENT = r'(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)'
 SEMVER = re.compile(rf'{NUMBER}\.{NUMBER}\.{NUMBER}(?:-{IDENT}(?:\.{IDENT})*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?\Z')
-EXPECTED_IDS = {'TSharpVision', 'TSharpVision.Drivers.Console', 'TSharpVision.Drivers.Terminal', 'TSharpVision.Drivers.SDL', 'TSharpVision.CodeEditor', 'TSharpVision.HexView', 'TSharpVision.TableView', 'TSharpVision.Terminal'}
-PROPERTIES = 'IsPackable,PackageId,Version,PackageVersion,TargetFramework,RepositoryUrl,PackageLicenseExpression,PackageReadmeFile,Description'
+# The reviewed distribution: nine libraries plus three .NET tool packages (PackAsTool), twelve packages in total.
+EXPECTED_LIBRARY_IDS = {'TSharpVision', 'TSharpVision.Drivers.Console', 'TSharpVision.Drivers.Terminal', 'TSharpVision.Drivers.SDL', 'TSharpVision.Graphics', 'TSharpVision.CodeEditor', 'TSharpVision.HexView', 'TSharpVision.TableView', 'TSharpVision.Terminal'}
+EXPECTED_TOOLS = {'TSharpVision.ResourceCompiler': 'svrc', 'TSharpVision.HelpCompiler': 'svhc', 'TSharpVision.ResourceTools': 'svres'}
+PROPERTIES = 'IsPackable,PackageId,Version,PackageVersion,TargetFramework,RepositoryUrl,PackageLicenseExpression,PackageReadmeFile,Description,PackAsTool,ToolCommandName'
+
+# 'generate' (default): CHANGELOG gets a "## <version>" section built from metadata changes, or must already
+# contain exactly that text. 'existing': a maintained "## <version>" section must already exist and is kept as is.
+CHANGELOG_MODES = ('generate', 'existing')
+# The maintained human procedure; architecture() checks it exists so the documented commands stay in step.
+README_TOKENS = ['# TSharpVision release preparation', 'Directory.Build.props', 'prepare.py', '--mode preview', 'test_prepare.py']
+
 
 class Blocked(ValueError):
     pass
@@ -24,11 +34,12 @@ def read(path):
 
 
 def validate_metadata(data):
-    allowed = {'version', 'channel', 'date', 'summary', 'changes', 'compatibility', 'limitations', 'scope', 'excluded_claims', 'readme_summary'}
+    allowed = {'version', 'channel', 'date', 'summary', 'changes', 'compatibility', 'limitations', 'scope', 'excluded_claims', 'readme_summary', 'changelog'}
     if set(data) - allowed:
         raise Blocked('Unsupported metadata/action fields: ' + ', '.join(sorted(set(data) - allowed)))
     for key in ('version', 'channel', 'summary', 'changes', 'compatibility', 'limitations', 'scope', 'readme_summary'):
-        if not data.get(key):
+        # limitations may be an empty list (a release without known limitations), but must be present.
+        if key not in data or (key != 'limitations' and not data.get(key)):
             raise Blocked('Missing required release metadata: ' + key)
     if not isinstance(data['version'], str) or not SEMVER.fullmatch(data['version']):
         raise Blocked('Invalid SemVer')
@@ -44,7 +55,9 @@ def validate_metadata(data):
         if key not in data and key == 'excluded_claims':
             continue
         if not isinstance(data[key], list) or not all(isinstance(x, str) and x.strip() for x in data[key]):
-            raise Blocked('Expected nonempty text list: ' + key)
+            raise Blocked('Expected a list of nonempty texts: ' + key)
+    if data.get('changelog', 'generate') not in CHANGELOG_MODES:
+        raise Blocked('changelog must be one of: ' + ', '.join(CHANGELOG_MODES))
     if data.get('date'):
         try:
             datetime.date.fromisoformat(data['date'])
@@ -61,7 +74,7 @@ def architecture(root):
         'scripts/complete-github-release.ps1': ['--draft', '--draft=false', '--prerelease=', 'SHA256SUMS.txt', 'digest', 'Assert-RemoteTagCommit'],
         'scripts/publish-tvdemo-release.ps1': ['win-x64', 'linux-x64', 'osx-x64', 'osx-arm64', '--self-contained true'],
         'scripts/pack-local-packages.ps1': ['UseRepositoryVersion', 'ExpectedCommit', 'ReleaseManifestPath', 'build metadata is not allowed'],
-        '.agents/skills/tsharpvision-version-bump/SKILL.md': ['name: tsharpvision-version-bump', 'Directory.Build.props'],
+        'scripts/release-prep/README.md': README_TOKENS,
     }
     evidence = {}
     for name, tokens in requirements.items():
@@ -72,12 +85,30 @@ def architecture(root):
         if any(token not in text for token in tokens):
             raise Blocked('Release architecture changed; inspect and update shared procedure before use: ' + name)
         evidence[name] = hashlib.sha256(path.read_bytes()).hexdigest()
-    # A signature check routes unfamiliar architectures back to agent inspection;
+    # A signature check routes unfamiliar architectures back to a maintainer's review;
     # it is not a general YAML interpreter or proof of hosted environment policy.
     return evidence
 
 
+def dependency_order(packages):
+    """Libraries in publication order: dependencies first, alphabetical among peers (as pack-local-packages.ps1)."""
+    ordered, remaining = [], sorted(packages, key=lambda p: p['PackageId'])
+    while remaining:
+        done = {p['PackageId'] for p in ordered}
+        ready = [p for p in remaining if all(d in done for d in p.get('InternalDependencies', []))]
+        if not ready:
+            raise Blocked('Cycle in internal package dependencies: ' + ', '.join(p['PackageId'] for p in remaining))
+        ordered += ready
+        remaining = [p for p in remaining if p not in ready]
+    return ordered
+
+
 def evaluate(root, commands):
+    if shutil.which('dotnet') is None:
+        raise Blocked('The .NET SDK (dotnet) is not on PATH; install the .NET 10 SDK and retry')
+    for required in ('Directory.Build.props', 'TSharpVision.slnx'):
+        if not (root / required).is_file():
+            raise Blocked('Not a TSharpVision checkout (missing ' + required + '): ' + str(root))
     props = ET.parse(root / 'Directory.Build.props').getroot()
     versions = [n.text for n in props.iter('Version')]
     if len(versions) != 1:
@@ -86,7 +117,8 @@ def evaluate(root, commands):
     paths = [p.attrib['Path'] for p in ET.parse(root / 'TSharpVision.slnx').iter('Project')]
     for relative in paths:
         path = root / relative.replace('\\', '/')
-        command = ['dotnet', 'msbuild', str(path), '-nologo', '-p:EnableSourceControlManagerQueries=false', '-getProperty:' + PROPERTIES]
+        # Repository-relative project path with cwd=root: the recorded commands do not depend on the checkout path.
+        command = ['dotnet', 'msbuild', relative.replace('\\', '/'), '-nologo', '-p:EnableSourceControlManagerQueries=false', '-getProperty:' + PROPERTIES]
         commands.append(command)
         # Property-only evaluation: no targets, restore, build, pack or repository helpers.
         result = subprocess.run(command, cwd=root, capture_output=True, text=True, check=False)
@@ -98,9 +130,14 @@ def evaluate(root, commands):
             raise Blocked('Invalid MSBuild property output: ' + relative)
         if p['IsPackable'] == 'true':
             p['Project'] = relative
+            p['IsTool'] = p.get('PackAsTool') == 'true'
             packages.append(p)
-    if {p['PackageId'] for p in packages} != EXPECTED_IDS or len(packages) != 8:
-        raise Blocked('Package inventory differs from the reviewed eight-package architecture')
+    libraries = [p for p in packages if not p['IsTool']]
+    tools = [p for p in packages if p['IsTool']]
+    if {p['PackageId'] for p in libraries} != EXPECTED_LIBRARY_IDS or len(libraries) != 9:
+        raise Blocked('Library inventory differs from the reviewed nine-library architecture')
+    if {p['PackageId']: p.get('ToolCommandName') for p in tools} != EXPECTED_TOOLS or len(tools) != 3:
+        raise Blocked('Tool inventory differs from the reviewed three-tool architecture (package IDs and commands)')
     for p in packages:
         if p['PackageId'] != Path(p['Project']).stem:
             raise Blocked('Package identity override requires owner review')
@@ -113,12 +150,15 @@ def evaluate(root, commands):
     for p in packages:
         path = root / p['Project']
         project = ET.parse(path)
-        p['InternalDependencies'] = []
+        references = []
         for ref in project.iter('ProjectReference'):
             dep = (path.parent / ref.attrib['Include'].replace('\\', '/')).resolve()
             if dep not in by_path:
                 raise Blocked('Ungoverned project dependency: ' + str(dep))
-            p['InternalDependencies'].append(by_path[dep])
+            references.append(by_path[dep])
+        # A tool package bundles its referenced libraries; only libraries depend on other packages.
+        p['InternalDependencies'] = [] if p['IsTool'] else references
+        p['Bundled'] = references if p['IsTool'] else []
         for ref in project.iter('PackageReference'):
             if ref.attrib.get('Include', '').startswith('TSharpVision'):
                 raise Blocked('Internal PackageReference requires separate version consistency review')
@@ -146,14 +186,18 @@ def plan(root, data, output, commands):
     version, packages = evaluate(root, commands)
     v = data['version']
     if version != v or any(p['Version'] != v or p['PackageVersion'] != v for p in packages):
-        raise Blocked('Requested version differs from repository; use tsharpvision-version-bump first. No edits made.')
+        raise Blocked('Requested version ' + v + ' differs from repository version ' + version + '; set <Version> in Directory.Build.props first (see scripts/release-prep/README.md). No edits made.')
     readme = read(root / 'README.md')
     changelog = read(root / 'CHANGELOG.md')
     # Keep exact heading consumed by prepare-github-release.ps1; pending/date is body text.
     body = ('Pending release.' if not data.get('date') else 'Release date: ' + data['date'] + '.') + '\n\n' + '\n'.join('- ' + c for c in data['changes'])
     existing = changelog_section(changelog, v)
-    if existing is not None and existing != body:
-        raise Blocked('Existing changelog entry conflicts with supplied release metadata; review manually')
+    if data.get('changelog', 'generate') == 'existing':
+        if not existing:
+            raise Blocked('changelog=existing requires a maintained "## ' + v + '" section in CHANGELOG.md')
+    elif existing is not None and existing != body:
+        raise Blocked('Existing changelog entry conflicts with supplied release metadata; review manually '
+                      '(or set "changelog": "existing" to keep a maintained section)')
     if existing is None:
         first = re.search(r'^## ', changelog, re.M)
         if not first:
@@ -180,10 +224,17 @@ def plan(root, data, output, commands):
             raise Blocked('Out-of-scope feature claim: ' + forbidden)
     if re.search(r'https://[^\s)]+/(?:releases/download|packages)/[^\s)]*' + re.escape(v), readme):
         raise Blocked('README points to unverified target-version download artifact')
-    inventory = '\n'.join('- `' + p['PackageId'] + '`' for p in packages)
+    libraries = [p for p in packages if not p['IsTool']]
+    tools = [p for p in packages if p['IsTool']]
+    # Libraries in dependency order, then the tools (no package dependencies), as in the release manifest.
+    ordered = dependency_order(libraries) + tools
+    inventory = ('Libraries:\n\n' + '\n'.join('- `' + p['PackageId'] + '`' for p in libraries) +
+                 '\n\n.NET tools:\n\n' + '\n'.join('- `' + p['PackageId'] + '` (command `' + p['ToolCommandName'] + '`)' for p in tools))
+    publish_order = ', '.join(p['PackageId'] for p in ordered)
+    limitations = ('\n## Known limitations\n\n' + '\n'.join('- ' + c for c in data['limitations']) + '\n') if data['limitations'] else ''
     notes = f'''# TSharpVision {v}
 
-Release type: {data['channel']}. Draft only; publication has not been verified.
+Release type: {data['channel']}.
 
 {data['summary']}
 
@@ -199,50 +250,47 @@ Release type: {data['channel']}. Draft only; publication has not been verified.
 
 {inventory}
 
-## Installation / update after publication
-
-First verify the version exists on your chosen feed for all packages you use. Then run:
+## Installation
 
 ```shell
 dotnet add package TSharpVision.Drivers.Console --version {v}
 ```
 
 Choose the matching Terminal or SDL driver for your platform; keep extension versions aligned.
-The driver brings the core transitively. Until publication, retain an available feed version.
+The driver brings the core transitively.
 .NET 10 is required; existing platform restrictions still apply.
 
-## Verification and limitations
+The command-line tools are .NET tools, installed globally or in a local tool manifest:
 
-All eight package identities and effective Version/PackageVersion values were evaluated locally.
-This preparation did not pack any package, run implementation tests, or verify public availability.
-Generated nuspec dependency ranges and hosted publication state remain owner checks.
-
-{chr(10).join('- ' + c for c in data['limitations'])}
-'''
+```shell
+{chr(10).join('dotnet tool install --global ' + p['PackageId'] + ' --version ' + v for p in tools)}
+```
+{limitations}'''
     template = read(root / 'scripts/release-prep/manual-release-template.md')
-    checklist = template.replace('{{VERSION}}', v).replace('{{CHANNEL}}', data['channel']).replace('{{PACKAGES}}', inventory).replace('{{ROOT}}', str(root).replace("'", "''"))
+    checklist = template.replace('{{VERSION}}', v).replace('{{CHANNEL}}', data['channel']).replace('{{PACKAGES}}', inventory)
     if '{{' in checklist:
         raise Blocked('Unresolved runbook template placeholder')
-    package_rows = '\n'.join('| ' + p['PackageId'] + ' | ' + p['Version'] + ' | ' + p['PackageVersion'] + ' | ' + (', '.join(p['InternalDependencies']) or 'none') + ' |' for p in packages)
+    package_rows = '\n'.join('| ' + p['PackageId'] + ' | ' + ('.NET tool `' + p['ToolCommandName'] + '`' if p['IsTool'] else 'library') + ' | ' + p['Version'] + ' | ' + p['PackageVersion'] + ' | ' + ((('none; bundles ' + ', '.join(p['Bundled'])) if p['Bundled'] else 'none') if p['IsTool'] else (', '.join(p['InternalDependencies']) or 'none')) + ' |' for p in packages)
     warnings = [
         'WARNING: GitHub Release notes generated by prepare-github-release.ps1 claim NuGet availability without a NuGet workflow dependency. Owner sequencing/decision required; workflows unchanged.',
         'WARNING: Package publication is nontransactional; duplicate versions fail. Inspect partial publication before any retry.',
         'NOT VERIFIED: Hosted release environment tag rules, reviewers, NuGet trusted publishing/NUGET_USER, remote refs and publication state.',
         'NOT VERIFIED: No development-only imports is supported by the explicit supplied scope and prior RC audit, not proven against Git history.',
-        'NOT VERIFIED: Physical packing of all eight packages and generated nuspec ranges; not required for documentation preparation.',
+        'NOT VERIFIED: Physical packing of all ' + str(len(packages)) + ' packages, generated nuspec ranges and tool installation; not required for documentation preparation.',
     ]
     report = f'''# Release preflight: {v}
 
 Preparation: PASS. Publication readiness: owner checks and sequencing decision remain.
 
-PASS: strict SemVer/channel; central Version and all eight evaluated versions; package IDs;
-required package metadata; net10.0; internal ProjectReference graph; exact changelog heading;
+PASS: strict SemVer/channel; central Version and all {len(packages)} evaluated versions ({len(libraries)} libraries,
+{len(tools)} .NET tools); package IDs and tool commands; required package metadata; net10.0; internal ProjectReference graph; exact changelog heading;
 single consistent entry; README pending publication; release notes, package inventory and manual procedure.
 PASS: release architecture inspected statically; v{v} matches v*; tagged scripts are used.
-PASS: existing version-bump skill complements preparation; no version mutation.
+PASS: repository version (Directory.Build.props) equals the requested version; no version mutation.
+PASS: publication (dependency) order: {publish_order}.
 
-| Package | Version | PackageVersion | Internal dependencies |
-|---|---|---|---|
+| Package | Kind | Version | PackageVersion | Internal dependencies |
+|---|---|---|---|---|
 {package_rows}
 
 {chr(10).join(warnings)}
@@ -253,7 +301,7 @@ PASS: existing version-bump skill complements preparation; no version mutation.
 
 No network, credentials, Git commands, packing or publication helpers were used.
 Property-only evaluation disables source control manager queries and requests no MSBuild target.
-Architecture token checks identify the supported process; agent inspection of complete workflow files
+Architecture token checks identify the supported process; a maintainer's review of complete workflow files
 is still required, especially if workflow conditions or scripts change.
 
 ## Inspected release architecture SHA-256
@@ -294,7 +342,15 @@ def main():
     parser.add_argument('--mode', choices=('preview', 'apply'), default='preview')
     args = parser.parse_args()
     try:
-        changes = execute(args.root, json.loads(read(args.metadata)), args.output, args.mode)
+        if not args.metadata.is_file():
+            raise Blocked('Metadata file not found: ' + str(args.metadata))
+        try:
+            metadata = json.loads(read(args.metadata))
+        except ValueError as error:
+            raise Blocked('Metadata is not valid JSON (' + str(args.metadata) + '): ' + str(error))
+        if not isinstance(metadata, dict):
+            raise Blocked('Metadata must be a JSON object: ' + str(args.metadata))
+        changes = execute(args.root, metadata, args.output, args.mode)
         print('PASS: ' + args.mode + '; ' + str(len(changes)) + ' file(s) ' + ('updated' if args.mode == 'apply' else 'would change'))
         for p in changes:
             print(p)

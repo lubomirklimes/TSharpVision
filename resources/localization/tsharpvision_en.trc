@@ -107,6 +107,12 @@ resource strings "sharpvision.intl" {
 
   Help_WindowTitle = "Help";
   Help_NoContext = "\n No help available in this context.";
+  Help_Search_Title = "Search Help";
+  Help_Search_Words = "~W~ords";
+  Help_Search_NoResults = "No help topics contain '{0}'.";
+  Help_Search_ResultsTitle = "Help Topics Found";
+  Help_Search_Topics = "~T~opics ({0})";
+  Help_Search_Unavailable = "That help file is no longer available.";
 
   List_Empty = "<empty>";
 
@@ -118,4 +124,10 @@ resource strings "sharpvision.intl" {
   Color_Lbl_Color = "Color";
   Color_PreviewText = "Text ";
   Color_Btn_Try = "~T~ry";
+
+  Graphics_Unavailable = "Pixel graphics need an SDL display driver.";
+
+  Table_Loading = "Loading…";
+  Table_NoColumns = "<no columns>";
+  Table_RowUnavailable = "! row not supplied";
 }

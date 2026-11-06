@@ -10,8 +10,14 @@ namespace TSharpVision.Samples.TVDemo;
 // ─────────────────────────────────────────────────────────────────────────────
 internal sealed class TTetrisWindow : TWindow
 {
-    public override byte MapColor(int index) => DemoAppearance.GrayWindow(index);
+    // Classic gray window in the Color family only; BlackWhite and Monochrome resolve the frame and the game's
+    // roles through the standard (blue) window palette of the application palette.
+    public override byte MapColor(int index) =>
+        ShowcasePalette.IsClassic(this) ? DemoAppearance.GrayWindow(index) : base.MapColor(index);
     private readonly TTetrisView _game;
+
+    // The hosted game, for tests.
+    internal TTetrisView Game => _game;
 
     public TTetrisWindow(TRect r) : base(r, "TETRIS", Views.wnNoNumber)
     {
@@ -48,11 +54,16 @@ internal sealed class TTetrisView : TView
     private const int W = 10;
     private const int H = 20;
 
-    // ── VGA color attributes ─────────────────────────────────────────────────
-    // Empty cells and panels share the gray window background.
-    private const byte AttrEmpty    = 0x70; // black on gray
+    // ── Colors ───────────────────────────────────────────────────────────────
+    // Palette roles: 1 = board, panel, separator, labels and pause text (scroller normal), 2 = game-over overlay
+    // (scroller selected). Through TTetrisWindow they resolve to the classic gray 0x70 in Color and to the window
+    // roles of the BlackWhite/Monochrome application palette (0x07 surface, 0x70 inverse overlay) otherwise.
+    private static readonly TPalette _palette = new TPalette("\x06\x07", 2);
+    public override TPalette GetPalette() => _palette;
+
     private const char PieceChar    = '█';    // full block; foreground controls the piece color
-    // Seven contrasting foreground colors on gray.
+    // Color family only (documented fallback, no palette role carries seven hues): seven contrasting
+    // foreground colors on gray.
     private static readonly byte[] PieceAttrs =
     {
         0x73,  // I – cyan
@@ -63,12 +74,14 @@ internal sealed class TTetrisView : TView
         0x71,  // J – blue
         0x78,  // L – dark gray
     };
-    private const byte AttrSep    = 0x70; // black on gray
-    private const byte AttrPanel  = 0x70; // black on gray
-    private const byte AttrLabel  = 0x70; // black on gray
-    private const byte AttrValue  = 0x70; // black on gray
-    private const byte AttrGameOv = 0x4F;  // white on red        (game-over overlay)
-    private const byte AttrPause  = 0x70; // black on gray
+    private const byte AttrGameOv = 0x4F;  // white on red        (game-over overlay, Color family only)
+    // BlackWhite/Monochrome: the piece type is told apart by its two-cell pattern instead of its hue; every piece
+    // uses the board role, so the board stays neutral and readable in both families.
+    private static readonly string[] PieceGlyphs = { "██", "▓▓", "▒▒", "░░", "[]", "<>", "##" };
+
+    // Attributes of the current frame, resolved in Draw from the palette family of the owning program.
+    private bool _classic = true;
+    private byte _attrPanel = 0x70, _attrGameOver = AttrGameOv;
 
     // ── Piece definitions [pieceType][rotation][cell*2] = {dx,dy} ─────────
     // Each piece has 4 rotations; each rotation lists 4 cells as (dx,dy) pairs
@@ -189,6 +202,16 @@ internal sealed class TTetrisView : TView
     }
 
     public void StopTimer() => _timerRunning = false;
+
+    // Test seam: replaces the game state without touching the rules or the timer.
+    internal void LoadState(byte[,] board, int piece, int rotation, int x, int y, int next, bool paused, bool gameOver)
+    {
+        _board = (byte[,])board.Clone();
+        _curPiece = piece; _curRot = rotation; _curX = x; _curY = y; _nextPiece = next;
+        _paused = paused; _gameOver = gameOver;
+    }
+
+    internal (int x, int y, int rotation, bool paused) CurrentState => (_curX, _curY, _curRot, _paused);
 
     private void TimerLoop()
     {
@@ -382,18 +405,17 @@ internal sealed class TTetrisView : TView
     // ── Drawing ──────────────────────────────────────────────────────────────
     public override void Draw()
     {
+        // Resolve this frame's attributes: nothing is cached across palette switches.
+        _classic      = ShowcasePalette.IsClassic(this);
+        _attrPanel    = (byte)GetColor(1);
+        _attrGameOver = _classic ? AttrGameOv : (byte)GetColor(2);
+
         // Pre-fill entire inner area with panel background so nothing lingers.
         for (int r = 0; r < size.y; r++)
-            WriteChar(0, r, ' ', AttrPanel, size.x);
+            WriteChar(0, r, ' ', _attrPanel, size.x);
 
-        // Board colour map
-        byte[,] display = new byte[H, W];
-
-        for (int r = 0; r < H; r++)
-            for (int c = 0; c < W; c++)
-                display[r, c] = _board[r, c] == 0
-                    ? AttrEmpty
-                    : PieceAttrs[_board[r, c] - 1];
+        // Board piece map: 0 = empty, otherwise piece type + 1.
+        byte[,] display = (byte[,])_board.Clone();
 
         if (!_gameOver)
         {
@@ -401,20 +423,20 @@ internal sealed class TTetrisView : TView
             GetCells(_curPiece, _curRot, _curX, _curY, out var cur);
             foreach (var (cc, cr) in cur)
                 if (cr >= 0 && cr < H)
-                    display[cr, cc] = PieceAttrs[_curPiece];
+                    display[cr, cc] = (byte)(_curPiece + 1);
         }
 
         // Render board cells (each cell = 2 chars); pieces use PieceChar, empty cells use space
         for (int r = 0; r < H; r++)
             for (int c = 0; c < W; c++)
             {
-                bool filled = display[r, c] != AttrEmpty;
-                WriteChar(c * 2, r, filled ? PieceChar : ' ', display[r, c], 2);
+                if (display[r, c] == 0) WriteChar(c * 2, r, ' ', _attrPanel, 2);
+                else DrawPieceCell(c * 2, r, display[r, c] - 1);
             }
 
         // Vertical separator between board and panel
         for (int r = 0; r < size.y; r++)
-            WriteChar(W * 2, r, '│', AttrSep, 1);   // │
+            WriteChar(W * 2, r, '│', _attrPanel, 1);   // │
 
         // Side panel
         DrawPanel();
@@ -422,14 +444,21 @@ internal sealed class TTetrisView : TView
         // Overlays
         if (_gameOver)
         {
-            WriteStr(1, H / 2 - 2, " *** GAME OVER *** ", AttrGameOv);
-            WriteStr(3, H / 2,     "  N = new game    ", AttrGameOv);
+            WriteStr(1, H / 2 - 2, " *** GAME OVER *** ", _attrGameOver);
+            WriteStr(3, H / 2,     "  N = new game    ", _attrGameOver);
         }
         else if (_paused)
         {
-            WriteStr(3, H / 2, "    -- PAUSED --   ", AttrPause);
-            WriteStr(3, H / 2 + 1, "   P = continue   ", AttrPause);
+            WriteStr(3, H / 2, "    -- PAUSED --   ", _attrPanel);
+            WriteStr(3, H / 2 + 1, "   P = continue   ", _attrPanel);
         }
+    }
+
+    // One two-column cell of the given piece type: hue in Color, pattern in BlackWhite/Monochrome.
+    private void DrawPieceCell(int x, int y, int piece)
+    {
+        if (_classic) WriteChar(x, y, PieceChar, PieceAttrs[piece], 2);
+        else WriteStr(x, y, PieceGlyphs[piece], _attrPanel);
     }
 
     private void DrawPanel()
@@ -438,29 +467,29 @@ internal sealed class TTetrisView : TView
         int pw = size.x - px; // panel width
 
         // Score
-        WriteStr(px, 0, "SCORE:", AttrLabel);
-        WriteStr(px, 1, _score.ToString().PadLeft(pw), AttrValue);
+        WriteStr(px, 0, "SCORE:", _attrPanel);
+        WriteStr(px, 1, _score.ToString().PadLeft(pw), _attrPanel);
 
         // Level
-        WriteStr(px, 3, "LEVEL:", AttrLabel);
-        WriteStr(px, 4, _level.ToString().PadLeft(pw), AttrValue);
+        WriteStr(px, 3, "LEVEL:", _attrPanel);
+        WriteStr(px, 4, _level.ToString().PadLeft(pw), _attrPanel);
 
         // Lines
-        WriteStr(px, 6, "LINES:", AttrLabel);
-        WriteStr(px, 7, _lines.ToString().PadLeft(pw), AttrValue);
+        WriteStr(px, 6, "LINES:", _attrPanel);
+        WriteStr(px, 7, _lines.ToString().PadLeft(pw), _attrPanel);
 
         // Next piece preview
-        WriteStr(px, 9, "NEXT:", AttrLabel);
+        WriteStr(px, 9, "NEXT:", _attrPanel);
         DrawNextPiece(px, 10);
 
         // Controls hint (only if panel is wide enough)
         if (pw >= 8 && size.y >= 20)
         {
-            WriteStr(px, 15, "< >  move",   AttrPanel);
-            WriteStr(px, 16, " ^   rot",    AttrPanel);
-            WriteStr(px, 17, " v   fall",   AttrPanel);
-            WriteStr(px, 18, "Spc  drop",   AttrPanel);
-            WriteStr(px, 19, " P   pause",  AttrPanel);
+            WriteStr(px, 15, "< >  move",   _attrPanel);
+            WriteStr(px, 16, " ^   rot",    _attrPanel);
+            WriteStr(px, 17, " v   fall",   _attrPanel);
+            WriteStr(px, 18, "Spc  drop",   _attrPanel);
+            WriteStr(px, 19, " P   pause",  _attrPanel);
         }
     }
 
@@ -468,7 +497,6 @@ internal sealed class TTetrisView : TView
     {
         // Draw the next piece in its default rotation inside the panel
         int[]  def  = Pieces[_nextPiece][0];
-        byte   attr = PieceAttrs[_nextPiece];
 
         for (int i = 0; i < 4; i++)
         {
@@ -477,7 +505,7 @@ internal sealed class TTetrisView : TView
             int r  = py + dy;
             int cx = px + dx * 2;
             if (r < size.y && cx + 1 < size.x)
-                WriteChar(cx, r, PieceChar, attr, 2);
+                DrawPieceCell(cx, r, _nextPiece);
         }
     }
 }

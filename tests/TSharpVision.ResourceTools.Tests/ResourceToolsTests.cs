@@ -18,10 +18,12 @@ namespace TSharpVision.Tests.ResourceTools;
 
 file static class Fixtures
 {
-    // Locate the Fixtures folder relative to the test assembly.
-    private static readonly string _dir = Path.Combine(
-        Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!,
-        "..", "..", "..", "..", "TSharpVision.ResourceCompiler.Tests", "Fixtures");
+    // The ResourceCompiler test fixtures, found from the repository root so that redirected
+    // build output (--artifacts-path) resolves them too.
+    public static readonly string FixtureDirectory = Path.Combine(
+        RepositoryLayout.Root(typeof(Fixtures).Assembly), "tests", "TSharpVision.ResourceCompiler.Tests", "Fixtures");
+
+    private static readonly string _dir = FixtureDirectory;
 
     public static string FixturePath(string name) =>
         Path.GetFullPath(Path.Combine(_dir, name));
@@ -29,6 +31,20 @@ file static class Fixtures
     public static string HelloTrc     => File.ReadAllText(FixturePath("hello.trc"),   System.Text.Encoding.UTF8);
     public static string OptionsTrc   => File.ReadAllText(FixturePath("options.trc"), System.Text.Encoding.UTF8);
     public static string MultiTrc     => File.ReadAllText(FixturePath("multi.trc"),   System.Text.Encoding.UTF8);
+}
+
+// The fixtures were found by walking four directories up from the test assembly, which only
+// works for the default bin\<config>\<tfm> layout; with --artifacts-path every fixture read failed.
+public sealed class FixtureLocationTests
+{
+    [Fact] public void Fixtures_ResolveFromTheRepositoryWhereverTheTestOutputIs()
+    {
+        string root = RepositoryLayout.Root(typeof(FixtureLocationTests).Assembly);
+        Assert.True(File.Exists(Path.Combine(root, RepositoryLayout.Marker)));
+        Assert.Equal(Path.Combine(root, "tests", "TSharpVision.ResourceCompiler.Tests", "Fixtures"), Fixtures.FixtureDirectory);
+        foreach (string name in new[] { "hello.trc", "options.trc", "multi.trc" })
+            Assert.True(File.Exists(Fixtures.FixturePath(name)), name);
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

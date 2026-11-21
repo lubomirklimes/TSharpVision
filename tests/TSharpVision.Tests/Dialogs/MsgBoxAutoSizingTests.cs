@@ -52,8 +52,11 @@ public sealed class MsgBoxAutoSizingTests : IDisposable
             var sb = new StringBuilder(count);
             for (int i = 0; i < count; i++)
             {
-                char c = buffer!.Data[y * size.x + x + i].Character;
-                sb.Append(c == '\0' ? ' ' : c);
+                // A wide cluster is its lead's text; its trail cells add nothing.
+                TScreenChar cell = buffer!.Data[y * size.x + x + i];
+                if (cell.Kind == TScreenCellKind.Trail) continue;
+                string text = cell.GetText();
+                sb.Append(text == "\0" ? " " : text);
             }
             return sb.ToString();
         }

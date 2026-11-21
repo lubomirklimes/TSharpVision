@@ -1,0 +1,20 @@
+{
+  "version": "1.3.0",
+  "channel": "stable",
+  "changelog": "existing",
+  "summary": "TSharpVision 1.3.0 is the Unicode text release with cluster-aware rendering and editing, multi-level Undo/Redo, and the offline Unicode character browser.",
+  "changes": [
+    "Unicode 16.0 grapheme-cluster layout and driver text capabilities.",
+    "Multi-level Undo/Redo, Select All, strict save encodings and explicit mixed line-ending choices.",
+    "Offline TVDemo Unicode browser; SDL GPU startup fallback and cross-platform Windows host metadata classification.",
+    "Canonical Unicode and Borland provenance notices shipped with all twelve packages."
+  ],
+  "compatibility": "Preserves the 1.2 public API; nine libraries validate against NuGet 1.2.0. LegacyCellWidth restores legacy layout widths. PublicAPI.Unshipped promotion requires owner review.",
+  "limitations": [
+    "macOS/Linux native visual/input and GPU failure-path acceptance require matching-host qualification; local validation is Windows only."
+  ],
+  "scope": [
+    "Unicode text, editor and rendering release; see CHANGELOG.md section 1.3.0."
+  ],
+  "readme_summary": "Unicode grapheme layout, multi-level Undo/Redo and an offline Unicode browser, with nine libraries and three command-line tools."
+}

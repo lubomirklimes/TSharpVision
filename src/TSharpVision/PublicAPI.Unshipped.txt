@@ -1,1 +1,127 @@
 #nullable enable
+const TSharpVision.Constants.Views.cmRedo = 27 -> ushort
+const TSharpVision.Constants.Views.cmSelectAll = 527 -> ushort
+const TSharpVision.Constants.Views.edMixedLineEndings = 12 -> int
+TSharpVision.TEditor.MarkUnmodified() -> void
+TSharpVision.TEditor.Redo() -> void
+TSharpVision.TEditor.SelectAll() -> void
+TSharpVision.TEditor.NextGraphemeBoundary(uint p) -> uint
+TSharpVision.TEditor.PrevGraphemeBoundary(uint p) -> uint
+TSharpVision.TEditor.HasUndo.get -> bool
+TSharpVision.TEditor.HasRedo.get -> bool
+TSharpVision.TEditor.UndoGroupLimit.get -> int
+TSharpVision.TEditor.UndoGroupLimit.set -> void
+TSharpVision.TEditor.UndoTextLimit.get -> int
+TSharpVision.TEditor.UndoTextLimit.set -> void
+TSharpVision.TEditor.ClearUndoHistory() -> void
+const TSharpVision.TEditor.DefaultUndoGroupLimit = 1000 -> int
+const TSharpVision.TEditor.DefaultUndoTextLimit = 4194304 -> int
+TSharpVision.EditorEncodingKind.Utf16BeBom = 5 -> TSharpVision.EditorEncodingKind
+TSharpVision.EditorEncodingKind.Utf16LeBom = 4 -> TSharpVision.EditorEncodingKind
+TSharpVision.EditorLineEndingPromptInfo
+TSharpVision.EditorLineEndingPromptInfo.Choice.get -> TSharpVision.LineEndingKind
+TSharpVision.EditorLineEndingPromptInfo.Choice.set -> void
+TSharpVision.EditorLineEndingPromptInfo.Choices.get -> System.Collections.Generic.IReadOnlyList<TSharpVision.LineEndingKind>!
+TSharpVision.EditorLineEndingPromptInfo.CrCount.get -> int
+TSharpVision.EditorLineEndingPromptInfo.CrLfCount.get -> int
+TSharpVision.EditorLineEndingPromptInfo.EditorLineEndingPromptInfo(string! fileName, int crLfCount, int lfCount, int crCount, TSharpVision.LineEndingKind suggested) -> void
+TSharpVision.EditorLineEndingPromptInfo.FileName.get -> string!
+TSharpVision.EditorLineEndingPromptInfo.LfCount.get -> int
+TSharpVision.EditorLineEndingPromptInfo.Suggested.get -> TSharpVision.LineEndingKind
+TSharpVision.TFileEditor.IsMixedLineEndingChoicePending.get -> bool
+TSharpVision.TFileEditor.ResetMixedLineEndingChoice() -> void
+TSharpVision.TFileEditor.SaveEncoding.get -> TSharpVision.EditorEncodingKind
+TSharpVision.TFileEditor.SaveLegacyEncoding.get -> TSharpVision.Text.ILegacyTextEncoding?
+TSharpVision.TFileEditor.SetSaveEncoding(TSharpVision.EditorEncodingKind kind) -> void
+TSharpVision.TFileEditor.SetSaveEncoding(TSharpVision.EditorTextEncoding! choice) -> void
+TSharpVision.TFileEditor.SetSaveEncoding(TSharpVision.Text.ILegacyTextEncoding! encoding) -> void
+const TSharpVision.Text.TextLayout.LegacyCellWidthSwitch = "TSharpVision.Text.LegacyCellWidth" -> string!
+override TSharpVision.Text.TextCluster.Equals(object? obj) -> bool
+override TSharpVision.Text.TextCluster.GetHashCode() -> int
+override TSharpVision.Text.TextCluster.ToString() -> string!
+static TSharpVision.Text.TextCluster.operator !=(TSharpVision.Text.TextCluster left, TSharpVision.Text.TextCluster right) -> bool
+static TSharpVision.Text.TextCluster.operator ==(TSharpVision.Text.TextCluster left, TSharpVision.Text.TextCluster right) -> bool
+static TSharpVision.Text.TextLayout.ColumnAtOffset(System.ReadOnlySpan<char> text, int offset, in TSharpVision.Text.TextLayoutOptions options, int startColumn = 0) -> int
+static TSharpVision.Text.TextLayout.DefaultProfile.get -> TSharpVision.Text.TextWidthProfile
+static TSharpVision.Text.TextLayout.EnumerateClusters(System.ReadOnlySpan<char> first, System.ReadOnlySpan<char> second, in TSharpVision.Text.TextLayoutOptions options, int startColumn) -> TSharpVision.Text.GapTextClusterEnumerator
+static TSharpVision.Text.TextLayout.EnumerateClusters(System.ReadOnlySpan<char> text, in TSharpVision.Text.TextLayoutOptions options, int startColumn) -> TSharpVision.Text.TextClusterEnumerator
+static TSharpVision.Text.TextLayout.Fit(System.ReadOnlySpan<char> text, int maxColumns, in TSharpVision.Text.TextLayoutOptions options, out int usedColumns, int startColumn = 0) -> int
+static TSharpVision.Text.TextLayout.GetCluster(System.ReadOnlySpan<char> text, int start, int column, in TSharpVision.Text.TextLayoutOptions options) -> TSharpVision.Text.TextCluster
+static TSharpVision.Text.TextLayout.Measure(System.ReadOnlySpan<char> text, in TSharpVision.Text.TextLayoutOptions options, int startColumn = 0) -> int
+static TSharpVision.Text.TextLayout.Measure(System.ReadOnlySpan<char> text) -> int
+static TSharpVision.Text.TextLayout.OffsetAtColumn(System.ReadOnlySpan<char> text, int column, in TSharpVision.Text.TextLayoutOptions options, TSharpVision.Text.ColumnBias bias, out int clusterColumn, int startColumn = 0) -> int
+static TSharpVision.Text.TextLayout.UnicodeVersion.get -> string!
+static TSharpVision.Text.TextLayoutOptions.Default.get -> TSharpVision.Text.TextLayoutOptions
+TSharpVision.Text.ColumnBias
+TSharpVision.Text.ColumnBias.Ceiling = 1 -> TSharpVision.Text.ColumnBias
+TSharpVision.Text.ColumnBias.Floor = 0 -> TSharpVision.Text.ColumnBias
+TSharpVision.Text.ColumnBias.Nearest = 2 -> TSharpVision.Text.ColumnBias
+TSharpVision.Text.GapTextClusterEnumerator
+TSharpVision.Text.GapTextClusterEnumerator.Current.get -> TSharpVision.Text.TextCluster
+TSharpVision.Text.GapTextClusterEnumerator.GapTextClusterEnumerator() -> void
+TSharpVision.Text.GapTextClusterEnumerator.GetEnumerator() -> TSharpVision.Text.GapTextClusterEnumerator
+TSharpVision.Text.GapTextClusterEnumerator.MoveNext() -> bool
+TSharpVision.Text.TextCluster
+TSharpVision.Text.TextCluster.Column.get -> int
+TSharpVision.Text.TextCluster.End.get -> int
+TSharpVision.Text.TextCluster.EndColumn.get -> int
+TSharpVision.Text.TextCluster.Equals(TSharpVision.Text.TextCluster other) -> bool
+TSharpVision.Text.TextCluster.Kind.get -> TSharpVision.Text.TextClusterKind
+TSharpVision.Text.TextCluster.Length.get -> int
+TSharpVision.Text.TextCluster.Start.get -> int
+TSharpVision.Text.TextCluster.TextCluster() -> void
+TSharpVision.Text.TextCluster.TextCluster(int start, int length, int column, int width, TSharpVision.Text.TextClusterKind kind) -> void
+TSharpVision.Text.TextCluster.Width.get -> int
+TSharpVision.Text.TextClusterEnumerator
+TSharpVision.Text.TextClusterEnumerator.Current.get -> TSharpVision.Text.TextCluster
+TSharpVision.Text.TextClusterEnumerator.GetEnumerator() -> TSharpVision.Text.TextClusterEnumerator
+TSharpVision.Text.TextClusterEnumerator.MoveNext() -> bool
+TSharpVision.Text.TextClusterEnumerator.TextClusterEnumerator() -> void
+TSharpVision.Text.TextClusterKind
+TSharpVision.Text.TextClusterKind.Control = 3 -> TSharpVision.Text.TextClusterKind
+TSharpVision.Text.TextClusterKind.LineBreak = 2 -> TSharpVision.Text.TextClusterKind
+TSharpVision.Text.TextClusterKind.Malformed = 4 -> TSharpVision.Text.TextClusterKind
+TSharpVision.Text.TextClusterKind.Tab = 1 -> TSharpVision.Text.TextClusterKind
+TSharpVision.Text.TextClusterKind.Text = 0 -> TSharpVision.Text.TextClusterKind
+TSharpVision.Text.TextClusterKind.ZeroWidth = 5 -> TSharpVision.Text.TextClusterKind
+TSharpVision.Text.TextLayout
+TSharpVision.Text.TextLayoutOptions
+TSharpVision.Text.TextLayoutOptions.AmbiguousIsWide.get -> bool
+TSharpVision.Text.TextLayoutOptions.AmbiguousIsWide.init -> void
+TSharpVision.Text.TextLayoutOptions.Profile.get -> TSharpVision.Text.TextWidthProfile
+TSharpVision.Text.TextLayoutOptions.Profile.init -> void
+TSharpVision.Text.TextLayoutOptions.TabSize.get -> int
+TSharpVision.Text.TextLayoutOptions.TabSize.init -> void
+TSharpVision.Text.TextLayoutOptions.TextLayoutOptions() -> void
+TSharpVision.Text.TextLayoutOptions.ZeroWidthAsOne.get -> bool
+TSharpVision.Text.TextLayoutOptions.ZeroWidthAsOne.init -> void
+TSharpVision.Text.TextWidthProfile
+TSharpVision.Text.TextWidthProfile.CodePoint = 2 -> TSharpVision.Text.TextWidthProfile
+TSharpVision.Text.TextWidthProfile.Default = 0 -> TSharpVision.Text.TextWidthProfile
+TSharpVision.Text.TextWidthProfile.Legacy = 3 -> TSharpVision.Text.TextWidthProfile
+TSharpVision.Text.TextWidthProfile.Unicode = 1 -> TSharpVision.Text.TextWidthProfile
+const TSharpVision.TScreenChar.MaxCellWidth = 7 -> int
+static TSharpVision.TScreenChar.CreateCluster(System.ReadOnlySpan<char> cluster, int cellWidth, TSharpVision.TColorAttr attr) -> TSharpVision.TScreenChar
+static TSharpVision.TScreenChar.CreateTrail(TSharpVision.TColorAttr attr) -> TSharpVision.TScreenChar
+TSharpVision.Drivers.IDriver.TextCapabilities.get -> TSharpVision.Drivers.TextCapabilities
+TSharpVision.Drivers.TextCapabilities
+TSharpVision.Drivers.TextCapabilities.ClusterText = 2 -> TSharpVision.Drivers.TextCapabilities
+TSharpVision.Drivers.TextCapabilities.ColorGlyphs = 4 -> TSharpVision.Drivers.TextCapabilities
+TSharpVision.Drivers.TextCapabilities.None = 0 -> TSharpVision.Drivers.TextCapabilities
+TSharpVision.Drivers.TextCapabilities.WideCells = 1 -> TSharpVision.Drivers.TextCapabilities
+TSharpVision.TScreenCellKind
+TSharpVision.TScreenCellKind.Lead = 1 -> TSharpVision.TScreenCellKind
+TSharpVision.TScreenCellKind.Single = 0 -> TSharpVision.TScreenCellKind
+TSharpVision.TScreenCellKind.Trail = 2 -> TSharpVision.TScreenCellKind
+TSharpVision.TScreenChar.CellWidth.get -> int
+TSharpVision.TScreenChar.GetText() -> string!
+TSharpVision.TScreenChar.GetText(System.Span<char> scratch) -> System.ReadOnlySpan<char>
+TSharpVision.TScreenChar.Kind.get -> TSharpVision.TScreenCellKind
+TSharpVision.EditorTextRun
+TSharpVision.EditorTextRun.Attribute.get -> ushort
+TSharpVision.EditorTextRun.EditorTextRun() -> void
+TSharpVision.EditorTextRun.EditorTextRun(int start, int length, ushort attribute) -> void
+TSharpVision.EditorTextRun.End.get -> int
+TSharpVision.EditorTextRun.Length.get -> int
+TSharpVision.EditorTextRun.Start.get -> int
+TSharpVision.TEditor.FormatLine(System.Span<TSharpVision.TScreenChar> cells, uint linePtr, int firstColumn, ushort normal, ushort selected, System.ReadOnlySpan<TSharpVision.EditorTextRun> runs) -> void

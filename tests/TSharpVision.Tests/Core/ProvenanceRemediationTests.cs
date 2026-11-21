@@ -1,3 +1,4 @@
+using TSharpVision.Text;
 using TSharpVision.Constants;
 using TSharpVision.Tests.Infrastructure;
 using Xunit;
@@ -106,6 +107,15 @@ public sealed class ProvenanceRemediationTests : IDisposable
     [Theory]
     [InlineData(0)] [InlineData(1)] [InlineData(2)] [InlineData(4)] [InlineData(8)]
     public void Editor_TabColumnsAcrossEveryGap(uint width)
+    {
+        // Per-code-unit columns (the emoji counts two) are the legacy profile; Unicode columns are covered by
+        // the editor's TabColumnsAcrossEveryGapPerProfile.
+        TextLayout.ProfileOverride = TextWidthProfile.Legacy;
+        try { TabColumnsAcrossEveryGapLegacy(width); }
+        finally { TextLayout.ProfileOverride = TextWidthProfile.Default; }
+    }
+
+    private static void TabColumnsAcrossEveryGapLegacy(uint width)
     {
         TEditor.tabSize = width; const string text = "a\t\tbč😀\nend";
         int stop = (int)Math.Max(1u, width);

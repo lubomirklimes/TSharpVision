@@ -1,5 +1,37 @@
 # Changelog
 
+## 1.3.0
+
+Unicode text release: text is laid out by user-perceived character (Unicode 16.0 extended grapheme clusters) with East Asian wide, emoji and combining-mark widths, and the editor gains multi-level Undo/Redo, Select All, UTF-16 files and an explicit choice for mixed line endings. TVDemo's Character Map becomes an offline Unicode character browser.
+
+### Added
+
+- `TSharpVision.Text.TextLayout`: allocation-free cluster segmentation and width measurement with Unicode 16.0.0 data (`Measure`, `Fit`, `ColumnAtOffset`, `OffsetAtColumn` with `ColumnBias`, `EnumerateClusters`, `GetCluster`, `UnicodeVersion`), configured by `TextLayoutOptions` (`TabSize`, `AmbiguousIsWide`, `ZeroWidthAsOne`, `TextWidthProfile`). Segmentation uses the .NET runtime's UAX #29 implementation, which does not apply rule GB9c, so Indic conjuncts are two clusters. See [Unicode text and screen cells](docs/architecture/unicode-text.md).
+- Cluster screen cells: `TScreenChar.CreateCluster`, `CreateTrail`, `Kind` (`TScreenCellKind` Single, Lead, Trail), `CellWidth` and `GetText`. `TDrawBuffer` writers place clusters and never show half of a wide character at a clip or overlap edge.
+- `IDriver.TextCapabilities` (`WideCells`, `ClusterText`, `ColorGlyphs`) reports how faithfully a driver draws clusters. It is a default interface member returning `None`, so existing third-party drivers keep compiling and running; the shipped Console, Terminal and SDL drivers report their capabilities.
+- Editor: multi-level Undo/Redo with grouping of contiguous typing and deletion, a saved position (`modified` follows Undo/Redo back to the saved text), `Redo`, `HasUndo`, `HasRedo`, `ClearUndoHistory`, `MarkUnmodified`, `UndoGroupLimit` (default 1000) and `UndoTextLimit` (default 4 MiB). Ctrl+Z undoes; Ctrl+Y and Ctrl+Shift+Z redo (`cmRedo`); Ctrl+A selects all (`cmSelectAll`, `SelectAll`). `NextGraphemeBoundary` and `PrevGraphemeBoundary` expose cluster-aware caret movement, and `FormatLine` with `EditorTextRun` draws attributed runs.
+- `TFileEditor` save encoding: `SaveEncoding`, `SaveLegacyEncoding` and `SetSaveEncoding` (by `EditorEncodingKind`, `ILegacyTextEncoding` or `EditorTextEncoding`) select the encoding of the next save. Files that start with a UTF-16 LE or BE byte-order mark are read as UTF-16 and saved back with it (`EditorEncodingKind.Utf16LeBom`, `Utf16BeBom`).
+- Mixed line endings: a document loaded with more than one line-ending style asks once, on its first save, which style to write (`edMixedLineEndings`, `EditorLineEndingPromptInfo` with the CRLF/LF/CR counts). Cancelling writes nothing. Assigning `SaveLineEnding` counts as the choice; `IsMixedLineEndingChoicePending` and `ResetMixedLineEndingChoice` expose the state. `TEditorDialogHelper` provides the prompt.
+- TVDemo: **Diagnostics > Character Map** is an offline Unicode character browser: a grid or a filtered list with code, glyph and name columns, search by name, CLDR keyword or code point (**F**), Show all (**A**), Go to (**G**) and reference samples (**U**). Names come from an embedded, hash-pinned Unicode 16.0.0 and CLDR 46 database, with no file or network access at run time.
+- `resources/licences/THIRD-PARTY-NOTICES.md` (Unicode License v3 for Unicode and CLDR data) is included as `THIRD-PARTY-NOTICES.md` at the root of every package.
+
+### Changed
+
+- Controls, menus, dialogs, list and table views, input lines and the editor measure, align, clip and hit-test by cluster: CJK, emoji, ZWJ sequences and combining marks keep their width, and the caret, selection and deletion move by whole clusters. `TInputLine` password masking shows one mask character per cluster. Text models, public offsets and stream formats stay UTF-16. Setting the AppContext switch `TSharpVision.Text.LegacyCellWidth` (`TextLayout.LegacyCellWidthSwitch`) restores the 1.2 one-cell-per-UTF-16-unit widths; editing still moves by cluster.
+- Drivers draw clusters. On the SDL drivers each cluster is shaped with one font, with font fallback and colour emoji; Windows fonts have no flag glyphs, so flags show their letters. On the Console driver, Windows Terminal shows emoji sequences, while conhost shows single emoji in monochrome and the base character of other sequences. The ANSI terminal driver repositions the cursor after every wide or multi-character cluster, so a terminal that measures differently cannot shift the rest of the row.
+- `SDLGpuDriver` startup: when the SDL driver is chosen automatically or through the `sdl` alias, and no GPU device can be created or the window cannot be claimed for it, the program starts once with `SDLDriver` and logs the reason to stderr. Naming `SDLGpuDriver` exactly, forcing a GPU backend or using a driver decorator keeps startup strict. Window, font and SDL initialization errors never cause the fallback. If both drivers fail, one `AggregateException` reports both errors.
+- The encoding write error explains that nothing was written and suggests Save As with another encoding, such as UTF-8. Save As offers "Keep current" as its first encoding choice.
+
+### Fixed
+
+- The Windows Console driver combines a character outside the Basic Multilingual Plane, which the console delivers as two key records, into one key event with the whole character.
+
+### Compatibility
+
+- All public API changes are additive and are listed in `PublicAPI.Unshipped.txt`. Every 1.2.0 declaration is kept, including `TFileEditor.SaveFile(EditorTextEncoding)`, `SaveAsEncoding` and `TEditorDialogHelper.Install(deskTop, saveAsOptions, saveAsHelpContext)`. Package validation now compares all nine library packages, including `TSharpVision.Graphics`, with released 1.2.0.
+- Wider clusters change layout: text that 1.2 drew as one cell per UTF-16 unit (emoji, CJK, combining marks) now takes its Unicode width. Use the `TSharpVision.Text.LegacyCellWidth` switch to keep the 1.2 layout.
+- Unicode data notices and Borland C++ provenance notices are shipped with all twelve packages; canonical sources are in `resources/licences/`.
+
 ## 1.2.0
 
 Display and graphics release: runtime switching between the Color, BlackWhite and Monochrome palette families, physical palettes and display effects on the SDL GPU driver, and the new optional `TSharpVision.Graphics` package for pixel graphics and images, shown in TVDemo by STYX, a graphics gallery and a live chart. Supporting changes add built-in framework translations with runtime language switching, help search across several help files and a session-only file-dialog directory.

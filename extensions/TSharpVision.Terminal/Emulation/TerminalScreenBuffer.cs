@@ -57,7 +57,8 @@ internal sealed class TerminalRow
     {
         int length = Cells.Length;
         if (!Wrapped)
-            while (length > 0 && Cells[length - 1].IsEmpty && Cells[length - 1].Style == TerminalStyle.Default) length--;
+            while (length > 0 && Cells[length - 1].IsEmpty && !Cells[length - 1].IsContinuation && Cells[length - 1].Style == TerminalStyle.Default)
+                length--;   // a wide character's right half is not a trailing blank
         var copy = new TerminalCell[length];
         Array.Copy(Cells, copy, length);
         return new TerminalRow(copy, Wrapped);

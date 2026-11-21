@@ -25,6 +25,10 @@ internal enum SdlRenderOpKind
     /// <summary>A pixel-graphics image that got no texture (over the size limit or budget, or creation failed), so
     /// nothing was drawn; fields as for <see cref="GraphicsImage"/>.</summary>
     GraphicsImageSkipped,
+    /// <summary>A grapheme cluster (lead cell, TV13m) drawn across its lead and trail cells: X, Y, Width, Height is the
+    /// spanned device rectangle, <see cref="SdlRenderOp.Argb"/> the tint (white for a colour cluster) and
+    /// <see cref="SdlRenderOp.Character"/> the lead's fallback character.</summary>
+    Cluster,
 }
 
 /// <summary>One renderer-facing operation, recorded beside the real SDL call that performs it.</summary>

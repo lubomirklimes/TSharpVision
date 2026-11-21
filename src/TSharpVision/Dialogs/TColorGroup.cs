@@ -141,7 +141,7 @@ public class TColorGroupList : TListViewer
         while (n-- > 0 && cur != null) cur = cur.Next;
         if (cur == null) return string.Empty;
         string s = cur.Name ?? string.Empty;
-        if (s.Length > maxLen) s = s.Substring(0, maxLen);
+        s = CellText.Truncate(s, maxLen);
         return s;
     }
 
@@ -265,7 +265,7 @@ public class TColorItemList : TListViewer
         while (n-- > 0 && cur != null) cur = cur.Next;
         if (cur == null) return string.Empty;
         string s = cur.Name ?? string.Empty;
-        if (s.Length > maxLen) s = s.Substring(0, maxLen);
+        s = CellText.Truncate(s, maxLen);
         return s;
     }
 

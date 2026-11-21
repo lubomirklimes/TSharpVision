@@ -96,6 +96,10 @@ See [command-line tools](https://github.com/lubomirklimes/TSharpVision/blob/main
 - [Source and issues](https://github.com/lubomirklimes/TSharpVision)
 - [Releases](https://github.com/lubomirklimes/TSharpVision/releases)
 
+## New in 1.3.0
+
+The Unicode text release: text is laid out by Unicode 16.0 grapheme cluster (wide CJK and emoji, combining marks, ZWJ sequences), drivers report `IDriver.TextCapabilities`, and the editor adds multi-level Undo/Redo (Ctrl+Z, Ctrl+Y), Select All, UTF-16 files and a prompt for mixed line endings. The AppContext switch `TSharpVision.Text.LegacyCellWidth` restores the 1.2 cell widths. Unicode data notices are in `THIRD-PARTY-NOTICES.md` at the package root (repository source: `resources/licences/THIRD-PARTY-NOTICES.md`). Borland C++ provenance and the original archive notices accompany them in `BORLAND-TURBO-VISION-NOTICE.md`, `BORLAND-README.txt` and `BORLAND-DISCLAIMER.txt`. Native deployment requirements and qualification limits are described in the [platform support guide](https://github.com/lubomirklimes/TSharpVision/blob/main/docs/platform-support.md).
+
 ## New in 1.2.0
 
 - `TProgram.SetAppPalette` switches a running program between the Color, BlackWhite and Monochrome palette families.
@@ -105,4 +109,4 @@ See [command-line tools](https://github.com/lubomirklimes/TSharpVision/blob/main
 - Help search across several help files (`THelpCollection`), and file dialogs that start in the directory of the last file accepted in an Open dialog, for the rest of the session.
 - The command-line tools `svrc`, `svhc` and `svres` are available as .NET tool packages (above).
 
-All TSharpVision packages, the nine libraries and the three tools, share one version. See the [changelog](https://github.com/lubomirklimes/TSharpVision/blob/main/CHANGELOG.md).
+All TSharpVision packages, the nine libraries and the three tools, share this version. See the [changelog](https://github.com/lubomirklimes/TSharpVision/blob/main/CHANGELOG.md).

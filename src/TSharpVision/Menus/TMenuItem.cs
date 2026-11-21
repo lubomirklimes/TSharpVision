@@ -85,10 +85,7 @@ public class TMenuItem
     /// or '\0' if the name has no marker.</summary>
     public char HotChar()
     {
-        if (string.IsNullOrEmpty(Name)) return '\0';
-        int i = Name.IndexOf('~');
-        if (i < 0 || i + 1 >= Name.Length) return '\0';
-        return char.ToUpperInvariant(Name[i + 1]);
+        return CellText.Hotkey(Name);
     }
 
     /// <summary>True when this entry is a submenu reference (no command).</summary>

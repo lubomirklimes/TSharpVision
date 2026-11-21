@@ -1,1 +1,2 @@
 #nullable enable
+TSharpVision.Drivers.Terminal.AnsiTerminalDriver.TextCapabilities.get -> TSharpVision.Drivers.TextCapabilities

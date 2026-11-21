@@ -108,6 +108,7 @@ public sealed class AnsiTerminalDriver : IDriver, IIdleWaitDriver, IDisposable
             // Enable alternate screen + xterm SGR button-motion mouse + hide cursor.
             Write("\x1b[?1049h");           // alt screen
             Write("\x1b[?25l");              // hide cursor
+            Write("\x1b[?7l");               // autowrap off: a cell can never wrap or scroll the screen
             Write("\x1b[?1002h\x1b[?1006h"); // mouse press/drag + SGR encoding
 
             // Query window size.
@@ -121,6 +122,10 @@ public sealed class AnsiTerminalDriver : IDriver, IIdleWaitDriver, IDisposable
             }
 
             _attached = true;
+            AppDomain.CurrentDomain.ProcessExit -= OnProcessEnding;
+            AppDomain.CurrentDomain.ProcessExit += OnProcessEnding;
+            AppDomain.CurrentDomain.UnhandledException -= OnProcessEnding;
+            AppDomain.CurrentDomain.UnhandledException += OnProcessEnding;
 
             WriteControl(_input.BeginKeyboardNegotiation());
 
@@ -156,7 +161,7 @@ public sealed class AnsiTerminalDriver : IDriver, IIdleWaitDriver, IDisposable
         if (_input.EndKeyboardMode() is { } restoreKeyboard)
             WriteControl(restoreKeyboard);
         _pendingKeys.Clear();
-        WriteControl("\x1b[?1006l\x1b[?1002l\x1b[?25h\x1b[?1049l");
+        WriteControl(RestoreSequence);
         if (_savedTermios != IntPtr.Zero)
             TerminalNative.SetAttributesNow(STDIN_FILENO, _savedTermios);
     }
@@ -186,7 +191,7 @@ public sealed class AnsiTerminalDriver : IDriver, IIdleWaitDriver, IDisposable
             }
             finally { Marshal.FreeHGlobal(raw); }
         }
-        WriteControl("\x1b[?1049h\x1b[?25l\x1b[?1002h\x1b[?1006h"
+        WriteControl("\x1b[?1049h\x1b[?25l\x1b[?7l\x1b[?1002h\x1b[?1006h"
             + _input.BeginKeyboardNegotiation());
     }
 
@@ -197,6 +202,8 @@ public sealed class AnsiTerminalDriver : IDriver, IIdleWaitDriver, IDisposable
         TEventQueue.Wake();
         if (!_attached) return;
         Suspend();
+        AppDomain.CurrentDomain.ProcessExit -= OnProcessEnding;
+        AppDomain.CurrentDomain.UnhandledException -= OnProcessEnding;
         if (_savedTermios != IntPtr.Zero)
         {
             Marshal.FreeHGlobal(_savedTermios);
@@ -256,19 +263,47 @@ public sealed class AnsiTerminalDriver : IDriver, IIdleWaitDriver, IDisposable
     public void WriteBuf(int x, int y, int w, int h, Span<TScreenChar> buf)
     {
         if (!_attached || w <= 0 || h <= 0) return;
-        Write(FormatBuffer(x, y, w, h, buf, _caretX, _caretY));
+        Write(FormatBuffer(x, y, w, h, buf, _caretX, _caretY, _cols,
+            TSharpVision.Text.TextLayout.DefaultProfile == TSharpVision.Text.TextWidthProfile.Legacy));
         Console.Out.Flush();
     }
+
+    /// <summary>
+    /// Gets how grapheme clusters are drawn: each cluster's whole text is written once over its cells and the
+    /// cursor is re-anchored to the core's column after it, so the terminal's own width rules cannot shift later
+    /// cells. Colour glyphs depend on the terminal and its fonts and are not claimed.
+    /// </summary>
+    public TextCapabilities TextCapabilities => TextCapabilities.WideCells | TextCapabilities.ClusterText;
 
     // Each redraw owns its scratch buffer. Session output can cause a redraw on
     // a reader task while the UI thread is drawing a move or resize.
     internal static string FormatBuffer(int x, int y, int w, int h, Span<TScreenChar> buf,
         int caretX, int caretY)
+        => FormatBuffer(x, y, w, h, buf, caretX, caretY, 0,
+            TSharpVision.Text.TextLayout.DefaultProfile == TSharpVision.Text.TextWidthProfile.Legacy);
+
+    /// <summary>
+    /// Formats a redraw. With <paramref name="legacy"/> (the legacy cell-width profile) every cell is written as
+    /// its <see cref="TScreenChar.Character"/>, as before clusters existed; otherwise rows go through the shared
+    /// width-authoritative VT formatter. <paramref name="screenCols"/> (0 = unknown) is the column no cluster may cross.
+    /// </summary>
+    internal static string FormatBuffer(int x, int y, int w, int h, Span<TScreenChar> buf,
+        int caretX, int caretY, int screenCols, bool legacy)
     {
         var sb = new System.Text.StringBuilder();
         sb.EnsureCapacity(Math.Min(Math.Max(w * h + 32, 256), 64 * 1024));
         TColorAttr lastAttr = default;
         bool first = true;
+        if (!legacy)
+        {
+            bool haveAttr = false;
+            for (int row = 0; row < h; row++)
+                VtCellFormatter.AppendRow(sb, x, y + row, buf.Slice(row * w, w), screenCols, s_sgr,
+                    ref lastAttr, ref haveAttr);
+            sb.Append("\x1b[0m");
+            AppendCaretPosition(sb, caretX, caretY);
+            return sb.ToString();
+        }
         for (int row = 0; row < h; row++)
         {
             AppendCaretPosition(sb, x, y + row);
@@ -483,4 +518,18 @@ public sealed class AnsiTerminalDriver : IDriver, IIdleWaitDriver, IDisposable
     };
 
     private static readonly string[] SgrCache = BuildSgrCache();
+
+    private static readonly Func<TColorAttr, string> s_sgr = AttrToSgr;
+
+    /// <summary>Leaves the modes <see cref="Initialize"/> set: mouse, autowrap (DECAWM), cursor and the alternate screen.</summary>
+    internal const string RestoreSequence = "\x1b[?1006l\x1b[?1002l\x1b[?7h\x1b[?25h\x1b[?1049l";
+
+    // Autowrap and the alternate screen belong to the terminal the shell keeps using: restore them even when the
+    // process ends without Shutdown (an unhandled exception outside AppLifecycleGuard, Environment.Exit).
+    private void OnProcessEnding(object? sender, EventArgs e)
+    {
+        if (!_attached) return;
+        try { WriteControl(RestoreSequence); }
+        catch { /* best effort while the process ends */ }
+    }
 }

@@ -82,7 +82,7 @@ public sealed class TVDemoReadabilityTests
 
     [Theory]
     [InlineData(78, 23)] [InlineData(60, 16)]
-    public void CharacterMapHasOneHintLineAndAFullWidthSeparator(int width, int height)
+    public void CharacterMapShowsMetadataAndEveryShortcutInTheRightPanel(int width, int height)
     {
         using var scope = new DemoTestScope();
         var app = scope.App;
@@ -91,11 +91,14 @@ public sealed class TVDemoReadabilityTests
         var view = window.View;
         var screen = RootScreenCopy.CopyRoot(); var origin = view.MakeGlobal(new TPoint(0, 0));
         string[] lines = Enumerable.Range(0, view.size.y).Select(y => new string(Enumerable.Range(0, view.size.x).Select(x => screen[origin.x + x, origin.y + y].Character).ToArray())).ToArray();
-        Assert.Single(lines, line => line.Contains("G:Go to"));
-        Assert.Equal(new string('\u2500', view.size.x), lines[view.GridRows + 1]);
-        Assert.Contains("U+2500", lines[view.GridRows + 2]);
-        Assert.Contains(lines, line => line.Contains("Home/End:full range"));
-        Assert.Contains(lines, line => line.Contains("S:Copy C#"));
+        // TV13t layout: the grid fills every row under its header; a vertical line separates the right panel, which
+        // shows the selected code point's metadata and then the keyboard reference, all of it even at 60x16.
+        Assert.Equal(view.size.y - 1, view.GridRows);
+        Assert.All(lines, line => Assert.Equal('\u2502', line[view.LeftWidth]));
+        string[] right = lines.Select(line => line[view.RightColumn..]).ToArray();
+        Assert.StartsWith("U+2500", right[0]);
+        Assert.Contains(right, line => line.Contains("BOX DRAWINGS"));
+        CharacterBrowserTests.AssertAllShortcuts(view, string.Join("\n", right));
         Assert.DoesNotContain(lines, line => line.Contains("Range labels"));
         view.Feedback = "Selected U+251C"; view.Model.Select(0x251C); app.Redraw();
         AssertReadable(window);

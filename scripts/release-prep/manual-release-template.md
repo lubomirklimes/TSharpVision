@@ -27,7 +27,7 @@ git diff --cached
   Check the actual evidence for Windows, Linux and macOS; skipped or unexecuted checks are not passes.
   A successful documentation preview does not establish production test or runtime qualification.
 Review README, CHANGELOG, the release-notes draft, this runbook and scripts/release-prep/README.md.
-Use the exact heading `## {{VERSION}}` in CHANGELOG; put a date or pending state in its body.
+Use the exact heading `## {{VERSION}}` in CHANGELOG; put a known date in its body or omit the date.
 
 Supply values only after reviewing the outputs above:
 
@@ -50,7 +50,7 @@ It does NOT publish NuGet. `.github/workflows/publish-nuget.yml` (Publish NuGet)
 and does NOT require a version tag; it checks out the selected dispatch ref's exact SHA.
 `prepare-github-release.ps1` generates notes saying packages are available on NuGet.org,
 without waiting for Publish NuGet. This can publish inaccurate notes or leave a public GitHub
-Release when NuGet fails. The documentation draft's pending wording is not consumed by CI:
+Release when NuGet fails. The documentation preparation output is not consumed by CI:
 CI extracts CHANGELOG and generates its own notes.
 
 Owner decision required: accept a temporary availability mismatch and coordinate both runs,
@@ -194,5 +194,5 @@ failure; do not blindly rerun a workflow whose completion helper refuses existin
 A rerun uses scripts from the original tagged commit and cannot pick up a later branch fix.
 Never move a published tag; separately decide remediation for any tagged-script defect.
 
-Record workflow run URLs, SHAs, NuGet checks and the published release URL. Only after actual
-publication update any pending-release README wording or installation examples as a separate review.
+Record workflow run URLs, SHAs, NuGet checks and the published release URL in the release evidence.
+The reviewed README and installation examples already describe this version without asserting live publication; no post-merge rewrite is required.

@@ -236,7 +236,8 @@ public sealed class ComboBoxModalTests : IDisposable
         Step(() =>
         {
             Type("Žluť \U0001F600 ");
-            Send(Key(Keys.kbBack), Key(Keys.kbLeft), Key(Keys.kbLeft), Typed("č"));
+            // One Left: the input line steps over the whole emoji (it used to stop between its surrogate halves).
+            Send(Key(Keys.kbBack), Key(Keys.kbLeft), Typed("č"));
         });
         Step(() => Send(Key(Keys.kbEnter)));
 

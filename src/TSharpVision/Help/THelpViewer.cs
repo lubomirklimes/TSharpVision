@@ -112,30 +112,21 @@ public class THelpViewer : TScroller
             b.moveChar(0, ' ', normal, size.x);
             topic.GetLine(i + delta.y, lineBuf);
             int len = CharLen(lineBuf);
-            if (len > delta.x)
-            {
-                int copy = System.Math.Min(size.x, len - delta.x);
-                var slice = new char[copy];
-                for (int k = 0; k < copy; k++)
-                {
-                    char raw = lineBuf[delta.x + k];
-                    slice[k] = raw == '\xFF' || raw == '\u00A0' ? ' ' : raw;
-                }
-                b.moveBuf(0, slice, normal, copy);
-            }
+            for (int k = 0; k < len; k++)
+                if (lineBuf[k] == '\xFF' || lineBuf[k] == '\u00A0') lineBuf[k] = ' ';
+            ReadOnlySpan<char> line = lineBuf.AsSpan(0, len);
+            // delta.x scrolls by cells; the line never starts inside a cluster.
+            int start = CellText.SkipColumns(line, delta.x, out int pad);
+            if (start < len && pad < size.x)
+                b.moveBuf(pad, line.Slice(start), normal, size.x - pad);
 
             while (i + delta.y == keyPoint.y)
             {
-                int l = keyLength;
-                int x = keyPoint.x;
-                if (x < delta.x)
-                {
-                    l -= (delta.x - x);
-                    x = delta.x;
-                }
+                CrossRefColumns(line, keyPoint.x, keyLength, out int from, out int to);
+                if (from < delta.x) from = delta.x;
                 ushort c = (keyCount == selected) ? selKeyword : keyword;
-                for (int j = 0; j < l; j++)
-                    b.putAttribute(x - delta.x + j, c);
+                for (int col = from; col < to; col++)
+                    b.putAttribute(col - delta.x, c);
                 if (keyCount < topic.GetNumCrossRefs())
                 {
                     topic.GetCrossRef(keyCount, ref keyPoint, out keyLength, out keyRef);
@@ -155,9 +146,10 @@ public class THelpViewer : TScroller
         out byte keyLength, out int keyRef)
     {
         topic.GetCrossRef(sel, ref keyPoint, out keyLength, out keyRef);
+        CrossRefColumns(keyPoint, keyLength, out int column, out _);
         TPoint d = delta;
-        if (keyPoint.x < d.x) d.x = keyPoint.x;
-        if (keyPoint.x > d.x + size.x) d.x = keyPoint.x - size.x;
+        if (column < d.x) d.x = column;
+        if (column > d.x + size.x) d.x = column - size.x;
         if (keyPoint.y <= d.y) d.y = keyPoint.y - 1;
         if (keyPoint.y > d.y + size.y) d.y = keyPoint.y - size.y;
         if (d.x != delta.x || d.y != delta.y) ScrollTo(d.x, d.y);
@@ -293,8 +285,7 @@ public class THelpViewer : TScroller
                         topic.GetCrossRef(keyCount - 1, ref keyPoint,
                             out keyLength, out keyRef);
                     } while (!(keyPoint.y == mouse.y + 1
-                            && mouse.x >= keyPoint.x
-                            && mouse.x < keyPoint.x + keyLength));
+                            && HitsCrossRef(keyPoint, keyLength, mouse.x)));
                     selected = keyCount;
                     NavigateTo(keyRef);
                     ClearEvent(ref ev);
@@ -387,6 +378,33 @@ public class THelpViewer : TScroller
             _ownSearchCollection.Add(hFile, TSharpVisionIntl.Get("Help_WindowTitle", "Help"));
         }
         return _ownSearchCollection;
+    }
+
+    // Cross references keep UTF-16 offsets within their wrapped line (the topic's model); drawing, hit testing and
+    // scrolling use the cells [from, to) those offsets occupy. Under the legacy profile they are the same numbers.
+    private static void CrossRefColumns(ReadOnlySpan<char> line, int x, int length, out int from, out int to)
+    {
+        from = CellText.ColumnAt(line, x);
+        to = CellText.ColumnAt(line, x + length);
+    }
+
+    private void CrossRefColumns(TPoint keyPoint, int length, out int from, out int to)
+    {
+        if (CellText.Legacy)
+        {
+            from = keyPoint.x;
+            to = keyPoint.x + length;
+            return;
+        }
+        var lineBuf = new char[256];
+        topic.GetLine(keyPoint.y, lineBuf);
+        CrossRefColumns(lineBuf.AsSpan(0, CharLen(lineBuf)), keyPoint.x, length, out from, out to);
+    }
+
+    private bool HitsCrossRef(TPoint keyPoint, int length, int column)
+    {
+        CrossRefColumns(keyPoint, length, out int from, out int to);
+        return column >= from && column < to;
     }
 
     private static int CharLen(char[] b)

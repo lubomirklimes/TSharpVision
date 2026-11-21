@@ -23,6 +23,8 @@ public class TEditorApp : TApplication
         DisableCommand(Views.cmPaste);
         DisableCommand(Views.cmClear);
         DisableCommand(Views.cmUndo);
+        DisableCommand(Views.cmRedo);
+        DisableCommand(Views.cmSelectAll);
         DisableCommand(Views.cmFind);
         DisableCommand(Views.cmReplace);
         DisableCommand(Views.cmSearchAgain);
@@ -48,13 +50,16 @@ public class TEditorApp : TApplication
                 new TMenuItem(Loc("Menu_Exit", "E~x~it"),        Views.cmQuit,   Keys.kbAltX, Views.hcNoContext, "Alt+X") +
 
             new TSubMenu(Loc("Menu_Edit", "~E~dit"), Keys.kbAltE) +
-                new TMenuItem(Loc("Menu_Undo", "~U~ndo"),   Views.cmUndo,  Keys.kbNoKey) +
+                // The focused editor handles Ctrl+Z and Ctrl+Y (and Ctrl+Shift+Z), so these items bind no key.
+                new TMenuItem(Loc("Menu_Undo", "~U~ndo"),   Views.cmUndo,  Keys.kbNoKey, Views.hcNoContext, "Ctrl+Z") +
+                new TMenuItem(Loc("Menu_Redo", "~R~edo"),   Views.cmRedo,  Keys.kbNoKey, Views.hcNoContext, "Ctrl+Y") +
                 TMenuItem.NewLine() +
                 new TMenuItem(Loc("Menu_Cut", "Cu~t~"),    Views.cmCut,   Keys.kbShiftDel, Views.hcNoContext, "Shift+Del") +
                 new TMenuItem(Loc("Menu_Copy", "~C~opy"),   Views.cmCopy,  Keys.kbCtrlIns,  Views.hcNoContext, "Ctrl+Ins") +
                 new TMenuItem(Loc("Menu_Paste", "~P~aste"),  Views.cmPaste, Keys.kbShiftIns, Views.hcNoContext, "Shift+Ins") +
                 TMenuItem.NewLine() +
                 new TMenuItem(Loc("Menu_Clear", "C~l~ear"),  Views.cmClear, Keys.kbCtrlDel,  Views.hcNoContext, "Ctrl+Del") +
+                new TMenuItem(Loc("Menu_SelectAll", "Select ~A~ll"), Views.cmSelectAll, Keys.kbNoKey, Views.hcNoContext, "Ctrl+A") +
 
             new TSubMenu(Loc("Menu_Search", "~S~earch"), Keys.kbAltS) +
                 new TMenuItem(Loc("Menu_Find", "~F~ind..."),      Views.cmFind,        Keys.kbNoKey) +

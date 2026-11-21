@@ -99,6 +99,7 @@ function Get-ProjectProperties {
         -getProperty:RepositoryType `
         -getProperty:PackageLicenseExpression `
         -getProperty:PackageReadmeFile `
+        -getProperty:PackageIcon `
         -getProperty:IncludeSymbols `
         -getProperty:SymbolPackageFormat `
         -getProperty:PackAsTool `

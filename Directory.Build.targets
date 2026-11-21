@@ -1,0 +1,12 @@
+<Project>
+  <!-- Package icon for every package the repository publishes. This lives in .targets, not .props, so the
+       condition sees each project's final IsPackable (after its own project file), and test, sample and
+       diagnostics projects, which are never packable, get nothing. -->
+  <PropertyGroup Condition="'$(IsPackable)' == 'true'">
+    <PackageIcon>TSharpVision.png</PackageIcon>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(IsPackable)' == 'true'">
+    <None Include="$(MSBuildThisFileDirectory)TSharpVision.png" Pack="true" PackagePath="/" Visible="false" />
+  </ItemGroup>
+</Project>

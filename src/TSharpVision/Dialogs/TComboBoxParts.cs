@@ -32,7 +32,7 @@ internal sealed class TComboBoxField : TView
         int room = size.x - 2;
         if (room > 0 && text.Length > 0)
         {
-            string shown = TComboBox.Clip(text, room);
+            string shown = TComboBox.ClipCells(text, room);
             b.moveStr(1, shown, color);
             if (shown.Length < text.Length && !_combo.IsDisabled)
                 b.moveChar(size.x - 1, '>', GetColor(4), 1);
@@ -75,7 +75,7 @@ internal sealed class TComboBoxInputLine : TInputLine
         ushort color = GetColor(5);
         b.moveChar(0, ' ', color, size.x);
         if (size.x > 2 && FirstPos < Data.Length)
-            b.moveStr(1, TComboBox.Clip(Data.Substring(FirstPos), size.x - 2), color);
+            b.moveStr(1, TComboBox.ClipCells(Data.Substring(FirstPos), size.x - 2), color);
         WriteLine(0, 0, size.x, size.y, b);
     }
 
@@ -310,7 +310,7 @@ internal sealed class TComboBoxList : TListViewer
     public override string GetText(int item, int maxChars)
     {
         // The text starts one cell in; keep it, and any surrogate pair, inside the list.
-        return TComboBox.Clip(_combo.ItemText(item), Math.Min(maxChars, size.x - 1));
+        return TComboBox.ClipCells(_combo.ItemText(item), Math.Min(maxChars, size.x - 1));
     }
 
     public void Reset(int count, int highlight)

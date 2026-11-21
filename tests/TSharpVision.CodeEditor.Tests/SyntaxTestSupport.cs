@@ -1,6 +1,7 @@
 using System.Text;
 using TSharpVision.Constants;
 using TSharpVision.CodeEditor.Syntax;
+using TSharpVision.Text;
 using TSharpVision.Tests.Infrastructure;
 using Xunit;
 
@@ -184,18 +185,27 @@ internal sealed class EditorScreen : IDisposable
         foreach (char c in text) Key((ushort)c, c);
     }
 
-    public string Row(int y)
+    /// <summary>The text row <paramref name="y"/> shows: each cell's grapheme cluster, trail cells of wide clusters skipped.</summary>
+    public string Row(int y) => RowText(Host.buffer!.Data.Slice(y * Width, Width)).TrimEnd();
+
+    /// <summary>What the cells show: each lead's cluster or each cell's character, trails skipped, '\0' as a blank.</summary>
+    public static string RowText(ReadOnlySpan<TScreenChar> cells)
     {
-        Span<TScreenChar> cells = Host.buffer!.Data;
-        var line = new StringBuilder(Width);
-        for (int x = 0; x < Width; x++)
+        var line = new StringBuilder(cells.Length);
+        foreach (TScreenChar cell in cells)
         {
-            char c = cells[(y * Width) + x].Character;
-            line.Append(c == '\0' ? ' ' : c);
+            if (cell.Kind == TScreenCellKind.Trail) continue;
+            string text = cell.GetText();
+            line.Append(text == "\0" ? " " : text);
         }
 
-        return line.ToString().TrimEnd();
+        return line.ToString();
     }
+
+    /// <summary>Visual columns of <paramref name="text"/> as the editors lay it out (the default profile).</summary>
+    public static int Columns(string text) =>
+        TextLayout.Measure(text, TextLayoutOptions.Default with { TabSize = (int)Math.Max(1u, TEditor.tabSize), ZeroWidthAsOne = true });
+
 
     public byte AttributeAt(int x, int y) => (byte)Host.buffer!.Data[(y * Width) + x].Attr;
 

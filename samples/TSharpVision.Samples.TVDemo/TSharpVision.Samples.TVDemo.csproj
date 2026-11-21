@@ -21,4 +21,10 @@
     <None Update="Help\tvdemo.txt" CopyToOutputDirectory="PreserveNewest" />
     <None Update="TSharpVision.Samples.TVDemo.cfg" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+
+  <!-- Unicode 16.0.0 names, aliases and CLDR 46 annotations for Diagnostics > Character Map, generated offline by
+       tests/TSharpVision.Tests/Samples/CharacterNameDataGenerator.cs (TSV_REGENERATE_CHARACTER_NAMES=1). -->
+  <ItemGroup>
+    <EmbeddedResource Include="Unicode\CharacterNames.txt.gz" LogicalName="TSharpVision.Samples.TVDemo.CharacterNames.txt.gz" />
+  </ItemGroup>
 </Project>

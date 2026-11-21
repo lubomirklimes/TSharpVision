@@ -1,6 +1,6 @@
 # Drivers
 
-Drivers render the core cell grid and translate host input. Select `TSHARPVISION_DRIVER` before runtime startup, or configure `[driver] name`; both accept the same names. The portable aliases `sdl` (`SDLGpuDriver`) and `console` or `terminal` (the native text driver: `Win32ConsoleDriver` on Windows, `AnsiTerminalDriver` on Linux and macOS) work on every OS, and an exact driver name selects exactly that driver. The environment takes precedence; otherwise the highest-priority installed driver for the OS is selected, preferring `SDLGpuDriver`, then `SDLDriver`, then the native text driver. An unavailable name prints a warning and falls back to the default, possibly `NullDriver`. See [Environment variables](environment-variables.md#tsharpvision_driver) for the full table.
+Drivers render the core cell grid and translate host input. Select `TSHARPVISION_DRIVER` before runtime startup, or configure `[driver] name`; both accept the same names. The portable aliases `sdl` (`SDLGpuDriver`) and `console` or `terminal` (the native text driver: `Win32ConsoleDriver` on Windows, `AnsiTerminalDriver` on Linux and macOS) work on every OS, and an exact driver name selects exactly that driver. The environment takes precedence; otherwise the highest-priority installed driver for the OS is selected, preferring `SDLGpuDriver`, then `SDLDriver`, then the native text driver. An unavailable name prints a warning and falls back to the default, possibly `NullDriver`. At startup, an automatically selected `SDLGpuDriver` (or the `sdl` alias) that cannot create a GPU device or claim its window is replaced by `SDLDriver` once; see [SDL](#sdl). See [Environment variables](environment-variables.md#tsharpvision_driver) for the full table.
 
 The runtime reads the user's `.tsvision.cfg`, then overlays `<AssemblyName>.cfg` beside the executable. Driver discovery expects ordinary assembly files in the application output.
 
@@ -17,6 +17,8 @@ The [event model](architecture/event-model.md) explains payloads, routing and te
 
 Install `TSharpVision.Drivers.Console` and run in an attached Windows console, including Windows Terminal. Redirected handles and IDE output panes can leave the driver unattached with no UI. Native key records are preserved, but `wRepeatCount` is not expanded into multiple framework events.
 
+Wide East Asian characters are written as leading and trailing cell pairs. When the console belongs to Windows Terminal (recognised by its pseudo-console window and owner, not by `WT_SESSION`), rows that hold emoji or other multi-character clusters are written as VT text so Windows Terminal draws them in colour; other hosts, including conhost, get a monochrome emoji or the base character of a sequence. `TSHARPVISION_WIN32_OUTPUT` overrides the choice. See [Unicode text and screen cells](architecture/unicode-text.md).
+
 ```csharp
 using System;
 using TSharpVision;
@@ -27,7 +29,7 @@ return TSharpVisionRuntime.Run(() => new TApplication(), "TSharpVision");
 
 ## ANSI terminal
 
-Install `TSharpVision.Drivers.Terminal` for an interactive UTF-8 Linux/macOS TTY with xterm-style ANSI support. Rendering, mouse reports and key delivery depend on the emulator. The driver enters raw mode and the alternate screen, and restores terminal modes and screen state on shutdown. Its Windows initialization is a no-op; use Console there.
+Install `TSharpVision.Drivers.Terminal` for an interactive UTF-8 Linux/macOS TTY with xterm-style ANSI support. Rendering, mouse reports and key delivery depend on the emulator. The driver enters raw mode and the alternate screen, and restores terminal modes and screen state on shutdown. While it runs, automatic wrap at the right margin is off; every grapheme cluster is written whole and the cursor is placed after each wide or multi-character cluster, so a terminal that measures a character differently cannot shift the rest of the row. Its Windows initialization is a no-op; use Console there.
 
 ```csharp
 using System;
@@ -49,7 +51,15 @@ Environment.SetEnvironmentVariable("TSHARPVISION_DRIVER", "SDLDriver");
 return TSharpVisionRuntime.Run(() => new TApplication(), "TSharpVision");
 ```
 
-`SDLDriver` uses SDL's renderer and is the compatibility path. `SDLGpuDriver` uses the GPU/shadercross path, needs suitable graphics support and is the preferred SDL driver: automatic selection and the `sdl` alias choose it; select it by changing the name above. A failed GPU initialization does not guarantee fallback to another driver. SDL key events carry identity and repeat/release information, while TextInput supplies Unicode and IME text separately.
+`SDLDriver` uses SDL's renderer and is the compatibility path. `SDLGpuDriver` uses the GPU/shadercross path, needs suitable graphics support and is the preferred SDL driver: automatic selection and the `sdl` alias choose it; select it by changing the name above.
+
+**Startup fallback.** When `SDLGpuDriver` was chosen automatically (no driver configured, an unknown name, or the `sdl` alias) and SDL cannot create a GPU device or claim the window for it (no Direct3D 12/Vulkan/Metal support, a remote or virtual display), the driver releases its window, SDL and SDL_ttf, prints `[driver] SDLGpuDriver could not start: ...` and `[driver] SDLDriver started (fallback from SDLGpuDriver).` to standard error, and the application starts with `SDLDriver`. This happens once, at startup only. It does not happen when:
+
+- the exact name `SDLGpuDriver` is configured, or a GPU backend is forced with `TSHARPVISION_SDLGPU_BACKEND` / `[sdl] backend` (the startup error is reported instead);
+- SDL itself, the window or the font cannot start (both SDL drivers need them; the error is reported);
+- a driver decorator (`TSHARPVISION_DRIVER_DECORATOR`) is active.
+
+If `SDLDriver` fails too, one error names both failures. There is never a fallback to the Console or Terminal driver, and nothing changes after startup. To require the GPU, configure `SDLGpuDriver`; to avoid it, configure `SDLDriver`. The driver that started is `TDisplay.driver`. Native qualification and its platform-specific limits are recorded in [Platform Support](platform-support.md#native-qualification). SDL key events carry identity and repeat/release information, while TextInput supplies Unicode and IME text separately.
 
 Both SDL drivers create high-pixel-density windows and render at the window's native pixel density, for example 2× on a Retina display. The grid, window size in points and `fontSize` keep their meaning: glyphs are rasterised at `fontSize` times the density, and a density change re-rasterises them without a restart. Command, the Windows key and Super are reported as `kbMetaShift`. Wheel and trackpad scrolling follow the operating system's scrolling preference, such as macOS natural scrolling.
 
@@ -87,6 +97,10 @@ Both modes keep the cell size, grid, window size, borders, box drawing, block el
 - `<AssemblyName>.cfg` overrides `~/.tsvision.cfg` per key: an application file that does not set `fontFit` keeps the user's value.
 - The setting is read when the driver initializes; changing it requires a restart.
 - Only the SDL drivers render differently per mode. The Console and Terminal drivers ignore it.
+
+#### Emoji, East Asian text and other fonts
+
+Characters the configured font does not cover come from fallback fonts, chosen once per grapheme cluster so that an emoji sequence, a flag or a character with combining marks is shaped as a whole by one font. On Windows the chain is Segoe UI Emoji (`seguiemj.ttf`), then Yu Gothic (`YuGothM.ttc`) or Microsoft YaHei (`msyh.ttc`), then Segoe UI Symbol (`seguisym.ttf`). An emoji variation selector (VS16) or an emoji modifier prefers the emoji font, a text variation selector (VS15) prefers the others. Emoji are sized to fit two cells and keep their own colours; other text is tinted with the cell's foreground. A cluster no font covers draws a missing-glyph box in its cells. Segoe UI Emoji has no flag glyphs, so flags draw their two letters. Fonts are not bundled. `TSHARPVISION_SDL_FALLBACK_FONTS` replaces the chain. The macOS and Linux font candidates are not verified yet. See [Unicode text and screen cells](architecture/unicode-text.md).
 
 #### Typed configuration
 

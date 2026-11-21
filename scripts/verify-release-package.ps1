@@ -41,6 +41,21 @@ function Assert-BinaryEntry {
     finally { $stream.Dispose(); $buffer.Dispose() }
 }
 
+# Every package embeds the repository icon (PackageIcon, never iconUrl) exactly once, at the declared path.
+function Assert-PackageIcon {
+    param($Archive, $Metadata, $Properties, [string] $Path)
+
+    $icon = $Metadata.SelectSingleNode("*[local-name()='icon']")
+    if (-not $Properties.PackageIcon -or $null -eq $icon -or $icon.InnerText -cne $Properties.PackageIcon -or
+        $null -ne $Metadata.SelectSingleNode("*[local-name()='iconUrl']")) {
+        throw "Missing or incorrect package icon metadata in '$Path'."
+    }
+    $entries = @($Archive.Entries | Where-Object { $_.FullName -ceq $Properties.PackageIcon })
+    if ($entries.Count -ne 1 -or $entries[0].Length -eq 0) {
+        throw "Package '$Path' must contain the icon '$($Properties.PackageIcon)' exactly once."
+    }
+}
+
 function Assert-ReleasePackage {
     param($Package, [string] $Path, [string] $ExpectedCommit)
 
@@ -79,6 +94,7 @@ function Assert-ReleasePackage {
                 $null -eq $archive.GetEntry('LICENSE')) {
                 throw "Missing or incorrect license/README in '$Path'."
             }
+            Assert-PackageIcon -Archive $archive -Metadata $metadata -Properties $properties -Path $Path
         }
         foreach ($dependency in $metadata.SelectNodes(".//*[local-name()='dependency']")) {
             if ($dependency.id -match 'TSharpCommander|\.Diagnostics(?:\.|$)|\.Tests?(?:\.|$)|\.Samples(?:\.|$)') {
@@ -148,6 +164,7 @@ function Assert-ReleaseToolPackage {
             $null -eq $archive.GetEntry('LICENSE')) {
             throw "Missing or incorrect license/README in '$Path'."
         }
+        Assert-PackageIcon -Archive $archive -Metadata $metadata -Properties $properties -Path $Path
 
         $framework = $properties.TargetFramework
         if (-not $framework -or $properties.TargetFrameworks) {

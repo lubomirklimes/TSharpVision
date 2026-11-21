@@ -39,9 +39,10 @@ public class TStaticText : TView
             if (p < l)
             {
                 NextRow(s, ref p, size.x, ref center, out int i, out int end, out bool centered);
-                int xOff = centered ? (size.x - end + i) / 2 : 0;
+                int cells = CellText.Measure(s.AsSpan(i, end - i));
+                int xOff = centered ? Math.Max(0, (size.x - cells) / 2) : 0;
                 if (end > i)
-                    b.moveBuf(xOff, s.AsSpan(i, end - i), color, end - i);
+                    b.moveBuf(xOff, s.AsSpan(i, end - i), color, cells);
             }
             WriteLine(0, y++, size.x, 1, b);
         }
@@ -50,6 +51,8 @@ public class TStaticText : TView
     // Lays out the display row of s that starts at p, for a view `width` cells wide: the row
     // shows s[start..end) and p moves past it, its trailing spaces and its line break. Draw and
     // MsgBox's automatic sizing both go through here, so the rows counted are the rows drawn.
+    // Widths are cells (CellText.Measure; one per UTF-16 unit under the legacy profile); a word
+    // longer than the row is broken at a cluster boundary, and a row always takes at least one cluster.
     internal static void NextRow(string s, ref int p, int width, ref bool center,
                                  out int start, out int end, out bool centered)
     {
@@ -62,10 +65,15 @@ public class TStaticText : TView
             j = p;
             while (p < l && s[p] == ' ') p++;
             while (p < l && s[p] != ' ' && s[p] != '\n') p++;
-        } while (p < l && p < i + width && s[p] != '\n');
-        if (p > i + width)
+        } while (p < l && CellText.Measure(s.AsSpan(i, p - i)) < width && s[p] != '\n');
+        if (CellText.Measure(s.AsSpan(i, p - i)) > width)
         {
-            p = j > i ? j : i + width;
+            if (j > i) p = j;
+            else
+            {
+                int fit = CellText.Fit(s.AsSpan(i), width);
+                p = i + (fit > 0 ? fit : CellText.ClusterLength(s, i));
+            }
         }
         start = i;
         end = p;

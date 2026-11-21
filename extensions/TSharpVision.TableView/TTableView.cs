@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using TSharpVision.Constants;
+using TSharpVision.Text;
 
 namespace TSharpVision.TableView;
 
@@ -693,7 +694,11 @@ public class TTableView : TView
     private static TablePage Failed(long index, long start, int count, string? message)
     {
         string text = string.IsNullOrWhiteSpace(message) ? "The rows could not be read." : message;
-        if (text.Length > MaxErrorLength) text = text[..MaxErrorLength] + "…";
+        if (text.Length > MaxErrorLength)
+        {
+            int cut = char.IsLowSurrogate(text[MaxErrorLength]) ? MaxErrorLength - 1 : MaxErrorLength;   // never half a pair
+            text = text[..cut] + "…";
+        }
         return new TablePage(index, start, count, Array.Empty<TableRow?>(), reachedEnd: false, text);
     }
 
@@ -760,7 +765,7 @@ public class TTableView : TView
 
     private static int InitialWidth(TableColumn column)
     {
-        int width = Math.Max(column.Title.Length, column.PreferredWidth ?? 0);
+        int width = Math.Max(DisplayWidth(column.Title), column.PreferredWidth ?? 0);
         return Math.Clamp(width, MinColumnWidth, MaxColumnWidth);
     }
 
@@ -775,7 +780,7 @@ public class TTableView : TView
             for (int c = 0; c < cells; c++)
             {
                 if (_columns[c].PreferredWidth is not null) continue;
-                _widths[c] = Math.Clamp(Math.Max(_widths[c], row.Cells[c].Text.Length), MinColumnWidth, MaxColumnWidth);
+                _widths[c] = Math.Clamp(Math.Max(_widths[c], DisplayWidth(row.Cells[c].Text)), MinColumnWidth, MaxColumnWidth);
             }
         }
     }
@@ -947,10 +952,73 @@ public class TTableView : TView
     private static void PutCell(TDrawBuffer buffer, char[] scratch, int x, int width, string value, TableAlignment alignment, ushort color)
     {
         if (width <= 0) return;
+        if (TextLayout.DefaultProfile == TextWidthProfile.Legacy)
+        {
+            PutCellLegacy(buffer, scratch, x, width, value, alignment, color);
+            return;
+        }
 
+        // Laid out in cells, cluster by cluster, as the core writers lay it out: a wide character or an emoji takes
+        // its cells, a combining sequence one, and a cluster is never split. Control characters show as '·'.
+        string shown = Displayable(value);
+        int columns = TextLayout.Measure(shown, CellLayout);
+        buffer.moveChar(x, ' ', color, width);
+        if (columns <= width)
+        {
+            int start = alignment switch
+            {
+                TableAlignment.Right => width - columns,
+                TableAlignment.Center => (width - columns) / 2,
+                _ => 0,
+            };
+            buffer.moveBuf(x + start, shown, color, columns);
+            return;
+        }
+
+        // Too long: as many whole clusters as fit before the last cell, then the ellipsis in the last cell. A wide
+        // cluster that would straddle the ellipsis leaves a blank cell instead.
+        int units = TextLayout.Fit(shown, width - 1, CellLayout, out int used);
+        if (units > 0) buffer.moveBuf(x, shown.AsSpan(0, units), color, used);
+        buffer.moveChar(x + width - 1, '\u2026', color, 1);
+    }
+
+    // How the core string writers (moveStr, moveBuf) measure text, so measuring and writing agree.
+    private static readonly TextLayoutOptions CellLayout = TextLayoutOptions.Default with { ZeroWidthAsOne = true };
+
+    /// <summary>
+    /// <paramref name="value"/> with every control character replaced by '·' (one cell each). Allocates only when there
+    /// is a control character.
+    /// </summary>
+    private static string Displayable(string value)
+    {
+        int first = -1;
+        for (int i = 0; i < value.Length; i++)
+            if (char.IsControl(value[i])) { first = i; break; }
+        if (first < 0) return value;
+
+        return string.Create(value.Length, (value, first), static (span, state) =>
+        {
+            state.value.AsSpan().CopyTo(span);
+            for (int i = state.first; i < span.Length; i++)
+                if (char.IsControl(span[i])) span[i] = '\u00B7';
+        });
+    }
+
+    /// <summary>Cells <paramref name="value"/> takes when drawn: UTF-16 units under the Legacy profile.</summary>
+    internal static int DisplayWidth(string value)
+        => TextLayout.DefaultProfile == TextWidthProfile.Legacy ? value.Length : TextLayout.Measure(Displayable(value), CellLayout);
+
+    // The 1.2 layout, kept for the Legacy width profile: one cell per UTF-16 unit.
+    private static void PutCellLegacy(TDrawBuffer buffer, char[] scratch, int x, int width, string value, TableAlignment alignment, ushort color)
+    {
         bool longer = value.Length > width;
         int shown = longer ? Math.Max(0, width - 1) : value.Length;
-        int start = alignment == TableAlignment.Right && !longer ? width - shown : 0;
+        int start = longer ? 0 : alignment switch
+        {
+            TableAlignment.Right => width - shown,
+            TableAlignment.Center => (width - shown) / 2,
+            _ => 0,
+        };
 
         Span<char> span = scratch.AsSpan(0, width);
         span.Fill(' ');
@@ -969,7 +1037,12 @@ public class TTableView : TView
         for (int i = 0; i < width; i++) buffer.putAttribute(x + i, color);
     }
 
-    private static string Clip(string text, int width) => text.Length > width ? text[..width] : text;
+    private static string Clip(string text, int width)
+    {
+        if (TextLayout.DefaultProfile == TextWidthProfile.Legacy) return text.Length > width ? text[..width] : text;
+        int units = TextLayout.Fit(text, Math.Max(0, width), CellLayout, out _);
+        return units < text.Length ? text[..units] : text;
+    }
 
     private sealed class PendingRead
     {

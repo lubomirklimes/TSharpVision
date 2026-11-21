@@ -82,11 +82,11 @@ public class TDisplay : IDisposable
     {
         if (driver == null)
         {
-            IDriver created = ScreenDriverFactory.CreateScreenDriver();
             try
             {
-                created.Initialize();
-                driver = created;
+                // Initializes the selected driver; under automatic selection a GPU driver that cannot get a
+                // device is replaced by the SDL renderer driver once (ScreenDriverFactory.InitializeWithFallback).
+                driver = ScreenDriverFactory.CreateAndInitializeScreenDriver();
             }
             catch
             {

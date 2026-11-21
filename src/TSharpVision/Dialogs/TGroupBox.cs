@@ -133,10 +133,17 @@ public class TGroupBox : TGroup
     {
         int budget = size.x - 4; // two corners and one space on either side
         if (budget <= 0 || Title.Length == 0) return;
-        int length = Math.Min(budget, Title.Length);
-        if (length < Title.Length && length > 0 && char.IsHighSurrogate(Title[length - 1])) length--;
+        int length, cells;
+        if (CellText.Legacy)
+        {
+            length = Math.Min(budget, Title.Length);
+            if (length < Title.Length && length > 0 && char.IsHighSurrogate(Title[length - 1])) length--;
+            cells = length;
+        }
+        else
+            length = CellText.Fit(Title, budget, out cells);
         if (length == 0) return;
-        int block = length + 2;
+        int block = cells + 2;
         int start = TitleAlignment switch
         {
             TGroupBoxTitleAlignment.Center => (size.x - block) / 2,
@@ -144,7 +151,7 @@ public class TGroupBox : TGroup
             _ => 1
         };
         row.moveChar(start, ' ', color, block);
-        row.moveBuf(start + 1, Title.AsSpan(0, length), color, length);
+        row.moveBuf(start + 1, Title.AsSpan(0, length), color, cells);
     }
 
     /// <inheritdoc />

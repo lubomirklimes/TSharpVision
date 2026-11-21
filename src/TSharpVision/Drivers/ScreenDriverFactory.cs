@@ -183,7 +183,14 @@ public class ScreenDriverFactory
     /// <summary>The environment variable that overrides <c>[driver] name</c>.</summary>
     internal const string DriverEnvironmentVariable = "TSHARPVISION_DRIVER";
 
-    private static Type? GetDriverTypeForPlatform(Platform platform)
+    private static Type? GetDriverTypeForPlatform(Platform platform) => SelectDriverForPlatform(platform).Type;
+
+    /// <summary>
+    /// The driver type for <paramref name="platform"/> and whether its startup may fall back to the driver a
+    /// <see cref="DriverStartupFallbackException"/> names: only for automatic selection (nothing requested, or a name
+    /// that is not registered) and for the portable <c>sdl</c> alias, never with a driver decorator configured.
+    /// </summary>
+    private static (Type? Type, bool AllowsFallback) SelectDriverForPlatform(Platform platform)
     {
         var registrations = DriverTypes
             .SelectMany(type => type
@@ -199,11 +206,94 @@ public class ScreenDriverFactory
             && requested is not null)
         {
             string name = ResolveAlias(platform, requested);
-            return registrations.FirstOrDefault(x => x.attribute.System == platform
+            return (registrations.FirstOrDefault(x => x.attribute.System == platform
                 && string.Equals(x.attribute.Driver, name, StringComparison.OrdinalIgnoreCase)).type
-                ?? throw new InvalidOperationException($"Requested backend '{requested}' is unavailable; no fallback performed.");
+                ?? throw new InvalidOperationException($"Requested backend '{requested}' is unavailable; no fallback performed."), false);
         }
-        return ResolveDriverType(platform, registrations, requested, Console.Error);
+        Type? type = ResolveDriverType(platform, registrations, requested, Console.Error);
+        return (type, AllowsStartupFallback(platform, registrations.Select(x => x.attribute), requested));
+    }
+
+    /// <summary>
+    /// Whether a startup fallback is allowed for <paramref name="requested"/>: nothing requested, the portable
+    /// <c>sdl</c> alias, or a name no driver is registered under for <paramref name="platform"/> (selection is then
+    /// automatic). An exact registered name is the user's explicit choice and fails fast.
+    /// </summary>
+    internal static bool AllowsStartupFallback(Platform platform, IEnumerable<ScreenDriverAttribute> registrations, string? requested)
+    {
+        requested = requested?.Trim();
+        if (string.IsNullOrEmpty(requested)) return true;
+        if (string.Equals(requested, "sdl", StringComparison.OrdinalIgnoreCase)) return true;
+        string name = ResolveAlias(platform, requested);
+        return !registrations.Any(a => a.System == platform && string.Equals(a.Driver, name, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Selects, constructs and initializes the screen driver (what <see cref="TDisplay"/> does at startup). When the
+    /// selected driver fails with a <see cref="DriverStartupFallbackException"/> and the selection allows it, the
+    /// failed driver is disposed and the named fallback is constructed and initialized once.
+    /// </summary>
+    internal static IDriver CreateAndInitializeScreenDriver()
+    {
+        Platform platform = GetCurrentPlatform();
+        var (driverType, allowsFallback) = SelectDriverForPlatform(platform);
+        IDriver driver = ConstructDriver(platform, driverType);
+        bool decorated = !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(DecoratorEnvironmentVariable));
+        return InitializeWithFallback(driver, allowsFallback && !decorated,
+            name => CreateRegisteredDriver(platform, name), Console.Error);
+    }
+
+    /// <summary>
+    /// Initializes <paramref name="driver"/>; on a <see cref="DriverStartupFallbackException"/> with
+    /// <paramref name="allowFallback"/>, disposes it and initializes the driver <paramref name="createFallback"/>
+    /// returns for the named fallback, once. Every other failure propagates unchanged. If the fallback fails too, both
+    /// errors are reported together.
+    /// </summary>
+    internal static IDriver InitializeWithFallback(IDriver driver, bool allowFallback,
+                                                   Func<string, IDriver?> createFallback, TextWriter? log)
+    {
+        try
+        {
+            driver.Initialize();
+            return driver;
+        }
+        catch (DriverStartupFallbackException failure)
+        {
+            // Without a fallback the caller sees the driver's ordinary startup error, not the internal signal.
+            if (!allowFallback) throw new InvalidOperationException(failure.Message, failure.InnerException);
+            string failed = driver.GetType().Name;
+            (driver as IDisposable)?.Dispose();
+            IDriver? fallback = createFallback(failure.FallbackDriver);
+            if (fallback is null) throw new InvalidOperationException(failure.Message, failure.InnerException);
+
+            log?.WriteLine($"[driver] {failed} could not start: {failure.InnerException?.Message ?? failure.Message}");
+            log?.WriteLine($"[driver] Starting {fallback.GetType().Name} instead.");
+            try
+            {
+                fallback.Initialize();
+            }
+            catch (Exception second)
+            {
+                try { (fallback as IDisposable)?.Dispose(); }
+                catch (Exception cleanup)
+                {
+                    throw new AggregateException(
+                        $"Neither {failed} nor {fallback.GetType().Name} could start, and cleanup failed.", failure, second, cleanup);
+                }
+                // AggregateException appends both messages.
+                throw new AggregateException($"Neither {failed} nor {fallback.GetType().Name} could start.", failure, second);
+            }
+            log?.WriteLine($"[driver] {fallback.GetType().Name} started (fallback from {failed}).");
+            return fallback;
+        }
+    }
+
+    // The registered driver named exactly name for platform, constructed (not initialized); null when absent.
+    private static IDriver? CreateRegisteredDriver(Platform platform, string name)
+    {
+        Type? type = DriverTypes.FirstOrDefault(t => t.GetCustomAttributes<ScreenDriverAttribute>()
+            .Any(a => a.System == platform && string.Equals(a.Driver, name, StringComparison.OrdinalIgnoreCase)));
+        return type is null ? null : ConstructDriver(platform, type);
     }
 
     /// <summary>
@@ -291,8 +381,11 @@ public class ScreenDriverFactory
     public static IDriver CreateScreenDriver()
     {
         Platform platform = GetCurrentPlatform();
-        Type? driverType = GetDriverTypeForPlatform(platform);
+        return ConstructDriver(platform, GetDriverTypeForPlatform(platform));
+    }
 
+    private static IDriver ConstructDriver(Platform platform, Type? driverType)
+    {
         if (driverType != null)
         {
             object instance = Activator.CreateInstance(driverType)

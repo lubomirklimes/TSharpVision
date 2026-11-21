@@ -4,7 +4,7 @@ the KEY_EVENT_RECORDs conhost produces for those keys (modifier key-down, key-do
 SHIFT_PRESSED / LEFT_CTRL_PRESSED and ENHANCED_KEY for the arrows). Run it as its own process: its console is
 detached and replaced by the target's.
 
-Usage: pwsh -NoProfile -File scripts/write-console-keys.ps1 -ProcessId <pid> -Keys Shift+Right,Down,Enter
+Usage: pwsh -NoProfile -File diagnostics/legacy/write-console-keys.ps1 -ProcessId <pid> -Keys Shift+Right,Down,Enter
 #>
 param([Parameter(Mandatory)] [int] $ProcessId, [Parameter(Mandatory)] [string[]] $Keys, [int] $DelayMs = 120)
 $ErrorActionPreference = 'Stop'

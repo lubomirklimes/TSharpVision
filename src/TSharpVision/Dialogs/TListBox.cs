@@ -86,7 +86,7 @@ public class TListBox : TListViewer
     {
         if (items == null || item < 0 || item >= items.Count) return string.Empty;
         string s = items[item] ?? string.Empty;
-        if (s.Length > maxChars) s = s.Substring(0, maxChars);
+        s = CellText.Truncate(s, maxChars);
         return s;
     }
 

@@ -47,7 +47,7 @@ public class TSortedListBox : TListBox
         if (sortedItems != null && item >= 0 && item < sortedItems.Count)
         {
             string s = GetItemText(sortedItems.At(item)) ?? string.Empty;
-            if (s.Length > maxChars) s = s.Substring(0, maxChars);
+            s = CellText.Truncate(s, maxChars);
             return s;
         }
         return base.GetText(item, maxChars);

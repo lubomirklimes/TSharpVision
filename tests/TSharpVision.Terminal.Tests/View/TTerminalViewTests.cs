@@ -108,10 +108,15 @@ public sealed class TTerminalViewTests : IDisposable
     {
         Start();
         _session.Emit("中x😀y𝄞z");
-        Assert.Equal("中 x� y�z", Row(0));   // a one-unit cell cannot hold 😀 or 𝄞: U+FFFD stands in
-        Assert.Equal('中', Cell(0, 0).Character);
+        // TV13p: wide and supplementary characters are projected as core clusters (lead + trail), no longer flattened
+        // to one UTF-16 unit with U+FFFD standing in for 😀 and 𝄞.
+        Assert.Equal((TScreenCellKind.Lead, 2, "中"), (Cell(0, 0).Kind, Cell(0, 0).CellWidth, Cell(0, 0).GetText()));
+        Assert.Equal(TScreenCellKind.Trail, Cell(1, 0).Kind);
         Assert.Equal('x', Cell(2, 0).Character);
+        Assert.Equal((TScreenCellKind.Lead, 2, "😀"), (Cell(3, 0).Kind, Cell(3, 0).CellWidth, Cell(3, 0).GetText()));
+        Assert.Equal(TScreenCellKind.Trail, Cell(4, 0).Kind);
         Assert.Equal('y', Cell(5, 0).Character);
+        Assert.Equal((TScreenCellKind.Lead, 1, "𝄞"), (Cell(6, 0).Kind, Cell(6, 0).CellWidth, Cell(6, 0).GetText()));
         Assert.Equal('z', Cell(7, 0).Character);
     }
 

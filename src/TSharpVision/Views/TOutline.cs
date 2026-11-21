@@ -88,7 +88,9 @@ public abstract class TOutlineViewer : TScroller
             string row = (flags & Views.ovExpanded) == 0
                 ? string.Concat(graph, "~", text, "~")
                 : string.Concat(graph, text);
-            buffer.moveCStr(0, delta.x < row.Length ? row[delta.x..] : string.Empty, color);
+            // delta.x scrolls by cells of the row (each '~' marker counts as one, as in 1.2).
+            int start = CellText.SkipColumns(row, delta.x, out int pad);
+            buffer.moveCStr(pad, row[start..], color);
             WriteLine(0, position - delta.y, size.x, 1, buffer);
             lastDrawn = position;
         }
@@ -127,7 +129,7 @@ public abstract class TOutlineViewer : TScroller
         FirstThat((viewer, node, level, _, lines, flags) =>
         {
             count++;
-            maxWidth = Math.Max(maxWidth, GetText(node).Length + GetGraph(level, lines, flags).Length);
+            maxWidth = Math.Max(maxWidth, CellText.Measure(GetText(node)) + CellText.Measure(GetGraph(level, lines, flags)));
             return false;
         });
         SetLimit(maxWidth, count);
@@ -231,7 +233,7 @@ public abstract class TOutlineViewer : TScroller
             else if (dragged < 2)
             {
                 GetTraversalData(foc, out TNode? node, out int level, out long lines, out ushort flags);
-                if (node != null && mouse.x < GetGraph(level, lines, flags).Length)
+                if (node != null && mouse.x < CellText.Measure(GetGraph(level, lines, flags)))
                 {
                     Adjust(node, !IsExpanded(node));
                     Update();

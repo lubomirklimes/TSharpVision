@@ -1053,7 +1053,7 @@ public class TView : TStreamable, IInfo, IDisposable
         Span<TScreenChar> row = stackalloc TScreenChar[size.x > 0 ? size.x : 1];
         var b = new TDrawBuffer(row);
         b.moveStr(0, str, color);
-        WriteLine(x, y, str.Length, 1, b);
+        WriteLine(x, y, CellText.Measure(str), 1, b);
     }
 
     /// <summary>Writes a run of identical characters with the supplied display attribute at a local cell position.</summary>

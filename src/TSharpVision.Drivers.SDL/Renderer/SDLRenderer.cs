@@ -22,6 +22,10 @@ namespace TSharpVision.Drivers.SDL;
 ///   Font glyphs (3 and 4) come from <see cref="SdlCellGlyphRasterizer"/>, shared with the GPU
 ///   renderer, as cell-sized masks drawn 1:1.
 ///   5. Space / NUL: background only, no glyph texture.
+///   6. Grapheme clusters (lead cells, TV13m): the whole cluster from <see cref="SdlClusterRasterizer"/> (one primary
+///      font per cluster), drawn after the row's backgrounds across the lead and its trail cells. Textures are keyed by
+///      (cells, cluster text) only: a monochrome cluster is white and tinted at draw time (SDL_SetTextureColorMod), a
+///      colour cluster keeps its own colours.
 ///
 /// Cells are drawn in drawable (output) pixels. On a HiDPI window the cell is the logical cell
 /// scaled by the pixel density (<see cref="SdlCellMetrics"/>) and the font is rasterised at
@@ -85,6 +89,28 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
     // Font glyph → cell mask, shared placement with SDLGpuRenderer.
     private SdlCellGlyphRasterizer? _cellGlyphs;
 
+    // Grapheme clusters (TV13m): rasteriser shared with SDLGpuRenderer, textures keyed by (cells, text).
+    private SdlClusterRasterizer? _clusters;
+    private readonly Dictionary<string, ClusterTexture> _clusterTextures = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, ClusterTexture>.AlternateLookup<ReadOnlySpan<char>> _clusterLookup;
+
+    private readonly record struct ClusterTexture(IntPtr Texture, bool IsColor);
+
+    /// <summary>Most cluster textures kept before the cache is emptied.</summary>
+    internal const int MaxClusterTextures = 1024;
+
+    /// <summary>Cluster textures created so far (diagnostics: a foreground change must not create new ones).</summary>
+    internal int ClusterTexturesCreated { get; private set; }
+
+    /// <summary>Cluster textures currently cached.</summary>
+    internal int CachedClusterTextures => _clusterTextures.Count;
+
+    /// <summary>The cluster rasteriser (font chain, fitted sizes, counters) for qualification.</summary>
+    internal SdlClusterRasterizer? ClustersForTesting => _clusters;
+
+    /// <summary>True when the loaded font chain has a colour emoji font whose reference glyph rasterised in colour.</summary>
+    internal bool ColorGlyphsAvailable => _clusters?.ColorGlyphsAvailable ?? false;
+
     // ─────────────────────────────────────────────────────────────────────────
     // Font probing
     // ─────────────────────────────────────────────────────────────────────────
@@ -129,6 +155,7 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
     {
         _renderer = renderer;
         _fontFit  = fontFit;
+        _clusterLookup = _clusterTextures.GetAlternateLookup<ReadOnlySpan<char>>();
         _imageTextures = new SdlImageTextureCache(new ImageTextureBackend(renderer), QueryMaxTextureSize(renderer));
 
         if (!SDL3.TTF.Init())
@@ -197,6 +224,10 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
             new Cp437GlyphGenerator(_cellWidth, _cellHeight,
                 Cp437GlyphGeneratorOptions.Default with { ShadingDotSize = _metrics.ShadingDotSize }));
 
+        _clusters = new SdlClusterRasterizer(
+            _fontPath, _cellGlyphs.UniformPointSize, _cellWidth, _cellHeight, _cellGlyphs.TextBaseline,
+            SdlFallbackFontChain.Resolve());
+
         if (SdlRendererPerformanceDiagnostics.Enabled)
             LogStartupDiagnostics(rasterPt);
     }
@@ -204,6 +235,8 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
     /// <summary>Closes the fonts and rasteriser opened by <see cref="LoadFont"/>; SDL_ttf stays initialised.</summary>
     private void UnloadFont()
     {
+        _clusters?.Dispose();
+        _clusters = null;
         _cellGlyphs?.Dispose();
         _cellGlyphs = null;
 
@@ -255,6 +288,10 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
             $"ascent={_ascent} descent={_descent} fontH={_fontHeight} lineSkip={_lineSkip} " +
             $"textBaseline={_cellGlyphs?.TextBaseline} " +
             $"fontFit={_cellGlyphs?.FontFit} textSize={_cellGlyphs?.UniformPointSize}pt");
+        if (_clusters != null)
+            Console.Error.WriteLine(
+                $"[SDLRenderer] clusterFonts={string.Join(" > ", _clusters.Fonts.Select(f => $"{f.Role}:{Path.GetFileName(f.Path)}"))} " +
+                $"colorGlyphs={_clusters.ColorGlyphsAvailable}");
 
     }
 
@@ -526,6 +563,91 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
                 SDL3.SDL.DestroyTexture(tex);
         }
         _glyphCache.Clear();
+        ClearClusterTextures();
+    }
+
+    private void ClearClusterTextures()
+    {
+        foreach (ClusterTexture entry in _clusterTextures.Values)
+            if (entry.Texture != IntPtr.Zero) SDL3.SDL.DestroyTexture(entry.Texture);
+        _clusterTextures.Clear();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Grapheme clusters (TV13m)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // Draws the row's lead cells over their lead and trail cells (the span stops at the first cell that is not a
+    // trail, and at the region's right edge; the source rectangle is cut to match, so nothing is squeezed).
+    private void DrawClusters(ScreenBuffer screenBuffer, uint y, uint regionX, uint maxX)
+    {
+        Span<char> scratch = stackalloc char[2];
+        for (uint x = regionX; x < maxX; x++)
+        {
+            TScreenChar cell = screenBuffer.GetChar(x, y);
+            if (cell.Kind != TScreenCellKind.Lead) continue;
+            int width = cell.CellWidth;
+            int span = 1;
+            while (span < width && x + span < maxX && screenBuffer.GetChar(x + (uint)span, y).Kind == TScreenCellKind.Trail)
+                span++;
+
+            var (fgArgb, bgArgb) = SdlPalette.DecodeAttr((byte)(cell.Attr & 0xFF));
+            if (_cursorType >= 100 && (int)x == _cursorX && (int)y == _cursorY) fgArgb = bgArgb;
+
+            var dst = new SDL3.SDL.FRect { X = (int)(x * _cellWidth), Y = (int)(y * _cellHeight), W = span * _cellWidth, H = _cellHeight };
+            ReadOnlySpan<char> text = cell.GetText(scratch);
+            ClusterTexture entry = GetOrCreateClusterTexture(text, width);
+            if (entry.Texture == IntPtr.Zero)
+            {
+                Trace?.Record(new SdlRenderOp(SdlRenderOpKind.GlyphMissing, (int)dst.X, (int)dst.Y, (int)dst.W, (int)dst.H,
+                    fgArgb, cell.Character, SdlGlyphRenderClass.Natural));
+                continue;
+            }
+
+            Trace?.Record(new SdlRenderOp(SdlRenderOpKind.Cluster, (int)dst.X, (int)dst.Y, (int)dst.W, (int)dst.H,
+                entry.IsColor ? 0xFFFFFFFFu : fgArgb, cell.Character, SdlGlyphRenderClass.Natural));
+            if (entry.IsColor) SDL3.SDL.SetTextureColorMod(entry.Texture, 255, 255, 255);
+            else SDL3.SDL.SetTextureColorMod(entry.Texture, (byte)(fgArgb >> 16), (byte)(fgArgb >> 8), (byte)fgArgb);
+            var src = new SDL3.SDL.FRect { X = 0, Y = 0, W = span * _cellWidth, H = _cellHeight };
+            SDL3.SDL.RenderTexture(_renderer, entry.Texture, in src, in dst);
+        }
+    }
+
+    private ClusterTexture GetOrCreateClusterTexture(ReadOnlySpan<char> text, int cells)
+    {
+        cells = Math.Clamp(cells, 1, TScreenChar.MaxCellWidth);
+        int length = text.Length + 1;
+        Span<char> key = length <= 256 ? stackalloc char[length] : new char[length];
+        key[0] = (char)('0' + cells);
+        text.CopyTo(key[1..]);
+        if (_clusterLookup.TryGetValue(key, out ClusterTexture cached)) return cached;
+        if (_clusterTextures.Count >= MaxClusterTextures) ClearClusterTextures();
+
+        var entry = new ClusterTexture(IntPtr.Zero, false);
+        SdlClusterGlyph? glyph = _clusters?.Get(text, cells);
+        if (glyph != null) entry = new ClusterTexture(CreateClusterTexture(glyph), glyph.IsColor);
+        _clusterTextures[key.ToString()] = entry;
+        return entry;
+    }
+
+    // Static RGBA texture (R, G, B, A in memory), straight alpha, blended. Monochrome rasters are white.
+    private unsafe IntPtr CreateClusterTexture(SdlClusterGlyph glyph)
+    {
+        SDL3.SDL.PixelFormat rgba32 = BitConverter.IsLittleEndian ? SDL3.SDL.PixelFormat.ABGR8888 : SDL3.SDL.PixelFormat.RGBA8888;
+        IntPtr texture = SDL3.SDL.CreateTexture(_renderer, rgba32, SDL3.SDL.TextureAccess.Static, glyph.Width, glyph.Height);
+        if (texture == IntPtr.Zero) return IntPtr.Zero;
+        bool ok;
+        fixed (byte* pixels = glyph.Rgba)
+            ok = SDL3.SDL.UpdateTexture(texture, IntPtr.Zero, (IntPtr)pixels, glyph.Width * 4);
+        if (!ok)
+        {
+            SDL3.SDL.DestroyTexture(texture);
+            return IntPtr.Zero;
+        }
+        SDL3.SDL.SetTextureBlendMode(texture, SDL3.SDL.BlendMode.Blend);
+        SDL3.SDL.SetTextureScaleMode(texture, SDL3.SDL.ScaleMode.Nearest);
+        ClusterTexturesCreated++;
+        return texture;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -618,6 +740,10 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
                 if (ch is ' ' or '\0')
                     continue;
 
+                // Lead cells are drawn by DrawClusters once the row's backgrounds are down.
+                if (_clusters != null && cell.Kind == TScreenCellKind.Lead)
+                    continue;
+
                 // 3. Get (or lazily create and cache) the glyph texture.
                 // Phase is the cell's grid position modulo the shading lattice period; it is only
                 // consulted for CP437 B0-DF under PhasedDither (see SdlGlyphTextureKey.Create).
@@ -638,6 +764,8 @@ internal sealed class SDLRenderer : IDisposable, ISDLRenderer
                     fgArgb, ch, SdlGlyphRenderPolicy.Classify(ch)));
                 SDL3.SDL.RenderTexture(_renderer, texture, IntPtr.Zero, in cellRect);
             }
+
+            if (_clusters != null) DrawClusters(screenBuffer, y, regionX, maxX);
         }
 
         // 4. Pixel graphics layers over the finished grid (nothing to do without a layer).

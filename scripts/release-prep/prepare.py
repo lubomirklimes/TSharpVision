@@ -189,8 +189,8 @@ def plan(root, data, output, commands):
         raise Blocked('Requested version ' + v + ' differs from repository version ' + version + '; set <Version> in Directory.Build.props first (see scripts/release-prep/README.md). No edits made.')
     readme = read(root / 'README.md')
     changelog = read(root / 'CHANGELOG.md')
-    # Keep exact heading consumed by prepare-github-release.ps1; pending/date is body text.
-    body = ('Pending release.' if not data.get('date') else 'Release date: ' + data['date'] + '.') + '\n\n' + '\n'.join('- ' + c for c in data['changes'])
+    # Keep the exact heading consumed by prepare-github-release.ps1; omit unknown release dates.
+    body = ('Release date: ' + data['date'] + '.\n\n' if data.get('date') else '') + '\n'.join('- ' + c for c in data['changes'])
     existing = changelog_section(changelog, v)
     if data.get('changelog', 'generate') == 'existing':
         if not existing:
@@ -208,7 +208,7 @@ def plan(root, data, output, commands):
         raise Blocked('README version statement requires manual discovery')
     readme = re.sub(default, 'Package metadata currently defaults to `' + v + '`.', readme)
     start, end = '<!-- release-prep:upcoming -->', '<!-- /release-prep:upcoming -->'
-    upcoming = start + '\n**Upcoming ' + v + '** (' + data['channel'] + ', not yet published): ' + data['readme_summary'] + ' See [CHANGELOG.md](CHANGELOG.md).\n' + end
+    upcoming = start + '\n**TSharpVision ' + v + '** (' + data['channel'] + '): ' + data['readme_summary'] + ' See [CHANGELOG.md](CHANGELOG.md).\n' + end
     if start in readme or end in readme:
         if readme.count(start) != 1 or readme.count(end) != 1 or readme.index(end) < readme.index(start):
             raise Blocked('Conflicting README release-prep markers')
@@ -284,7 +284,7 @@ Preparation: PASS. Publication readiness: owner checks and sequencing decision r
 
 PASS: strict SemVer/channel; central Version and all {len(packages)} evaluated versions ({len(libraries)} libraries,
 {len(tools)} .NET tools); package IDs and tool commands; required package metadata; net10.0; internal ProjectReference graph; exact changelog heading;
-single consistent entry; README pending publication; release notes, package inventory and manual procedure.
+single consistent entry; README version documentation without publication claims; release notes, package inventory and manual procedure.
 PASS: release architecture inspected statically; v{v} matches v*; tagged scripts are used.
 PASS: repository version (Directory.Build.props) equals the requested version; no version mutation.
 PASS: publication (dependency) order: {publish_order}.

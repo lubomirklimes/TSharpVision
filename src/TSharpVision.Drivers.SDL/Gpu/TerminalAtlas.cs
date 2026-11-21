@@ -8,8 +8,8 @@ namespace TSharpVision.Drivers.SDL.Gpu;
 // The CPU buffer is kept in sync with allocated slots. UploadIfDirty copies it
 // to the GPU texture inside an already-open copy pass.
 //
-// Slot content is immutable once allocated: GetOrAllocateSlot invokes the glyph source only the
-// first time it sees a key. That is what lets SDLGpuRenderer clear its own alpha cache on
+// Slot content is immutable once allocated (until Reset evicts every slot): GetOrAllocateSlot invokes
+// the glyph source only the first time it sees a key. That is what lets SDLGpuRenderer clear its own alpha cache on
 // overflow while atlas slots persist — the same key resolves to the uploaded slot, and glyph
 // generation is deterministic in any case.
 internal sealed class TerminalAtlas : IDisposable
@@ -163,15 +163,44 @@ internal sealed class TerminalAtlas : IDisposable
             throw new InvalidOperationException($"[SDLGpu] Failed to create glyph atlas: {SDL3.SDL.GetError()}");
     }
 
+    /// <summary>
+    /// Lookups that found the atlas full (the glyph got no slot). <see cref="TerminalGpuPipeline"/> answers a frame
+    /// with new misses by <see cref="Reset"/> and one rebuild, so a miss is never a silent drop.
+    /// </summary>
+    internal int FullMisses { get; private set; }
+
+    /// <summary>Times every slot was evicted to make room (TV13m). Diagnostics.</summary>
+    internal int Evictions { get; private set; }
+
+    /// <summary>Glyphs a frame could not draw even after an eviction (more distinct glyphs than slots). Diagnostics.</summary>
+    internal int DroppedGlyphs { get; set; }
+
+    /// <summary>
+    /// Evicts every slot (TV13m; replaces the former silent drop on overflow). The CPU copy is cleared, so a key whose
+    /// glyph source returns null cannot show a stale glyph, and the whole atlas is uploaded again.
+    /// </summary>
+    internal void Reset()
+    {
+        _slots.Clear();
+        Array.Clear(_cpu);
+        _nextSlot = 0;
+        _dirty = true;
+        Evictions++;
+    }
+
     // Returns UV rect for the glyph. Allocates a new slot if this is the first
     // time this key is seen, calling getAlpha() to get the alpha mask.
+    // When the atlas is full it returns an empty rect and counts the miss (FullMisses).
     internal (float u0, float v0, float u1, float v1) GetOrAllocateSlot(
         GpuGlyphKey key, Func<GpuGlyphKey, byte[]?> getAlpha)
     {
         if (!_slots.TryGetValue(key, out int slot))
         {
             if (_nextSlot >= Capacity)
-                return default;  // atlas full; glyph won't render
+            {
+                FullMisses++;
+                return default;  // atlas full: the pipeline evicts and rebuilds the frame
+            }
 
             slot = _nextSlot++;
             _slots[key] = slot;

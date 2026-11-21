@@ -1,47 +1,40 @@
-using System.Globalization;
 using System.Text;
+using TSharpVision.Text;
 
 namespace TSharpVision.Terminal;
 
 /// <summary>
-/// How many terminal columns a character occupies — the practical <c>wcwidth</c> subset the emulator uses.
+/// How many terminal columns a character occupies: per-code-point <c>wcwidth</c> semantics, sourced from the core's
+/// Unicode 16.0 width data (<see cref="TextLayout"/> with <see cref="TextWidthProfile.CodePoint"/>).
 /// </summary>
 /// <remarks>
 /// <list type="bullet">
 ///   <item><description>0: non-spacing and enclosing marks (Mn, Me), format characters (Cf, except U+00AD soft hyphen),
-///   Hangul medial vowels and final consonants (U+1160–U+11FF), zero-width space. They join the preceding cell's
+///   Hangul medial vowels and final consonants, zero-width space. They join the preceding cell's
 ///   grapheme.</description></item>
-///   <item><description>2: East Asian Wide and Fullwidth ranges (Hangul, CJK, kana, full-width forms, …) and characters
-///   with a default emoji presentation.</description></item>
+///   <item><description>2: East Asian Wide and Fullwidth characters and characters with a default emoji presentation
+///   (Unicode 16.0 East_Asian_Width W/F and Emoji_Presentation).</description></item>
 ///   <item><description>1: everything else, including ambiguous-width characters (as xterm does by default).</description></item>
 /// </list>
-/// Full grapheme clustering (emoji ZWJ sequences, regional-indicator pairs) is not modelled: each code point takes its
-/// own width, so such sequences may use more columns than a terminal that clusters them. The grid stays consistent either
-/// way.
+/// <para>
+/// The width is decided one code point at a time, as a child program's <c>wcwidth</c> decides it, never per grapheme
+/// cluster: a terminal grid has to agree with the program that positions the cursor in it. Full grapheme clustering
+/// (emoji ZWJ sequences, skin-tone modifiers, regional-indicator pairs) is therefore not modelled: each code point
+/// takes its own width, so such sequences may use more columns than a terminal that clusters them. The grid stays
+/// consistent either way.
+/// </para>
+/// <para>
+/// Terminal-specific override: regional indicators (U+1F1E6..U+1F1FF) are one column each, as in glibc, xterm and
+/// most terminals' <c>wcwidth</c>, although Unicode gives them an emoji presentation (a flag is two of them: two
+/// columns).
+/// </para>
 /// </remarks>
 internal static class TerminalCharWidth
 {
-    // Sorted, inclusive ranges of width-2 code points.
-    private static readonly (int First, int Last)[] Wide =
-    {
-        (0x1100, 0x115F), (0x231A, 0x231B), (0x2329, 0x232A), (0x23E9, 0x23EC), (0x23F0, 0x23F0), (0x23F3, 0x23F3),
-        (0x25FD, 0x25FE), (0x2614, 0x2615), (0x2648, 0x2653), (0x267F, 0x267F), (0x2693, 0x2693), (0x26A1, 0x26A1),
-        (0x26AA, 0x26AB), (0x26BD, 0x26BE), (0x26C4, 0x26C5), (0x26CE, 0x26CE), (0x26D4, 0x26D4), (0x26EA, 0x26EA),
-        (0x26F2, 0x26F3), (0x26F5, 0x26F5), (0x26FA, 0x26FA), (0x26FD, 0x26FD), (0x2705, 0x2705), (0x270A, 0x270B),
-        (0x2728, 0x2728), (0x274C, 0x274C), (0x274E, 0x274E), (0x2753, 0x2755), (0x2757, 0x2757), (0x2795, 0x2797),
-        (0x27B0, 0x27B0), (0x27BF, 0x27BF), (0x2B1B, 0x2B1C), (0x2B50, 0x2B50), (0x2B55, 0x2B55),
-        (0x2E80, 0x303E), (0x3041, 0x33FF), (0x3400, 0x4DBF), (0x4E00, 0x9FFF), (0xA000, 0xA4CF), (0xA960, 0xA97F),
-        (0xAC00, 0xD7A3), (0xF900, 0xFAFF), (0xFE10, 0xFE19), (0xFE30, 0xFE6F), (0xFF00, 0xFF60), (0xFFE0, 0xFFE6),
-        (0x16FE0, 0x16FE4), (0x17000, 0x18AFF), (0x1B000, 0x1B2FF), (0x1F004, 0x1F004), (0x1F0CF, 0x1F0CF),
-        (0x1F18E, 0x1F18E), (0x1F191, 0x1F19A), (0x1F200, 0x1F202), (0x1F210, 0x1F23B), (0x1F240, 0x1F248),
-        (0x1F250, 0x1F251), (0x1F260, 0x1F265), (0x1F300, 0x1F320), (0x1F32D, 0x1F335), (0x1F337, 0x1F37C),
-        (0x1F37E, 0x1F393), (0x1F3A0, 0x1F3CA), (0x1F3CF, 0x1F3D3), (0x1F3E0, 0x1F3F0), (0x1F3F4, 0x1F3F4),
-        (0x1F3F8, 0x1F43E), (0x1F440, 0x1F440), (0x1F442, 0x1F4FC), (0x1F4FF, 0x1F53D), (0x1F54B, 0x1F54E),
-        (0x1F550, 0x1F567), (0x1F57A, 0x1F57A), (0x1F595, 0x1F596), (0x1F5A4, 0x1F5A4), (0x1F5FB, 0x1F64F),
-        (0x1F680, 0x1F6C5), (0x1F6CC, 0x1F6CC), (0x1F6D0, 0x1F6D2), (0x1F6D5, 0x1F6D7), (0x1F6DC, 0x1F6DF),
-        (0x1F6EB, 0x1F6EC), (0x1F6F4, 0x1F6FC), (0x1F7E0, 0x1F7EB), (0x1F7F0, 0x1F7F0), (0x1F90C, 0x1F93A),
-        (0x1F93C, 0x1F945), (0x1F947, 0x1F9FF), (0x1FA70, 0x1FAFF), (0x20000, 0x2FFFD), (0x30000, 0x3FFFD),
-    };
+    private static readonly TextLayoutOptions CodePointOptions = new() { Profile = TextWidthProfile.CodePoint };
+
+    // Basic Multilingual Plane cache: 0 = not computed yet, otherwise width + 1. Racing writers store the same value.
+    private static readonly byte[] BmpCache = new byte[0x10000];
 
     /// <summary>
     /// Columns <paramref name="codePoint"/> occupies: 0, 1 or 2. C0/C1 controls and invalid code points answer -1; the
@@ -53,30 +46,25 @@ internal static class TerminalCharWidth
         if (codePoint < 0x300) return 1;   // Latin, including U+00AD, which terminals show
         if (!Rune.IsValid(codePoint)) return -1;
 
-        if (codePoint is >= 0x1160 and <= 0x11FF || codePoint == 0x200B) return 0;
-        switch (Rune.GetUnicodeCategory(new Rune(codePoint)))
+        if (codePoint <= 0xFFFF)
         {
-            case UnicodeCategory.NonSpacingMark:
-            case UnicodeCategory.EnclosingMark:
-            case UnicodeCategory.Format:
-                return 0;
+            byte cached = BmpCache[codePoint];
+            if (cached != 0) return cached - 1;
+            int width = Compute(codePoint);
+            BmpCache[codePoint] = (byte)(width + 1);
+            return width;
         }
 
-        return IsWide(codePoint) ? 2 : 1;
+        return Compute(codePoint);
     }
 
-    private static bool IsWide(int codePoint)
+    private static int Compute(int codePoint)
     {
-        if (codePoint < Wide[0].First) return false;
-        int low = 0, high = Wide.Length - 1;
-        while (low <= high)
-        {
-            int middle = (low + high) >> 1;
-            if (codePoint < Wide[middle].First) high = middle - 1;
-            else if (codePoint > Wide[middle].Last) low = middle + 1;
-            else return true;
-        }
+        if (codePoint is >= 0x1F1E6 and <= 0x1F1FF) return 1;   // regional indicators: see remarks
+        if (codePoint == 0x200B) return 0;                       // zero-width space
 
-        return false;
+        Span<char> units = stackalloc char[2];
+        int length = new Rune(codePoint).EncodeToUtf16(units);
+        return Math.Clamp(TextLayout.Measure(units[..length], CodePointOptions), 0, 2);
     }
 }

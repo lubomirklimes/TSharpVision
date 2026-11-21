@@ -7,7 +7,7 @@ cfg, which selects SDL) in its own classic conhost window at 80x25. Keys are sen
   SendInput     synthetic keyboard input through the OS input stack to the foreground window (the conhost window is
                 brought to the foreground and checked before every key; the run stops if it loses the foreground).
                 Conhost translates it exactly as typed keys, including the modifier state. Not a physical keyboard.
-  ConsoleInput  WriteConsoleInputW of the KEY_EVENT_RECORDs conhost produces for those keys (scripts/write-console-keys.ps1),
+  ConsoleInput  WriteConsoleInputW of the KEY_EVENT_RECORDs conhost produces for those keys (diagnostics/legacy/write-console-keys.ps1),
                 straight into the console input buffer that Win32ConsoleDriver reads; bypasses conhost's key translation.
   Post          WM_KEYDOWN/WM_KEYUP posted to the console window (the TSW-8E mechanism). Conhost reads modifiers from
                 the keyboard state, which posted messages do not change, so Shift and Ctrl chords arrive unmodified.
@@ -15,11 +15,11 @@ cfg, which selects SDL) in its own classic conhost window at 80x25. Keys are sen
 Size/Move is started with Ctrl+F5 (status line) except in Post mode, which uses Window > Resize / move.
 
 The welcome window ("TSharpVision Demo", a plain resizable TWindow at desktop (2,2)-(60,18)) is measured after each
-step from the console text (scripts/read-console-text.ps1, a separate process attached to that console): the frame
+step from the console text (diagnostics/legacy/read-console-text.ps1, a separate process attached to that console): the frame
 corners around its title give origin and size. Each step is also captured with PrintWindow.
 
 Usage:
-  pwsh scripts/capture-tv11-fix3-native.ps1 -Demo samples/TSharpVision.Samples.TVDemo/bin/Debug/net10.0/TSharpVision.Samples.TVDemo.exe -Output artifacts/tv-1.1-fix-3
+  pwsh diagnostics/legacy/capture-tv11-fix3-native.ps1 -Demo samples/TSharpVision.Samples.TVDemo/bin/Debug/net10.0/TSharpVision.Samples.TVDemo.exe -Output artifacts/tv-1.1-fix-3
 #>
 param(
     [Parameter(Mandatory)] [string] $Demo,

@@ -47,8 +47,7 @@ public class TButton : TView
             l = 1;
         else
         {
-            int titleLen = 0;
-            for (int k = 0; k < theTitle.Length; k++) if (theTitle[k] != '~') titleLen++;
+            int titleLen = CellText.HotkeyWidth(theTitle);
             l = (s - titleLen - 1) / 2;
             if (l < 1) l = 1;
         }
@@ -125,14 +124,6 @@ public class TButton : TView
     /// <inheritdoc />
     public override TPalette GetPalette() => _palette;
 
-    private static char ExtractHotKey(string s)
-    {
-        if (string.IsNullOrEmpty(s)) return '\0';
-        for (int i = 0; i < s.Length - 1; i++)
-            if (s[i] == '~') return char.ToUpperInvariant(s[i + 1]);
-        return '\0';
-    }
-
     private static ushort GetAltCode(char c)
     {
         return KeyboardCompatibility.AltCode(c);
@@ -146,7 +137,7 @@ public class TButton : TView
         clickRect.a.x++;
         clickRect.b.x--;
         clickRect.b.y--;
-        char c = ExtractHotKey(Title);
+        char c = CellText.Hotkey(Title);
         bool down = false;
 
         if (@event.What == Events.evMouseDown)

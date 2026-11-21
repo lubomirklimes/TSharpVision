@@ -1,1 +1,2 @@
 #nullable enable
+TSharpVision.TableView.TableAlignment.Center = 2 -> TSharpVision.TableView.TableAlignment

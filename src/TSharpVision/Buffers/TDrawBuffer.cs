@@ -65,6 +65,12 @@ public ref struct TDrawBuffer
             for (int i = 0; i < count; i++)
                 _data[indent + i].Character = c;
         }
+        // A raw cell fill: one cell per call unit, as before. It only keeps clusters around it whole.
+        if (!CellText.Legacy)
+        {
+            CellText.RepairBoundary(_data, indent);
+            CellText.RepairBoundary(_data, indent + count);
+        }
     }
 
     /// <summary>
@@ -77,6 +83,11 @@ public ref struct TDrawBuffer
     {
         if (str is null || indent < 0 || indent >= _data.Length) return;
         TColorAttr ca = (TColorAttr)attr;
+        if (!CellText.Legacy)
+        {
+            CellText.Write(_data, indent, str, attr != 0 ? ca : null, _data.Length - indent);
+            return;
+        }
         int max = _data.Length - indent;
         int n = System.Math.Min(str.Length, max);
         if (attr != 0)
@@ -97,6 +108,13 @@ public ref struct TDrawBuffer
         if (str is null || indent < 0 || indent >= _data.Length || maxWidth <= 0) return;
         TColorAttr ca = (TColorAttr)attr;
         int max = System.Math.Min(maxWidth, _data.Length - indent);
+        if (!CellText.Legacy)
+        {
+            ReadOnlySpan<char> rest = (uint)strOffset < (uint)str.Length ? str.AsSpan(strOffset) : ReadOnlySpan<char>.Empty;
+            int written = CellText.Write(_data, indent, rest, ca, max);
+            if (written < max) CellText.Fill(_data, indent + written, ' ', ca, max - written);
+            return;
+        }
         int avail = System.Math.Max(0, str.Length - strOffset);
         int n = System.Math.Min(avail, max);
         for (int i = 0; i < n; i++)
@@ -118,6 +136,22 @@ public ref struct TDrawBuffer
         byte normal = (byte)(attrs & 0xff);
         byte hot    = (byte)((attrs >> 8) & 0xff);
         if (hot == 0) hot = normal;
+        if (!CellText.Legacy)
+        {
+            int x = indent;
+            bool hotSegment = false;
+            ReadOnlySpan<char> rest = str;
+            while (x < _data.Length)
+            {
+                int tilde = rest.IndexOf('~');
+                ReadOnlySpan<char> segment = tilde < 0 ? rest : rest.Slice(0, tilde);
+                x += CellText.Write(_data, x, segment, new TColorAttr(hotSegment ? hot : normal), _data.Length - x, x - indent);
+                if (tilde < 0) break;
+                hotSegment = !hotSegment;
+                rest = rest.Slice(tilde + 1);
+            }
+            return (ushort)(x - indent);
+        }
         bool inHot = false;
         int dst = indent;
         int end = _data.Length;
@@ -136,6 +170,12 @@ public ref struct TDrawBuffer
     {
         if (count <= 0 || indent < 0 || indent >= _data.Length) return;
         if (indent + count > _data.Length) count = _data.Length - indent;
+        if (!CellText.Legacy)
+        {
+            // count limits the cells; the source is consumed cluster by cluster until they are used up.
+            CellText.Write(_data, indent, source, attr != 0 ? (TColorAttr)attr : null, count);
+            return;
+        }
         if (count > source.Length) count = source.Length;
         TColorAttr ca = (TColorAttr)attr;
         if (attr != 0)
@@ -157,6 +197,13 @@ public ref struct TDrawBuffer
     public void putChar(int indent, char c)
     {
         if ((uint)indent >= (uint)_data.Length) return;
+        if (!CellText.Legacy)
+        {
+            _data[indent] = new TScreenChar(c, _data[indent].Attr);
+            CellText.RepairBoundary(_data, indent);
+            CellText.RepairBoundary(_data, indent + 1);
+            return;
+        }
         _data[indent].Character = c;
     }
 }

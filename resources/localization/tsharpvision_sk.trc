@@ -44,6 +44,13 @@ resource strings "sharpvision.intl" {
   Encoding_Windows1250 = "Windows-1250";
   Encoding_ISO8859_2 = "ISO-8859-2";
   Encoding_Kamenicky = "Kamenický / KEYBCS2";
+  Encoding_KeepCurrent = "Ponechať aktuálne";
+  File_Err_EncodingSaveAsHint = "Nič nebolo zapísané. Pomocou Uložiť ako zvoľte iné kódovanie, napríklad UTF-8.";
+  Edit_MixedLineEndings_Title = "Konce riadkov";
+  Edit_MixedLineEndings = "Súbor '{0}' obsahuje zmiešané konce riadkov ({1}). Uložiť všetky konce riadkov ako:";
+  LineEnding_Lf = "LF (Unix)";
+  LineEnding_CrLf = "CRLF (Windows)";
+  LineEnding_Cr = "CR (klasický Mac)";
 
   ChDir_Title = "Zmeniť adresár";
   ChDir_Label_DirectoryName = "~N~ázov adresára";
@@ -80,10 +87,12 @@ resource strings "sharpvision.intl" {
   Menu_Exit = "~K~oniec";
   Menu_Edit = "Ú~p~ravy";
   Menu_Undo = "~S~päť";
+  Menu_Redo = "~O~pakovať";
   Menu_Cut = "Vy~s~trihnúť";
   Menu_Copy = "~K~opírovať";
   Menu_Paste = "~V~ložiť";
   Menu_Clear = "Vy~m~azať";
+  Menu_SelectAll = "Vy~b~rať všetko";
   Menu_Search = "~H~ľadať";
   Menu_Find = "~H~ľadať...";
   Menu_Replace = "~N~ahradiť...";

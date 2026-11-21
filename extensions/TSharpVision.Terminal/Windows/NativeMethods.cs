@@ -116,6 +116,11 @@ internal static class NativeMethods
         SafeJobObjectHandle hJob,
         IntPtr hProcess);
 
+    [DllImport("kernel32.dll", SetLastError = true)]
+    internal static extern bool TerminateJobObject(
+        SafeJobObjectHandle hJob,
+        uint uExitCode);
+
     // ── Constants ─────────────────────────────────────────────────────────────
 
     /// <summary>dwCreationFlags flag: startup info is STARTUPINFOEX.</summary>

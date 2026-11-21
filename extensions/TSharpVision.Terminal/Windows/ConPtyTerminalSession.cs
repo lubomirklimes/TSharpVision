@@ -573,6 +573,17 @@ public sealed class ConPtyTerminalSession : ITerminalSession, IResizableTerminal
 
     private void TerminateChildIfAlive()
     {
+        SafeJobObjectHandle? job = _hJob;
+        if (job is { IsInvalid: false, IsClosed: false })
+        {
+            try
+            {
+                if (NativeMethods.TerminateJobObject(job, 0))
+                    return;
+            }
+            catch (ObjectDisposedException) { }
+        }
+
         SafeProcessHandle? process = _hProcess;
         if (process == null || process.IsInvalid) return;
 

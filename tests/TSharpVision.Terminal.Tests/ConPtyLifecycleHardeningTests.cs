@@ -71,6 +71,7 @@ public sealed class ConPtyLifecycleHardeningTests
 
         using var session = Create("/d /c \"cmd /d /c ping -n 60 127.0.0.1 >nul\"");
         await session.StartAsync();
+        Assert.True(session.HasJob, "The child must be in a kill-on-close Job Object.");
         List<Process> tree = await WaitForDescendants(session.ProcessId, minimum: 2);
         try
         {

@@ -49,6 +49,7 @@ public sealed class PosixPtyTerminalSession : ITerminalSession, IResizableTermin
 
     // The PTY master; null before start and once released.
     private PtyMasterHandle? _master;
+    private int _parentSlaveFd = -1;
 
     // Child process identifier; -1 when never started. Guarded with _childReaped by _processLock.
     private int _childPid = -1;
@@ -280,13 +281,13 @@ public sealed class PosixPtyTerminalSession : ITerminalSession, IResizableTermin
                 error = SpawnMissingExecutable(actions, attributes, environment, out childPid);
             CheckSpawn(error, "posix_spawnp");
 
-            // The child has its own slave now; the parent's copy (Darwin only) is closed exactly here.
-            if (slaveFd >= 0) NativeMethods.Close(slaveFd);
+            // Darwin discards unread PTY output when the last slave descriptor closes.
+            int parentSlaveFd = slaveFd;
             slaveFd = -1;
             // Ownership of the master moves to the handle; from here nothing closes the integer.
             var master = new PtyMasterHandle(masterFd);
             masterFd = -1;
-            StartParent(childPid, master);
+            StartParent(childPid, master, parentSlaveFd);
         }
         finally
         {
@@ -351,12 +352,13 @@ public sealed class PosixPtyTerminalSession : ITerminalSession, IResizableTermin
         }
     }
 
-    private void StartParent(int childPid, PtyMasterHandle master)
+    private void StartParent(int childPid, PtyMasterHandle master, int parentSlaveFd)
     {
         bool success = false;
         try
         {
             Volatile.Write(ref _master, master);
+            _parentSlaveFd = parentSlaveFd;
             lock (_processLock) _childPid = childPid;
 
             _isRunning = true;
@@ -373,7 +375,9 @@ public sealed class PosixPtyTerminalSession : ITerminalSession, IResizableTermin
                 NativeMethods.Kill(childPid, NativeMethods.SIGKILL);
                 WaitForExit(childPid);
                 lock (_processLock) _childReaped = true;
+                _stopRequested = true;
                 _isRunning = false;
+                CloseParentSlave();
                 ReleaseMaster();
             }
         }
@@ -669,6 +673,7 @@ public sealed class PosixPtyTerminalSession : ITerminalSession, IResizableTermin
             catch { }
         }
 
+        CloseParentSlave();
         _input.Close();
         ReleaseMaster();
         _isRunning = false;
@@ -696,6 +701,12 @@ public sealed class PosixPtyTerminalSession : ITerminalSession, IResizableTermin
     {
         PtyMasterHandle? master = Volatile.Read(ref _master);
         return master is not null && master.TryAcquire() ? master : null;
+    }
+
+    private void CloseParentSlave()
+    {
+        int fd = Interlocked.Exchange(ref _parentSlaveFd, -1);
+        if (fd >= 0) NativeMethods.Close(fd);
     }
 
     /// <summary>Gives up this session's ownership of the master. Idempotent.</summary>
